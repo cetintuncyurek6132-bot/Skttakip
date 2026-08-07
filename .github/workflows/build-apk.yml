@@ -20,7 +20,6 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: 'gradle'
 
       - name: Prepare environment and keystore
         run: |
@@ -28,18 +27,22 @@ jobs:
           if [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore || true
           fi
+          sed -i '/kotlin.compiler.execution.strategy/d' gradle.properties
 
-      - name: Grant execute permission for Gradle wrapper if exists
-        run: chmod +x gradlew || true
+      - name: Grant execute permission for Gradle wrapper
+        run: chmod +x gradlew
 
-      - name: Setup Gradle
+      - name: Setup Gradle Caching
         uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-disabled: false
 
       - name: Build Debug APK
-        run: gradle assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --build-cache --parallel --no-daemon
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
