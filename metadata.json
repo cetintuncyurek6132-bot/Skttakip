@@ -1,0 +1,6 @@
+{
+  "name": "SKT Takip",
+  "description": "Market ve mağaza çalışanları için offline-first Son Kullanma Tarihi (SKT) takip, barkod tarama ve sabah kontrol turu uygulaması.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
