@@ -48,8 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import android.graphics.Bitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import com.example.ui.components.ReportPreviewDialog
 import com.example.util.ProductImageGenerator
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -83,6 +85,14 @@ fun ReportsScreen(
     var showClearAllDialog by remember { mutableStateOf(false) }
     var reportToDeleteId by remember { mutableStateOf<Int?>(null) }
     var turToDeleteId by remember { mutableStateOf<Int?>(null) }
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    if (previewBitmap != null) {
+        ReportPreviewDialog(
+            bitmap = previewBitmap!!,
+            onDismiss = { previewBitmap = null }
+        )
+    }
 
     if (showClearAllDialog) {
         AlertDialog(
@@ -348,8 +358,17 @@ fun TurRaporuCard(
     onDeleteClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val dateFormat = SimpleDateFormat("dd MMMM yyyy - HH:mm", Locale("tr", "TR"))
+    val dateFormat = SimpleDateFormat("dd MMMM yyyy - HH:mm", Locale.forLanguageTag("tr-TR"))
     val dateString = dateFormat.format(Date(rapor.turTarihi))
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    val currentPreview = previewBitmap
+    if (currentPreview != null) {
+        ReportPreviewDialog(
+            bitmap = currentPreview,
+            onDismiss = { previewBitmap = null }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -388,8 +407,7 @@ fun TurRaporuCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         onClick = {
-                            ProductImageGenerator.shareTourReportAsImage(
-                                context = context,
+                            previewBitmap = ProductImageGenerator.createTourReportBitmap(
                                 rapor = rapor,
                                 logs = emptyList()
                             )
@@ -492,10 +510,19 @@ fun InspectionReportCard(
     onDeleteClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val dateFormat = SimpleDateFormat("dd MMMM yyyy - HH:mm", Locale("tr", "TR"))
+    val dateFormat = SimpleDateFormat("dd MMMM yyyy - HH:mm", Locale.forLanguageTag("tr-TR"))
     val dateString = dateFormat.format(Date(report.tarih))
-    val currencyFormat = NumberFormat.getCurrencyInstance(Locale("tr", "TR"))
+    val currencyFormat = NumberFormat.getCurrencyInstance(Locale.forLanguageTag("tr-TR"))
     val fireString = currencyFormat.format(report.fireTutari)
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    val currentPreview = previewBitmap
+    if (currentPreview != null) {
+        ReportPreviewDialog(
+            bitmap = currentPreview,
+            onDismiss = { previewBitmap = null }
+        )
+    }
 
     Card(
         modifier = Modifier
@@ -566,8 +593,7 @@ fun InspectionReportCard(
                                 notrUrunSayisi = report.kritikUrunSayisi,
                                 tamamlandiMi = true
                             )
-                            ProductImageGenerator.shareTourReportAsImage(
-                                context = context,
+                            previewBitmap = ProductImageGenerator.createTourReportBitmap(
                                 rapor = dummyTur,
                                 logs = emptyList()
                             )

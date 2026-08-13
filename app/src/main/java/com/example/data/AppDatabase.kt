@@ -36,7 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "skt_takip_database"
                 )
                     .addCallback(AppDatabaseCallback(scope))
-                    .fallbackToDestructiveMigration()
+                    .fallbackToDestructiveMigration(true)
                     .build()
                 INSTANCE = instance
                 instance
@@ -57,6 +57,10 @@ abstract class AppDatabase : RoomDatabase() {
         }
 
         suspend fun populateInitialData(productDao: ProductDao, reportDao: InspectionReportDao) {
+            val existing = productDao.getAllProductsList()
+            if (existing.isNotEmpty()) {
+                return
+            }
             val now = System.currentTimeMillis()
             val oneDayMs = 24L * 60 * 60 * 1000
 

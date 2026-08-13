@@ -1,13 +1,13 @@
 package com.example.ui.screens
 
 import com.example.data.matchesSearchQuery
+import com.example.data.parseShelfQrPayload
 
 import android.Manifest
 import android.annotation.SuppressLint
 import android.widget.Toast
 import android.media.AudioManager
 import android.media.ToneGenerator
-import android.util.Size
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -28,6 +28,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -47,8 +48,20 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.ime
@@ -96,6 +109,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,14 +119,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
@@ -126,6 +138,8 @@ import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedContainer
 import com.example.ui.theme.NormalGreen
 import com.example.ui.theme.NormalGreenContainer
+import com.example.ui.theme.SoonYellow
+import com.example.ui.theme.SoonYellowContainer
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate300
 import com.example.ui.theme.Slate50
@@ -137,6 +151,7 @@ import com.example.ui.theme.TurquoisePrimary
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
@@ -147,16 +162,39 @@ import kotlin.math.abs
 @Composable
 fun BarcodeScannerSheet(
     products: List<Product> = emptyList(),
+    startInFixQrMode: Boolean = false,
     onDismiss: () -> Unit,
     onBarcodeDetected: (String) -> Unit,
+    onFixQrScanned: ((rawQr: String, onResult: (String, Boolean) -> Unit) -> Unit)? = null,
     onAddSkt: (Product, Long, Int) -> Unit = { _, _, _ -> }
 ) {
     var manualBarcode by remember { mutableStateOf("") }
     var activeBarcode by remember { mutableStateOf("") }
+    var isFixQrMode by remember { mutableStateOf(startInFixQrMode) }
+    var qrFixResultMsg by remember { mutableStateOf("") }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     var lastScannedCode by remember { mutableStateOf<String?>(null) }
+    var lastScannedTime by remember { mutableStateOf(0L) }
     var isFlashOn by remember { mutableStateOf(false) }
+
+    val toneGenerator = remember {
+        try {
+            ToneGenerator(AudioManager.STREAM_MUSIC, 85)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                toneGenerator?.release()
+            } catch (e: Exception) {
+                // Ignore audio release error
+            }
+        }
+    }
 
     val isKeyboardVisible = WindowInsets.isImeVisible
 
@@ -187,12 +225,13 @@ fun BarcodeScannerSheet(
                 // 1. TOP SECTION: CAMERA PREVIEW & TARGETING VIEWFINDER (Klavye veya Ürün Detayında %20, Normalde %60)
                 // =========================================================================
                 val hasProductDetail = activeBarcode.isNotBlank()
-                val isExpandedMode = isKeyboardVisible || hasProductDetail
+                val cameraWeight = if (isKeyboardVisible) 0.25f else if (hasProductDetail) 0.42f else 0.60f
+                val bottomWeight = if (isKeyboardVisible) 0.75f else if (hasProductDetail) 0.58f else 0.40f
 
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(if (isExpandedMode) 0.20f else 0.60f)
+                        .weight(cameraWeight)
                         .background(Color(0xFF0D121F))
                 ) {
                     // CAMERA PREVIEW (Using COMPATIBLE mode to prevent black/blank screen issues)
@@ -200,16 +239,33 @@ fun BarcodeScannerSheet(
                         CameraXBarcodeView(
                             isFlashOn = isFlashOn,
                             onBarcodeScanned = { barcode ->
-                                if (lastScannedCode != barcode) {
-                                    try {
-                                        val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-                                        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-                                    } catch (e: Exception) {
-                                        // Ignore audio error
+                                val now = System.currentTimeMillis()
+                                val trimmedBar = barcode.trim()
+                                if (trimmedBar.isNotBlank()) {
+                                    val isSameActive = activeBarcode.isNotBlank() &&
+                                        (activeBarcode == trimmedBar || activeBarcode.contains(trimmedBar) || trimmedBar.contains(activeBarcode))
+
+                                    val isSameRecent = lastScannedCode != null &&
+                                        (lastScannedCode == trimmedBar || lastScannedCode!!.contains(trimmedBar) || trimmedBar.contains(lastScannedCode!!)) &&
+                                        (now - lastScannedTime) < 3000L
+
+                                    if (!isSameActive && !isSameRecent) {
+                                        try {
+                                            toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                                        } catch (e: Exception) {
+                                            // Ignore audio error
+                                        }
+                                        lastScannedCode = trimmedBar
+                                        lastScannedTime = now
+                                        activeBarcode = trimmedBar
+                                        manualBarcode = trimmedBar
+
+                                        if (isFixQrMode && onFixQrScanned != null) {
+                                            onFixQrScanned(trimmedBar) { msg, _ ->
+                                                qrFixResultMsg = msg
+                                            }
+                                        }
                                     }
-                                    lastScannedCode = barcode
-                                    activeBarcode = barcode
-                                    manualBarcode = barcode
                                 }
                             }
                         )
@@ -252,23 +308,46 @@ fun BarcodeScannerSheet(
                         }
                     }
 
-                    // TURQUOISE TARGETING FRAME (Without moving laser line)
-                    Box(
-                        modifier = Modifier
-                            .width(260.dp)
-                            .height(if (isExpandedMode) 80.dp else 140.dp)
-                            .align(Alignment.Center)
-                    ) {
-                        CornerBracketsViewfinder(
-                            modifier = Modifier.fillMaxSize(),
-                            color = TurquoisePrimary,
-                            strokeWidth = 4.dp,
-                            cornerLength = 28.dp,
-                            cornerRadius = 14.dp
-                        )
+                    // DYNAMIC FRAME DIMENSIONS BASED ON ACTIVE MODE
+                    // ARAMA mode -> Horizontal rectangle (5:2 ratio, 280dp x 120dp)
+                    // QR DUZELT mode -> Square (1:1 ratio, 220dp x 220dp)
+                    val targetW = if (isFixQrMode) 220.dp else 280.dp
+                    val targetH = if (isFixQrMode) {
+                        if (isKeyboardVisible || hasProductDetail) 140.dp else 220.dp
+                    } else {
+                        if (isKeyboardVisible || hasProductDetail) 85.dp else 120.dp
                     }
 
-                    // TOP OVERLAY BAR: CLOSE BUTTON, FLASH TOGGLE, TITLE & LIVE BADGE
+                    val animatedFrameWidth by animateDpAsState(
+                        targetValue = targetW,
+                        animationSpec = tween(durationMillis = 250),
+                        label = "frameWidth"
+                    )
+                    val animatedFrameHeight by animateDpAsState(
+                        targetValue = targetH,
+                        animationSpec = tween(durationMillis = 250),
+                        label = "frameHeight"
+                    )
+
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // Prominent Corner Brackets Target Box
+                        Box(
+                            modifier = Modifier
+                                .width(animatedFrameWidth)
+                                .height(animatedFrameHeight)
+                                .align(Alignment.Center)
+                        ) {
+                            CornerBracketsViewfinder(
+                                modifier = Modifier.fillMaxSize(),
+                                color = TurquoisePrimary,
+                                strokeWidth = 5.dp,
+                                cornerLength = 32.dp,
+                                cornerRadius = 16.dp
+                            )
+                        }
+                    }
+
+                    // TOP OVERLAY BAR: UNIFORM DARK PILL/CIRCLE BUTTONS & SEGMENTED MODE SELECTOR
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -277,74 +356,149 @@ fun BarcodeScannerSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Close Button
-                            Surface(
-                                onClick = onDismiss,
-                                shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.6f),
+                        // 1. Close Button (X)
+                        Surface(
+                            onClick = onDismiss,
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.50f),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("cancel_scanner_button")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Kapat",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // 2. Mode Selector Segmented Control (Pill shape)
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color.Black.copy(alpha = 0.50f),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Row(
                                 modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("cancel_scanner_button")
+                                    .fillMaxHeight()
+                                    .padding(3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Kapat",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(if (!isFixQrMode) TurquoisePrimary else Color.Transparent)
+                                        .clickable { isFixQrMode = false }
+                                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🔍 Arama",
+                                        color = if (!isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
+                                        fontWeight = if (!isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        fontSize = 11.sp
                                     )
                                 }
-                            }
 
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                            // Flash Toggle Button
-                            Surface(
-                                onClick = { isFlashOn = !isFlashOn },
-                                shape = CircleShape,
-                                color = if (isFlashOn) TurquoisePrimary else Color.Black.copy(alpha = 0.6f),
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .testTag("flash_toggle_button")
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                                        contentDescription = "Flaş / Işık",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(if (isFixQrMode) TurquoisePrimary else Color.Transparent)
+                                        .clickable { isFixQrMode = true }
+                                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "🏷️ QR Düzelt",
+                                        color = if (isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
+                                        fontWeight = if (isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        fontSize = 11.sp
                                     )
                                 }
                             }
                         }
 
-                        // Title
+                        // 3. Flash Toggle Button
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = Color.Black.copy(alpha = 0.6f)
+                            onClick = { isFlashOn = !isFlashOn },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.50f),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .testTag("flash_toggle_button")
                         ) {
-                            Text(
-                                text = "📸 BARKOD TARAYICI",
-                                color = Color.White,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 13.sp,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
-                            )
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                    contentDescription = "Flaş",
+                                    tint = if (isFlashOn) SoonYellow else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
+                    }
 
-                        // Status Badge
+                    // QR FIX FEEDBACK BANNER (FULL-WIDTH FIXED STRIP AT BOTTOM OF CAMERA VIEW)
+                    if (isFixQrMode) {
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.9f)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.BottomCenter),
+                            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                            color = Color.Black.copy(alpha = 0.80f),
+                            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.4f))
                         ) {
-                            Text(
-                                text = "CANLI",
-                                color = Color.White,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 11.sp,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = null,
+                                        tint = TurquoisePrimary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "ETİKET QR İLE BARKOD & FİYAT DÜZELTME MODU",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Raf etiketindeki QR kodunu okutun. Ürün koduna göre barkod ve fiyat otomatik güncellenir.",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    color = Color.White.copy(alpha = 0.75f),
+                                    lineHeight = 14.sp
+                                )
+                                if (qrFixResultMsg.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = if (qrFixResultMsg.startsWith("✅")) NormalGreenContainer else SoonYellowContainer,
+                                        border = BorderStroke(1.dp, if (qrFixResultMsg.startsWith("✅")) NormalGreen else SoonYellow)
+                                    ) {
+                                        Text(
+                                            text = qrFixResultMsg,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (qrFixResultMsg.startsWith("✅")) NormalGreen else Slate900,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -355,7 +509,7 @@ fun BarcodeScannerSheet(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(if (isExpandedMode) 0.80f else 0.40f),
+                        .weight(bottomWeight),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                     color = Slate50,
                     shadowElevation = 16.dp
@@ -368,19 +522,40 @@ fun BarcodeScannerSheet(
                             .verticalScroll(rememberScrollState())
                     ) {
                         // HEADER: TITLE & SUBTITLE
-                        Text(
-                            text = "🔍 Manuel Arama & Ürün Ayrıntıları",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Slate900
-                        )
-                        Text(
-                            text = "Barkod okutun veya elle barkod numarası yazıp sorgulayın",
-                            fontSize = 12.sp,
-                            color = Slate500
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = TurquoisePrimary.copy(alpha = 0.12f),
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = null,
+                                        tint = TurquoisePrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column {
+                                Text(
+                                    text = "Manuel Arama & Ürün Ayrıntıları",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Slate900
+                                )
+                                Text(
+                                    text = "Barkod okutun veya elle barkod numarası yazıp sorgulayın",
+                                    fontSize = 11.sp,
+                                    color = Slate500
+                                )
+                            }
+                        }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // MANUAL ENTRY SEARCH BAR
                         Row(
@@ -397,7 +572,7 @@ fun BarcodeScannerSheet(
                                 },
                                 placeholder = {
                                     Text(
-                                        "Ürün Adı, Gramaj veya Barkod (Örn: Kola 1.5, Süt, 8690)",
+                                        "Ürün Adı, Gramaj veya Barkod (Örn: Kola, Süt, 8690)",
                                         fontSize = 11.sp,
                                         color = Slate500
                                     )
@@ -406,7 +581,8 @@ fun BarcodeScannerSheet(
                                     Icon(
                                         imageVector = Icons.Default.QrCodeScanner,
                                         contentDescription = "Arama",
-                                        tint = TurquoisePrimary
+                                        tint = TurquoisePrimary,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 },
                                 trailingIcon = {
@@ -415,6 +591,8 @@ fun BarcodeScannerSheet(
                                             manualBarcode = ""
                                             activeBarcode = ""
                                             selectedProductOverride = null
+                                            lastScannedCode = null
+                                            lastScannedTime = 0L
                                         }) {
                                             Icon(
                                                 imageVector = Icons.Default.Close,
@@ -430,6 +608,7 @@ fun BarcodeScannerSheet(
                                     .height(52.dp)
                                     .testTag("manual_barcode_input"),
                                 singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = Slate900,
@@ -450,6 +629,8 @@ fun BarcodeScannerSheet(
                                 modifier = Modifier
                                     .height(52.dp)
                                     .testTag("manual_barcode_search_button"),
+                                shape = RoundedCornerShape(12.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
                             ) {
                                 Text("ARA", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 13.sp)
@@ -464,31 +645,45 @@ fun BarcodeScannerSheet(
                                 .fillMaxWidth()
                                 .padding(bottom = 8.dp)
                         ) {
+                            val qrData = remember(activeBarcode) { parseShelfQrPayload(activeBarcode) }
+
                             val matchingProducts = remember(activeBarcode, products) {
-                                val query = activeBarcode.trim()
-                                if (query.isEmpty()) emptyList()
+                                val rawQuery = activeBarcode.trim()
+                                if (rawQuery.isEmpty()) emptyList()
                                 else {
-                                    val queryDigits = query.filter { it.isDigit() }
+                                    val queryBarcode = qrData.barcode
+                                    val queryProductCode = qrData.productCode
+                                    val queryDigits = queryBarcode.filter { it.isDigit() }
                                     val queryNoLeadingZeros = queryDigits.trimStart('0')
 
                                     // 1. Exact or normalized barcode match
                                     val exactBarcode = products.filter { p ->
                                         val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
-                                        p.barkod.equals(query, ignoreCase = true) ||
+                                        p.barkod.equals(queryBarcode, ignoreCase = true) ||
+                                        p.barkod.equals(rawQuery, ignoreCase = true) ||
                                         (queryDigits.isNotEmpty() && pBarcodeDigits == queryDigits) ||
-                                        (queryNoLeadingZeros.isNotEmpty() && pBarcodeDigits.trimStart('0') == queryNoLeadingZeros)
+                                        (queryNoLeadingZeros.isNotEmpty() && pBarcodeDigits.trimStart('0') == queryNoLeadingZeros) ||
+                                        (queryDigits.length == 12 && pBarcodeDigits.length == 13 && pBarcodeDigits.startsWith(queryDigits)) ||
+                                        (queryDigits.length == 13 && pBarcodeDigits.length == 12 && queryDigits.startsWith(pBarcodeDigits)) ||
+                                        (queryDigits.length == 12 && pBarcodeDigits == "0$queryDigits") ||
+                                        (pBarcodeDigits.length == 12 && queryDigits == "0$pBarcodeDigits")
                                     }
 
                                     if (exactBarcode.isNotEmpty()) {
                                         exactBarcode.sortedBy { it.sktTarihi }
                                     } else {
                                         // 2. Exact product code match
-                                        val exactCode = products.filter { it.urunKodu.equals(query, ignoreCase = true) }
+                                        val exactCode = products.filter { p ->
+                                            (queryProductCode != null && p.urunKodu.equals(queryProductCode, ignoreCase = true)) ||
+                                            p.urunKodu.equals(queryBarcode, ignoreCase = true) ||
+                                            p.urunKodu.equals(rawQuery, ignoreCase = true) ||
+                                            (queryProductCode != null && p.barkod.equals(queryProductCode, ignoreCase = true))
+                                        }
                                         if (exactCode.isNotEmpty()) {
                                             exactCode.sortedBy { it.sktTarihi }
                                         } else {
                                             // 3. Fallback search query match
-                                            products.filter { it.matchesSearchQuery(query) }.sortedBy { it.sktTarihi }
+                                            products.filter { it.matchesSearchQuery(queryBarcode) || it.matchesSearchQuery(rawQuery) }.sortedBy { it.sktTarihi }
                                         }
                                     }
                                 }
@@ -499,7 +694,14 @@ fun BarcodeScannerSheet(
                                 matchingProducts.distinctBy { it.barkod }
                             }
 
-                            val foundProduct = selectedProductOverride ?: matchingProducts.firstOrNull()
+                            val baseFoundProduct = selectedProductOverride ?: matchingProducts.firstOrNull()
+                            val foundProduct = remember(baseFoundProduct, qrData) {
+                                if (baseFoundProduct != null && qrData.price != null && qrData.price > 0.0) {
+                                    baseFoundProduct.copy(fiyat = qrData.price)
+                                } else {
+                                    baseFoundProduct
+                                }
+                            }
 
                             // If search query matched multiple different products (e.g. searching "kola" or "sut"), show product selector chips
                             if (distinctProducts.size > 1) {
@@ -570,6 +772,8 @@ fun BarcodeScannerSheet(
                                             activeBarcode = ""
                                             manualBarcode = ""
                                             selectedProductOverride = null
+                                            lastScannedCode = null
+                                            lastScannedTime = 0L
                                         }
                                     )
                                 }
@@ -585,6 +789,8 @@ fun BarcodeScannerSheet(
                                             activeBarcode = ""
                                             manualBarcode = ""
                                             selectedProductOverride = null
+                                            lastScannedCode = null
+                                            lastScannedTime = 0L
                                         }
                                     )
                                 }
@@ -613,7 +819,7 @@ fun ProductDetailPreviewCard(
 ) {
     val context = LocalContext.current
     val daysRemaining = getDaysRemaining(product.sktTarihi)
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("tr", "TR")) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     var selectedSktMillis by remember(product.barkod) {
         mutableStateOf(System.currentTimeMillis())
@@ -726,12 +932,35 @@ fun ProductDetailPreviewCard(
                 }
             }
 
-            // Category & Barcode
-            Text(
-                text = "Kategori: ${product.kategori} | Barkod: ${product.barkod}",
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            // Category, Barcode & Price
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Kategori: ${product.kategori} | Barkod: ${product.barkod}",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                product.getFormattedPrice()?.let { formattedPrice ->
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFFE0F2FE),
+                        border = BorderStroke(0.5.dp, Color(0xFF0284C7))
+                    ) {
+                        Text(
+                            text = formattedPrice,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF0369A1),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
 
             // COLORED RISK BREAKDOWN BADGES
             Row(
@@ -745,11 +974,13 @@ fun ProductDetailPreviewCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("En Yakın/Geçmiş", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ExpiredRed)
-                        Text("$expiredOrNearCount Adet", fontSize = 11.sp, fontWeight = FontWeight.Black, color = ExpiredRed)
+                        Text("En Yakın/Geçmiş", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ExpiredRed, textAlign = TextAlign.Center)
+                        Text("$expiredOrNearCount Adet", fontSize = 11.sp, fontWeight = FontWeight.Black, color = ExpiredRed, textAlign = TextAlign.Center)
                     }
                 }
 
@@ -760,11 +991,13 @@ fun ProductDetailPreviewCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("Kritik", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CriticalOrange)
-                        Text("$criticalCount Adet", fontSize = 11.sp, fontWeight = FontWeight.Black, color = CriticalOrange)
+                        Text("Kritik", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CriticalOrange, textAlign = TextAlign.Center)
+                        Text("$criticalCount Adet", fontSize = 11.sp, fontWeight = FontWeight.Black, color = CriticalOrange, textAlign = TextAlign.Center)
                     }
                 }
 
@@ -775,11 +1008,13 @@ fun ProductDetailPreviewCard(
                     modifier = Modifier.weight(1f)
                 ) {
                     Column(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("Güvende", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NormalGreen)
-                        Text("$safeCount Adet", fontSize = 11.sp, fontWeight = FontWeight.Black, color = NormalGreen)
+                        Text("Güvende", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NormalGreen, textAlign = TextAlign.Center)
+                        Text("$safeCount Adet", fontSize = 11.sp, fontWeight = FontWeight.Black, color = NormalGreen, textAlign = TextAlign.Center)
                     }
                 }
             }
@@ -830,8 +1065,8 @@ fun ProductDetailPreviewCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "➕ YENİ SKT VE ADEDİ EKLE",
-                    fontSize = 12.sp,
+                    text = "Tarih ve Adet Ekle",
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                     color = TurquoiseDark
                 )
@@ -856,30 +1091,21 @@ fun ProductDetailPreviewCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.DateRange,
-                                    contentDescription = "Tarih Seç",
-                                    tint = TurquoisePrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = dateFormat.format(Date(selectedSktMillis)),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = "Tarih",
+                                tint = TurquoisePrimary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Tarih Seç 📅",
-                                fontSize = 10.sp,
+                                text = dateFormat.format(Date(selectedSktMillis)),
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Black,
-                                color = TurquoiseDark
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -997,10 +1223,10 @@ fun ProductDetailPreviewCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "+ FARKLI SKT VE ADEDİ EKLE",
+                        text = "SKT ve Adetini Ekle",
                         fontWeight = FontWeight.Black,
                         color = Color.White,
-                        fontSize = 12.sp
+                        fontSize = 13.sp
                     )
                 }
 
@@ -1043,6 +1269,9 @@ fun ProductNotFoundPreviewCard(
     onAddProduct: () -> Unit,
     onClearDetail: () -> Unit = {}
 ) {
+    val parsedData = remember(barcode) { parseShelfQrPayload(barcode) }
+    val displayBarcode = parsedData.barcode.ifEmpty { barcode }
+
     Card(
         modifier = Modifier.fillMaxSize(),
         shape = RoundedCornerShape(16.dp),
@@ -1080,7 +1309,7 @@ fun ProductNotFoundPreviewCard(
                             color = Slate900
                         )
                         Text(
-                            text = "Tarayıcı Barkodu: $barcode",
+                            text = "Tarayıcı Barkodu: $displayBarcode",
                             fontSize = 12.sp,
                             color = Slate700
                         )
@@ -1111,7 +1340,7 @@ fun ProductNotFoundPreviewCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "💡 TAVSİYE: Bu barkod ($barcode) sistemde bulunamadı. Aşağıdaki butona dokunarak bu barkod için hemen yeni ürün kaydı oluşturabilirsiniz.",
+                        text = "ℹ️ BİLGİ: Bu barkod ($displayBarcode) sistemde bulunamadı. Aşağıdaki 'Yeni Ürün Ekle' butonuna basarak yeni ürün kaydı oluşturabilirsiniz.",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
@@ -1136,7 +1365,7 @@ fun ProductNotFoundPreviewCard(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "➕ TAVSİYE: YENİ ÜRÜN OLARAK EKLE",
+                    text = "➕ YENİ ÜRÜN EKLE",
                     fontWeight = FontWeight.Black,
                     color = Color.White,
                     fontSize = 12.sp
@@ -1146,50 +1375,80 @@ fun ProductNotFoundPreviewCard(
     }
 }
 
+fun Modifier.dashedBorder(
+    color: Color,
+    strokeWidth: Dp = 1.5.dp,
+    dashLength: Dp = 8.dp,
+    gapLength: Dp = 6.dp,
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(16.dp)
+) = this.drawWithCache {
+    val stroke = Stroke(
+        width = strokeWidth.toPx(),
+        pathEffect = PathEffect.dashPathEffect(
+            floatArrayOf(dashLength.toPx(), gapLength.toPx()),
+            0f
+        )
+    )
+    val outline = shape.createOutline(size, layoutDirection, this)
+    onDrawWithContent {
+        drawContent()
+        drawOutline(outline, color, style = stroke)
+    }
+}
+
 @Composable
 fun EmptyScannerGuidanceCard() {
-    Card(
-        modifier = Modifier.fillMaxSize(),
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .dashedBorder(
+                color = Color(0xFFCBD5E1),
+                strokeWidth = 1.5.dp,
+                dashLength = 8.dp,
+                gapLength = 6.dp,
+                shape = RoundedCornerShape(16.dp)
+            ),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        color = Color(0xFFF8FAFC)
     ) {
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Start
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(46.dp)
+                color = TurquoisePrimary.copy(alpha = 0.12f),
+                modifier = Modifier.size(54.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.Default.Inventory2,
                         contentDescription = "Rehber",
-                        tint = TurquoisePrimary,
-                        modifier = Modifier.size(26.dp)
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(28.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column {
-                Text(
-                    text = "Ürün Ayrıntı Önizlemesi",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Kamerayı ürüne tuttuğunuzda veya test barkoduna dokunduğunuzda ürün bilgisi ve SKT durumu burada görünür.",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Ürün Ayrıntı Önizlemesi",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Slate900,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Kamerayı ürüne tuttuğunuzda veya arama kutusuna barkod yazdığınızda ürün bilgisi ve SKT durumu burada görünür.",
+                fontSize = 12.sp,
+                color = Slate500,
+                textAlign = TextAlign.Center,
+                lineHeight = 17.sp,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            )
         }
     }
 }
@@ -1234,8 +1493,32 @@ fun CameraXBarcodeView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val executor = remember { Executors.newSingleThreadExecutor() }
+    val mainHandler = remember { android.os.Handler(android.os.Looper.getMainLooper()) }
     val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+
+    val currentOnBarcodeScanned by rememberUpdatedState(onBarcodeScanned)
+
+    val lastEmittedRef = remember { java.util.concurrent.atomic.AtomicReference<Pair<String, Long>>(Pair("", 0L)) }
+    val pendingScanRef = remember { java.util.concurrent.atomic.AtomicReference<Pair<String, Long>?>(null) }
+    val pendingRunnableRef = remember { java.util.concurrent.atomic.AtomicReference<Runnable?>(null) }
+
+    val barcodeScanner = remember {
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(
+                Barcode.FORMAT_EAN_13,
+                Barcode.FORMAT_EAN_8,
+                Barcode.FORMAT_UPC_A,
+                Barcode.FORMAT_UPC_E,
+                Barcode.FORMAT_CODE_128,
+                Barcode.FORMAT_CODE_39,
+                Barcode.FORMAT_CODE_93,
+                Barcode.FORMAT_ITF,
+                Barcode.FORMAT_QR_CODE
+            )
+            .build()
+        BarcodeScanning.getClient(options)
+    }
 
     LaunchedEffect(isFlashOn) {
         cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
@@ -1244,7 +1527,13 @@ fun CameraXBarcodeView(
     DisposableEffect(lifecycleOwner) {
         onDispose {
             try {
+                pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
                 cameraProviderRef.value?.unbindAll()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
+                barcodeScanner.close()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -1259,8 +1548,6 @@ fun CameraXBarcodeView(
     AndroidView(
         factory = { ctx ->
             val previewView = PreviewView(ctx).apply {
-                // COMPATIBLE mode uses TextureView instead of SurfaceView, preventing
-                // black screen / rendering failures in Compose across devices & emulators
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 scaleType = PreviewView.ScaleType.FILL_CENTER
             }
@@ -1274,17 +1561,68 @@ fun CameraXBarcodeView(
                         setSurfaceProvider(previewView.surfaceProvider)
                     }
 
-                    val barcodeScanner = BarcodeScanning.getClient()
+                    val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            androidx.camera.core.resolutionselector.ResolutionStrategy(
+                                android.util.Size(1280, 720),
+                                androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                            )
+                        )
+                        .build()
 
                     val imageAnalysis = ImageAnalysis.Builder()
-                        .setTargetResolution(Size(1280, 720))
+                        .setResolutionSelector(resolutionSelector)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         processImageProxy(barcodeScanner, imageProxy) { barcodes ->
-                            barcodes.firstOrNull()?.rawValue?.let { raw ->
-                                onBarcodeScanned(raw)
+                            val raw = barcodes.firstOrNull()?.rawValue?.trim()
+                            if (!raw.isNullOrBlank()) {
+                                val now = System.currentTimeMillis()
+                                val (lastEmittedCode, lastEmittedTime) = lastEmittedRef.get()
+
+                                // 1) Same barcode or partial substring of recently emitted code (< 3000ms) -> REJECT
+                                if (lastEmittedCode.isNotBlank() && (now - lastEmittedTime) < 3000L) {
+                                    if (raw == lastEmittedCode || lastEmittedCode.contains(raw) || lastEmittedCode.startsWith(raw) || lastEmittedCode.endsWith(raw)) {
+                                        return@processImageProxy
+                                    }
+                                }
+
+                                // 2) Global rate limit: at least 800ms between any two distinct code emissions
+                                if ((now - lastEmittedTime) < 800L) {
+                                    return@processImageProxy
+                                }
+
+                                // 3) Pending stabilization buffer (130ms) to upgrade any partial frame scan to full length
+                                val currentPending = pendingScanRef.get()
+                                if (currentPending != null) {
+                                    val (pCode, _) = currentPending
+                                    if (raw.length > pCode.length && (raw.contains(pCode) || pCode.contains(raw) || raw.startsWith(pCode) || pCode.startsWith(raw))) {
+                                        pendingScanRef.set(Pair(raw, now))
+                                    }
+                                } else {
+                                    pendingScanRef.set(Pair(raw, now))
+                                    val runnable = Runnable {
+                                        val finalPending = pendingScanRef.getAndSet(null)
+                                        if (finalPending != null) {
+                                            val (finalCode, finalTime) = finalPending
+                                            val (lCode, lTime) = lastEmittedRef.get()
+
+                                            val isSubStringOfLast = lCode.isNotBlank() && (finalTime - lTime) < 3000L &&
+                                                (lCode == finalCode || lCode.contains(finalCode) || lCode.startsWith(finalCode) || lCode.endsWith(finalCode))
+                                            val isTooSoon = (finalTime - lTime) < 800L
+
+                                            if (!isSubStringOfLast && !isTooSoon) {
+                                                lastEmittedRef.set(Pair(finalCode, finalTime))
+                                                currentOnBarcodeScanned(finalCode)
+                                            }
+                                        }
+                                    }
+                                    pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
+                                    pendingRunnableRef.set(runnable)
+                                    mainHandler.postDelayed(runnable, 130L)
+                                }
                             }
                         }
                     }

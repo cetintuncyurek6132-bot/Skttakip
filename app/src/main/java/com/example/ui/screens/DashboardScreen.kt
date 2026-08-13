@@ -40,6 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +60,8 @@ import com.example.data.Product
 import com.example.ui.DashboardState
 import com.example.ui.ProductFilter
 import com.example.ui.components.ProductListItemCard
+import android.graphics.Bitmap
+import com.example.ui.components.ReportPreviewDialog
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.NormalGreen
@@ -78,6 +83,16 @@ fun DashboardScreen(
     onViewAllProductsClick: () -> Unit
 ) {
     val context = LocalContext.current
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    val currentPreview = previewBitmap
+    if (currentPreview != null) {
+        ReportPreviewDialog(
+            bitmap = currentPreview,
+            onDismiss = { previewBitmap = null }
+        )
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -171,8 +186,7 @@ fun DashboardScreen(
                     if (attentionProducts.isNotEmpty()) {
                         Surface(
                             onClick = {
-                                ProductImageGenerator.shareProductsAsImage(
-                                    context = context,
+                                previewBitmap = ProductImageGenerator.createProductsBitmap(
                                     filterLabel = "Dikkat Gerektiren Ürünler",
                                     searchQuery = "",
                                     productList = attentionProducts

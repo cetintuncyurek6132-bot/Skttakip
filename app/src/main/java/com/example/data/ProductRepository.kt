@@ -21,11 +21,20 @@ class ProductRepository(
     }
 
     suspend fun updateProductStock(productId: Int, newStok: Int) {
-        productDao.updateStockAndControlDate(productId, newStok, System.currentTimeMillis())
-        val updatedProd = productDao.getProductByBarcode("") // Get by id if needed
-        allProducts // Trigger flow
-        // Fetch product to sync
-        scopeSyncProduct(productId)
+        val list = productDao.getAllProductsList()
+        val prod = list.find { it.id == productId }
+        if (newStok <= 0) {
+            if (prod != null) {
+                deleteProduct(prod)
+            } else {
+                productDao.updateStockAndControlDate(productId, 0, System.currentTimeMillis())
+            }
+        } else {
+            productDao.updateStockAndControlDate(productId, newStok, System.currentTimeMillis())
+            if (prod != null) {
+                CloudSyncManager.syncProductToCloud(prod.copy(stokAdedi = newStok))
+            }
+        }
     }
 
     private suspend fun scopeSyncProduct(productId: Int) {
@@ -99,6 +108,9 @@ class ProductRepository(
     suspend fun resetAllData() {
         productDao.deleteAllProducts()
         reportDao.deleteAllReports()
+        turDao?.deleteAllTurRaporlari()
+        turDao?.deleteAllKontrolKayitlari()
+        CloudSyncManager.clearAllCloudData()
     }
 
     suspend fun insertReport(report: InspectionReport): Long {

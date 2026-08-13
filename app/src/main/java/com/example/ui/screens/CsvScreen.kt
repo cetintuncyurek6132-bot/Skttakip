@@ -1,5 +1,9 @@
 package com.example.ui.screens
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -18,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -36,22 +42,57 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.auth.UserAccount
 import com.example.auth.UserManager
+import com.example.data.Product
 import com.example.ui.theme.*
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.util.Locale
+
+enum class ExportCategoryOption(
+    val id: String,
+    val title: String,
+    val subtitle: String
+) {
+    DOLAP(
+        id = "dolap_sooguk_urunler",
+        title = "1. Kategori: Dolap / Soğuk Ürünler",
+        subtitle = "Süt, Şarküteri, Soğuk Dolap, Peynir, Yoğurt vb."
+    ),
+    RAF_GIDA(
+        id = "raf_gida_urunleri",
+        title = "2. Kategori: Raf / Gıda & Diğer Ürünler",
+        subtitle = "Atıştırmalık, Temel Gıda, İçecek, Temizlik vb."
+    ),
+    ALL(
+        id = "tum_urunler",
+        title = "Tüm Ürünler (Tüm Kategoriler)",
+        subtitle = "Veritabanındaki tüm aktif ürün kayıtları"
+    )
+}
+
+private fun isDolapCategory(kategori: String): Boolean {
+    val cat = kategori.lowercase(Locale.forLanguageTag("tr-TR"))
+    return cat.contains("dolap") || cat.contains("süt") || cat.contains("sut") ||
+            cat.contains("şarküteri") || cat.contains("sarkuteri") || cat.contains("soğuk") ||
+            cat.contains("soguk") || cat.contains("peynir") || cat.contains("yoğurt") ||
+            cat.contains("yogurt") || cat.contains("et") || cat.contains("dondurma") ||
+            cat.contains("tereyağ") || cat.contains("tereyag")
+}
 
 @Composable
 fun CsvScreen(
     isDarkMode: Boolean = false,
     soundEffectsEnabled: Boolean = true,
     vibrationEnabled: Boolean = true,
+    products: List<Product> = emptyList(),
     onToggleDarkMode: () -> Unit = {},
     onToggleSoundEffects: () -> Unit = {},
     onToggleVibration: () -> Unit = {},
     onFixAndRepairDatabase: (onResult: (Int, String) -> Unit) -> Unit = {},
     onImportLines: (List<String>) -> Int = { 0 },
     onResetDatabase: () -> Unit = {},
-    onRestoreSeedData: () -> Unit = {}
+    onRestoreSeedData: () -> Unit = {},
+    onOpenQrFixMode: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val currentUser by UserManager.currentUser.collectAsState()
@@ -59,6 +100,37 @@ fun CsvScreen(
 
     val isMsUser = currentUser?.role == "MS"
     var selectedTab by remember { mutableIntStateOf(0) }
+
+    // CSV Sub-Category states
+    var selectedCsvSubTab by remember { mutableIntStateOf(0) } // 0: 1. Kategori (İçe Aktar), 1: 2. Kategori (Dışa Aktar)
+    var isPreviewExpanded by remember { mutableStateOf(false) }
+
+    val csvExportText = remember(products) {
+        buildString {
+            append("Ürün Barkodu,Ürün Kodu,Ürün Adı\n")
+            products.forEach { p ->
+                val cleanBarkod = p.barkod.trim().replace(",", " ")
+                val cleanKod = p.urunKodu.trim().replace(",", " ")
+                val cleanAd = p.urunAdi.trim().replace(",", " ")
+                append("$cleanBarkod,$cleanKod,$cleanAd\n")
+            }
+        }
+    }
+
+    val exportDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        uri?.let { fileUri ->
+            try {
+                context.contentResolver.openOutputStream(fileUri)?.use { stream ->
+                    stream.write(csvExportText.toByteArray(Charsets.UTF_8))
+                }
+                Toast.makeText(context, "✅ CSV dosyası başarıyla kaydedildi!", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Toast.makeText(context, "Hata: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     LaunchedEffect(isMsUser) {
         if (!isMsUser && selectedTab != 0) {
@@ -83,21 +155,79 @@ fun CsvScreen(
         uri?.let { fileUri ->
             try {
                 val inputStream = context.contentResolver.openInputStream(fileUri)
-                val reader = BufferedReader(InputStreamReader(inputStream))
-                val lines = reader.readLines()
-                reader.close()
+                val bytes = inputStream?.use { it.readBytes() }
+                if (bytes == null || bytes.isEmpty()) {
+                    Toast.makeText(context, "Seçilen dosya boş!", Toast.LENGTH_SHORT).show()
+                    return@let
+                }
 
+                // Check ZIP / XLSX signature (PK\u0003\u0004 -> 0x50, 0x4B, 0x03, 0x04) or XLS signature (0xD0, 0xCF, 0x11, 0xE0)
+                val isZipOrXlsx = bytes.size >= 4 && bytes[0] == 0x50.toByte() && bytes[1] == 0x4B.toByte() && bytes[2] == 0x03.toByte() && bytes[3] == 0x04.toByte()
+                val isOldXls = bytes.size >= 4 && bytes[0] == 0xD0.toByte() && bytes[1] == 0xCF.toByte() && bytes[2] == 0x11.toByte() && bytes[3] == 0xE0.toByte()
+
+                if (isZipOrXlsx) {
+                    val xlsxLines = com.example.util.XlsxParser.parseXlsxToCsvLines(bytes)
+                    if (xlsxLines.isNotEmpty()) {
+                        val newCount = onImportLines(xlsxLines)
+                        if (newCount > 0) {
+                            Toast.makeText(
+                                context,
+                                "✅ Excel (.xlsx) dosyasından $newCount adet yeni ürün başarıyla eklendi!",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } else {
+                            Toast.makeText(
+                                context,
+                                "Excel dosyasında eklenecek yeni ürün bulunamadı (Tüm ürünler kayıtlı veya geçersiz).",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                        return@let
+                    } else {
+                        Toast.makeText(context, "⚠️ Excel dosyası okunamadı veya içerik boş.", Toast.LENGTH_LONG).show()
+                        return@let
+                    }
+                }
+
+                if (isOldXls) {
+                    Toast.makeText(context, "⚠️ Eski (.xls) formatı desteklenmiyor. Lütfen dosyanızı .xlsx veya .csv olarak kaydedip tekrar yükleyin.", Toast.LENGTH_LONG).show()
+                    return@let
+                }
+
+                // Check for null bytes / binary file
+                val nullByteCount = bytes.take(1024).count { it == 0.toByte() }
+                if (nullByteCount > 5) {
+                    Toast.makeText(context, "⚠️ Geçersiz dosya formatı! Lütfen .xlsx veya düz metin CSV dosyası yükleyin.", Toast.LENGTH_LONG).show()
+                    return@let
+                }
+
+                // Multi-encoding decode (UTF-8, UTF-8 with BOM, Windows-1254)
+                val charsetTurkish = try { java.nio.charset.Charset.forName("windows-1254") } catch (e: Exception) { java.nio.charset.StandardCharsets.ISO_8859_1 }
+                var textContent = ""
+
+                if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
+                    textContent = String(bytes, 3, bytes.size - 3, java.nio.charset.StandardCharsets.UTF_8)
+                } else {
+                    val utf8Str = String(bytes, java.nio.charset.StandardCharsets.UTF_8)
+                    if (utf8Str.contains("\uFFFD")) {
+                        textContent = String(bytes, charsetTurkish)
+                    } else {
+                        textContent = utf8Str
+                    }
+                }
+
+                val lines = textContent.lines()
                 val newCount = onImportLines(lines)
                 if (newCount > 0) {
                     Toast.makeText(
                         context,
-                        "✅ $newCount adet yeni ürün eklendi!",
+                        "✅ $newCount adet yeni ürün başarıyla eklendi!",
                         Toast.LENGTH_LONG
                     ).show()
                 } else {
                     Toast.makeText(
                         context,
-                        "Seçilen dosyada yeni ürün bulunamadı (Tüm ürünler zaten kayıtlı).",
+                        "Seçilen dosyada eklenecek yeni ürün bulunamadı (Tüm ürünler kayıtlı veya geçersiz).",
                         Toast.LENGTH_LONG
                     ).show()
                 }
@@ -293,23 +423,25 @@ fun CsvScreen(
                         }
                     }
 
-                    if (isMsUser) {
-                        TabRow(
-                            selectedTabIndex = selectedTab,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            contentColor = TurquoisePrimary
-                        ) {
-                            Tab(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("GENEL AYARLAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
+                    val csvTabIndex = if (isMsUser) 2 else 1
+
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = TurquoisePrimary
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Tune, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("GENEL AYARLAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 }
-                            )
+                            }
+                        )
+                        if (isMsUser) {
                             Tab(
                                 selected = selectedTab == 1,
                                 onClick = { selectedTab = 1 },
@@ -321,18 +453,18 @@ fun CsvScreen(
                                     }
                                 }
                             )
-                            Tab(
-                                selected = selectedTab == 2,
-                                onClick = { selectedTab = 2 },
-                                text = {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.UploadFile, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("CSV AKTARIMI", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            )
                         }
+                        Tab(
+                            selected = selectedTab == csvTabIndex,
+                            onClick = { selectedTab = csvTabIndex },
+                            text = {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.SwapVert, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("CSV İŞLEMLERİ", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        )
                     }
                 }
             }
@@ -413,7 +545,7 @@ fun CsvScreen(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.VolumeUp,
+                                    imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                                     contentDescription = null,
                                     tint = TurquoisePrimary,
                                     modifier = Modifier.size(20.dp)
@@ -551,6 +683,85 @@ fun CsvScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // 4. QR İLE ÜRÜN KODU / BARKOD DÜZELTME
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.4f)),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.QrCodeScanner,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "🏷️ QR ETİKET İLE BARKOD DÜZELTME",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 13.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Ürün Kodu Eşleşen Ürünlerin Barkodunu Otomatik Düzeltir",
+                                        fontSize = 11.sp,
+                                        color = TurquoiseDark,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            Text(
+                                text = "Veritabanındaki bazı ürünlerde barkod yerine ürün kodu eklenmişse, QR raf etiketini kamerayla taratarak ürün kodu eşleşen ürünlerin gerçek ambalaj barkodlarını ve fiyatlarını anında düzeltebilirsiniz.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                lineHeight = 18.sp
+                            )
+
+                            Spacer(modifier = Modifier.height(14.dp))
+
+                            Button(
+                                onClick = onOpenQrFixMode,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "📷 QR ETİKET OKUT VE BARKODU DÜZELT",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 12.sp,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
                 }
             } else if (isMsUser && selectedTab == 1) {
                 // TAB 0: KULLANICI BİLGİLERİ DÜZENLEME SAYFASI (MS ÖZEL)
@@ -677,122 +888,513 @@ fun CsvScreen(
                         }
                     }
                 }
-            } else if (isMsUser && selectedTab == 2) {
-                // TAB 2: CSV & EXCEL YÜKLEME
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Button(
-                        onClick = {
-                            try {
-                                filePickerLauncher.launch(arrayOf("text/csv", "text/plain", "*/*"))
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Dosya seçici açılamadı", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .testTag("select_csv_file_button"),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.UploadFile,
-                            contentDescription = "Dosya Seç",
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "DOSYA SEÇ",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 14.sp,
-                            color = Color.White
-                        )
-                    }
+            } else if ((isMsUser && selectedTab == 2) || (!isMsUser && selectedTab == 1)) {
+                // TAB CSV: CSV İŞLEMLERİ (2 KATEGORİ: İÇE AKTAR VE DIŞA AKTAR)
 
-                    Button(
-                        onClick = { showResetDialog = true },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .testTag("reset_db_button"),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteForever,
-                            contentDescription = "Sıfırla",
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "VERİLERİ SIFIRLA",
-                            fontWeight = FontWeight.Black,
-                            fontSize = 12.sp,
-                            color = Color.White
-                        )
-                    }
-                }
-
-                // CSV FORMATI INFO CARD
+                // Sub-category Selector (Segmented Tabs)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(4.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Info,
-                                contentDescription = "Bilgi",
-                                tint = TurquoisePrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "CSV / Excel Format Rehberi",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                        // İÇE AKTAR
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedCsvSubTab = 0 },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (selectedCsvSubTab == 0) TurquoisePrimary else Color.Transparent,
+                            shadowElevation = if (selectedCsvSubTab == 0) 2.dp else 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.UploadFile,
+                                    contentDescription = null,
+                                    tint = if (selectedCsvSubTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "İçe Aktar",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (selectedCsvSubTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                        // DIŞA AKTAR
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable { selectedCsvSubTab = 1 },
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (selectedCsvSubTab == 1) TurquoisePrimary else Color.Transparent,
+                            shadowElevation = if (selectedCsvSubTab == 1) 2.dp else 0.dp
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FileDownload,
+                                    contentDescription = null,
+                                    tint = if (selectedCsvSubTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Dışa Aktar",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = if (selectedCsvSubTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
 
-                        Text(
-                            text = "Excel tablonuzu CSV (Virgülle Ayrılmış) olarak aktarırken sütun sırası aşağıdaki gibi olmalıdır:",
-                            fontSize = 13.sp,
-                            color = Slate700
-                        )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Box(
+                if (selectedCsvSubTab == 0) {
+                    // -----------------------------------------------------------------
+                    // İÇE AKTARMA & SİSTEM SIFIRLAMA (CSV IMPORT)
+                    // -----------------------------------------------------------------
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Slate900)
-                                .padding(14.dp)
+                                .padding(16.dp)
                         ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(38.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.UploadFile,
+                                        contentDescription = "İçe Aktar",
+                                        tint = TurquoisePrimary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "📥 İÇE AKTAR (CSV IMPORT)",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Excel/CSV toplu ürün listesini veritabanına yükleme",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        try {
+                                            filePickerLauncher.launch(arrayOf("text/csv", "text/plain", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel", "*/*"))
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Dosya seçici açılamadı", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(52.dp)
+                                        .testTag("select_csv_file_button"),
+                                    shape = RoundedCornerShape(14.dp),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.UploadFile,
+                                        contentDescription = "Dosya Yükle",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "EXCEL / CSV YÜKLE",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 12.sp,
+                                        color = Color.White
+                                    )
+                                }
+
+                                Button(
+                                    onClick = { showResetDialog = true },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(52.dp)
+                                        .testTag("reset_db_button"),
+                                    shape = RoundedCornerShape(14.dp),
+                                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 1.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteForever,
+                                        contentDescription = "Sıfırla",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "VERİLERİ SIFIRLA",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 12.sp,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // CSV FORMATI INFO CARD
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = "Bilgi",
+                                    tint = TurquoisePrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "CSV / Excel Yükleme Format Rehberi",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
                             Text(
-                                text = "Barkod, ürün kodu, ürün adı\n" +
-                                        "8690526010011, 25001234, BİSKÜVİ ÇİKOLATA KAPLI 56 G BENİMO\n" +
-                                        "8690504031122, 25001402, SÜTAŞ SÜZME PEYNİR 500 G TAM YAĞLI\n" +
-                                        "8690620010019, 25001560, PINAR DİLİMLİ TOST PEYNİRİ 200 G",
-                                color = Color.White,
+                                text = "Excel tablonuzu CSV (Virgülle Ayrılmış) olarak aktarırken sütun sırası aşağıdaki gibi olmalıdır:",
                                 fontSize = 12.sp,
-                                fontFamily = FontFamily.Monospace,
-                                lineHeight = 20.sp
+                                color = Slate700
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Slate900)
+                                    .padding(14.dp)
+                            ) {
+                                Text(
+                                    text = "Barkod, ürün kodu, ürün adı\n" +
+                                            "8690526010011, 25001234, BİSKÜVİ ÇİKOLATA KAPLI 56 G BENİMO\n" +
+                                            "8690504031122, 25001402, SÜTAŞ SÜZME PEYNİR 500 G TAM YAĞLI\n" +
+                                            "8690620010019, 25001560, PINAR DİLİMLİ TOST PEYNİRİ 200 G",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    lineHeight = 18.sp
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // -----------------------------------------------------------------
+                    // DIŞA AKTARMA (CSV EXPORT - TÜM ÜRÜNLER)
+                    // -----------------------------------------------------------------
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(18.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FileDownload,
+                                        contentDescription = "Dışa Aktar",
+                                        tint = TurquoisePrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column {
+                                    Text(
+                                        text = "📤 DIŞA AKTAR (CSV EXPORT)",
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 15.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "Tüm ürün listenizi Excel/CSV formatında alın",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // SUMMARY BADGE BOX
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                border = BorderStroke(1.dp, Slate200.copy(alpha = 0.5f)),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(14.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(
+                                            text = "DIŞA AKTARILACAK VERİ",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = "Tüm Ürünler (${products.size} Adet)",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = TurquoiseDark
+                                        )
+                                    }
+
+                                    Surface(
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = TurquoisePrimary.copy(alpha = 0.12f)
+                                    ) {
+                                        Text(
+                                            text = "Barkod, Kod, Ad",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TurquoiseDark,
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(18.dp))
+
+                            // MAIN DOWNLOAD BUTTON
+                            Button(
+                                onClick = {
+                                    val fileName = "urun_listesi_tum_urunler.csv"
+                                    try {
+                                        exportDocumentLauncher.launch(fileName)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Hata: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                                    .testTag("export_csv_download_button"),
+                                shape = RoundedCornerShape(14.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FileDownload,
+                                    contentDescription = "İndir",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "CSV DOSYASINI İNDİR",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 13.sp,
+                                    color = Color.White
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // SECONDARY ACTIONS ROW (PAYLAŞ & KOPYALA)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        try {
+                                            val sendIntent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, csvExportText)
+                                                putExtra(Intent.EXTRA_SUBJECT, "Urun_Listesi_Tum_Urunler.csv")
+                                                type = "text/plain"
+                                            }
+                                            val shareIntent = Intent.createChooser(sendIntent, "CSV Listesini Paylaş")
+                                            context.startActivity(shareIntent)
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Paylaşılamadı: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = "Paylaş",
+                                        modifier = Modifier.size(18.dp),
+                                        tint = TurquoisePrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Paylaş", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TurquoisePrimary)
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        try {
+                                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            val clip = ClipData.newPlainText("Urun_CSV_Listesi", csvExportText)
+                                            clipboard.setPrimaryClip(clip)
+                                            Toast.makeText(context, "📋 ${products.size} adet ürün panoya kopyalandı!", Toast.LENGTH_SHORT).show()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Kopyalama hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(44.dp),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Kopyala",
+                                        modifier = Modifier.size(18.dp),
+                                        tint = TurquoisePrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("Panoya Kopyala", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = TurquoisePrimary)
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // PREVIEW CARD
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { isPreviewExpanded = !isPreviewExpanded }
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (isPreviewExpanded) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = null,
+                                        tint = TurquoisePrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = if (isPreviewExpanded) "Önizlemeyi Gizle" else "Veri Önizleme (${products.size} Ürün)",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                Icon(
+                                    imageVector = if (isPreviewExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                    contentDescription = null,
+                                    tint = TurquoisePrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+
+                            if (isPreviewExpanded) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                val previewLines = csvExportText.lines().take(15)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Slate900)
+                                        .padding(14.dp)
+                                ) {
+                                    Text(
+                                        text = previewLines.joinToString("\n") + if (csvExportText.lines().size > 15) "\n..." else "",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        lineHeight = 18.sp
+                                    )
+                                }
+                            }
                         }
                     }
                 }

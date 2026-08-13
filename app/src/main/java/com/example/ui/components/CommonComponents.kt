@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -40,6 +41,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -58,13 +60,20 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import kotlinx.coroutines.delay
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Add
@@ -85,8 +94,15 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.FlashOff
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.FilterList
+import com.example.data.matchesSearchQuery
+import com.example.data.getDisplayName
+import com.example.data.getDisplayCode
 import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
@@ -107,6 +123,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -141,6 +158,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.ExpiryStatus
 import com.example.data.Product
+import com.example.data.parseShelfQrPayload
 import com.example.ui.screens.DateOcrScannerDialog
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.CriticalOrange
@@ -153,6 +171,8 @@ import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate300
 import com.example.ui.theme.SoonYellow
 import com.example.ui.theme.SoonYellowContainer
+import com.example.ui.theme.WarningBlue
+import com.example.ui.theme.WarningBlueContainer
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.theme.Slate50
@@ -453,33 +473,41 @@ fun SktTopAppBar(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
-                            val queryTrim = searchQuery.trim().lowercase()
+                            val queryTrim = searchQuery.trim()
                             val matchingProducts = remember(allProducts, queryTrim) {
                                 if (queryTrim.isEmpty()) {
-                                    allProducts.take(15)
+                                    allProducts
                                 } else {
                                     allProducts.filter { prod ->
-                                        prod.urunAdi.lowercase().contains(queryTrim) ||
-                                        prod.barkod.lowercase().contains(queryTrim) ||
-                                        prod.urunKodu.lowercase().contains(queryTrim) ||
-                                        prod.kategori.lowercase().contains(queryTrim)
+                                        prod.matchesSearchQuery(queryTrim)
                                     }
                                 }
                             }
 
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp, vertical = 4.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = if (queryTrim.isEmpty()) "TÜM ÜRÜNLER (${allProducts.size})" else "ARAMA SONUÇLARI (${matchingProducts.size})",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = TurquoiseDark
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (queryTrim.isEmpty()) Icons.Default.Inventory2 else Icons.Default.FilterList,
+                                        contentDescription = null,
+                                        tint = TurquoiseDark,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = if (queryTrim.isEmpty()) "TÜM ÜRÜNLER (${allProducts.size})" else "ARAMA SONUÇLARI (${matchingProducts.size})",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = TurquoiseDark
+                                    )
+                                }
 
                                 Text(
                                     text = "Yazdıkça filtrelenir",
@@ -495,16 +523,40 @@ fun SktTopAppBar(
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(vertical = 24.dp),
+                                        .padding(vertical = 32.dp, horizontal = 16.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text(
-                                        text = "Eşleşen ürün bulunamadı.",
-                                        fontSize = 13.sp,
-                                        color = Slate500,
-                                        fontWeight = FontWeight.Medium
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .size(54.dp)
+                                            .clip(CircleShape)
+                                            .background(Slate100),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.SearchOff,
+                                            contentDescription = null,
+                                            tint = Slate500,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Aramanızla eşleşen ürün bulunamadı",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate900,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "\"$searchQuery\" araması için kayıtlı ürün bulunmuyor. Dilerseniz yeni ürün ekleyebilirsiniz.",
+                                        fontSize = 12.sp,
+                                        color = Slate500,
+                                        textAlign = TextAlign.Center,
+                                        lineHeight = 16.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
                                     Button(
                                         onClick = {
                                             isSearchExpanded = false
@@ -513,7 +565,8 @@ fun SktTopAppBar(
                                             onAddNewProductClick()
                                         },
                                         colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                                        shape = RoundedCornerShape(10.dp)
+                                        shape = RoundedCornerShape(12.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Add,
@@ -521,7 +574,7 @@ fun SktTopAppBar(
                                             modifier = Modifier.size(16.dp),
                                             tint = Color.White
                                         )
-                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = "+ YENİ ÜRÜN EKLE",
                                             fontWeight = FontWeight.Bold,
@@ -534,24 +587,20 @@ fun SktTopAppBar(
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 380.dp),
-                                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        .heightIn(max = 420.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     items(matchingProducts, key = { it.id }) { product ->
                                         val status = if (product.sktTarihi > 0L) product.getExpiryStatus() else ExpiryStatus.NORMAL
                                         val daysLeft = if (product.sktTarihi > 0L) product.getRemainingDays() else 9999L
 
-                                        val statusColor = when (status) {
-                                            ExpiryStatus.EXPIRED -> ExpiredRed
-                                            ExpiryStatus.CRITICAL -> CriticalOrange
-                                            ExpiryStatus.SOON -> SoonYellow
-                                            ExpiryStatus.NORMAL -> NormalGreen
-                                        }
-
-                                        val statusLabel = if (product.sktTarihi <= 0L) "Tarihsiz"
-                                        else when (status) {
-                                            ExpiryStatus.EXPIRED -> "DOLDU"
-                                            else -> "$daysLeft GÜN"
+                                        val (statusBg, statusText, statusLabel) = when {
+                                            product.sktTarihi <= 0L -> Triple(Slate100, Slate700, "TARİHSİZ")
+                                            status == ExpiryStatus.EXPIRED -> Triple(ExpiredRedContainer, ExpiredRed, "SÜRESİ GEÇTİ")
+                                            status == ExpiryStatus.CRITICAL -> Triple(CriticalOrangeContainer, CriticalOrange, if (daysLeft == 0L) "BUGÜN" else "$daysLeft GÜN")
+                                            status == ExpiryStatus.SOON -> Triple(SoonYellowContainer, Color(0xFF8B6B00), "$daysLeft GÜN")
+                                            status == ExpiryStatus.WARNING -> Triple(WarningBlueContainer, WarningBlue, "$daysLeft GÜN")
+                                            else -> Triple(NormalGreenContainer, NormalGreen, "$daysLeft GÜN")
                                         }
 
                                         Surface(
@@ -561,7 +610,7 @@ fun SktTopAppBar(
                                                 focusManager.clearFocus(force = true)
                                                 onProductClick(product)
                                             },
-                                            shape = RoundedCornerShape(10.dp),
+                                            shape = RoundedCornerShape(12.dp),
                                             color = Slate50,
                                             border = BorderStroke(1.dp, Slate200),
                                             modifier = Modifier.fillMaxWidth()
@@ -569,37 +618,55 @@ fun SktTopAppBar(
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
+                                                // Product Initial Avatar (Replaces search magnifying glass)
+                                                val displayName = product.getDisplayName()
+                                                val displayCode = product.getDisplayCode()
+                                                val firstChar = displayName.trim().firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "#"
+
                                                 Box(
                                                     modifier = Modifier
-                                                        .size(36.dp)
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                                                        .size(38.dp)
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Search,
-                                                        contentDescription = null,
-                                                        tint = TurquoiseDark,
-                                                        modifier = Modifier.size(18.dp)
+                                                    Text(
+                                                        text = firstChar,
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.Black,
+                                                        color = TurquoiseDark
                                                     )
                                                 }
 
-                                                Spacer(modifier = Modifier.width(10.dp))
+                                                Spacer(modifier = Modifier.width(12.dp))
 
                                                 Column(modifier = Modifier.weight(1f)) {
                                                     Text(
-                                                        text = product.urunAdi.uppercase(),
+                                                        text = displayName.uppercase(),
                                                         fontSize = 13.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         color = Slate900,
                                                         maxLines = 1,
                                                         overflow = TextOverflow.Ellipsis
                                                     )
+                                                    Spacer(modifier = Modifier.height(2.dp))
+                                                    val infoText = buildString {
+                                                        append(if (product.kategori.isNotBlank()) product.kategori else "Genel")
+                                                        val barcode = product.barkod.trim()
+                                                        if (barcode.isNotBlank()) {
+                                                            append(" • Barkod: ")
+                                                            append(barcode)
+                                                        }
+                                                        if (displayCode.isNotBlank() && displayCode != barcode && displayCode != displayName) {
+                                                            append(" • Kod: ")
+                                                            append(displayCode)
+                                                        }
+                                                    }
                                                     Text(
-                                                        text = "${product.kategori} • ${if (product.barkod.isNotBlank()) "Barkod: ${product.barkod}" else if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu}" else "Kod yok"}",
+                                                        text = infoText,
                                                         fontSize = 11.sp,
                                                         color = Slate500,
                                                         maxLines = 1,
@@ -607,23 +674,28 @@ fun SktTopAppBar(
                                                     )
                                                 }
 
-                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Spacer(modifier = Modifier.width(10.dp))
 
-                                                Column(horizontalAlignment = Alignment.End) {
+                                                Column(
+                                                    horizontalAlignment = Alignment.End,
+                                                    verticalArrangement = Arrangement.Center
+                                                ) {
                                                     Box(
                                                         modifier = Modifier
                                                             .clip(RoundedCornerShape(6.dp))
-                                                            .background(statusColor)
-                                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                            .background(statusBg)
+                                                            .padding(horizontal = 8.dp, vertical = 3.dp)
                                                     ) {
                                                         Text(
                                                             text = statusLabel,
                                                             fontSize = 10.sp,
                                                             fontWeight = FontWeight.Black,
-                                                            color = Color.White
+                                                            color = statusText
                                                         )
                                                     }
-                                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                                    Spacer(modifier = Modifier.height(4.dp))
+
                                                     Text(
                                                         text = "Stok: ${product.stokAdedi}",
                                                         fontSize = 11.sp,
@@ -678,7 +750,7 @@ fun SktBottomNavBar(
             // 2. ÜRÜNLER (liste ikonu)
             BottomNavItem(
                 label = "ÜRÜNLER",
-                icon = Icons.Default.List,
+                icon = Icons.AutoMirrored.Filled.List,
                 selected = currentRoute == "products",
                 onClick = { onNavigate("products") },
                 modifier = Modifier.weight(1f)
@@ -800,6 +872,12 @@ fun ExpiryStatusChip(
             "YAKIN (${daysLeft} GÜN)"
         )
 
+        ExpiryStatus.WARNING -> Triple(
+            WarningBlueContainer,
+            WarningBlue,
+            "ORTA VADELİ (${daysLeft} GÜN)"
+        )
+
         ExpiryStatus.NORMAL -> Triple(
             NormalGreenContainer,
             NormalGreen,
@@ -840,6 +918,7 @@ fun ProductListItemCard(
             ExpiryStatus.EXPIRED -> ExpiredRed
             ExpiryStatus.CRITICAL -> CriticalOrange
             ExpiryStatus.SOON -> SoonYellow
+            ExpiryStatus.WARNING -> WarningBlue
             ExpiryStatus.NORMAL -> NormalGreen
         }
     }
@@ -853,7 +932,7 @@ fun ProductListItemCard(
         }
     }
 
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("tr", "TR"))
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
     val sktString = if (hasSkt) dateFormat.format(Date(product.sktTarihi)) else "SKT Girilmedi"
 
     Card(
@@ -917,7 +996,7 @@ fun ProductListItemCard(
             // Center info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = product.urunAdi.uppercase(),
+                    text = product.getDisplayName().uppercase(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     maxLines = 2,
@@ -925,31 +1004,36 @@ fun ProductListItemCard(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
                         text = "${product.kategori} • Stok: ${product.stokAdedi} adet",
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     product.getFormattedPrice()?.let { formattedPrice ->
-                        Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
+                                .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFFE0F2FE))
-                                .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                                .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
                                 text = formattedPrice,
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0369A1)
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF0369A1),
+                                maxLines = 1
                             )
                         }
                     }
                     if ((hasSkt && daysLeft in 1..30 && product.stokAdedi >= 10) || product.isImportant) {
-                        Spacer(modifier = Modifier.width(6.dp))
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(4.dp))
@@ -961,7 +1045,8 @@ fun ProductListItemCard(
                                 text = "🔥 ÖNEMLİ",
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Black,
-                                color = CriticalOrange
+                                color = CriticalOrange,
+                                maxLines = 1
                             )
                         }
                     }
@@ -1010,7 +1095,7 @@ fun GroupedProductListItemCard(
         productList.sortedBy { if (it.sktTarihi > 0L) it.sktTarihi else Long.MAX_VALUE }
     }
     val totalStock = productList.sumOf { it.stokAdedi }
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("tr", "TR")) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     Card(
         modifier = Modifier
@@ -1042,7 +1127,7 @@ fun GroupedProductListItemCard(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.List,
+                        imageVector = Icons.AutoMirrored.Filled.List,
                         contentDescription = "Çoklu SKT",
                         tint = TurquoiseDark,
                         modifier = Modifier.size(22.dp)
@@ -1053,7 +1138,7 @@ fun GroupedProductListItemCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = mainProduct.urunAdi.uppercase(),
+                        text = mainProduct.getDisplayName().uppercase(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
                         maxLines = 1,
@@ -1080,11 +1165,11 @@ fun GroupedProductListItemCard(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFFE0F2FE))
                                 .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
                                 text = formattedPrice,
-                                fontSize = 10.sp,
+                                fontSize = 13.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color(0xFF0369A1)
                             )
@@ -1175,7 +1260,7 @@ fun GroupedProductListItemCard(
                                 sktTextColor = ExpiredRed
                                 badgeBgColor = ExpiredRed
                                 badgeTextColor = Color.White
-                                statusLabel = "DOLDU"
+                                statusLabel = "SÜRESİ GEÇTİ"
                             }
                             ExpiryStatus.CRITICAL -> {
                                 sktBgColor = CriticalOrangeContainer
@@ -1191,6 +1276,14 @@ fun GroupedProductListItemCard(
                                 sktTextColor = Color(0xFF8B6B00)
                                 badgeBgColor = SoonYellow
                                 badgeTextColor = Color.Black
+                                statusLabel = "$daysLeft GÜN"
+                            }
+                            ExpiryStatus.WARNING -> {
+                                sktBgColor = WarningBlueContainer
+                                sktBorderColor = WarningBlue
+                                sktTextColor = WarningBlue
+                                badgeBgColor = WarningBlue
+                                badgeTextColor = Color.White
                                 statusLabel = "$daysLeft GÜN"
                             }
                             ExpiryStatus.NORMAL -> {
@@ -1255,6 +1348,136 @@ fun GroupedProductListItemCard(
     }
 }
 
+@Composable
+fun PriceQrScannerDialog(
+    onDismiss: () -> Unit,
+    onPriceScanned: (Double, String) -> Unit
+) {
+    val context = LocalContext.current
+    var isFlashOn by remember { mutableStateOf(false) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .padding(vertical = 16.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Header Bar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.QrCodeScanner,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Etiket / Fiyat QR Tara",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = TurquoiseDark
+                        )
+                    }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { isFlashOn = !isFlashOn }, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                contentDescription = "Flaş",
+                                tint = if (isFlashOn) Color(0xFFFFB703) else Color.Gray,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Mağaza etiketindeki QR kodu taratarak fiyatı otomatik ekleyin.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    com.example.ui.screens.CameraXBarcodeView(
+                        isFlashOn = isFlashOn,
+                        onBarcodeScanned = { raw ->
+                            val parsedPrice = com.example.data.parsePriceFromQr(raw)
+                            if (parsedPrice != null && parsedPrice > 0.0) {
+                                val formatted = if (parsedPrice % 1.0 == 0.0) parsedPrice.toInt().toString() else String.format(Locale.US, "%.2f", parsedPrice)
+                                Toast.makeText(context, "✅ QR Etiketinden Fiyat Alındı: $formatted ₺", Toast.LENGTH_SHORT).show()
+                                onPriceScanned(parsedPrice, raw)
+                                onDismiss()
+                            } else {
+                                Toast.makeText(context, "⚠️ Geçerli etiket/fiyat QR kodu okunamadı", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+
+                    com.example.ui.screens.CornerBracketsViewfinder(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = "💡 Mağaza Kodu - Barkod - Fiyat - Ürün Kodu formatındaki etiket QR'larını okur.",
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditProductModal(
@@ -1274,13 +1497,28 @@ fun AddEditProductModal(
     ) -> Unit,
     onDelete: ((Product) -> Unit)? = null
 ) {
-    var barkod by remember { mutableStateOf(product?.barkod ?: prefilledBarcode) }
-    var urunKodu by remember { mutableStateOf(product?.urunKodu ?: "2500${(1000..9999).random()}") }
+    val context = LocalContext.current
+    val parsedPrefill = remember(prefilledBarcode) {
+        if (prefilledBarcode.isNotBlank()) parseShelfQrPayload(prefilledBarcode) else null
+    }
+
+    var barkod by remember {
+        mutableStateOf(
+            product?.barkod ?: parsedPrefill?.barcode?.ifEmpty { null } ?: prefilledBarcode
+        )
+    }
+    var urunKodu by remember {
+        mutableStateOf(
+            product?.urunKodu ?: parsedPrefill?.productCode ?: "2500${(1000..9999).random()}"
+        )
+    }
     var urunAdi by remember { mutableStateOf(product?.urunAdi ?: "") }
-    var kategori by remember { mutableStateOf(product?.kategori ?: "Gıda Ürünleri") }
+    var kategori by remember { mutableStateOf(product?.kategori ?: "Genel") }
     var fiyatText by remember {
         mutableStateOf(
             product?.fiyat?.let { f ->
+                if (f % 1.0 == 0.0) f.toInt().toString() else f.toString()
+            } ?: parsedPrefill?.price?.let { f ->
                 if (f % 1.0 == 0.0) f.toInt().toString() else f.toString()
             } ?: ""
         )
@@ -1289,12 +1527,7 @@ fun AddEditProductModal(
 
     val categories = listOf(
         "Dolap Ürünleri",
-        "Gıda Ürünleri",
-        "Süt & Şarküteri",
-        "Atıştırmalık",
-        "İçecek",
-        "Temel Gıda",
-        "Temizlik"
+        "Gıda Ürünleri"
     )
     var expandedCategoryMenu by remember { mutableStateOf(false) }
 
@@ -1437,7 +1670,7 @@ fun AddEditProductModal(
                         label = { Text("Kategori") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryMenu) },
                         modifier = Modifier
-                            .menuAnchor()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                             .fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -1467,25 +1700,78 @@ fun AddEditProductModal(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Price Input (Optional)
-                OutlinedTextField(
-                    value = fiyatText,
-                    onValueChange = { fiyatText = it },
-                    label = { Text("Fiyat (₺) (İsteğe Bağlı)") },
-                    placeholder = { Text("Örn: 45.50") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("input_fiyat"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = TurquoisePrimary,
-                        focusedLabelColor = TurquoiseDark,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                var showPriceQrScanner by remember { mutableStateOf(false) }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = fiyatText,
+                        onValueChange = { fiyatText = it },
+                        label = { Text("Fiyat (₺) (İsteğe Bağlı)") },
+                        placeholder = { Text("Örn: 45.50") },
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("input_fiyat"),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = TurquoisePrimary,
+                            focusedLabelColor = TurquoiseDark,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        )
                     )
-                )
+
+                    Button(
+                        onClick = { showPriceQrScanner = true },
+                        modifier = Modifier
+                            .height(54.dp)
+                            .padding(top = 6.dp)
+                            .testTag("scan_price_qr_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = "QR Fiyat Tara",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "QR Fiyat",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                if (showPriceQrScanner) {
+                    PriceQrScannerDialog(
+                        onDismiss = { showPriceQrScanner = false },
+                        onPriceScanned = { scannedPrice, rawQr ->
+                            fiyatText = if (scannedPrice % 1.0 == 0.0) scannedPrice.toInt().toString() else scannedPrice.toString()
+                            val shelfData = parseShelfQrPayload(rawQr)
+                            if (barkod.isBlank() && shelfData.barcode.isNotBlank()) {
+                                barkod = shelfData.barcode
+                            }
+                            if (urunKodu.isBlank() && shelfData.productCode != null) {
+                                urunKodu = shelfData.productCode
+                            }
+                        }
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
@@ -1552,11 +1838,17 @@ fun AddEditProductModal(
 
                     Button(
                         onClick = {
-                            if (barkod.isNotBlank() && urunAdi.isNotBlank()) {
+                            val finalName = urunAdi.trim()
+                            if (finalName.isNotBlank()) {
+                                val finalBarkod = barkod.trim().ifBlank {
+                                    if (urunKodu.isNotBlank()) "2500$urunKodu" else "869${(100000000..999999999).random()}"
+                                }
                                 val sktTime = product?.sktTarihi ?: 0L
                                 val stok = product?.stokAdedi ?: 0
                                 val parsedFiyat = fiyatText.trim().replace(',', '.').toDoubleOrNull()
-                                onSave(barkod, urunKodu, urunAdi, kategori, sktTime, stok, false, parsedFiyat, isImportant)
+                                onSave(finalBarkod, urunKodu.trim(), finalName, kategori, sktTime, stok, false, parsedFiyat, isImportant)
+                            } else {
+                                Toast.makeText(context, "Lütfen ürün adını giriniz!", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier
@@ -1579,6 +1871,7 @@ fun AddEditProductModal(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ProductDetailModal(
     product: Product?,
@@ -1587,12 +1880,14 @@ fun ProductDetailModal(
     onEditClick: (Product) -> Unit,
     onAddNewSktClick: (Product) -> Unit,
     onEditSktItem: (product: Product, sktTarihi: Long, stokAdedi: Int) -> Unit = { _, _, _ -> },
-    onDeleteSkt: (Product) -> Unit
+    onDeleteSkt: (Product) -> Unit,
+    onUpdatePrice: (product: Product, price: Double) -> Unit = { _, _ -> }
 ) {
     if (product == null) return
 
     var editingSktItem by remember { mutableStateOf<Product?>(null) }
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale("tr", "TR")) }
+    var showDetailPriceQrScanner by remember { mutableStateOf(false) }
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     // Risk Level Quantity Breakdown
     val expiredOrNearCount = remember(matchingProducts) {
@@ -1647,9 +1942,9 @@ fun ProductDetailModal(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.15f),
-                            modifier = Modifier.size(36.dp)
+                            shape = CircleShape,
+                            color = TurquoisePrimary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(38.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -1660,32 +1955,35 @@ fun ProductDetailModal(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = "Ürün Detay",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Black,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             color = TurquoiseDark
                         )
                     }
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Button(
+                        OutlinedButton(
                             onClick = { onEditClick(product) },
                             modifier = Modifier
-                                .height(34.dp)
+                                .height(36.dp)
                                 .testTag("detail_edit_product_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = Slate700),
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                            border = BorderStroke(1.5.dp, TurquoiseDark),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = TurquoiseDark
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Düzenle",
-                                tint = Color.White,
+                                tint = TurquoiseDark,
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1693,7 +1991,7 @@ fun ProductDetailModal(
                                 text = "Düzenle",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
-                                color = Color.White
+                                color = TurquoiseDark
                             )
                         }
 
@@ -1717,11 +2015,12 @@ fun ProductDetailModal(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // HERO CARD WITH PRODUCT NAME & ICON
+                    // HERO CARD WITH PRODUCT NAME, CATEGORY, PRICE & CODES
                     Surface(
                         shape = RoundedCornerShape(18.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 4.dp,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(
@@ -1729,119 +2028,214 @@ fun ProductDetailModal(
                                 .fillMaxWidth()
                                 .padding(16.dp)
                         ) {
+                            // Top Row: Product Initial Box & Name & Category Badge
                             Row(verticalAlignment = Alignment.Top) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = TurquoiseDark,
-                                    modifier = Modifier.size(48.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(52.dp)
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(TurquoiseDark, Color(0xFF0D9488))
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = product.urunAdi.take(1).uppercase(),
-                                            fontSize = 24.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color.White
-                                        )
-                                    }
+                                    Text(
+                                        text = product.urunAdi.take(1).uppercase(),
+                                        fontSize = 26.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
                                 }
+
                                 Spacer(modifier = Modifier.width(12.dp))
+
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = product.urunAdi,
                                         fontSize = 18.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        fontWeight = FontWeight.Bold,
+                                        lineHeight = 22.sp,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 3,
+                                        overflow = TextOverflow.Ellipsis
                                     )
 
                                     Spacer(modifier = Modifier.height(6.dp))
 
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    // Category Badge (Soft slate/turquoise pill)
+                                    Surface(
+                                        shape = RoundedCornerShape(20.dp),
+                                        color = Color(0xFFF1F5F9),
+                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                                     ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = TurquoisePrimary.copy(alpha = 0.12f)
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text(
-                                                text = "📁 ${product.kategori}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = TurquoiseDark,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                            Icon(
+                                                imageVector = Icons.Default.Category,
+                                                contentDescription = null,
+                                                tint = Color(0xFF475569),
+                                                modifier = Modifier.size(12.dp)
                                             )
-                                        }
-
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = MaterialTheme.colorScheme.surface
-                                        ) {
+                                            Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = "🏷️ Kod: ${product.urunKodu}",
+                                                text = product.kategori.ifBlank { "Genel" },
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                color = Color(0xFF334155),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                     }
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                                Column(horizontalAlignment = Alignment.End) {
-                                    val priceText = product.getFormattedPrice()
-                                    if (priceText != null) {
-                                        Text(
-                                            text = priceText,
-                                            fontSize = 22.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color(0xFF16A34A)
-                                        )
+                            // Price & QR Action Section
+                            val priceVal = product.fiyat
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "SATIŞ FİYATI",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF94A3B8),
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    if (priceVal != null && priceVal > 0) {
+                                        val formattedVal = String.format(Locale.forLanguageTag("tr-TR"), "%.2f", priceVal)
+                                        Row(verticalAlignment = Alignment.Bottom) {
+                                            Text(
+                                                text = formattedVal,
+                                                fontSize = 32.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = Color(0xFF0F172A)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "₺",
+                                                fontSize = 20.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TurquoiseDark,
+                                                modifier = Modifier.padding(bottom = 3.dp)
+                                            )
+                                        }
                                     } else {
                                         Text(
-                                            text = "Fiyat Yok",
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Medium,
-                                            color = Color.Gray
+                                            text = "Fiyat Girilmedi",
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF94A3B8)
+                                        )
+                                    }
+                                }
+
+                                // "QR Fiyat Güncelle" link
+                                TextButton(
+                                    onClick = { showDetailPriceQrScanner = true },
+                                    modifier = Modifier.testTag("detail_qr_price_button"),
+                                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.QrCodeScanner,
+                                            contentDescription = "QR ile Fiyat Ekle/Güncelle",
+                                            tint = TurquoiseDark,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (priceVal != null && priceVal > 0) "QR Fiyat Güncelle" else "QR Fiyat Ekle",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TurquoiseDark,
+                                            textDecoration = TextDecoration.Underline
                                         )
                                     }
                                 }
                             }
 
+                            Spacer(modifier = Modifier.height(12.dp))
+                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
                             Spacer(modifier = Modifier.height(10.dp))
 
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                                modifier = Modifier.fillMaxWidth()
+                            // Code and Barcode Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Barkod: ${product.barkod}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = Icons.Default.QrCode,
                                         contentDescription = null,
-                                        tint = TurquoiseDark,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = Color(0xFF64748B),
+                                        modifier = Modifier.size(15.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Barkod: ${product.barkod}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color(0xFF64748B)
+                                    )
+                                }
+
+                                if (product.urunKodu.isNotBlank()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Tag,
+                                            contentDescription = null,
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text(
+                                            text = "Kod: ${product.urunKodu}",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (product.barkod == product.urunKodu || product.barkod.length < 8) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = SoonYellowContainer,
+                                    border = BorderStroke(1.dp, SoonYellow.copy(alpha = 0.5f)),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "⚠️ Barkod ile Ürün Kodu Aynı: QR Fiyat Güncelle butonu ile raf etiketindeki QR'ı okutup barkod ve fiyatı güncelleyebilirsiniz.",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = Slate900
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
 
-                    // SKT RISK LEVEL BREAKDOWN (Red, Orange, Green Quantity Counters)
+                    // SKT RISK LEVEL BREAKDOWN
                     Text(
                         text = "📊 SKT MİKTAR & RİSK DAĞILIMI",
                         fontSize = 13.sp,
@@ -1851,64 +2245,110 @@ fun ProductDetailModal(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         // RED: EXPIRED / NEAR (0-3 Days)
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             color = ExpiredRedContainer,
-                            border = BorderStroke(1.5.dp, ExpiredRed.copy(alpha = 0.4f)),
+                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.3f)),
+                            shadowElevation = 2.dp,
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("🔴 Geçmiş/Yakın", fontSize = 10.sp, fontWeight = FontWeight.Black, color = ExpiredRed)
-                                Text("(0-3 Gün)", fontSize = 9.sp, color = ExpiredRed.copy(alpha = 0.8f))
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("$expiredOrNearCount", fontSize = 18.sp, fontWeight = FontWeight.Black, color = ExpiredRed)
-                                Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = ExpiredRed)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .background(ExpiredRed)
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Geçmiş/Yakın", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ExpiredRed, textAlign = TextAlign.Center)
+                                    Text("(0-3 Gün)", fontSize = 9.sp, color = Color(0xFF991B1B), textAlign = TextAlign.Center)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("$expiredOrNearCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = ExpiredRed, textAlign = TextAlign.Center)
+                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF991B1B), textAlign = TextAlign.Center)
+                                }
                             }
                         }
 
                         // ORANGE: CRITICAL (4-15 Days)
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             color = CriticalOrangeContainer,
-                            border = BorderStroke(1.5.dp, CriticalOrange.copy(alpha = 0.4f)),
+                            border = BorderStroke(1.dp, CriticalOrange.copy(alpha = 0.3f)),
+                            shadowElevation = 2.dp,
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("🟠 Kritik", fontSize = 10.sp, fontWeight = FontWeight.Black, color = CriticalOrange)
-                                Text("(4-15 Gün)", fontSize = 9.sp, color = CriticalOrange.copy(alpha = 0.8f))
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("$criticalCount", fontSize = 18.sp, fontWeight = FontWeight.Black, color = CriticalOrange)
-                                Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = CriticalOrange)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .background(CriticalOrange)
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Kritik", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CriticalOrange, textAlign = TextAlign.Center)
+                                    Text("(4-15 Gün)", fontSize = 9.sp, color = Color(0xFF9A3412), textAlign = TextAlign.Center)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("$criticalCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = CriticalOrange, textAlign = TextAlign.Center)
+                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF9A3412), textAlign = TextAlign.Center)
+                                }
                             }
                         }
 
                         // GREEN: SAFE (16+ Days)
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             color = NormalGreenContainer,
-                            border = BorderStroke(1.5.dp, NormalGreen.copy(alpha = 0.4f)),
+                            border = BorderStroke(1.dp, NormalGreen.copy(alpha = 0.3f)),
+                            shadowElevation = 2.dp,
                             modifier = Modifier.weight(1f)
                         ) {
                             Column(
-                                modifier = Modifier.padding(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Text("🟢 Güvende", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NormalGreen)
-                                Text("(16+ Gün)", fontSize = 9.sp, color = NormalGreen.copy(alpha = 0.8f))
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("$safeCount", fontSize = 18.sp, fontWeight = FontWeight.Black, color = NormalGreen)
-                                Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NormalGreen)
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .background(NormalGreen)
+                                )
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text("Güvende", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NormalGreen, textAlign = TextAlign.Center)
+                                    Text("(16+ Gün)", fontSize = 9.sp, color = Color(0xFF166534), textAlign = TextAlign.Center)
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text("$safeCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = NormalGreen, textAlign = TextAlign.Center)
+                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF166534), textAlign = TextAlign.Center)
+                                }
                             }
                         }
+                    }
+
+                    val validSktProducts = remember(matchingProducts) {
+                        matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }
                     }
 
                     // REGISTERED SKT DATES LIST
@@ -1918,127 +2358,161 @@ fun ProductDetailModal(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📅 KAYITLI SKT TARİHLERİ (${matchingProducts.size} TARİH)",
+                            text = "📅 KAYITLI SKT TARİHLERİ (${validSktProducts.size} TARİH)",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
 
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        matchingProducts.forEach { item ->
-                            val hasSkt = item.sktTarihi > 0L
-                            val now = System.currentTimeMillis()
-                            val diff = if (hasSkt) item.sktTarihi - now else 0L
-                            val daysRemaining = diff / (1000 * 60 * 60 * 24)
-                            val dateStr = if (hasSkt) dateFormat.format(Date(item.sktTarihi)) else "SKT Girilmedi"
-
-                            val (badgeText, badgeBg, badgeTextColor) = if (!hasSkt) {
-                                Triple(
-                                    "ℹ️ SKT YOK",
-                                    MaterialTheme.colorScheme.surfaceVariant,
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                    if (validSktProducts.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "ℹ️ Bu ürün için henüz SKT ve adet bilgisi girilmemiştir.",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            } else when {
-                                daysRemaining < 0 -> Triple(
-                                    "🚨 GEÇTİ (${kotlin.math.abs(daysRemaining)}g)",
-                                    ExpiredRedContainer,
-                                    ExpiredRed
-                                )
-                                daysRemaining in 0..7 -> Triple(
-                                    "⚠️ KRİTİK (${daysRemaining}g)",
-                                    CriticalOrangeContainer,
-                                    CriticalOrange
-                                )
-                                else -> Triple(
-                                    "✅ NORMAL (${daysRemaining}g)",
-                                    NormalGreenContainer,
-                                    NormalGreen
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "Aşağıdaki 'SKT VE ADET EKLE' butonunu kullanarak yeni SKT ekleyebilirsiniz.",
+                                    fontSize = 11.sp,
+                                    color = Slate500
                                 )
                             }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            validSktProducts.forEach { item ->
+                                val hasSkt = item.sktTarihi > 0L
+                                val now = System.currentTimeMillis()
+                                val diff = if (hasSkt) item.sktTarihi - now else 0L
+                                val daysRemaining = diff / (1000 * 60 * 60 * 24)
+                                val dateStr = if (hasSkt) dateFormat.format(Date(item.sktTarihi)) else "SKT Girilmedi"
 
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surface,
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                                shadowElevation = 1.dp,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                val (badgeText, badgeBg, badgeTextColor) = if (!hasSkt) {
+                                    Triple(
+                                        "ℹ️ SKT YOK",
+                                        MaterialTheme.colorScheme.surfaceVariant,
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                } else when {
+                                    daysRemaining < 0 -> Triple(
+                                        "🚨 GEÇTİ (${kotlin.math.abs(daysRemaining)}g)",
+                                        ExpiredRedContainer,
+                                        ExpiredRed
+                                    )
+                                    daysRemaining in 0..7 -> Triple(
+                                        "⚠️ KRİTİK (${daysRemaining}g)",
+                                        CriticalOrangeContainer,
+                                        CriticalOrange
+                                    )
+                                    else -> Triple(
+                                        "✅ NORMAL (${daysRemaining}g)",
+                                        NormalGreenContainer,
+                                        NormalGreen
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = MaterialTheme.colorScheme.surface,
+                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    shadowElevation = 2.dp,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.CalendarToday,
-                                            contentDescription = null,
-                                            tint = TurquoiseDark,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(10.dp))
-                                        Column {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Text(
-                                                    text = dateStr,
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.Black,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Surface(
-                                                    shape = RoundedCornerShape(6.dp),
-                                                    color = badgeBg
-                                                ) {
-                                                    Text(
-                                                        text = badgeText,
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = badgeTextColor,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = TurquoisePrimary.copy(alpha = 0.12f),
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.CalendarToday,
+                                                        contentDescription = null,
+                                                        tint = TurquoiseDark,
+                                                        modifier = Modifier.size(18.dp)
                                                     )
                                                 }
                                             }
-                                            Spacer(modifier = Modifier.height(2.dp))
-                                            Text(
-                                                text = "SKT Miktarı: ${item.stokAdedi} adet",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = TurquoiseDark
-                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Column {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = dateStr,
+                                                        fontSize = 15.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onSurface
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Surface(
+                                                        shape = RoundedCornerShape(20.dp),
+                                                        color = badgeBg
+                                                    ) {
+                                                        Text(
+                                                            text = badgeText,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = badgeTextColor,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(3.dp))
+                                                Text(
+                                                    text = "SKT Miktarı: ${item.stokAdedi} adet",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = TurquoiseDark
+                                                )
+                                            }
                                         }
-                                    }
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = { editingSktItem = item },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Edit,
-                                                contentDescription = "SKT/Adet Düzenle",
-                                                tint = TurquoiseDark,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                        IconButton(
-                                            onClick = { onDeleteSkt(item) },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Delete,
-                                                contentDescription = "SKT Sil",
-                                                tint = ExpiredRed,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(
+                                                onClick = { editingSktItem = item },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Edit,
+                                                    contentDescription = "SKT/Adet Düzenle",
+                                                    tint = Color(0xFF94A3B8),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                            IconButton(
+                                                onClick = { onDeleteSkt(item) },
+                                                modifier = Modifier.size(32.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "SKT Sil",
+                                                    tint = Color(0xFF94A3B8),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -2054,10 +2528,11 @@ fun ProductDetailModal(
                     onClick = { onAddNewSktClick(product) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(52.dp)
                         .testTag("detail_add_new_skt_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                    shape = RoundedCornerShape(12.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -2068,9 +2543,10 @@ fun ProductDetailModal(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "SKT VE ADET EKLE",
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.ExtraBold,
                         color = Color.White,
-                        fontSize = 13.sp
+                        fontSize = 14.sp,
+                        letterSpacing = 0.5.sp
                     )
                 }
             }
@@ -2085,6 +2561,15 @@ fun ProductDetailModal(
             onSaveSkt = { prod, newSkt, newCount ->
                 onEditSktItem(prod, newSkt, newCount)
                 editingSktItem = null
+            }
+        )
+    }
+
+    if (showDetailPriceQrScanner) {
+        PriceQrScannerDialog(
+            onDismiss = { showDetailPriceQrScanner = false },
+            onPriceScanned = { scannedPrice, _ ->
+                onUpdatePrice(product, scannedPrice)
             }
         )
     }
@@ -2108,7 +2593,7 @@ fun AddSktModal(
     var showDatePicker by remember { mutableStateOf(false) }
     var showOcrScanner by remember { mutableStateOf(false) }
 
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale("tr", "TR"))
+    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
 
     if (showOcrScanner) {
         DateOcrScannerDialog(
@@ -2138,9 +2623,9 @@ fun AddSktModal(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
                 .padding(vertical = 16.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.5.dp, TurquoisePrimary),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
             shadowElevation = 12.dp
         ) {
             Column(
@@ -2148,30 +2633,58 @@ fun AddSktModal(
                     .fillMaxWidth()
                     .padding(20.dp)
             ) {
-                // Header
+                // 1. MODAL HEADER (No emoji, vector pencil icon in soft turquoise badge, dark turquoise text, close X button)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = if (isEditMode) "✏️ SKT VE ADET DÜZENLE" else "➕ YENİ SKT TARİHİ EKLE",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Black,
-                        color = TurquoiseDark
-                    )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = TurquoisePrimary.copy(alpha = 0.12f),
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isEditMode) Icons.Default.Edit else Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = if (isEditMode) "SKT VE ADET DÜZENLE" else "Tarih ve Adet Ekle",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = TurquoiseDark
+                        )
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Slate500,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Product Header Info Card
+                // 2. PRODUCT INFO CARD (Clean surface with fine gray border)
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)),
+                    color = Color(0xFFF8FAFC),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -2181,77 +2694,101 @@ fun AddSktModal(
                     ) {
                         Text(
                             text = product.urunAdi,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Black,
-                            color = MaterialTheme.colorScheme.onSurface
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(3.dp))
                         Text(
                             text = "Barkod: ${product.barkod} | Kategori: ${product.kategori}",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            fontSize = 11.sp,
+                            color = Slate500
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Date Picker field & OCR Camera button
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    OutlinedTextField(
-                        value = dateFormat.format(Date(selectedDateMillis)),
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Yeni SKT Tarihi") },
-                        trailingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.CalendarToday,
-                                contentDescription = "Tarih Seç",
-                                tint = TurquoiseDark
-                            )
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { showDatePicker = true }
-                            .testTag("input_new_skt_date"),
-                        enabled = false,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            disabledBorderColor = TurquoisePrimary,
-                            disabledLabelColor = TurquoiseDark,
-                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                            disabledTrailingIconColor = TurquoiseDark,
-                            disabledContainerColor = MaterialTheme.colorScheme.surface
-                        )
+                // 3. NEW SKT DATE & OCR SCANNER BUTTON
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Yeni SKT Tarihi",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TurquoiseDark
                     )
 
-                    Button(
-                        onClick = { showOcrScanner = true },
-                        modifier = Modifier.height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(10.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "Kamera ile Tarih Tara",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("OCR TARA", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        // Date input box: White background with bold 2dp turquoise border
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color.White,
+                            border = BorderStroke(2.dp, TurquoisePrimary),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(52.dp)
+                                .clickable { showDatePicker = true }
+                                .testTag("input_new_skt_date")
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = dateFormat.format(Date(selectedDateMillis)),
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate900
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.CalendarToday,
+                                    contentDescription = "Tarih Seç",
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+
+                        // OCR Scan Button: Turquoise Outlined style
+                        OutlinedButton(
+                            onClick = { showOcrScanner = true },
+                            modifier = Modifier.height(52.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.5.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = Color.White,
+                                contentColor = TurquoiseDark
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Kamera ile Tarih Tara",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                "OCR TARA",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // SKT Adedi (Label + Stepper + Compact Text Field)
+                // 4. SKT QUANTITY STEPPER (UNIFIED CAPSULE / PILL CONTROL)
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -2259,66 +2796,104 @@ fun AddSktModal(
                         text = "SKT Adedi (Giriş Miktarı):",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = Slate900
                     )
 
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Unified Pill Container
+                    Surface(
+                        shape = RoundedCornerShape(24.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                        modifier = Modifier.height(44.dp)
                     ) {
-                        Button(
-                            onClick = {
-                                val current = stokAdedi.toIntOrNull() ?: 0
-                                if (current > 1) stokAdedi = (current - 1).toString()
-                            },
-                            modifier = Modifier.size(38.dp),
-                            contentPadding = PaddingValues(0.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            shape = RoundedCornerShape(8.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(2.dp)
                         ) {
-                            Text("-", fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
-                        }
+                            // Decrement (-) Button
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(TurquoisePrimary.copy(alpha = 0.15f))
+                                    .clickable {
+                                        val current = stokAdedi.toIntOrNull() ?: 0
+                                        if (current > 1) stokAdedi = (current - 1).toString()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "-",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark
+                                )
+                            }
 
-                        OutlinedTextField(
-                            value = stokAdedi,
-                            onValueChange = { stokAdedi = it },
-                            modifier = Modifier.width(80.dp),
-                            singleLine = true,
-                            textStyle = androidx.compose.ui.text.TextStyle(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp
-                            ),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                focusedBorderColor = TurquoisePrimary,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            )
-                        )
+                            // Quantity Display/Input Field
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
+                                modifier = Modifier
+                                    .padding(horizontal = 4.dp)
+                                    .width(56.dp)
+                                    .height(36.dp)
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    BasicTextField(
+                                        value = stokAdedi,
+                                        onValueChange = { newValue ->
+                                            if (newValue.all { it.isDigit() } && newValue.length <= 4) {
+                                                stokAdedi = newValue
+                                            }
+                                        },
+                                        singleLine = true,
+                                        textStyle = androidx.compose.ui.text.TextStyle(
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 17.sp,
+                                            color = Slate900
+                                        ),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        cursorBrush = SolidColor(TurquoiseDark),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            }
 
-                        Button(
-                            onClick = {
-                                val current = stokAdedi.toIntOrNull() ?: 0
-                                stokAdedi = (current + 1).toString()
-                            },
-                            modifier = Modifier.size(38.dp),
-                            contentPadding = PaddingValues(0.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text("+", fontSize = 18.sp, fontWeight = FontWeight.Black, color = Color.White)
+                            // Increment (+) Button
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(TurquoisePrimary.copy(alpha = 0.15f))
+                                    .clickable {
+                                        val current = stokAdedi.toIntOrNull() ?: 0
+                                        stokAdedi = (current + 1).toString()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "+",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark
+                                )
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                // 5. ACTION BUTTONS (DÜZENLEMEYİ KAYDET / KAYDET / EKLE)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val context = LocalContext.current
                     if (!isEditMode) {
@@ -2331,16 +2906,17 @@ fun AddSktModal(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(48.dp)
+                                .height(50.dp)
                                 .testTag("submit_add_skt_button"),
                             colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(imageVector = Icons.Default.Add, contentDescription = "Ekle", tint = Color.White)
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "+ EKLE",
-                                fontWeight = FontWeight.Black,
+                                text = "EKLE",
+                                fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 fontSize = 13.sp
                             )
@@ -2357,16 +2933,17 @@ fun AddSktModal(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(50.dp)
                             .testTag("save_and_close_skt_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = if (isEditMode) TurquoisePrimary else Slate900),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Kaydet", tint = Color.White)
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (isEditMode) "DÜZENLEMEYİ KAYDET" else "KAYDET",
-                            fontWeight = FontWeight.Black,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
                             fontSize = 13.sp
                         )
@@ -2408,7 +2985,7 @@ fun CustomBoxedCalendarDialog(
     val currentYear = calendarView.get(Calendar.YEAR)
     val currentMonth = calendarView.get(Calendar.MONTH)
 
-    val trLocale = remember { Locale("tr", "TR") }
+    val trLocale = remember { Locale.forLanguageTag("tr-TR") }
     val monthYearFormat = remember { SimpleDateFormat("MMMM yyyy", trLocale) }
     val selectedDateFormat = remember { SimpleDateFormat("dd MMMM yyyy, EEEE", trLocale) }
 

@@ -106,6 +106,14 @@ object CloudSyncManager {
         return prefs?.getString(KEY_DEVICE_ID, "") ?: ""
     }
 
+    fun setHasUserResetData(reset: Boolean) {
+        prefs?.edit()?.putBoolean("user_has_reset_data", reset)?.apply()
+    }
+
+    fun hasUserResetData(): Boolean {
+        return prefs?.getBoolean("user_has_reset_data", false) ?: false
+    }
+
     fun startRealtimeListeners() {
         productListener?.remove()
         reportListener?.remove()
@@ -233,6 +241,45 @@ object CloudSyncManager {
                     .delete()
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to delete product from cloud: ${e.message}")
+            }
+        }
+    }
+
+    fun clearAllCloudData() {
+        val db = firestore ?: return
+        val storeCode = getStoreCode()
+
+        scope.launch {
+            try {
+                db.collection("stores")
+                    .document(storeCode)
+                    .collection("products")
+                    .get()
+                    .addOnSuccessListener { snapshot ->
+                        if (snapshot != null && !snapshot.isEmpty) {
+                            val batch = db.batch()
+                            for (doc in snapshot.documents) {
+                                batch.delete(doc.reference)
+                            }
+                            batch.commit()
+                        }
+                    }
+
+                db.collection("stores")
+                    .document(storeCode)
+                    .collection("reports")
+                    .get()
+                    .addOnSuccessListener { snapshot ->
+                        if (snapshot != null && !snapshot.isEmpty) {
+                            val batch = db.batch()
+                            for (doc in snapshot.documents) {
+                                batch.delete(doc.reference)
+                            }
+                            batch.commit()
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to clear cloud data: ${e.message}")
             }
         }
     }

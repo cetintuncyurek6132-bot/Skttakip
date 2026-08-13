@@ -62,7 +62,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -82,6 +82,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.util.Calendar
+import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.regex.Pattern
 
@@ -94,6 +95,24 @@ fun DateOcrScannerDialog(
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     var detectedTextDisplay by remember { mutableStateOf("Tarih aranıyor... (Örn: 15/08/2026)") }
     var isFlashOn by remember { mutableStateOf(false) }
+
+    val toneGenerator = remember {
+        try {
+            ToneGenerator(AudioManager.STREAM_MUSIC, 85)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                toneGenerator?.release()
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (!cameraPermissionState.status.isGranted) {
@@ -127,8 +146,7 @@ fun DateOcrScannerDialog(
                             isFlashOn = isFlashOn,
                             onDateFound = { millis, dateStr ->
                                 try {
-                                    val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-                                    toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
+                                    toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
                                 } catch (e: Exception) {
                                     // Ignore audio error
                                 }
@@ -191,40 +209,19 @@ fun DateOcrScannerDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(
-                                onClick = onDismiss,
-                                shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.6f),
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Kapat",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.width(10.dp))
-
-                            // FLASH TOGGLE BUTTON
-                            Surface(
-                                onClick = { isFlashOn = !isFlashOn },
-                                shape = CircleShape,
-                                color = if (isFlashOn) TurquoisePrimary else Color.Black.copy(alpha = 0.6f),
-                                modifier = Modifier.size(44.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                                        contentDescription = "Flaş / Işık",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
+                        Surface(
+                            onClick = onDismiss,
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.6f),
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Kapat",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
                             }
                         }
 
@@ -251,6 +248,27 @@ fun DateOcrScannerDialog(
                                 fontWeight = FontWeight.Black,
                                 fontSize = 11.sp,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            )
+                        }
+                    }
+
+                    // FLASH TOGGLE BUTTON (Bottom Right of Camera View)
+                    Surface(
+                        onClick = { isFlashOn = !isFlashOn },
+                        shape = CircleShape,
+                        color = if (isFlashOn) TurquoisePrimary else Color.Black.copy(alpha = 0.65f),
+                        shadowElevation = 4.dp,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 52.dp)
+                            .size(46.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = if (isFlashOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                contentDescription = "Flaş / Işık",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -379,12 +397,6 @@ private fun selectTestDate(day: Int, month0: Int, year: Int, onDateDetected: (Lo
         set(Calendar.MILLISECOND, 0)
     }
     val formatted = String.format("%02d/%02d/%04d", day, month0 + 1, year)
-    try {
-        val toneGen = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-        toneGen.startTone(ToneGenerator.TONE_PROP_BEEP, 150)
-    } catch (e: Exception) {
-        // Ignore
-    }
     onDateDetected(cal.timeInMillis, formatted)
 }
 
@@ -401,6 +413,8 @@ private fun CameraXDateOcrView(
     val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
 
+    val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
+
     LaunchedEffect(isFlashOn) {
         cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
     }
@@ -409,6 +423,11 @@ private fun CameraXDateOcrView(
         onDispose {
             try {
                 cameraProviderRef.value?.unbindAll()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
+                recognizer.close()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -436,10 +455,7 @@ private fun CameraXDateOcrView(
                         setSurfaceProvider(previewView.surfaceProvider)
                     }
 
-                    val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-
                     val imageAnalysis = ImageAnalysis.Builder()
-                        .setTargetResolution(Size(1280, 720))
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
@@ -487,13 +503,27 @@ private fun processImageForDate(
         recognizer.process(inputImage)
             .addOnSuccessListener { visionText ->
                 val fullText = visionText.text
-                val trimmed = fullText.replace("\n", " ").trim()
-                if (trimmed.length > 5) {
-                    onTextUpdate(trimmed.take(50))
+                val textPieces = mutableListOf<String>()
+                if (fullText.isNotBlank()) textPieces.add(fullText)
+
+                for (block in visionText.textBlocks) {
+                    textPieces.add(block.text)
+                    for (line in block.lines) {
+                        textPieces.add(line.text)
+                    }
                 }
-                val found = parseDateString(fullText)
-                if (found != null) {
-                    onDateFound(found.first, found.second)
+
+                val previewSnippet = fullText.replace("\n", " ").trim()
+                if (previewSnippet.isNotEmpty()) {
+                    onTextUpdate(previewSnippet.take(60))
+                }
+
+                for (piece in textPieces) {
+                    val found = parseDateString(piece)
+                    if (found != null) {
+                        onDateFound(found.first, found.second)
+                        break
+                    }
                 }
             }
             .addOnFailureListener {
@@ -507,36 +537,128 @@ private fun processImageForDate(
     }
 }
 
-private val DATE_PATTERN = Pattern.compile("(\\d{1,2})[./-](\\d{1,2})[./-](\\d{2,4})")
+private val TURKISH_MONTH_MAP = mapOf(
+    "OCAK" to 1, "OCA" to 1, "OCK" to 1, "JAN" to 1, "JANUARY" to 1,
+    "SUBAT" to 2, "SUB" to 2, "SBT" to 2, "FEB" to 2, "FEBRUARY" to 2,
+    "MART" to 3, "MAR" to 3, "MRT" to 3, "MARCH" to 3,
+    "NISAN" to 4, "NIS" to 4, "NSN" to 4, "APR" to 4, "APRIL" to 4,
+    "MAYIS" to 5, "MAY" to 5, "MYS" to 5,
+    "HAZIRAN" to 6, "HAZ" to 6, "HZR" to 6, "JUN" to 6, "JUNE" to 6,
+    "TEMMUZ" to 7, "TEM" to 7, "TMZ" to 7, "JUL" to 7, "JULY" to 7,
+    "AGUSTOS" to 8, "AGU" to 8, "AGS" to 8, "AUG" to 8, "AUGUST" to 8,
+    "EYLUL" to 9, "EYL" to 9, "SEP" to 9, "SEPTEMBER" to 9,
+    "EKIM" to 10, "EKI" to 10, "EKM" to 10, "OCT" to 10, "OCTOBER" to 10,
+    "KASIM" to 11, "KAS" to 11, "KSM" to 11, "NOV" to 11, "NOVEMBER" to 11,
+    "ARALIK" to 12, "ARA" to 12, "ARL" to 12, "DEC" to 12, "DECEMBER" to 12
+)
 
-private fun parseDateString(text: String): Pair<Long, String>? {
-    val matcher = DATE_PATTERN.matcher(text)
-    while (matcher.find()) {
-        val dayStr = matcher.group(1) ?: continue
-        val monthStr = matcher.group(2) ?: continue
-        val yearStr = matcher.group(3) ?: continue
+private fun buildDateResult(day: Int, month: Int, rawYear: Int): Pair<Long, String>? {
+    var year = rawYear
+    if (year < 100) {
+        year += 2000
+    }
+    if (day in 1..31 && month in 1..12 && year in 2020..2040) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month - 1)
+            set(Calendar.DAY_OF_MONTH, day)
+            set(Calendar.HOUR_OF_DAY, 12)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val formatted = String.format(Locale.US, "%02d/%02d/%04d", day, month, year)
+        return Pair(cal.timeInMillis, formatted)
+    }
+    return null
+}
 
-        val day = dayStr.toIntOrNull() ?: continue
-        val month = monthStr.toIntOrNull() ?: continue
-        var year = yearStr.toIntOrNull() ?: continue
+private fun parseDateString(rawText: String): Pair<Long, String>? {
+    if (rawText.isBlank()) return null
 
-        if (year < 100) {
-            year += 2000
+    val lines = rawText.split("\n", "\r", ";").filter { it.isNotBlank() }
+    val candidates = mutableListOf<String>()
+    candidates.add(rawText.replace("\n", " "))
+    candidates.addAll(lines)
+
+    for (candidate in candidates) {
+        // 1. Direct numeric date DD.MM.YYYY or DD/MM/YY or DD-MM-YYYY (or spaces)
+        val patNumeric = Pattern.compile("(\\d{1,2})[./\\-:,\\s]+(\\d{1,2})[./\\-:,\\s]+(\\d{2,4})")
+        val matNumeric = patNumeric.matcher(candidate)
+        while (matNumeric.find()) {
+            val d = matNumeric.group(1)?.toIntOrNull() ?: continue
+            val m = matNumeric.group(2)?.toIntOrNull() ?: continue
+            val y = matNumeric.group(3)?.toIntOrNull() ?: continue
+            val res = buildDateResult(d, m, y)
+            if (res != null) return res
         }
 
-        if (day in 1..31 && month in 1..12 && year in 2024..2040) {
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.YEAR, year)
-                set(Calendar.MONTH, month - 1)
-                set(Calendar.DAY_OF_MONTH, day)
-                set(Calendar.HOUR_OF_DAY, 12)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
+        // 2. Year-First format YYYY.MM.DD
+        val patYearFirst = Pattern.compile("(20\\d{2})[./\\-:,\\s]+(\\d{1,2})[./\\-:,\\s]+(\\d{1,2})")
+        val matYearFirst = patYearFirst.matcher(candidate)
+        while (matYearFirst.find()) {
+            val y = matYearFirst.group(1)?.toIntOrNull() ?: continue
+            val m = matYearFirst.group(2)?.toIntOrNull() ?: continue
+            val d = matYearFirst.group(3)?.toIntOrNull() ?: continue
+            val res = buildDateResult(d, m, y)
+            if (res != null) return res
+        }
+
+        // 3. Day + Month Name + Year (e.g. 15 AĞUSTOS 2026 or 15 AGU 26)
+        val patMonthName = Pattern.compile("(\\d{1,2})[./\\-:,\\s]+([A-Za-zçğıöşüÇĞİÖŞÜ]{3,12})[./\\-:,\\s]+(\\d{2,4})")
+        val matMonthName = patMonthName.matcher(candidate)
+        while (matMonthName.find()) {
+            val d = matMonthName.group(1)?.toIntOrNull() ?: continue
+            val mStr = matMonthName.group(2)?.uppercase(Locale.forLanguageTag("tr-TR"))
+                ?.replace("İ", "I")?.replace("Ğ", "G")?.replace("Ü", "U")
+                ?.replace("Ş", "S")?.replace("Ö", "O")?.replace("Ç", "C") ?: continue
+            val y = matMonthName.group(3)?.toIntOrNull() ?: continue
+            val m = TURKISH_MONTH_MAP[mStr] ?: continue
+            val res = buildDateResult(d, m, y)
+            if (res != null) return res
+        }
+
+        // 4. Month Name + Year (e.g. AGUSTOS 2026)
+        val patMonthYearName = Pattern.compile("([A-Za-zçğıöşüÇĞİÖŞÜ]{3,12})[./\\-:,\\s]+(20\\d{2}|\\d{2})")
+        val matMonthYearName = patMonthYearName.matcher(candidate)
+        while (matMonthYearName.find()) {
+            val mStr = matMonthYearName.group(1)?.uppercase(Locale.forLanguageTag("tr-TR"))
+                ?.replace("İ", "I")?.replace("Ğ", "G")?.replace("Ü", "U")
+                ?.replace("Ş", "S")?.replace("Ö", "O")?.replace("Ç", "C") ?: continue
+            val y = matMonthYearName.group(2)?.toIntOrNull() ?: continue
+            val m = TURKISH_MONTH_MAP[mStr] ?: continue
+            val res = buildDateResult(1, m, y)
+            if (res != null) return res
+        }
+
+        // 5. Month/Year numeric (e.g. 08/2026 or 08.26)
+        val patMonthYearNum = Pattern.compile("\\b(0[1-9]|1[0-2])[./\\-:,\\s]+(20\\d{2}|\\d{2})\\b")
+        val matMonthYearNum = patMonthYearNum.matcher(candidate)
+        while (matMonthYearNum.find()) {
+            val m = matMonthYearNum.group(1)?.toIntOrNull() ?: continue
+            val y = matMonthYearNum.group(2)?.toIntOrNull() ?: continue
+            val res = buildDateResult(1, m, y)
+            if (res != null) return res
+        }
+
+        // 6. OCR Character Fixups: Replace confused letters (O/o->0, I/l/|->1, S/s->5, B->8, Z/z->2)
+        val fixup = candidate
+            .replace("O", "0").replace("o", "0")
+            .replace("I", "1").replace("l", "1").replace("|", "1")
+            .replace("S", "5").replace("s", "5")
+            .replace("B", "8").replace("Z", "2").replace("z", "2")
+
+        if (fixup != candidate) {
+            val matFixup = patNumeric.matcher(fixup)
+            while (matFixup.find()) {
+                val d = matFixup.group(1)?.toIntOrNull() ?: continue
+                val m = matFixup.group(2)?.toIntOrNull() ?: continue
+                val y = matFixup.group(3)?.toIntOrNull() ?: continue
+                val res = buildDateResult(d, m, y)
+                if (res != null) return res
             }
-            val formatted = String.format("%02d/%02d/%04d", day, month, year)
-            return Pair(cal.timeInMillis, formatted)
         }
     }
+
     return null
 }

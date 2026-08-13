@@ -16,6 +16,8 @@ val CriticalOrange = Color(0xFFFB8C00)
 val CriticalOrangeContainer = Color(0xFFFFF3E0)
 val SoonYellow = Color(0xFFFBC02D)
 val SoonYellowContainer = Color(0xFFFFFDE7)
+val WarningBlue = Color(0xFF0284C7)
+val WarningBlueContainer = Color(0xFFE0F2FE)
 val NormalGreen = Color(0xFF43A047)
 val NormalGreenContainer = Color(0xFFE8F5E9)
 
@@ -26,7 +28,9 @@ val GameNavyCardAccent = Color(0xFF1D356D)
 
 // Standard surface & text colors
 val Slate900 = Color(0xFF0F172A)
+val Slate800 = Color(0xFF1E293B)
 val Slate700 = Color(0xFF334155)
+val Slate600 = Color(0xFF475569)
 val Slate500 = Color(0xFF64748B)
 val Slate300 = Color(0xFFCBD5E1)
 val Slate200 = Color(0xFFE2E8F0)

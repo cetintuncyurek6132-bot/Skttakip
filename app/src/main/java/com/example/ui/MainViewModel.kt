@@ -7,6 +7,7 @@ import com.example.data.ExpiryStatus
 import com.example.data.InspectionReport
 import com.example.data.Product
 import com.example.data.ProductRepository
+import com.example.data.parseShelfQrPayload
 import com.example.data.TurKontrolKaydi
 import com.example.data.TurRaporu
 import kotlinx.coroutines.Dispatchers
@@ -21,8 +22,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+import java.util.Locale
 
+import com.example.data.getTodayMidnightMillis
+import com.example.data.normalizeForSearch
 import com.example.data.matchesSearchQuery
+import com.example.data.isDolapProduct
+import kotlinx.coroutines.flow.flowOn
 
 enum class ProductFilter(val label: String) {
     ALL("TÜMÜ"),
@@ -30,6 +36,12 @@ enum class ProductFilter(val label: String) {
     EXPIRED("SÜRESİ GEÇEN"),
     CRITICAL("KRİTİK"),
     SOON("YAKIN")
+}
+
+enum class ProductGroupFilter(val label: String) {
+    ALL("Tümü"),
+    DOLAP("Dolap"),
+    GIDA("Gıda")
 }
 
 data class DashboardState(
@@ -69,6 +81,15 @@ class MainViewModel(
 
     private val _selectedFilter = MutableStateFlow(ProductFilter.ALL)
     val selectedFilter: StateFlow<ProductFilter> = _selectedFilter.asStateFlow()
+
+    private val _selectedGroupFilter = MutableStateFlow(ProductGroupFilter.ALL)
+    val selectedGroupFilter: StateFlow<ProductGroupFilter> = _selectedGroupFilter.asStateFlow()
+
+    private val _startDateFilter = MutableStateFlow<Long?>(null)
+    val startDateFilter: StateFlow<Long?> = _startDateFilter.asStateFlow()
+
+    private val _endDateFilter = MutableStateFlow<Long?>(null)
+    val endDateFilter: StateFlow<Long?> = _endDateFilter.asStateFlow()
 
     // State for Add/Edit dialog
     private val _isAddEditModalOpen = MutableStateFlow(false)
@@ -133,9 +154,12 @@ class MainViewModel(
     init {
         viewModelScope.launch {
             val list = repository.getProductListDirect()
-            if (list.size < 20) {
+            val userHasReset = com.example.sync.CloudSyncManager.hasUserResetData()
+            if (list.isEmpty() && !userHasReset) {
                 repository.reSeedDefaultData()
             }
+            // Automatically clean up any duplicate products from DB on launch
+            fixAndRepairDatabase { _, _ -> }
         }
     }
 
@@ -207,9 +231,24 @@ class MainViewModel(
                 val allProds = repository.getProductListDirect()
                 val updatedProds = mutableListOf<Product>()
                 val seenKeys = mutableSetOf<String>()
-                val duplicatesToDelete = mutableListOf<Product>()
+                val itemsToDelete = mutableListOf<Product>()
+
+                fun isCorruptedText(text: String): Boolean {
+                    if (text.isEmpty()) return false
+                    if (text.contains("\uFFFD")) return true
+                    if (text.contains("_rels") || text.contains("[Content_Types]") || text.contains("<xml") || text.contains("PK\u0003") || text.contains("xl/workbooks") || text.contains("Root Entry")) return true
+                    if (text.any { it.code in 0..8 || it.code in 14..31 || it.code == 127 }) return true
+                    return false
+                }
 
                 for (p in allProds) {
+                    // Check if product is binary garbage / corrupted from illegal file import
+                    if (isCorruptedText(p.barkod) || isCorruptedText(p.urunKodu) || isCorruptedText(p.urunAdi)) {
+                        itemsToDelete.add(p)
+                        fixedCount++
+                        continue
+                    }
+
                     val trimmedName = p.urunAdi.trim().replace("\\s+".toRegex(), " ")
                     // Clean barcode: filter non-digits and strip leading zero mismatch
                     var cleanBarcode = p.barkod.trim().filter { it.isDigit() }
@@ -236,13 +275,16 @@ class MainViewModel(
                     }
 
                     val effectiveBarcode = if (cleanBarcode.isNotEmpty()) cleanBarcode else p.barkod.trim()
-                    val dupKey = "$effectiveBarcode-$cleanUrunKodu-${p.sktTarihi}"
+                    val identifier = if (effectiveBarcode.isNotEmpty()) effectiveBarcode else trimmedName.lowercase()
+                    val formattedSkt = p.getFormattedSkt()
+                    // Deduplication key MUST include name and product code so different products sharing product code / placeholder barcode are never deleted
+                    val dupKey = "${identifier}_${cleanUrunKodu.lowercase()}_${trimmedName.lowercase()}-$formattedSkt"
 
-                    if (seenKeys.contains(dupKey) && effectiveBarcode.isNotEmpty()) {
-                        duplicatesToDelete.add(p)
+                    if (seenKeys.contains(dupKey)) {
+                        itemsToDelete.add(p)
                         fixedCount++
                     } else {
-                        if (effectiveBarcode.isNotEmpty()) seenKeys.add(dupKey)
+                        seenKeys.add(dupKey)
                         if (isModified) {
                             updatedProds.add(
                                 p.copy(
@@ -256,15 +298,15 @@ class MainViewModel(
                     }
                 }
 
-                for (dup in duplicatesToDelete) {
-                    repository.deleteProduct(dup)
+                for (item in itemsToDelete) {
+                    repository.deleteProduct(item)
                 }
                 for (mod in updatedProds) {
                     repository.insertOrUpdateProduct(mod)
                 }
 
                 val summary = if (fixedCount > 0) {
-                    "🔍 Tarama ve Onarım Tamamlandı!\n\n• Toplam $fixedCount adet tutarsızlık/mükerrer/format hatası otomatik düzeltildi.\n• ${duplicatesToDelete.size} adet mükerrer kayıt temizlendi.\n• Ürün metinleri, barkodlar, ürün kodları ve stok sayıları optimize edildi."
+                    "🔍 Tarama ve Onarım Tamamlandı!\n\n• Toplam $fixedCount adet tutarsızlık/bozuk veri/mükerrer kayıt temizlendi ve düzeltildi.\n• Ürün metinleri, barkodlar, ürün kodları ve stok sayıları optimize edildi."
                 } else {
                     "✅ Mükemmel! Veritabanınızda hiçbir hata veya tutarsızlık bulunamadı. Tüm veriler tam uyumlu ve optimize edilmiş durumda."
                 }
@@ -320,30 +362,29 @@ class MainViewModel(
         allReports,
         _notificationsRead
     ) { products, reports, isRead ->
-        val expired = products.count { it.sktTarihi > 0L && it.getExpiryStatus() == ExpiryStatus.EXPIRED }
-        val critical = products.count { it.sktTarihi > 0L && it.getExpiryStatus() == ExpiryStatus.CRITICAL }
-        val soon = products.count { it.sktTarihi > 0L && it.getExpiryStatus() == ExpiryStatus.SOON }
-        val important = products.count { it.sktTarihi > 0L && it.getRemainingDays() in 1..30 && it.stokAdedi >= 10 }
+        val todayMidnight = getTodayMidnightMillis()
+        val expired = products.count { it.sktTarihi > 0L && it.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED }
+        val critical = products.count { it.sktTarihi > 0L && it.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL }
+        val soon = products.count { it.sktTarihi > 0L && it.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON }
+        val important = products.count { (it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1..30 && it.stokAdedi >= 10) || it.isImportant }
 
         // Top attention items sorted by closest remaining days
-        val attention = products.filter { it.sktTarihi > 0L }.sortedBy { it.getRemainingDays() }.take(10)
+        val attention = products.filter { it.sktTarihi > 0L }
+            .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
+            .sortedBy { it.getRemainingDays(todayMidnight) }
+            .take(10)
 
         // Reyondan kaldırılması gerekenler (Sağ taraf: SKT dolmuş / remainingDays <= 0)
-        val removeProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays() <= 0L }
-            .sortedBy { it.getRemainingDays() }
+        val removeProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) <= 0L }
+            .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
+            .sortedBy { it.getRemainingDays(todayMidnight) }
 
         // SKT'sine son 1 ya da 2 gün kalmış ürünler (Sol taraf: 1 <= remainingDays <= 2)
-        val nearExpiryProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays() in 1L..2L }
-            .sortedBy { it.getRemainingDays() }
+        val nearExpiryProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1L..2L }
+            .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
+            .sortedBy { it.getRemainingDays(todayMidnight) }
 
-        // Check if morning check completed today
-        val todayStart = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-        val completedToday = reports.any { it.tarih >= todayStart }
+        val completedToday = reports.any { it.tarih >= todayMidnight }
 
         val activeAlertsCount = expired + critical
         val unreadCount = if (isRead) 0 else (if (activeAlertsCount > 0) activeAlertsCount else 1)
@@ -360,7 +401,9 @@ class MainViewModel(
             isMorningTourCompletedToday = completedToday,
             unreadNotificationCount = unreadCount
         )
-    }.stateIn(
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = DashboardState()
@@ -369,26 +412,99 @@ class MainViewModel(
     val filteredProducts: StateFlow<List<Product>> = combine(
         allProducts,
         _searchQuery,
-        _selectedFilter
-    ) { products, query, filter ->
-        products.filter { prod ->
-            val matchesSearch = prod.matchesSearchQuery(query)
+        _selectedFilter,
+        _startDateFilter,
+        _endDateFilter,
+        _selectedGroupFilter
+    ) { flows ->
+        @Suppress("UNCHECKED_CAST")
+        val products = flows[0] as List<Product>
+        @Suppress("UNCHECKED_CAST")
+        val query = flows[1] as String
+        @Suppress("UNCHECKED_CAST")
+        val filter = flows[2] as ProductFilter
+        @Suppress("UNCHECKED_CAST")
+        val startDate = flows[3] as Long?
+        @Suppress("UNCHECKED_CAST")
+        val endDate = flows[4] as Long?
+        @Suppress("UNCHECKED_CAST")
+        val groupFilter = flows[5] as ProductGroupFilter
+
+        val todayMidnight = getTodayMidnightMillis()
+        val rawQuery = query.trim()
+        val queryTokens = if (rawQuery.isBlank()) emptyList() else {
+            rawQuery.normalizeForSearch()
+                .replace(',', '.')
+                .split("\\s+".toRegex())
+                .filter { it.isNotBlank() }
+        }
+
+        val calStart = startDate?.let {
+            java.util.Calendar.getInstance().apply {
+                timeInMillis = it
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+        }
+
+        val calEnd = endDate?.let {
+            java.util.Calendar.getInstance().apply {
+                timeInMillis = it
+                set(java.util.Calendar.HOUR_OF_DAY, 23)
+                set(java.util.Calendar.MINUTE, 59)
+                set(java.util.Calendar.SECOND, 59)
+                set(java.util.Calendar.MILLISECOND, 999)
+            }.timeInMillis
+        }
+
+        val baseList = products.filter { prod ->
+            val matchesSearch = prod.matchesSearchQuery(rawQuery, queryTokens)
 
             val matchesFilter = when (filter) {
-                ProductFilter.ALL -> true
-                ProductFilter.IMPORTANT -> prod.sktTarihi > 0L && prod.getRemainingDays() in 1..30 && prod.stokAdedi >= 10
-                ProductFilter.EXPIRED -> prod.sktTarihi > 0L && prod.getExpiryStatus() == ExpiryStatus.EXPIRED
-                ProductFilter.CRITICAL -> prod.sktTarihi > 0L && prod.getExpiryStatus() == ExpiryStatus.CRITICAL
-                ProductFilter.SOON -> prod.sktTarihi > 0L && prod.getExpiryStatus() == ExpiryStatus.SOON
+                ProductFilter.ALL -> prod.sktTarihi > 0L && prod.stokAdedi > 0
+                ProductFilter.IMPORTANT -> (prod.sktTarihi > 0L && prod.getRemainingDays(todayMidnight) in 1..30 && prod.stokAdedi >= 10) || prod.isImportant
+                ProductFilter.EXPIRED -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED
+                ProductFilter.CRITICAL -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL
+                ProductFilter.SOON -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON
             }
 
-            matchesSearch && matchesFilter
+            val matchesDateRange = if (calStart != null || calEnd != null) {
+                if (prod.sktTarihi <= 0L) {
+                    false
+                } else {
+                    val startValid = calStart == null || prod.sktTarihi >= calStart
+                    val endValid = calEnd == null || prod.sktTarihi <= calEnd
+                    startValid && endValid
+                }
+            } else {
+                true
+            }
+
+            matchesSearch && matchesFilter && matchesDateRange
         }
-    }.stateIn(
+
+        when (groupFilter) {
+            ProductGroupFilter.DOLAP -> baseList.filter { it.isDolapProduct() }
+            ProductGroupFilter.GIDA -> baseList.filter { !it.isDolapProduct() }
+            ProductGroupFilter.ALL -> baseList
+        }
+    }
+    .flowOn(Dispatchers.Default)
+    .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    fun onGroupFilterSelected(group: ProductGroupFilter) {
+        if (_selectedGroupFilter.value == group) {
+            _selectedGroupFilter.value = ProductGroupFilter.ALL
+        } else {
+            _selectedGroupFilter.value = group
+        }
+    }
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
@@ -396,6 +512,16 @@ class MainViewModel(
 
     fun onFilterSelected(filter: ProductFilter) {
         _selectedFilter.value = filter
+    }
+
+    fun setDateRangeFilter(startMillis: Long?, endMillis: Long?) {
+        _startDateFilter.value = startMillis
+        _endDateFilter.value = endMillis
+    }
+
+    fun clearDateRangeFilter() {
+        _startDateFilter.value = null
+        _endDateFilter.value = null
     }
 
     fun openAddProductModal(prefilledBarcode: String = "") {
@@ -442,36 +568,42 @@ class MainViewModel(
         fiyat: Double? = null,
         isImportant: Boolean = false
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
+            val finalBarkod = barkod.trim().ifBlank {
+                if (urunKodu.isNotBlank()) "2500$urunKodu" else "869${(100000000..999999999).random()}"
+            }
+            val finalSkt = if (sktTarihi > 0L) sktTarihi else 0L
+            val finalStok = if (sktTarihi > 0L) (if (stokAdedi > 0) stokAdedi else 1) else 0
             val currentEditing = _editingProduct.value
+
             val savedProduct: Product = if (currentEditing != null) {
                 val productToSave = currentEditing.copy(
-                    barkod = barkod,
-                    urunKodu = urunKodu,
-                    urunAdi = urunAdi.uppercase(),
+                    barkod = finalBarkod,
+                    urunKodu = urunKodu.trim(),
+                    urunAdi = urunAdi.uppercase().trim(),
                     kategori = kategori,
-                    sktTarihi = sktTarihi,
-                    stokAdedi = stokAdedi,
-                    fiyat = fiyat,
+                    sktTarihi = if (sktTarihi > 0L) sktTarihi else currentEditing.sktTarihi,
+                    stokAdedi = if (stokAdedi > 0) stokAdedi else currentEditing.stokAdedi,
+                    fiyat = fiyat ?: currentEditing.fiyat,
                     isImportant = isImportant
                 )
                 repository.insertOrUpdateProduct(productToSave)
                 productToSave
             } else {
-                val existingList = if (barkod.isNotBlank()) {
-                    repository.getProductsByBarcode(barkod)
+                val existingList = if (finalBarkod.isNotBlank()) {
+                    repository.getProductsByBarcode(finalBarkod)
                 } else {
                     allProducts.value.filter {
-                        it.urunAdi.equals(urunAdi, ignoreCase = true) ||
-                        (urunKodu.isNotBlank() && it.urunKodu == urunKodu)
+                        it.urunAdi.equals(urunAdi.trim(), ignoreCase = true) ||
+                        (urunKodu.isNotBlank() && it.urunKodu == urunKodu.trim())
                     }
                 }
-                val sameDayMatch = existingList.find { isSameCalendarDay(it.sktTarihi, sktTarihi) }
+                val sameDayMatch = existingList.find { isSameCalendarDay(it.sktTarihi, finalSkt) }
                 if (sameDayMatch != null) {
                     val updatedProduct = sameDayMatch.copy(
-                        stokAdedi = sameDayMatch.stokAdedi + stokAdedi,
-                        urunKodu = urunKodu.ifBlank { sameDayMatch.urunKodu },
-                        urunAdi = urunAdi.uppercase().ifBlank { sameDayMatch.urunAdi },
+                        stokAdedi = sameDayMatch.stokAdedi + finalStok,
+                        urunKodu = urunKodu.trim().ifBlank { sameDayMatch.urunKodu },
+                        urunAdi = urunAdi.uppercase().trim().ifBlank { sameDayMatch.urunAdi },
                         kategori = kategori.ifBlank { sameDayMatch.kategori },
                         fiyat = fiyat ?: sameDayMatch.fiyat,
                         isImportant = isImportant || sameDayMatch.isImportant
@@ -480,12 +612,12 @@ class MainViewModel(
                     updatedProduct
                 } else {
                     val productToSave = Product(
-                        barkod = barkod,
-                        urunKodu = urunKodu,
-                        urunAdi = urunAdi.uppercase(),
+                        barkod = finalBarkod,
+                        urunKodu = urunKodu.trim(),
+                        urunAdi = urunAdi.uppercase().trim(),
                         kategori = kategori,
-                        sktTarihi = sktTarihi,
-                        stokAdedi = stokAdedi,
+                        sktTarihi = finalSkt,
+                        stokAdedi = finalStok,
                         fiyat = fiyat,
                         isImportant = isImportant
                     )
@@ -497,7 +629,9 @@ class MainViewModel(
             if (_detailProduct.value != null) {
                 _detailProduct.value = savedProduct
             }
-            closeAddEditModal()
+            withContext(Dispatchers.Main) {
+                closeAddEditModal()
+            }
         }
     }
 
@@ -614,6 +748,7 @@ class MainViewModel(
         viewModelScope.launch {
             showLoading("Veritabanı Sıfırlanıyor...")
             try {
+                com.example.sync.CloudSyncManager.setHasUserResetData(true)
                 repository.resetAllData()
             } finally {
                 hideLoading()
@@ -625,6 +760,7 @@ class MainViewModel(
         viewModelScope.launch {
             showLoading("Varsayılan Ürünler Yükleniyor...")
             try {
+                com.example.sync.CloudSyncManager.setHasUserResetData(false)
                 repository.reSeedDefaultData()
             } finally {
                 hideLoading()
@@ -634,33 +770,55 @@ class MainViewModel(
 
     // CSV Batch Import
     fun importCsvLines(lines: List<String>): Int {
-        val existingBarcodes = allProducts.value.map { it.barkod.trim() }.toSet()
-        val batchBarcodes = mutableSetOf<String>()
+        val existingKeys = allProducts.value.map {
+            "${it.barkod.trim().lowercase()}_${it.urunKodu.trim().lowercase()}_${it.urunAdi.trim().lowercase()}"
+        }.toSet()
+        val batchKeys = mutableSetOf<String>()
         val productsToInsert = mutableListOf<Product>()
+
+        fun isGarbageText(text: String): Boolean {
+            if (text.isEmpty()) return false
+            if (text.contains("\uFFFD")) return true
+            if (text.contains("_rels") || text.contains("[Content_Types]") || text.contains("<xml") || text.contains("PK\u0003") || text.contains("xl/workbooks") || text.contains("Root Entry")) return true
+            if (text.any { it.code in 0..8 || it.code in 14..31 || it.code == 127 }) return true
+            return false
+        }
+
+        fun cleanField(field: String): String {
+            return field.removePrefix("\uFEFF")
+                .trim()
+                .removeSurrounding("\"")
+                .removeSurrounding("'")
+                .trim()
+                .filterNot { it.code in 0..8 || it.code in 14..31 || it.code == 127 || it == '\uFFFD' }
+        }
 
         for (rawLine in lines) {
             val line = rawLine.trim()
-            if (line.isEmpty() || line.startsWith("#") || line.lowercase().startsWith("barkod")) continue
-            val parts = line.split(",", ";", "\t").map { it.trim() }
+            val lowerLine = line.lowercase()
+            if (line.isEmpty() || line.startsWith("#") || lowerLine.startsWith("barkod") || lowerLine.contains("ürün kodu") || lowerLine.contains("urun kodu") || lowerLine.contains("ürün adı") || lowerLine.contains("urun adi") || isGarbageText(line)) continue
+            val parts = line.split(",", ";", "\t").map { cleanField(it) }
             if (parts.size >= 3) {
-                val barkod = parts[0]
+                val rawBarkod = parts[0]
                 val urunKodu = parts[1]
                 val urunAdi = parts[2]
-                val kategori = if (parts.size >= 4 && parts[3].isNotEmpty()) parts[3] else "Gıda Ürünleri"
-                val sktTarihi = if (parts.size >= 5 && parts[4].isNotEmpty()) {
+                val kategori = if (parts.size >= 4 && parts[3].isNotBlank()) parts[3] else "Genel"
+                val sktTarihi = if (parts.size >= 5 && parts[4].isNotBlank()) {
                     parseDateOrOffset(parts[4])
                 } else {
-                    // Default to 14 days in future if not specified
-                    System.currentTimeMillis() + 14L * 24 * 60 * 60 * 1000
+                    0L
                 }
-                val stokAdedi = if (parts.size >= 6) parts[5].toIntOrNull() ?: 10 else 10
+                val stokAdedi = if (sktTarihi > 0L) (if (parts.size >= 6) parts[5].toIntOrNull() ?: 1 else 1) else 0
 
-                if (barkod.isNotEmpty() && urunAdi.isNotEmpty()) {
-                    if (!existingBarcodes.contains(barkod) && !batchBarcodes.contains(barkod)) {
-                        batchBarcodes.add(barkod)
+                val effectiveBarkod = if (rawBarkod.isNotBlank()) rawBarkod else urunKodu
+
+                if (effectiveBarkod.isNotEmpty() && urunAdi.isNotEmpty() && !isGarbageText(effectiveBarkod) && !isGarbageText(urunAdi) && !isGarbageText(urunKodu)) {
+                    val itemKey = "${effectiveBarkod.trim().lowercase()}_${urunKodu.trim().lowercase()}_${urunAdi.trim().lowercase()}"
+                    if (!existingKeys.contains(itemKey) && !batchKeys.contains(itemKey)) {
+                        batchKeys.add(itemKey)
                         productsToInsert.add(
                             Product(
-                                barkod = barkod,
+                                barkod = effectiveBarkod,
                                 urunKodu = urunKodu.ifEmpty { "0000" },
                                 urunAdi = urunAdi.uppercase(),
                                 kategori = kategori,
@@ -686,26 +844,38 @@ class MainViewModel(
     }
 
     private fun parseDateOrOffset(input: String): Long {
-        // Can be either "+N" days offset or day timestamp or "yyyy-MM-dd" / "dd.MM.yyyy"
+        if (input.isBlank()) return 0L
+        // Can be either "+N" days offset or day timestamp or "yyyy-MM-dd" / "dd.MM.yyyy" / "dd/MM/yyyy"
         input.toIntOrNull()?.let { daysOffset ->
             return System.currentTimeMillis() + daysOffset * 24L * 60 * 60 * 1000
         }
         return try {
             if (input.contains(".")) {
                 val p = input.split(".")
-                val cal = Calendar.getInstance()
-                cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
-                cal.timeInMillis
+                if (p.size >= 3) {
+                    val cal = Calendar.getInstance()
+                    cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    cal.timeInMillis
+                } else 0L
             } else if (input.contains("-")) {
                 val p = input.split("-")
-                val cal = Calendar.getInstance()
-                cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt(), 0, 0, 0)
-                cal.timeInMillis
+                if (p.size >= 3) {
+                    val cal = Calendar.getInstance()
+                    cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt(), 0, 0, 0)
+                    cal.timeInMillis
+                } else 0L
+            } else if (input.contains("/")) {
+                val p = input.split("/")
+                if (p.size >= 3) {
+                    val cal = Calendar.getInstance()
+                    cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    cal.timeInMillis
+                } else 0L
             } else {
-                System.currentTimeMillis() + 14L * 24 * 60 * 60 * 1000
+                0L
             }
         } catch (e: Exception) {
-            System.currentTimeMillis() + 14L * 24 * 60 * 60 * 1000
+            0L
         }
     }
 
@@ -715,26 +885,46 @@ class MainViewModel(
     }
 
     fun startTourSession() {
-        val targetCat = _gameTargetCategory.value
         val allProds = allProducts.value
 
-        // Filter by category if specific category chosen
-        val catFiltered = if (targetCat != "Tüm Reyonlar" && targetCat != "Tüm Ürünler" && targetCat.isNotBlank()) {
-            allProds.filter { it.kategori.equals(targetCat, ignoreCase = true) }
-        } else {
-            allProds
+        if (allProds.isEmpty()) {
+            _tourQueue.value = emptyList()
+            _currentQueueIndex.value = 0
+            _tourLogs.value = emptyList()
+            _tourFinished.value = false
+            _lastSavedTourRaporu.value = null
+            _gameActive.value = true
+            return
         }
 
-        // Filter eligible products for tour:
-        // 1. Critical (0-7 days remaining)
-        // 2. Soon (8-30 days remaining)
-        // 3. Important (isImportant == true)
-        val eligible = catFiltered.filter { prod ->
-            val remainingDays = prod.getRemainingDays()
-            remainingDays <= 30 || prod.isImportant
-        }.sortedBy { it.sktTarihi }
+        // Filter strictly for products with SKT <= 20 days (maximum 20 days remaining)
+        val filteredEligible = allProds.filter { p ->
+            p.sktTarihi > 0L && p.getRemainingDays() <= 20
+        }
 
-        _tourQueue.value = eligible
+        // Group 1: Dolap Ürünleri (Categories matching dolap, süt, şarküteri, soğuk, peynir, yoğurt)
+        val dolapProds = filteredEligible.filter { p ->
+            val cat = p.kategori.lowercase(Locale.forLanguageTag("tr-TR"))
+            cat.contains("dolap") || cat.contains("süt") || cat.contains("sut") ||
+            cat.contains("şarküteri") || cat.contains("sarkuteri") || cat.contains("soğuk") ||
+            cat.contains("soguk") || cat.contains("peynir") || cat.contains("yoğurt") ||
+            cat.contains("yogurt")
+        }.sortedWith(compareBy({ it.getRemainingDays() }, { -it.stokAdedi }, { it.urunAdi }))
+
+        // Group 2: Gıda Ürünleri & Other reyonlar
+        val gidaProds = filteredEligible.filter { p ->
+            val cat = p.kategori.lowercase(Locale.forLanguageTag("tr-TR"))
+            val isDolap = cat.contains("dolap") || cat.contains("süt") || cat.contains("sut") ||
+            cat.contains("şarküteri") || cat.contains("sarkuteri") || cat.contains("soğuk") ||
+            cat.contains("soguk") || cat.contains("peynir") || cat.contains("yoğurt") ||
+            cat.contains("yogurt")
+            !isDolap
+        }.sortedWith(compareBy({ it.getRemainingDays() }, { -it.stokAdedi }, { it.urunAdi }))
+
+        val fullQueue = dolapProds + gidaProds
+
+        _gameTargetCategory.value = "Tüm Mağaza Kontrol Turu"
+        _tourQueue.value = fullQueue
         _currentQueueIndex.value = 0
         _tourLogs.value = emptyList()
         _tourFinished.value = false
@@ -900,25 +1090,64 @@ class MainViewModel(
 
     fun onGameScanBarcode(barkod: String, onProductNotFound: () -> Unit) {
         viewModelScope.launch {
-            val query = barkod.trim()
-            val queryDigits = query.filter { it.isDigit() }
+            val qrData = parseShelfQrPayload(barkod)
+            val queryBarcode = qrData.barcode
+            val queryProductCode = qrData.productCode
+            val scannedPrice = qrData.price
+
+            val queryDigits = queryBarcode.filter { it.isDigit() }
             val queryNoLeadingZeros = queryDigits.trimStart('0')
 
             val all = repository.getProductListDirect()
-            var prod = all.find { it.barkod.equals(query, ignoreCase = true) }
 
-            if (prod == null && queryDigits.isNotEmpty()) {
-                prod = all.find { p ->
-                    val pDigits = p.barkod.trim().filter { it.isDigit() }
-                    pDigits == queryDigits || (queryNoLeadingZeros.isNotEmpty() && pDigits.trimStart('0') == queryNoLeadingZeros)
+            // 1. If product code is explicitly provided in QR, search by product code FIRST
+            var prod: Product? = if (!queryProductCode.isNullOrBlank()) {
+                all.find { p ->
+                    p.urunKodu.equals(queryProductCode, ignoreCase = true) ||
+                    p.barkod.equals(queryProductCode, ignoreCase = true)
+                }
+            } else null
+
+            // 2. Exact barcode match
+            if (prod == null) {
+                prod = all.find { 
+                    it.barkod.equals(queryBarcode, ignoreCase = true) || 
+                    it.barkod.equals(barkod.trim(), ignoreCase = true) 
                 }
             }
 
+            // 3. Normalized barcode match
+            if (prod == null && queryDigits.isNotEmpty()) {
+                prod = all.find { p ->
+                    val pDigits = p.barkod.trim().filter { it.isDigit() }
+                    pDigits == queryDigits ||
+                    (queryNoLeadingZeros.isNotEmpty() && pDigits.trimStart('0') == queryNoLeadingZeros) ||
+                    (queryDigits.length == 12 && pDigits.length == 13 && pDigits.startsWith(queryDigits)) ||
+                    (queryDigits.length == 13 && pDigits.length == 12 && queryDigits.startsWith(pDigits)) ||
+                    (queryDigits.length == 12 && pDigits == "0$queryDigits") ||
+                    (pDigits.length == 12 && queryDigits == "0$pDigits")
+                }
+            }
+
+            // 4. Fallback product code search
             if (prod == null) {
-                prod = all.find { it.urunKodu.equals(query, ignoreCase = true) }
+                prod = all.find { p ->
+                    (queryProductCode != null && p.urunKodu.equals(queryProductCode, ignoreCase = true)) ||
+                    p.urunKodu.equals(queryBarcode, ignoreCase = true) ||
+                    p.urunKodu.equals(barkod.trim(), ignoreCase = true) ||
+                    (queryProductCode != null && p.barkod.equals(queryProductCode, ignoreCase = true))
+                }
             }
 
             if (prod != null) {
+                val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
+                    prod.urunKodu.isBlank() ||
+                    prod.urunKodu.equals(queryProductCode, ignoreCase = true)
+
+                if (scannedPrice != null && scannedPrice > 0.0 && isProductCodeMatch) {
+                    updateProductPrice(prod, scannedPrice)
+                    prod = prod.copy(fiyat = scannedPrice)
+                }
                 _lastScannedGameProduct.value = prod
                 val currentList = _gameScannedProducts.value.toMutableList()
                 if (currentList.none { it.id == prod.id }) {
@@ -964,32 +1193,136 @@ class MainViewModel(
     }
 
     // Helper for barcode lookup in normal mode
+    fun fixProductBarcodeAndPriceFromQr(
+        rawInput: String,
+        onResult: (message: String, isSuccess: Boolean) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val qrData = parseShelfQrPayload(rawInput)
+            val realBarcode = qrData.barcode.trim()
+            val productCode = qrData.productCode?.trim()
+            val newPrice = qrData.price
+
+            val all = repository.getProductListDirect()
+
+            val targetProducts = all.filter { p ->
+                (productCode != null && productCode.isNotBlank() && p.urunKodu.equals(productCode, ignoreCase = true)) ||
+                (productCode != null && productCode.isNotBlank() && p.barkod.equals(productCode, ignoreCase = true)) ||
+                p.urunKodu.equals(realBarcode, ignoreCase = true) ||
+                p.urunKodu.equals(rawInput.trim(), ignoreCase = true) ||
+                (p.barkod == p.urunKodu && p.urunKodu.isNotBlank())
+            }
+
+            if (targetProducts.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    onResult("⚠️ Ürün kodu '${productCode ?: realBarcode}' ile eşleşen ürün bulunamadı.", false)
+                }
+                return@launch
+            }
+
+            var updatedCount = 0
+            var sampleName = ""
+
+            targetProducts.forEach { prod ->
+                val finalBarcode = if (realBarcode.length >= 8 && realBarcode != prod.urunKodu) realBarcode else prod.barkod
+                val finalPrice = newPrice ?: prod.fiyat
+
+                if (finalBarcode != prod.barkod || finalPrice != prod.fiyat) {
+                    val updated = prod.copy(
+                        barkod = finalBarcode,
+                        fiyat = finalPrice
+                    )
+                    repository.insertOrUpdateProduct(updated)
+                    updatedCount++
+                    if (sampleName.isBlank()) sampleName = prod.urunAdi
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                if (updatedCount > 0) {
+                    val priceInfo = if (newPrice != null) " • Fiyat: $newPrice TL" else ""
+                    onResult("✅ '$sampleName' ($updatedCount kayıt) barkodu: $realBarcode$priceInfo olarak güncellendi!", true)
+                } else {
+                    onResult("ℹ️ '$sampleName' ürünü zaten güncel barkoda ($realBarcode) sahip.", true)
+                }
+            }
+        }
+    }
+
     fun handleBarcodeScanned(
         barkod: String,
         onFound: (Product) -> Unit,
         onNotFound: (String) -> Unit
     ) {
         viewModelScope.launch {
-            val query = barkod.trim()
-            val queryDigits = query.filter { it.isDigit() }
+            val qrData = parseShelfQrPayload(barkod)
+            val queryBarcode = qrData.barcode
+            val queryProductCode = qrData.productCode
+            val scannedPrice = qrData.price
+
+            val queryDigits = queryBarcode.filter { it.isDigit() }
             val queryNoLeadingZeros = queryDigits.trimStart('0')
 
             val all = repository.getProductListDirect()
-            var prod = all.find { it.barkod.equals(query, ignoreCase = true) }
 
-            if (prod == null && queryDigits.isNotEmpty()) {
-                prod = all.find { p ->
-                    val pDigits = p.barkod.trim().filter { it.isDigit() }
-                    pDigits == queryDigits || (queryNoLeadingZeros.isNotEmpty() && pDigits.trimStart('0') == queryNoLeadingZeros)
+            // 1. If product code is explicitly provided in QR, search by product code FIRST
+            var prod: Product? = if (!queryProductCode.isNullOrBlank()) {
+                all.find { p ->
+                    p.urunKodu.equals(queryProductCode, ignoreCase = true) ||
+                    p.barkod.equals(queryProductCode, ignoreCase = true)
+                }
+            } else null
+
+            // 2. Exact barcode match
+            if (prod == null) {
+                prod = all.find { 
+                    it.barkod.equals(queryBarcode, ignoreCase = true) || 
+                    it.barkod.equals(barkod.trim(), ignoreCase = true) 
                 }
             }
 
+            // 3. Normalized barcode match
+            if (prod == null && queryDigits.isNotEmpty()) {
+                prod = all.find { p ->
+                    val pDigits = p.barkod.trim().filter { it.isDigit() }
+                    pDigits == queryDigits ||
+                    (queryNoLeadingZeros.isNotEmpty() && pDigits.trimStart('0') == queryNoLeadingZeros) ||
+                    (queryDigits.length == 12 && pDigits.length == 13 && pDigits.startsWith(queryDigits)) ||
+                    (queryDigits.length == 13 && pDigits.length == 12 && queryDigits.startsWith(pDigits)) ||
+                    (queryDigits.length == 12 && pDigits == "0$queryDigits") ||
+                    (pDigits.length == 12 && queryDigits == "0$pDigits")
+                }
+            }
+
+            // 4. Fallback product code search
             if (prod == null) {
-                prod = all.find { it.urunKodu.equals(query, ignoreCase = true) }
+                prod = all.find { p ->
+                    (queryProductCode != null && p.urunKodu.equals(queryProductCode, ignoreCase = true)) ||
+                    p.urunKodu.equals(queryBarcode, ignoreCase = true) ||
+                    p.urunKodu.equals(barkod.trim(), ignoreCase = true) ||
+                    (queryProductCode != null && p.barkod.equals(queryProductCode, ignoreCase = true))
+                }
             }
 
             if (prod != null) {
-                onFound(prod)
+                val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
+                    prod.urunKodu.isBlank() ||
+                    prod.urunKodu.equals(queryProductCode, ignoreCase = true)
+
+                var updatedProd = prod
+
+                // Auto-fix barcode in database if queryBarcode is a valid EAN/package barcode and product had missing/code barcode
+                if (queryBarcode.length >= 8 && queryDigits.length >= 8 && queryBarcode != prod.barkod && isProductCodeMatch) {
+                    val corrected = prod.copy(barkod = queryBarcode)
+                    repository.insertOrUpdateProduct(corrected)
+                    updatedProd = corrected
+                }
+
+                if (scannedPrice != null && scannedPrice > 0.0 && isProductCodeMatch) {
+                    updateProductPrice(updatedProd, scannedPrice)
+                    updatedProd = updatedProd.copy(fiyat = scannedPrice)
+                }
+                onFound(updatedProd)
             } else {
                 onNotFound(barkod)
             }

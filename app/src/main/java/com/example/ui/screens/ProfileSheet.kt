@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -110,16 +111,10 @@ fun ProfileSheet(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
-                                text = "Personel & Reyon Profili",
+                                text = "Personel Profili",
                                 fontWeight = FontWeight.Black,
                                 fontSize = 18.sp,
                                 color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = userRole,
-                                fontSize = 12.sp,
-                                color = TurquoisePrimary,
-                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
@@ -210,57 +205,7 @@ fun ProfileSheet(
                                         }
                                     }
 
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    HorizontalDivider(color = Slate200)
-                                    Spacer(modifier = Modifier.height(10.dp))
 
-                                    // DUTY STATUS CHIPS
-                                    Text(
-                                        text = "VARDİYA & GÖREV DURUMU:",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Slate500
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                    FlowRow(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        dutyStatusList.forEach { status ->
-                                            val isSelected = userDutyStatus == status
-                                            val badgeColor = when (status) {
-                                                "Vardiyada (Aktif)" -> NormalGreen
-                                                "Molada" -> SoonYellow
-                                                "Saha Sayımında" -> TurquoisePrimary
-                                                else -> Slate500
-                                            }
-                                            Surface(
-                                                onClick = { onUpdateDutyStatus(status) },
-                                                shape = RoundedCornerShape(12.dp),
-                                                color = if (isSelected) badgeColor.copy(alpha = 0.15f) else Color.White,
-                                                border = BorderStroke(1.dp, if (isSelected) badgeColor else Slate200)
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(8.dp)
-                                                            .clip(CircleShape)
-                                                            .background(badgeColor)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Text(
-                                                        text = status,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                                        color = if (isSelected) Slate900 else Slate700
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
                                 } else {
                                     // EDIT MODE FORM
                                     Text(
@@ -459,7 +404,7 @@ fun ProfileSheet(
                                     shape = RoundedCornerShape(12.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(imageVector = Icons.Default.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                                    Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text("ÇIKIŞ YAP (OTURUMU KAPAT)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
                                 }

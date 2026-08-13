@@ -120,7 +120,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val trLocale = java.util.Locale("tr", "TR")
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
         java.util.Locale.setDefault(trLocale)
         val config = resources.configuration
         config.setLocale(trLocale)
@@ -176,6 +176,9 @@ fun SktMainApp(viewModel: MainViewModel) {
     val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
+    val selectedGroupFilter by viewModel.selectedGroupFilter.collectAsStateWithLifecycle()
+    val startDateFilter by viewModel.startDateFilter.collectAsStateWithLifecycle()
+    val endDateFilter by viewModel.endDateFilter.collectAsStateWithLifecycle()
 
     val isAddEditModalOpen by viewModel.isAddEditModalOpen.collectAsStateWithLifecycle()
     val editingProduct by viewModel.editingProduct.collectAsStateWithLifecycle()
@@ -211,6 +214,7 @@ fun SktMainApp(viewModel: MainViewModel) {
 
     // Dialog & Scanner control states
     var isBarcodeScannerOpen by remember { mutableStateOf(false) }
+    var startScannerInFixMode by remember { mutableStateOf(false) }
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
 
@@ -296,6 +300,9 @@ fun SktMainApp(viewModel: MainViewModel) {
             },
             onDeleteSkt = { prod ->
                 viewModel.deleteProduct(prod)
+            },
+            onUpdatePrice = { prod, newPrice ->
+                viewModel.updateProductPrice(prod, newPrice)
             }
         )
     }
@@ -315,7 +322,14 @@ fun SktMainApp(viewModel: MainViewModel) {
     if (isBarcodeScannerOpen) {
         BarcodeScannerSheet(
             products = filteredProducts,
-            onDismiss = { isBarcodeScannerOpen = false },
+            startInFixQrMode = startScannerInFixMode,
+            onDismiss = {
+                isBarcodeScannerOpen = false
+                startScannerInFixMode = false
+            },
+            onFixQrScanned = { rawQr, onResult ->
+                viewModel.fixProductBarcodeAndPriceFromQr(rawQr, onResult)
+            },
             onBarcodeDetected = { scannedRaw ->
                 if (currentRoute == "game" && gameActive) {
                     // We are in Gamification mode
@@ -458,11 +472,21 @@ fun SktMainApp(viewModel: MainViewModel) {
                     products = filteredProducts,
                     searchQuery = searchQuery,
                     selectedFilter = selectedFilter,
+                    selectedGroupFilter = selectedGroupFilter,
+                    startDateFilter = startDateFilter,
+                    endDateFilter = endDateFilter,
                     onSearchQueryChange = { q -> viewModel.onSearchQueryChanged(q) },
                     onFilterSelect = { f -> viewModel.onFilterSelected(f) },
+                    onGroupFilterSelect = { group -> viewModel.onGroupFilterSelected(group) },
+                    onDateRangeSelect = { start, end -> viewModel.setDateRangeFilter(start, end) },
+                    onClearDateRange = { viewModel.clearDateRangeFilter() },
                     onProductClick = { prod -> viewModel.openProductDetailModal(prod) },
                     onDeleteProduct = { prod -> viewModel.deleteProduct(prod) },
-                    onAddProductClick = { viewModel.openAddProductModal() }
+                    onAddProductClick = { viewModel.openAddProductModal() },
+                    onOpenQrFixMode = {
+                        startScannerInFixMode = true
+                        isBarcodeScannerOpen = true
+                    }
                 )
             }
 
@@ -512,18 +536,24 @@ fun SktMainApp(viewModel: MainViewModel) {
                 val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
                 val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
                 val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
+                val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
 
                 CsvScreen(
                     isDarkMode = isDarkMode,
                     soundEffectsEnabled = soundEffectsEnabled,
                     vibrationEnabled = vibrationEnabled,
+                    products = allProducts,
                     onToggleDarkMode = { viewModel.toggleDarkMode() },
                     onToggleSoundEffects = { viewModel.toggleSoundEffects() },
                     onToggleVibration = { viewModel.toggleVibration() },
                     onFixAndRepairDatabase = { callback -> viewModel.fixAndRepairDatabase(callback) },
                     onImportLines = { lines -> viewModel.importCsvLines(lines) },
                     onResetDatabase = { viewModel.resetAllData() },
-                    onRestoreSeedData = { viewModel.restoreDefaultSeedData() }
+                    onRestoreSeedData = { viewModel.restoreDefaultSeedData() },
+                    onOpenQrFixMode = {
+                        startScannerInFixMode = true
+                        isBarcodeScannerOpen = true
+                    }
                 )
             }
         }

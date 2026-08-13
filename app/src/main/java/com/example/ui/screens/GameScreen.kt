@@ -30,6 +30,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -48,7 +49,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import android.graphics.Bitmap
 import androidx.compose.ui.platform.LocalContext
+import com.example.ui.components.ReportPreviewDialog
 import com.example.util.ProductImageGenerator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,9 +89,14 @@ import com.example.ui.theme.GameNavyCardAccent
 import com.example.ui.theme.GameNavyDark
 import com.example.ui.theme.NormalGreen
 import com.example.ui.theme.Slate100
+import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate300
 import com.example.ui.theme.Slate500
+import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
+import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -113,12 +121,6 @@ fun GameScreen(
     onResetTour: () -> Unit,
     onBackClick: () -> Unit = {}
 ) {
-    val categories = listOf(
-        "Dolap Ürünleri",
-        "Gıda Ürünleri",
-        "Tüm Reyonlar"
-    )
-
     // State for Dialogs
     var showSoldDialog by remember { mutableStateOf(false) }
     var showFireDialog by remember { mutableStateOf(false) }
@@ -132,7 +134,7 @@ fun GameScreen(
     } else null
 
     Scaffold(
-        containerColor = GameNavyDark
+        containerColor = Color(0xFF0F172A)
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -167,8 +169,8 @@ fun GameScreen(
 
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = Color(0xFF1B3B2B),
-                    border = BorderStroke(1.dp, NormalGreen)
+                    color = Color(0xFF065F46).copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.6f))
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -183,7 +185,7 @@ fun GameScreen(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "🌅 SABAH KONTROL TURU",
-                            color = NormalGreen,
+                            color = Color(0xFF34D399),
                             fontWeight = FontWeight.Black,
                             fontSize = 11.sp
                         )
@@ -197,9 +199,9 @@ fun GameScreen(
                         modifier = Modifier.testTag("undo_tour_action_button")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Undo,
+                            imageVector = Icons.AutoMirrored.Filled.Undo,
                             contentDescription = "Geri Al",
-                            tint = if (tourLogs.isNotEmpty() && currentQueueIndex > 0) TurquoisePrimary else Color.White.copy(alpha = 0.3f)
+                            tint = if (tourLogs.isNotEmpty() && currentQueueIndex > 0) TurquoisePrimary else Color(0xFF475569)
                         )
                     }
                 } else {
@@ -208,51 +210,6 @@ fun GameScreen(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-
-            // 2. REYON SELECTOR CAROUSEL (Show when not active or finished)
-            if (!tourActive && !tourFinished) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    categories.forEach { cat ->
-                        val isSelected = targetCategory == cat
-                        val iconText = when (cat) {
-                            "Dolap Ürünleri" -> "❄️"
-                            "Gıda Ürünleri" -> "🍞"
-                            else -> "🏪"
-                        }
-                        Surface(
-                            onClick = { onCategoryChange(cat) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (isSelected) TurquoisePrimary else Color.White.copy(alpha = 0.08f),
-                            border = BorderStroke(
-                                1.dp,
-                                if (isSelected) TurquoisePrimary else Color.White.copy(alpha = 0.15f)
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = iconText, fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = cat,
-                                    color = Color.White,
-                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium,
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-            }
 
             // 3. MAIN CONTENT CONTAINER
             if (tourFinished) {
@@ -268,8 +225,9 @@ fun GameScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = GameNavyCard),
-                    border = BorderStroke(1.dp, GameNavyCardAccent)
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                    border = BorderStroke(1.dp, Color(0xFF334155)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
                         modifier = Modifier.padding(20.dp),
@@ -277,10 +235,10 @@ fun GameScreen(
                     ) {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.15f)
+                            color = TurquoisePrimary.copy(alpha = 0.2f)
                         ) {
                             Text(
-                                text = "🎯 SIRA (KUYRUK) BAZLI KONTROL SİSTEMİ",
+                                text = "🎯 MAĞAZA KONTROL TURU",
                                 color = TurquoisePrimary,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 11.sp,
@@ -291,7 +249,7 @@ fun GameScreen(
                         Spacer(modifier = Modifier.height(10.dp))
 
                         Text(
-                            text = "Seçili Reyon: ${targetCategory.uppercase()}",
+                            text = "SIRALI REYON KONTROLÜ",
                             color = Color.White,
                             fontWeight = FontWeight.Black,
                             fontSize = 18.sp,
@@ -301,8 +259,8 @@ fun GameScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "Bu turda sadece SKT'si Kritik (0-7 gün), Yaklaşan Riskli (8-30 gün) ve Önemli ürünler sırayla gösterilecektir. Süresi çok uzun normal ürünler tura dahil edilmez.",
-                            color = Color.White.copy(alpha = 0.8f),
+                            text = "Tura sadece SKT tarihi 20 gün ve altında olan yakın tarihli ürünler dahil edilir. Sırasıyla önce ❄️ Dolap Ürünleri, ardından 🍞 Gıda Ürünleri kontrol edilir.",
+                            color = Color(0xFF94A3B8),
                             fontSize = 12.sp,
                             textAlign = TextAlign.Center,
                             lineHeight = 17.sp
@@ -320,12 +278,13 @@ fun GameScreen(
                             colors = ButtonDefaults.buttonColors(containerColor = NormalGreen),
                             shape = RoundedCornerShape(14.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Başla")
+                            Icon(imageVector = Icons.Default.PlayArrow, contentDescription = "Başla", tint = Color.White)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "SABAH KONTROL TURUNU BAŞLAT",
                                 fontWeight = FontWeight.Black,
-                                fontSize = 14.sp
+                                fontSize = 14.sp,
+                                color = Color.White
                             )
                         }
                     }
@@ -341,30 +300,30 @@ fun GameScreen(
                     Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White.copy(alpha = 0.05f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                        color = Color(0xFF1E293B),
+                        border = BorderStroke(1.dp, Color(0xFF334155))
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("🔴 Kritik (0-7 Gün)", color = ExpiredRed, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text("Öncelikli Sıra", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("❄️ 1. ADIM", color = TurquoisePrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Dolap Ürünleri", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
 
                     Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp),
-                        color = Color.White.copy(alpha = 0.05f),
-                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.1f))
+                        color = Color(0xFF1E293B),
+                        border = BorderStroke(1.dp, Color(0xFF334155))
                     ) {
                         Column(
                             modifier = Modifier.padding(12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text("🟠 Yakın (8-30 Gün)", color = CriticalOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text("Risk Takibi", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("🍞 2. ADIM", color = CriticalOrange, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text("Gıda Ürünleri", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 }
@@ -374,21 +333,22 @@ fun GameScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp),
-                        colors = CardDefaults.cardColors(containerColor = GameNavyCard)
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                        border = BorderStroke(1.dp, Color(0xFF334155))
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Tamam",
-                                tint = NormalGreen,
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Bilgi",
+                                tint = TurquoisePrimary,
                                 modifier = Modifier.size(54.dp)
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "KONTROL EDİLECEK ÜRÜN BULUNAMADI!",
+                                text = "KONTROL EDİLECEK RİSKLİ ÜRÜN YOK!",
                                 color = Color.White,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp,
@@ -396,8 +356,8 @@ fun GameScreen(
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Seçilen '${targetCategory}' reyonunda SKT'si 30 günün altında olan veya riskli ürün yok. Tüm ürünler güvende!",
-                                color = Color.White.copy(alpha = 0.7f),
+                                text = "Sistemde SKT tarihi 20 gün ve altında olan veya kontrol gerektiren ürün bulunmuyor. Tüm ürünleriniz güvende!",
+                                color = Color(0xFF94A3B8),
                                 fontSize = 12.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -406,7 +366,7 @@ fun GameScreen(
                                 onClick = onResetTour,
                                 colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
                             ) {
-                                Text("TAMAM / BAŞKA REYON SEÇ", fontWeight = FontWeight.Bold)
+                                Text("TAMAM / GERİ DÖN", fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
@@ -420,7 +380,8 @@ fun GameScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = GameNavyCard)
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                        border = BorderStroke(1.dp, Color(0xFF334155))
                     ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(
@@ -437,11 +398,11 @@ fun GameScreen(
 
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
-                                    color = Color.White.copy(alpha = 0.1f)
+                                    color = Color(0xFF0F172A)
                                 ) {
                                     Text(
                                         text = currentProduct.kategori,
-                                        color = Color.White,
+                                        color = Color(0xFFCBD5E1),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -458,7 +419,7 @@ fun GameScreen(
                                     .height(8.dp)
                                     .clip(RoundedCornerShape(4.dp)),
                                 color = TurquoisePrimary,
-                                trackColor = Color.White.copy(alpha = 0.15f)
+                                trackColor = Color(0xFF0F172A)
                             )
                         }
                     }
@@ -472,14 +433,7 @@ fun GameScreen(
                             .weight(1f)
                             .testTag("product_control_card"),
                         shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = when {
-                                remainingDays <= 0 -> Color(0xFF381414)
-                                remainingDays <= 7 -> Color(0xFF3B2314)
-                                remainingDays <= 30 -> Color(0xFF3B3314)
-                                else -> GameNavyCard
-                            }
-                        ),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
                         border = BorderStroke(
                             1.5.dp,
                             when {
@@ -487,7 +441,8 @@ fun GameScreen(
                                 remainingDays <= 30 -> CriticalOrange
                                 else -> TurquoisePrimary
                             }
-                        )
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                     ) {
                         Column(
                             modifier = Modifier
@@ -505,11 +460,18 @@ fun GameScreen(
                                     Surface(
                                         shape = RoundedCornerShape(8.dp),
                                         color = when {
-                                            remainingDays <= 0 -> ExpiredRed
-                                            remainingDays <= 7 -> ExpiredRed
-                                            remainingDays <= 30 -> CriticalOrange
-                                            else -> NormalGreen
-                                        }
+                                            remainingDays <= 0 || remainingDays <= 7 -> Color(0xFF991B1B).copy(alpha = 0.4f)
+                                            remainingDays <= 30 -> Color(0xFF9A3412).copy(alpha = 0.4f)
+                                            else -> Color(0xFF065F46).copy(alpha = 0.4f)
+                                        },
+                                        border = BorderStroke(
+                                            1.dp,
+                                            when {
+                                                remainingDays <= 7 -> ExpiredRed
+                                                remainingDays <= 30 -> CriticalOrange
+                                                else -> NormalGreen
+                                            }
+                                        )
                                     ) {
                                         Text(
                                             text = when {
@@ -518,7 +480,11 @@ fun GameScreen(
                                                 remainingDays <= 30 -> "🟠 YAKIN SKT ($remainingDays Gün Kaldı)"
                                                 else -> "🟢 NORMAL / ÖNEMLİ"
                                             },
-                                            color = Color.White,
+                                            color = when {
+                                                remainingDays <= 7 -> Color(0xFFFCA5A5)
+                                                remainingDays <= 30 -> Color(0xFFFDBA74)
+                                                else -> Color(0xFF6EE7B7)
+                                            },
                                             fontWeight = FontWeight.Black,
                                             fontSize = 12.sp,
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
@@ -527,7 +493,7 @@ fun GameScreen(
 
                                     Text(
                                         text = "Barkod: ${currentProduct.barkod}",
-                                        color = Color.White.copy(alpha = 0.7f),
+                                        color = Color(0xFF94A3B8),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -544,9 +510,10 @@ fun GameScreen(
                                 )
 
                                 if (currentProduct.urunKodu.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "Ürün Kodu: ${currentProduct.urunKodu}",
-                                        color = Color.White.copy(alpha = 0.6f),
+                                        color = Color(0xFF94A3B8),
                                         fontSize = 12.sp
                                     )
                                 }
@@ -558,14 +525,15 @@ fun GameScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(Color.Black.copy(alpha = 0.25f))
+                                        .background(Color(0xFF0F172A))
+                                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(12.dp))
                                         .padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column {
-                                        Text("SKT TARİHİ", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                        val sdf = SimpleDateFormat("dd MMMM yyyy", Locale("tr", "TR"))
+                                        Text("SKT TARİHİ", color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        val sdf = SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("tr-TR"))
                                         Text(
                                             text = if (currentProduct.sktTarihi > 0L) sdf.format(Date(currentProduct.sktTarihi)) else "SKT Girilmedi",
                                             color = Color.White,
@@ -575,7 +543,7 @@ fun GameScreen(
                                     }
 
                                     Column(horizontalAlignment = Alignment.End) {
-                                        Text("SİSTEM MEVCUT STOK", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                        Text("SİSTEM MEVCUT STOK", color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                         Text(
                                             text = "${currentProduct.stokAdedi} ADET",
                                             color = TurquoisePrimary,
@@ -586,59 +554,55 @@ fun GameScreen(
                                 }
                             }
 
-                            // Bottom 3 Big Action Buttons
+                            // Action Buttons (Side by Side Fire/Kaldırıldı & Satıldı, and Değişiklik Yok below)
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Text(
-                                    text = "BU ÜRÜN İÇİN AKSİYON SEÇİN:",
-                                    color = Color.White.copy(alpha = 0.7f),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-
-                                // A) SATILDI
-                                Button(
-                                    onClick = {
-                                        soldQuantityText = currentProduct.stokAdedi.toString()
-                                        soldErrorText = null
-                                        showSoldDialog = true
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(50.dp)
-                                        .testTag("action_sold_button"),
-                                    colors = ButtonDefaults.buttonColors(containerColor = NormalGreen),
-                                    shape = RoundedCornerShape(12.dp)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = "Satıldı")
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("A) SATILDI (STOK DÜŞ)", fontWeight = FontWeight.Black, fontSize = 14.sp)
+                                    // 1. RED BUTTON: Fire / Kaldırıldı
+                                    Button(
+                                        onClick = {
+                                            fireQuantityText = "1"
+                                            fireErrorText = null
+                                            showFireDialog = true
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(50.dp)
+                                            .testTag("action_fire_button"),
+                                        colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.RemoveCircle, contentDescription = "Fire", modifier = Modifier.size(18.dp), tint = Color.White)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Fire / Kaldırıldı", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                    }
+
+                                    // 2. GREEN BUTTON: Satıldı
+                                    Button(
+                                        onClick = {
+                                            soldQuantityText = "1"
+                                            soldErrorText = null
+                                            showSoldDialog = true
+                                        },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(50.dp)
+                                            .testTag("action_sold_button"),
+                                        colors = ButtonDefaults.buttonColors(containerColor = NormalGreen),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.ShoppingBag, contentDescription = "Satıldı", modifier = Modifier.size(18.dp), tint = Color.White)
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text("Satıldı", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
+                                    }
                                 }
 
-                                // B) KALDIRILDI / FIRE
-                                Button(
-                                    onClick = {
-                                        fireQuantityText = currentProduct.stokAdedi.toString()
-                                        fireErrorText = null
-                                        showFireDialog = true
-                                    },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(50.dp)
-                                        .testTag("action_fire_button"),
-                                    colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Icon(imageVector = Icons.Default.RemoveCircle, contentDescription = "Fire")
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("B) KALDIRILDI / FİRE (RAFTAN ÇIKAR)", fontWeight = FontWeight.Black, fontSize = 14.sp)
-                                }
-
-                                // C) NOTR (Single click)
+                                // 3. BOTTOM BUTTON: Değişiklik Yok
                                 OutlinedButton(
                                     onClick = {
                                         onRecordNotr(currentProduct)
@@ -648,14 +612,15 @@ fun GameScreen(
                                         .height(48.dp)
                                         .testTag("action_notr_button"),
                                     colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = Color(0xFF0F172A),
                                         contentColor = Color.White
                                     ),
-                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.4f)),
+                                    border = BorderStroke(1.dp, Color(0xFF475569)),
                                     shape = RoundedCornerShape(12.dp)
                                 ) {
-                                    Icon(imageVector = Icons.Default.Check, contentDescription = "Nötr")
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = "Değişiklik Yok", modifier = Modifier.size(18.dp), tint = Color.White)
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text("C) NÖTR (DEĞİŞİKLİK YOK - TEK TIK DEVAM)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    Text("Değişiklik Yok", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = Color.White)
                                 }
                             }
                         }
@@ -667,38 +632,98 @@ fun GameScreen(
 
     // DIALOG A: SATILDI ADET GIRISI
     if (showSoldDialog && currentProduct != null) {
+        val currentQty = soldQuantityText.toIntOrNull() ?: 1
         AlertDialog(
             onDismissRequest = { showSoldDialog = false },
             title = {
-                Text("Kaç Adet Satıldı?", fontWeight = FontWeight.Bold, color = Slate900)
+                Text("Satılan Miktar", fontWeight = FontWeight.Bold, color = Slate900)
             },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        text = "${currentProduct.urunAdi}\nMevcut Stok: ${currentProduct.stokAdedi} adet",
-                        fontSize = 13.sp,
-                        color = Slate700
+                        text = currentProduct.urunAdi,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900,
+                        textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = soldQuantityText,
-                        onValueChange = {
-                            soldQuantityText = it
-                            soldErrorText = null
-                        },
-                        label = { Text("Satılan Adet") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = soldErrorText != null,
-                        singleLine = true,
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Mevcut Stok: ${currentProduct.stokAdedi} Adet",
+                        fontSize = 12.sp,
+                        color = Slate500,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val newQty = maxOf(1, currentQty - 1)
+                                soldQuantityText = newQty.toString()
+                                soldErrorText = null
+                            },
+                            enabled = currentQty > 1,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (currentQty > 1) ExpiredRed else Slate100)
+                        ) {
+                            Text("-", color = if (currentQty > 1) Color.White else Slate500, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        OutlinedTextField(
+                            value = soldQuantityText,
+                            onValueChange = {
+                                soldQuantityText = it.filter { char -> char.isDigit() }
+                                soldErrorText = null
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 20.sp,
+                                color = Slate900
+                            ),
+                            modifier = Modifier.width(90.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        IconButton(
+                            onClick = {
+                                val newQty = minOf(currentProduct.stokAdedi, currentQty + 1)
+                                soldQuantityText = newQty.toString()
+                                soldErrorText = null
+                            },
+                            enabled = currentQty < currentProduct.stokAdedi,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (currentQty < currentProduct.stokAdedi) NormalGreen else Slate100)
+                        ) {
+                            Text("+", color = if (currentQty < currentProduct.stokAdedi) Color.White else Slate500, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                        }
+                    }
+
                     if (soldErrorText != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = soldErrorText!!,
                             color = ExpiredRed,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -718,7 +743,7 @@ fun GameScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = NormalGreen)
                 ) {
-                    Text("ONAYLA VE DEVAM ET", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Kaydet ve Devam Et", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
@@ -731,38 +756,98 @@ fun GameScreen(
 
     // DIALOG B: FIRE ADET GIRISI
     if (showFireDialog && currentProduct != null) {
+        val currentQty = fireQuantityText.toIntOrNull() ?: 1
         AlertDialog(
             onDismissRequest = { showFireDialog = false },
             title = {
-                Text("Kaç Adet Kaldırıldı / Fire Oldu?", fontWeight = FontWeight.Bold, color = Slate900)
+                Text("Kaldırılan / Fire Miktarı", fontWeight = FontWeight.Bold, color = Slate900)
             },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
                     Text(
-                        text = "${currentProduct.urunAdi}\nFiziksel raftan kaldırılan fire adedini girin. Otomatik fire sebebi: SKT.",
-                        fontSize = 13.sp,
-                        color = Slate700
+                        text = currentProduct.urunAdi,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900,
+                        textAlign = TextAlign.Center
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = fireQuantityText,
-                        onValueChange = {
-                            fireQuantityText = it
-                            fireErrorText = null
-                        },
-                        label = { Text("Kaldırılan / Fire Adedi") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        isError = fireErrorText != null,
-                        singleLine = true,
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Mevcut Stok: ${currentProduct.stokAdedi} Adet",
+                        fontSize = 12.sp,
+                        color = Slate500,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
-                    )
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val newQty = maxOf(1, currentQty - 1)
+                                fireQuantityText = newQty.toString()
+                                fireErrorText = null
+                            },
+                            enabled = currentQty > 1,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (currentQty > 1) ExpiredRed else Slate100)
+                        ) {
+                            Text("-", color = if (currentQty > 1) Color.White else Slate500, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                        }
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        OutlinedTextField(
+                            value = fireQuantityText,
+                            onValueChange = {
+                                fireQuantityText = it.filter { char -> char.isDigit() }
+                                fireErrorText = null
+                            },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 20.sp,
+                                color = Slate900
+                            ),
+                            modifier = Modifier.width(90.dp)
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        IconButton(
+                            onClick = {
+                                val newQty = minOf(currentProduct.stokAdedi, currentQty + 1)
+                                fireQuantityText = newQty.toString()
+                                fireErrorText = null
+                            },
+                            enabled = currentQty < currentProduct.stokAdedi,
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(if (currentQty < currentProduct.stokAdedi) ExpiredRed else Slate100)
+                        ) {
+                            Text("+", color = if (currentQty < currentProduct.stokAdedi) Color.White else Slate500, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                        }
+                    }
+
                     if (fireErrorText != null) {
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = fireErrorText!!,
                             color = ExpiredRed,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -782,7 +867,7 @@ fun GameScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed)
                 ) {
-                    Text("ONAYLA VE DEVAM ET", fontWeight = FontWeight.Bold, color = Color.White)
+                    Text("Kaydet ve Devam Et", fontWeight = FontWeight.Bold, color = Color.White)
                 }
             },
             dismissButton = {
@@ -802,13 +887,24 @@ private fun TourSummaryView(
     onNewTourClick: () -> Unit
 ) {
     val context = LocalContext.current
+    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+
+    val currentPreview = previewBitmap
+    if (currentPreview != null) {
+        ReportPreviewDialog(
+            bitmap = currentPreview,
+            onDismiss = { previewBitmap = null }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("tour_summary_card"),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = GameNavyCard),
-        border = BorderStroke(1.dp, GameNavyCardAccent)
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+        border = BorderStroke(1.dp, Color(0xFF334155)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -833,7 +929,7 @@ private fun TourSummaryView(
 
             Text(
                 text = "Reyon: ${targetCategory} | Toplam ${logs.size} Ürün Denetlendi",
-                color = Color.White.copy(alpha = 0.7f),
+                color = Color(0xFF94A3B8),
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center
             )
@@ -852,48 +948,48 @@ private fun TourSummaryView(
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.05f),
-                    border = BorderStroke(1.dp, NormalGreen)
+                    color = Color(0xFF065F46).copy(alpha = 0.3f),
+                    border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.5f))
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("SATILDI", color = NormalGreen, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("SATILDI", color = Color(0xFF34D399), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("${satilanLogs.size} Ürün", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("${satilanLogs.sumOf { it.islemAdedi }} Adet", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("${satilanLogs.sumOf { it.islemAdedi }} Adet", color = Color(0xFF94A3B8), fontSize = 10.sp)
                     }
                 }
 
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.05f),
-                    border = BorderStroke(1.dp, ExpiredRed)
+                    color = Color(0xFF991B1B).copy(alpha = 0.3f),
+                    border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("FİRE", color = ExpiredRed, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("FİRE", color = Color(0xFFFCA5A5), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("${fireLogs.size} Ürün", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("${fireLogs.sumOf { it.islemAdedi }} Adet", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("${fireLogs.sumOf { it.islemAdedi }} Adet", color = Color(0xFF94A3B8), fontSize = 10.sp)
                     }
                 }
 
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.White.copy(alpha = 0.05f),
-                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.2f))
+                    color = Color(0xFF0F172A),
+                    border = BorderStroke(1.dp, Color(0xFF334155))
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("NÖTR", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Text("NÖTR", color = Color(0xFF94A3B8), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         Text("$notrCount Ürün", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Text("Değişiklik Yok", color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("Değişiklik Yok", color = Color(0xFF94A3B8), fontSize = 10.sp)
                     }
                 }
             }
@@ -902,7 +998,7 @@ private fun TourSummaryView(
 
             Text(
                 text = "TURDA YAPILAN İŞLEM DETAYLARI:",
-                color = Color.White.copy(alpha = 0.6f),
+                color = Color(0xFFCBD5E1),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.fillMaxWidth(),
@@ -922,7 +1018,8 @@ private fun TourSummaryView(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color.White.copy(alpha = 0.06f))
+                            .background(Color(0xFF0F172A))
+                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -937,7 +1034,7 @@ private fun TourSummaryView(
                             if (log.barkodSnapshot.isNotBlank()) {
                                 Text(
                                     text = "Barkod: ${log.barkodSnapshot}",
-                                    color = Color.White.copy(alpha = 0.5f),
+                                    color = Color(0xFF94A3B8),
                                     fontSize = 10.sp
                                 )
                             }
@@ -948,7 +1045,7 @@ private fun TourSummaryView(
                             color = when (log.durum) {
                                 "SATILDI" -> NormalGreen
                                 "FIRE" -> ExpiredRed
-                                else -> Color.White.copy(alpha = 0.2f)
+                                else -> Color(0xFF334155)
                             }
                         ) {
                             Text(
@@ -976,8 +1073,7 @@ private fun TourSummaryView(
                 if (report != null) {
                     Button(
                         onClick = {
-                            ProductImageGenerator.shareTourReportAsImage(
-                                context = context,
+                            previewBitmap = ProductImageGenerator.createTourReportBitmap(
                                 rapor = report,
                                 logs = logs
                             )
@@ -999,10 +1095,10 @@ private fun TourSummaryView(
                         .weight(1f)
                         .height(48.dp)
                         .testTag("reset_tour_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("YENİ TUR", fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    Text("YENİ TUR", fontWeight = FontWeight.Black, fontSize = 12.sp, color = Color.White)
                 }
             }
         }
