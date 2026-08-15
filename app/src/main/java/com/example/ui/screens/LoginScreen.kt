@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -420,13 +421,13 @@ fun LoginScreen(
 
                         OutlinedTextField(
                             value = passwordInput,
-                            onValueChange = {
-                                passwordInput = it
+                            onValueChange = { input ->
+                                passwordInput = input.filter { it.isDigit() }
                                 errorMessage = null
                             },
                             placeholder = {
                                 Text(
-                                    text = "Şifrenizi girin",
+                                    text = "Şifrenizi girin (Sadece rakam)",
                                     color = Color(0xFF94A3B8),
                                     fontSize = 14.sp
                                 )
@@ -451,7 +452,10 @@ fun LoginScreen(
                             },
                             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.NumberPassword,
+                                imeAction = ImeAction.Done
+                            ),
                             keyboardActions = KeyboardActions(onDone = { performLogin() }),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -626,6 +630,40 @@ fun LoginScreen(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+
+            // En alt sağda uygulama sürümü
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.White.copy(alpha = 0.85f),
+                    border = BorderStroke(0.8.dp, TealBorder.copy(alpha = 0.6f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = TealPrimary,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Sürüm ${com.example.BuildConfig.VERSION_NAME}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = SlateTextSubtle
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -686,10 +724,11 @@ fun LoginScreen(
 
                     OutlinedTextField(
                         value = newPasswordInput,
-                        onValueChange = { newPasswordInput = it },
-                        label = { Text("Yeni Şifre") },
+                        onValueChange = { newPasswordInput = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Yeni Şifre (Sadece Rakam)") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -802,10 +841,11 @@ fun LoginScreen(
 
                     OutlinedTextField(
                         value = regPassword,
-                        onValueChange = { regPassword = it },
-                        label = { Text("Şifre") },
+                        onValueChange = { regPassword = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Şifre (Sadece Rakam)") },
                         singleLine = true,
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                         visualTransformation = PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth()
                     )

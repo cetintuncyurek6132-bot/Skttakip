@@ -15,5 +15,10 @@ data class TurRaporu(
     val fireUrunSayisi: Int,
     val toplamFireAdet: Int,
     val notrUrunSayisi: Int,
-    val tamamlandiMi: Boolean = true
+    val tamamlandiMi: Boolean = true,
+    val turSuresiSaniye: Long = 0L,
+    val toplamPuan: Int = 0,
+    val tahminiFireMaliyeti: Double = 0.0,
+    val enCokFireKategori: String = "",
+    val personelAdi: String = ""
 )

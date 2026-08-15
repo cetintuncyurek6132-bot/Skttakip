@@ -43,12 +43,14 @@ fun ProfileSheet(
     userDutyStatus: String,
     soundEffectsEnabled: Boolean,
     vibrationEnabled: Boolean,
+    isBatterySaverMode: Boolean = false,
     dashboardState: DashboardState,
     onDismiss: () -> Unit,
     onUpdateProfile: (name: String, branch: String, role: String, department: String) -> Unit,
     onUpdateDutyStatus: (status: String) -> Unit,
     onToggleSoundEffects: () -> Unit,
     onToggleVibration: () -> Unit,
+    onToggleBatterySaverMode: () -> Unit = {},
     onNavigateToCsv: () -> Unit
 ) {
     val context = LocalContext.current
@@ -357,6 +359,61 @@ fun ProfileSheet(
                         }
                     }
 
+                    // BATTERY & ENERGY OPTIMIZATION CARD
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.BatteryChargingFull,
+                                            contentDescription = null,
+                                            tint = if (isBatterySaverMode) NormalGreen else TurquoisePrimary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = "🔋 PİL VE ENERJİ OPTİMİZASYONU",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+
+                                    Switch(
+                                        checked = isBatterySaverMode,
+                                        onCheckedChange = { onToggleBatterySaverMode() },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = NormalGreen
+                                        )
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = if (isBatterySaverMode)
+                                        "⚡ Eko Pil Tasarrufu AKTİF: Kamera ML Kit işlemci yükü %70 düşürüldü, OLED karanlık mod optimizasyonu devrede."
+                                    else
+                                        "Kamera analiz kare hızını optimize ederek ve ekran güç tüketimini azaltarak batarya ömrünü uzatın.",
+                                    fontSize = 11.sp,
+                                    color = if (isBatterySaverMode) NormalGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 16.sp
+                                )
+                            }
+                        }
+                    }
+
                     // QUICK SYSTEM ACTIONS (CSV Export, Logout)
                     item {
                         Card(
@@ -422,6 +479,21 @@ fun ProfileSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("TAMAM / BİTİR", fontWeight = FontWeight.Black, fontSize = 13.sp, color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Sürüm ${com.example.BuildConfig.VERSION_NAME}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
         }

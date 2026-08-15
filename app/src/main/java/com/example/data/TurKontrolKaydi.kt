@@ -11,7 +11,9 @@ data class TurKontrolKaydi(
     val productId: Int,
     val urunAdiSnapshot: String,
     val barkodSnapshot: String = "",
+    val kategoriSnapshot: String = "",
     val durum: String, // "SATILDI", "FIRE", "NOTR"
     val islemAdedi: Int = 0,
-    val kontrolTarihi: Long = System.currentTimeMillis()
+    val kontrolTarihi: Long = System.currentTimeMillis(),
+    val personelSnapshot: String = ""
 )

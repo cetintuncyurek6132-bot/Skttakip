@@ -85,15 +85,20 @@ class MorningCheckWorker(
 
             val initialDelayMillis = target.timeInMillis - now.timeInMillis
 
+            val constraints = androidx.work.Constraints.Builder()
+                .setRequiresBatteryNotLow(false)
+                .build()
+
             val periodicWorkRequest = PeriodicWorkRequestBuilder<MorningCheckWorker>(
                 24, TimeUnit.HOURS
             )
+                .setConstraints(constraints)
                 .setInitialDelay(initialDelayMillis, TimeUnit.MILLISECONDS)
                 .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
-                ExistingPeriodicWorkPolicy.UPDATE,
+                ExistingPeriodicWorkPolicy.KEEP,
                 periodicWorkRequest
             )
         }

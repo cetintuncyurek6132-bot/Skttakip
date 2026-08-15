@@ -12,7 +12,7 @@ import java.util.Calendar
 
 @Database(
     entities = [Product::class, InspectionReport::class, TurRaporu::class, TurKontrolKaydi::class],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

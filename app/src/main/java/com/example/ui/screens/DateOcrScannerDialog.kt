@@ -412,15 +412,25 @@ private fun CameraXDateOcrView(
     val executor = remember { Executors.newSingleThreadExecutor() }
     val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
+    val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
 
     val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
     LaunchedEffect(isFlashOn) {
-        cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
+        try {
+            cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
         onDispose {
+            try {
+                cameraRef.value?.cameraControl?.enableTorch(false)
+            } catch (e: Exception) {
+                // Ignore torch disable failure
+            }
             try {
                 cameraProviderRef.value?.unbindAll()
             } catch (e: Exception) {
@@ -459,8 +469,18 @@ private fun CameraXDateOcrView(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
+                    val minFrameIntervalMs = 160L // Throttles OCR processing to ~6 FPS to conserve battery & prevent CPU heat
+
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         if (!hasFound) {
+                            val currentTime = System.currentTimeMillis()
+                            val lastAnalyzed = lastAnalyzedTimeRef.get()
+                            if (currentTime - lastAnalyzed < minFrameIntervalMs) {
+                                imageProxy.close()
+                                return@setAnalyzer
+                            }
+                            lastAnalyzedTimeRef.set(currentTime)
+
                             processImageForDate(recognizer, imageProxy, onTextUpdate) { millis, dateStr ->
                                 hasFound = true
                                 onDateFound(millis, dateStr)

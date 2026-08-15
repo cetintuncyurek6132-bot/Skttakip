@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import com.example.data.matchesSearchQuery
 import com.example.data.parseShelfQrPayload
+import com.example.data.findMatchingProducts
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -163,6 +164,7 @@ import kotlin.math.abs
 fun BarcodeScannerSheet(
     products: List<Product> = emptyList(),
     startInFixQrMode: Boolean = false,
+    isBatterySaverMode: Boolean = false,
     onDismiss: () -> Unit,
     onBarcodeDetected: (String) -> Unit,
     onFixQrScanned: ((rawQr: String, onResult: (String, Boolean) -> Unit) -> Unit)? = null,
@@ -238,19 +240,15 @@ fun BarcodeScannerSheet(
                     if (cameraPermissionState.status.isGranted) {
                         CameraXBarcodeView(
                             isFlashOn = isFlashOn,
-                            filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ONLY_1D_BARCODE,
+                            filterMode = ScannerFilterMode.ALL,
+                            isBatterySaverMode = isBatterySaverMode,
                             onBarcodeScanned = { barcode ->
                                 val now = System.currentTimeMillis()
                                 val trimmedBar = barcode.trim()
                                 if (trimmedBar.isNotBlank()) {
-                                    val isSameActive = activeBarcode.isNotBlank() &&
-                                        (activeBarcode == trimmedBar || activeBarcode.contains(trimmedBar) || trimmedBar.contains(activeBarcode))
+                                    val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 1200L
 
-                                    val isSameRecent = lastScannedCode != null &&
-                                        (lastScannedCode == trimmedBar || lastScannedCode!!.contains(trimmedBar) || trimmedBar.contains(lastScannedCode!!)) &&
-                                        (now - lastScannedTime) < 3000L
-
-                                    if (!isSameActive && !isSameRecent) {
+                                    if (!isSameRecent) {
                                         try {
                                             toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
                                         } catch (e: Exception) {
@@ -649,50 +647,12 @@ fun BarcodeScannerSheet(
                             val qrData = remember(activeBarcode) { parseShelfQrPayload(activeBarcode) }
 
                             val matchingProducts = remember(activeBarcode, products) {
-                                val rawQuery = activeBarcode.trim()
-                                if (rawQuery.isEmpty()) emptyList()
-                                else {
-                                    val queryBarcode = qrData.barcode
-                                    val queryProductCode = qrData.productCode
-                                    val queryDigits = queryBarcode.filter { it.isDigit() }
-                                    val queryNoLeadingZeros = queryDigits.trimStart('0')
-
-                                    // 1. Exact or normalized barcode match
-                                    val exactBarcode = products.filter { p ->
-                                        val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
-                                        p.barkod.equals(queryBarcode, ignoreCase = true) ||
-                                        p.barkod.equals(rawQuery, ignoreCase = true) ||
-                                        (queryDigits.isNotEmpty() && pBarcodeDigits == queryDigits) ||
-                                        (queryNoLeadingZeros.isNotEmpty() && pBarcodeDigits.trimStart('0') == queryNoLeadingZeros) ||
-                                        (queryDigits.length == 12 && pBarcodeDigits.length == 13 && pBarcodeDigits.startsWith(queryDigits)) ||
-                                        (queryDigits.length == 13 && pBarcodeDigits.length == 12 && queryDigits.startsWith(pBarcodeDigits)) ||
-                                        (queryDigits.length == 12 && pBarcodeDigits == "0$queryDigits") ||
-                                        (pBarcodeDigits.length == 12 && queryDigits == "0$pBarcodeDigits")
-                                    }
-
-                                    if (exactBarcode.isNotEmpty()) {
-                                        exactBarcode.sortedBy { it.sktTarihi }
-                                    } else {
-                                        // 2. Exact product code match
-                                        val exactCode = products.filter { p ->
-                                            (queryProductCode != null && p.urunKodu.equals(queryProductCode, ignoreCase = true)) ||
-                                            p.urunKodu.equals(queryBarcode, ignoreCase = true) ||
-                                            p.urunKodu.equals(rawQuery, ignoreCase = true) ||
-                                            (queryProductCode != null && p.barkod.equals(queryProductCode, ignoreCase = true))
-                                        }
-                                        if (exactCode.isNotEmpty()) {
-                                            exactCode.sortedBy { it.sktTarihi }
-                                        } else {
-                                            // 3. Fallback search query match
-                                            products.filter { it.matchesSearchQuery(queryBarcode) || it.matchesSearchQuery(rawQuery) }.sortedBy { it.sktTarihi }
-                                        }
-                                    }
-                                }
+                                products.findMatchingProducts(activeBarcode)
                             }
 
                             // Group matching products by unique barcode/product name to detect if query matched multiple distinct items
                             val distinctProducts = remember(matchingProducts) {
-                                matchingProducts.distinctBy { it.barkod }
+                                matchingProducts.distinctBy { if (it.barkod.isNotBlank()) it.barkod else it.urunKodu.ifBlank { it.urunAdi } }
                             }
 
                             val baseFoundProduct = selectedProductOverride ?: matchingProducts.firstOrNull()
@@ -1496,6 +1456,7 @@ enum class ScannerFilterMode {
 fun CameraXBarcodeView(
     isFlashOn: Boolean,
     filterMode: ScannerFilterMode = ScannerFilterMode.ALL,
+    isBatterySaverMode: Boolean = false,
     onBarcodeScanned: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -1510,54 +1471,43 @@ fun CameraXBarcodeView(
     val lastEmittedRef = remember { java.util.concurrent.atomic.AtomicReference<Pair<String, Long>>(Pair("", 0L)) }
     val pendingScanRef = remember { java.util.concurrent.atomic.AtomicReference<Pair<String, Long>?>(null) }
     val pendingRunnableRef = remember { java.util.concurrent.atomic.AtomicReference<Runnable?>(null) }
+    val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
 
-    val barcodeScanner = remember(filterMode) {
+    val barcodeScanner = remember {
         val builder = BarcodeScannerOptions.Builder()
-        when (filterMode) {
-            ScannerFilterMode.ONLY_1D_BARCODE -> {
-                builder.setBarcodeFormats(
-                    Barcode.FORMAT_EAN_13,
-                    Barcode.FORMAT_EAN_8,
-                    Barcode.FORMAT_UPC_A,
-                    Barcode.FORMAT_UPC_E,
-                    Barcode.FORMAT_CODE_128,
-                    Barcode.FORMAT_CODE_39,
-                    Barcode.FORMAT_CODE_93,
-                    Barcode.FORMAT_ITF
-                )
-            }
-            ScannerFilterMode.ONLY_QR_CODE -> {
-                builder.setBarcodeFormats(
-                    Barcode.FORMAT_QR_CODE,
-                    Barcode.FORMAT_DATA_MATRIX,
-                    Barcode.FORMAT_AZTEC
-                )
-            }
-            ScannerFilterMode.ALL -> {
-                builder.setBarcodeFormats(
-                    Barcode.FORMAT_EAN_13,
-                    Barcode.FORMAT_EAN_8,
-                    Barcode.FORMAT_UPC_A,
-                    Barcode.FORMAT_UPC_E,
-                    Barcode.FORMAT_CODE_128,
-                    Barcode.FORMAT_CODE_39,
-                    Barcode.FORMAT_CODE_93,
-                    Barcode.FORMAT_ITF,
-                    Barcode.FORMAT_QR_CODE,
-                    Barcode.FORMAT_DATA_MATRIX,
-                    Barcode.FORMAT_AZTEC
-                )
-            }
-        }
+            .setBarcodeFormats(
+                Barcode.FORMAT_EAN_13,
+                Barcode.FORMAT_EAN_8,
+                Barcode.FORMAT_UPC_A,
+                Barcode.FORMAT_UPC_E,
+                Barcode.FORMAT_CODE_128,
+                Barcode.FORMAT_CODE_39,
+                Barcode.FORMAT_CODE_93,
+                Barcode.FORMAT_ITF,
+                Barcode.FORMAT_QR_CODE,
+                Barcode.FORMAT_DATA_MATRIX,
+                Barcode.FORMAT_AZTEC,
+                Barcode.FORMAT_PDF417,
+                Barcode.FORMAT_CODABAR
+            )
         BarcodeScanning.getClient(builder.build())
     }
 
     LaunchedEffect(isFlashOn) {
-        cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
+        try {
+            cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
         onDispose {
+            try {
+                cameraRef.value?.cameraControl?.enableTorch(false)
+            } catch (e: Exception) {
+                // Ignore torch disable failure
+            }
             try {
                 pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
                 cameraProviderRef.value?.unbindAll()
@@ -1607,30 +1557,38 @@ fun CameraXBarcodeView(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
+                    val minFrameIntervalMs = if (isBatterySaverMode) 200L else 90L
+
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
+                        val currentTime = System.currentTimeMillis()
+                        val lastAnalyzed = lastAnalyzedTimeRef.get()
+                        if (currentTime - lastAnalyzed < minFrameIntervalMs) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
+                        lastAnalyzedTimeRef.set(currentTime)
+
                         processImageProxy(barcodeScanner, filterMode, imageProxy) { barcodes ->
                             val raw = barcodes.firstOrNull()?.rawValue?.trim()
                             if (!raw.isNullOrBlank()) {
                                 val now = System.currentTimeMillis()
                                 val (lastEmittedCode, lastEmittedTime) = lastEmittedRef.get()
 
-                                // 1) Same barcode or partial substring of recently emitted code (< 3000ms) -> REJECT
-                                if (lastEmittedCode.isNotBlank() && (now - lastEmittedTime) < 3000L) {
-                                    if (raw == lastEmittedCode || lastEmittedCode.contains(raw) || lastEmittedCode.startsWith(raw) || lastEmittedCode.endsWith(raw)) {
-                                        return@processImageProxy
-                                    }
-                                }
-
-                                // 2) Global rate limit: at least 800ms between any two distinct code emissions
-                                if ((now - lastEmittedTime) < 800L) {
+                                // 1) Rate limit identical barcode within 1200ms to avoid re-trigger stutter
+                                if (lastEmittedCode == raw && (now - lastEmittedTime) < 1200L) {
                                     return@processImageProxy
                                 }
 
-                                // 3) Pending stabilization buffer (130ms) to upgrade any partial frame scan to full length
+                                // 2) Minimal interval between any distinct scans (250ms)
+                                if ((now - lastEmittedTime) < 250L) {
+                                    return@processImageProxy
+                                }
+
+                                // 3) Stabilization buffer (80ms) to upgrade any partial frame scan to full length
                                 val currentPending = pendingScanRef.get()
                                 if (currentPending != null) {
                                     val (pCode, _) = currentPending
-                                    if (raw.length > pCode.length && (raw.contains(pCode) || pCode.contains(raw) || raw.startsWith(pCode) || pCode.startsWith(raw))) {
+                                    if (raw.length > pCode.length && (raw.contains(pCode) || pCode.contains(raw))) {
                                         pendingScanRef.set(Pair(raw, now))
                                     }
                                 } else {
@@ -1641,11 +1599,7 @@ fun CameraXBarcodeView(
                                             val (finalCode, finalTime) = finalPending
                                             val (lCode, lTime) = lastEmittedRef.get()
 
-                                             val isSubStringOfLast = lCode.isNotBlank() && (finalTime - lTime) < 3000L &&
-                                                (lCode == finalCode || lCode.contains(finalCode) || lCode.startsWith(finalCode) || lCode.endsWith(finalCode))
-                                            val isTooSoon = (finalTime - lTime) < 800L
-
-                                            if (!isSubStringOfLast && !isTooSoon) {
+                                            if (lCode != finalCode || (finalTime - lTime) >= 1200L) {
                                                 lastEmittedRef.set(Pair(finalCode, finalTime))
                                                 currentOnBarcodeScanned(finalCode)
                                             }
@@ -1653,7 +1607,7 @@ fun CameraXBarcodeView(
                                     }
                                     pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
                                     pendingRunnableRef.set(runnable)
-                                    mainHandler.postDelayed(runnable, 130L)
+                                    mainHandler.postDelayed(runnable, 80L)
                                 }
                             }
                         }

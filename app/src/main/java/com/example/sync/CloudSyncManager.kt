@@ -110,9 +110,20 @@ object CloudSyncManager {
         return prefs?.getBoolean("user_has_reset_data", false) ?: false
     }
 
+    fun stopRealtimeListeners() {
+        try {
+            productListener?.remove()
+            productListener = null
+            reportListener?.remove()
+            reportListener = null
+            _syncState.value = SyncState.CONNECTED
+        } catch (e: Exception) {
+            Log.e(TAG, "Error stopping listeners: ${e.message}")
+        }
+    }
+
     fun startRealtimeListeners() {
-        productListener?.remove()
-        reportListener?.remove()
+        stopRealtimeListeners()
 
         val storeCode = getStoreCode()
         val db = firestore ?: return

@@ -141,6 +141,16 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onStart() {
+        super.onStart()
+        com.example.sync.CloudSyncManager.startRealtimeListeners()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        com.example.sync.CloudSyncManager.stopRealtimeListeners()
+    }
 }
 
 @Composable
@@ -198,6 +208,10 @@ fun SktMainApp(viewModel: MainViewModel) {
     val currentQueueIndex by viewModel.currentQueueIndex.collectAsStateWithLifecycle()
     val tourLogs by viewModel.tourLogs.collectAsStateWithLifecycle()
     val tourFinished by viewModel.tourFinished.collectAsStateWithLifecycle()
+    val isTourPaused by viewModel.isTourPaused.collectAsStateWithLifecycle()
+    val tourScore by viewModel.tourScore.collectAsStateWithLifecycle()
+    val tourStreak by viewModel.tourStreak.collectAsStateWithLifecycle()
+    val lastActionMessage by viewModel.lastActionMessage.collectAsStateWithLifecycle()
     val lastSavedTourRaporu by viewModel.lastSavedTourRaporu.collectAsStateWithLifecycle()
     val allTurRaporlari by viewModel.allTurRaporlari.collectAsStateWithLifecycle()
 
@@ -211,6 +225,7 @@ fun SktMainApp(viewModel: MainViewModel) {
     val highStockAlertEnabled by viewModel.highStockAlertEnabled.collectAsStateWithLifecycle()
     val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
+    val isBatterySaverMode by viewModel.isBatterySaverMode.collectAsStateWithLifecycle()
 
     // Dialog & Scanner control states
     var isBarcodeScannerOpen by remember { mutableStateOf(false) }
@@ -246,6 +261,7 @@ fun SktMainApp(viewModel: MainViewModel) {
             userDutyStatus = userDutyStatus,
             soundEffectsEnabled = soundEffectsEnabled,
             vibrationEnabled = vibrationEnabled,
+            isBatterySaverMode = isBatterySaverMode,
             dashboardState = dashboardState,
             onDismiss = { isProfileDialogOpen = false },
             onUpdateProfile = { name, branch, role, dept ->
@@ -254,6 +270,7 @@ fun SktMainApp(viewModel: MainViewModel) {
             onUpdateDutyStatus = { status -> viewModel.updateDutyStatus(status) },
             onToggleSoundEffects = { viewModel.toggleSoundEffects() },
             onToggleVibration = { viewModel.toggleVibration() },
+            onToggleBatterySaverMode = { viewModel.toggleBatterySaverMode() },
             onNavigateToCsv = { navController.navigate("csv") }
         )
     }
@@ -281,8 +298,9 @@ fun SktMainApp(viewModel: MainViewModel) {
 
     // PRODUCT DETAIL MODAL (Ürün Detay Sayfası)
     if (detailProduct != null) {
-        val allMatchingProducts = filteredProducts.filter {
-            it.barkod.equals(detailProduct!!.barkod.trim(), ignoreCase = true)
+        val allMatchingProducts = allProducts.filter {
+            it.barkod.equals(detailProduct!!.barkod.trim(), ignoreCase = true) ||
+            (detailProduct!!.urunKodu.isNotBlank() && it.urunKodu.equals(detailProduct!!.urunKodu.trim(), ignoreCase = true))
         }.sortedBy { it.sktTarihi }
 
         ProductDetailModal(
@@ -321,8 +339,9 @@ fun SktMainApp(viewModel: MainViewModel) {
     // CAMERA OR MANUAL BARCODE SCANNER SHEET
     if (isBarcodeScannerOpen) {
         BarcodeScannerSheet(
-            products = filteredProducts,
+            products = allProducts,
             startInFixQrMode = startScannerInFixMode,
+            isBatterySaverMode = isBatterySaverMode,
             onDismiss = {
                 isBarcodeScannerOpen = false
                 startScannerInFixMode = false
@@ -497,11 +516,18 @@ fun SktMainApp(viewModel: MainViewModel) {
                     onCategoryChange = { cat -> viewModel.setGameTargetCategory(cat) },
                     tourActive = gameActive,
                     tourFinished = tourFinished,
+                    isPaused = isTourPaused,
                     tourQueue = tourQueue,
                     currentQueueIndex = currentQueueIndex,
                     tourLogs = tourLogs,
+                    tourScore = tourScore,
+                    tourStreak = tourStreak,
+                    lastActionMessage = lastActionMessage,
                     lastSavedReport = lastSavedTourRaporu,
                     onStartTour = { viewModel.startTourSession() },
+                    onPauseTour = { viewModel.pauseTourSession() },
+                    onResumeTour = { viewModel.resumeTourSession() },
+                    onClearLastActionMessage = { viewModel.clearLastActionMessage() },
                     onRecordSold = { prod, count -> viewModel.recordTourSold(prod, count) },
                     onRecordFire = { prod, count -> viewModel.recordTourFire(prod, count) },
                     onRecordNotr = { prod -> viewModel.recordTourNotr(prod) },
@@ -534,16 +560,19 @@ fun SktMainApp(viewModel: MainViewModel) {
             // 5. CSV VERİ AKTARIMI
             composable("csv") {
                 val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+                val isBatterySaverMode by viewModel.isBatterySaverMode.collectAsStateWithLifecycle()
                 val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
                 val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
                 val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
 
                 CsvScreen(
                     isDarkMode = isDarkMode,
+                    isBatterySaverMode = isBatterySaverMode,
                     soundEffectsEnabled = soundEffectsEnabled,
                     vibrationEnabled = vibrationEnabled,
                     products = allProducts,
                     onToggleDarkMode = { viewModel.toggleDarkMode() },
+                    onToggleBatterySaverMode = { viewModel.toggleBatterySaverMode() },
                     onToggleSoundEffects = { viewModel.toggleSoundEffects() },
                     onToggleVibration = { viewModel.toggleVibration() },
                     onFixAndRepairDatabase = { callback -> viewModel.fixAndRepairDatabase(callback) },

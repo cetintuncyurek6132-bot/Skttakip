@@ -23,17 +23,10 @@ class ProductRepository(
     suspend fun updateProductStock(productId: Int, newStok: Int) {
         val list = productDao.getAllProductsList()
         val prod = list.find { it.id == productId }
-        if (newStok <= 0) {
-            if (prod != null) {
-                deleteProduct(prod)
-            } else {
-                productDao.updateStockAndControlDate(productId, 0, System.currentTimeMillis())
-            }
-        } else {
-            productDao.updateStockAndControlDate(productId, newStok, System.currentTimeMillis())
-            if (prod != null) {
-                CloudSyncManager.syncProductToCloud(prod.copy(stokAdedi = newStok))
-            }
+        val safeStok = maxOf(0, newStok)
+        productDao.updateStockAndControlDate(productId, safeStok, System.currentTimeMillis())
+        if (prod != null) {
+            CloudSyncManager.syncProductToCloud(prod.copy(stokAdedi = safeStok, sonKontrolTarihi = System.currentTimeMillis()))
         }
     }
 

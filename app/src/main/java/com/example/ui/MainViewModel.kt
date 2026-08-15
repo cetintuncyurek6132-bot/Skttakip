@@ -8,6 +8,7 @@ import com.example.data.InspectionReport
 import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.data.parseShelfQrPayload
+import com.example.data.findMatchingProducts
 import com.example.data.TurKontrolKaydi
 import com.example.data.TurRaporu
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +29,7 @@ import com.example.data.getTodayMidnightMillis
 import com.example.data.normalizeForSearch
 import com.example.data.matchesSearchQuery
 import com.example.data.isDolapProduct
+import com.example.data.getDisplayName
 import kotlinx.coroutines.flow.flowOn
 
 enum class ProductFilter(val label: String) {
@@ -133,6 +135,21 @@ class MainViewModel(
     private val _tourFinished = MutableStateFlow(false)
     val tourFinished: StateFlow<Boolean> = _tourFinished.asStateFlow()
 
+    private val _isTourPaused = MutableStateFlow(false)
+    val isTourPaused: StateFlow<Boolean> = _isTourPaused.asStateFlow()
+
+    private val _tourStartTime = MutableStateFlow(0L)
+    val tourStartTime: StateFlow<Long> = _tourStartTime.asStateFlow()
+
+    private val _tourScore = MutableStateFlow(0)
+    val tourScore: StateFlow<Int> = _tourScore.asStateFlow()
+
+    private val _tourStreak = MutableStateFlow(0)
+    val tourStreak: StateFlow<Int> = _tourStreak.asStateFlow()
+
+    private val _lastActionMessage = MutableStateFlow<String?>(null)
+    val lastActionMessage: StateFlow<String?> = _lastActionMessage.asStateFlow()
+
     private val _lastSavedTourRaporu = MutableStateFlow<TurRaporu?>(null)
     val lastSavedTourRaporu: StateFlow<TurRaporu?> = _lastSavedTourRaporu.asStateFlow()
 
@@ -213,6 +230,9 @@ class MainViewModel(
     private val _isDarkMode = MutableStateFlow(false)
     val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
 
+    private val _isBatterySaverMode = MutableStateFlow(false)
+    val isBatterySaverMode: StateFlow<Boolean> = _isBatterySaverMode.asStateFlow()
+
     private val _notificationsRead = MutableStateFlow(false)
     val notificationsRead: StateFlow<Boolean> = _notificationsRead.asStateFlow()
 
@@ -222,6 +242,22 @@ class MainViewModel(
 
     fun setDarkMode(dark: Boolean) {
         _isDarkMode.value = dark
+    }
+
+    fun toggleBatterySaverMode() {
+        val nextVal = !_isBatterySaverMode.value
+        _isBatterySaverMode.value = nextVal
+        if (nextVal) {
+            // Suggest or enable Dark Mode automatically for OLED battery savings if light
+            _isDarkMode.value = true
+        }
+    }
+
+    fun setBatterySaverMode(enabled: Boolean) {
+        _isBatterySaverMode.value = enabled
+        if (enabled) {
+            _isDarkMode.value = true
+        }
     }
 
     fun fixAndRepairDatabase(onResult: (Int, String) -> Unit) {
@@ -892,8 +928,13 @@ class MainViewModel(
             _currentQueueIndex.value = 0
             _tourLogs.value = emptyList()
             _tourFinished.value = false
+            _isTourPaused.value = false
+            _tourScore.value = 0
+            _tourStreak.value = 0
+            _lastActionMessage.value = null
             _lastSavedTourRaporu.value = null
             _gameActive.value = true
+            _tourStartTime.value = System.currentTimeMillis()
             return
         }
 
@@ -902,23 +943,14 @@ class MainViewModel(
             p.sktTarihi > 0L && p.getRemainingDays() <= 20
         }
 
-        // Group 1: Dolap Ürünleri (Categories matching dolap, süt, şarküteri, soğuk, peynir, yoğurt)
+        // Group 1: Dolap Ürünleri (Categories matching dolap, süt, şarküteri, soğuk, peynir, yoğurt, et, tavuk, dondurma)
         val dolapProds = filteredEligible.filter { p ->
-            val cat = p.kategori.lowercase(Locale.forLanguageTag("tr-TR"))
-            cat.contains("dolap") || cat.contains("süt") || cat.contains("sut") ||
-            cat.contains("şarküteri") || cat.contains("sarkuteri") || cat.contains("soğuk") ||
-            cat.contains("soguk") || cat.contains("peynir") || cat.contains("yoğurt") ||
-            cat.contains("yogurt")
+            p.isDolapProduct()
         }.sortedWith(compareBy({ it.getRemainingDays() }, { -it.stokAdedi }, { it.urunAdi }))
 
         // Group 2: Gıda Ürünleri & Other reyonlar
         val gidaProds = filteredEligible.filter { p ->
-            val cat = p.kategori.lowercase(Locale.forLanguageTag("tr-TR"))
-            val isDolap = cat.contains("dolap") || cat.contains("süt") || cat.contains("sut") ||
-            cat.contains("şarküteri") || cat.contains("sarkuteri") || cat.contains("soğuk") ||
-            cat.contains("soguk") || cat.contains("peynir") || cat.contains("yoğurt") ||
-            cat.contains("yogurt")
-            !isDolap
+            !p.isDolapProduct()
         }.sortedWith(compareBy({ it.getRemainingDays() }, { -it.stokAdedi }, { it.urunAdi }))
 
         val fullQueue = dolapProds + gidaProds
@@ -928,23 +960,52 @@ class MainViewModel(
         _currentQueueIndex.value = 0
         _tourLogs.value = emptyList()
         _tourFinished.value = false
+        _isTourPaused.value = false
+        _tourScore.value = 0
+        _tourStreak.value = 0
+        _lastActionMessage.value = null
         _lastSavedTourRaporu.value = null
         _gameActive.value = true
+        _tourStartTime.value = System.currentTimeMillis()
+    }
+
+    fun pauseTourSession() {
+        _isTourPaused.value = true
+    }
+
+    fun resumeTourSession() {
+        _isTourPaused.value = false
+    }
+
+    fun clearLastActionMessage() {
+        _lastActionMessage.value = null
     }
 
     fun recordTourSold(product: Product, soldCount: Int) {
         viewModelScope.launch {
-            val newStock = maxOf(0, product.stokAdedi - soldCount)
+            val safeSoldCount = maxOf(1, soldCount)
+            val newStock = maxOf(0, product.stokAdedi - safeSoldCount)
             repository.updateProductStock(product.id, newStock)
+
+            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
 
             val log = TurKontrolKaydi(
                 productId = product.id,
-                urunAdiSnapshot = product.urunAdi,
+                urunAdiSnapshot = product.getDisplayName(),
                 barkodSnapshot = product.barkod,
+                kategoriSnapshot = product.kategori,
                 durum = "SATILDI",
-                islemAdedi = soldCount
+                islemAdedi = safeSoldCount,
+                kontrolTarihi = System.currentTimeMillis(),
+                personelSnapshot = currentPersonel
             )
             _tourLogs.value = _tourLogs.value + log
+
+            val newStreak = _tourStreak.value + 1
+            _tourStreak.value = newStreak
+            val streakBonus = (newStreak / 3) * 2
+            _tourScore.value += 10 + streakBonus
+            _lastActionMessage.value = "+$safeSoldCount adet stoktan düşüldü"
 
             val nextIndex = _currentQueueIndex.value + 1
             if (nextIndex >= _tourQueue.value.size) {
@@ -957,17 +1018,28 @@ class MainViewModel(
 
     fun recordTourFire(product: Product, fireCount: Int) {
         viewModelScope.launch {
-            val newStock = maxOf(0, product.stokAdedi - fireCount)
+            val safeFireCount = maxOf(1, fireCount)
+            val newStock = maxOf(0, product.stokAdedi - safeFireCount)
             repository.updateProductStock(product.id, newStock)
+
+            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
 
             val log = TurKontrolKaydi(
                 productId = product.id,
-                urunAdiSnapshot = product.urunAdi,
+                urunAdiSnapshot = product.getDisplayName(),
                 barkodSnapshot = product.barkod,
+                kategoriSnapshot = product.kategori,
                 durum = "FIRE",
-                islemAdedi = fireCount
+                islemAdedi = safeFireCount,
+                kontrolTarihi = System.currentTimeMillis(),
+                personelSnapshot = currentPersonel
             )
             _tourLogs.value = _tourLogs.value + log
+
+            val newStreak = _tourStreak.value + 1
+            _tourStreak.value = newStreak
+            _tourScore.value += 2
+            _lastActionMessage.value = "$safeFireCount adet fire kaydedildi"
 
             val nextIndex = _currentQueueIndex.value + 1
             if (nextIndex >= _tourQueue.value.size) {
@@ -982,14 +1054,25 @@ class MainViewModel(
         viewModelScope.launch {
             repository.updateProductStock(product.id, product.stokAdedi)
 
+            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
+
             val log = TurKontrolKaydi(
                 productId = product.id,
-                urunAdiSnapshot = product.urunAdi,
+                urunAdiSnapshot = product.getDisplayName(),
                 barkodSnapshot = product.barkod,
+                kategoriSnapshot = product.kategori,
                 durum = "NOTR",
-                islemAdedi = 0
+                islemAdedi = 0,
+                kontrolTarihi = System.currentTimeMillis(),
+                personelSnapshot = currentPersonel
             )
             _tourLogs.value = _tourLogs.value + log
+
+            val newStreak = _tourStreak.value + 1
+            _tourStreak.value = newStreak
+            val streakBonus = (newStreak / 5) * 2
+            _tourScore.value += 5 + streakBonus
+            _lastActionMessage.value = "Ürün rafta duruyor"
 
             val nextIndex = _currentQueueIndex.value + 1
             if (nextIndex >= _tourQueue.value.size) {
@@ -1015,6 +1098,8 @@ class MainViewModel(
                 }
                 _tourLogs.value = logs.dropLast(1)
                 _currentQueueIndex.value = currentIndex - 1
+                _tourStreak.value = maxOf(0, _tourStreak.value - 1)
+                _lastActionMessage.value = "Son işlem geri alındı"
             }
         }
     }
@@ -1024,6 +1109,7 @@ class MainViewModel(
             finishTourInternal(isEarlyExit = true)
         } else {
             _gameActive.value = false
+            _isTourPaused.value = false
             _tourFinished.value = false
         }
     }
@@ -1040,6 +1126,26 @@ class MainViewModel(
             val fireTotalCount = fireLogs.sumOf { it.islemAdedi }
             val notrUrunCount = logs.count { it.durum == "NOTR" }
 
+            val allProds = allProducts.value
+            var totalFireCost = 0.0
+            val fireCategoryMap = mutableMapOf<String, Int>()
+
+            fireLogs.forEach { fl ->
+                val prod = allProds.find { it.id == fl.productId }
+                val unitPrice = prod?.fiyat ?: 35.0
+                totalFireCost += unitPrice * fl.islemAdedi
+                val cat = prod?.kategori ?: fl.kategoriSnapshot.ifBlank { "Genel Gıda" }
+                fireCategoryMap[cat] = (fireCategoryMap[cat] ?: 0) + fl.islemAdedi
+            }
+
+            val topFireCat = fireCategoryMap.maxByOrNull { it.value }?.key ?: if (fireLogs.isNotEmpty()) "Dolap / Şarküteri" else "Yok"
+
+            val durationSeconds = if (_tourStartTime.value > 0L) {
+                ((System.currentTimeMillis() - _tourStartTime.value) / 1000L).coerceAtLeast(1L)
+            } else 0L
+
+            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
+
             val tourRaporu = TurRaporu(
                 turTarihi = System.currentTimeMillis(),
                 hedefReyon = _gameTargetCategory.value,
@@ -1049,7 +1155,12 @@ class MainViewModel(
                 fireUrunSayisi = fireUrunCount,
                 toplamFireAdet = fireTotalCount,
                 notrUrunSayisi = notrUrunCount,
-                tamamlandiMi = !isEarlyExit
+                tamamlandiMi = !isEarlyExit,
+                turSuresiSaniye = durationSeconds,
+                toplamPuan = _tourScore.value,
+                tahminiFireMaliyeti = totalFireCost,
+                enCokFireKategori = topFireCat,
+                personelAdi = currentPersonel
             )
 
             val savedId = repository.saveTourReport(tourRaporu, logs)
@@ -1062,21 +1173,26 @@ class MainViewModel(
                 tarananUrunSayisi = logs.size,
                 suresiGecenSayisi = fireUrunCount,
                 kritikUrunSayisi = satilanUrunCount,
-                fireTutari = fireTotalCount * 35.0
+                fireTutari = if (totalFireCost > 0.0) totalFireCost else (fireTotalCount * 35.0)
             )
             repository.insertReport(legacyReport)
 
             _gameActive.value = false
+            _isTourPaused.value = false
             _tourFinished.value = true
         }
     }
 
     fun resetTourState() {
         _gameActive.value = false
+        _isTourPaused.value = false
         _tourFinished.value = false
         _tourQueue.value = emptyList()
         _currentQueueIndex.value = 0
         _tourLogs.value = emptyList()
+        _tourScore.value = 0
+        _tourStreak.value = 0
+        _lastActionMessage.value = null
         _lastSavedTourRaporu.value = null
     }
 
@@ -1099,45 +1215,8 @@ class MainViewModel(
             val queryNoLeadingZeros = queryDigits.trimStart('0')
 
             val all = repository.getProductListDirect()
-
-            // 1. If product code is explicitly provided in QR, search by product code FIRST
-            var prod: Product? = if (!queryProductCode.isNullOrBlank()) {
-                all.find { p ->
-                    p.urunKodu.equals(queryProductCode, ignoreCase = true) ||
-                    p.barkod.equals(queryProductCode, ignoreCase = true)
-                }
-            } else null
-
-            // 2. Exact barcode match
-            if (prod == null) {
-                prod = all.find { 
-                    it.barkod.equals(queryBarcode, ignoreCase = true) || 
-                    it.barkod.equals(barkod.trim(), ignoreCase = true) 
-                }
-            }
-
-            // 3. Normalized barcode match
-            if (prod == null && queryDigits.isNotEmpty()) {
-                prod = all.find { p ->
-                    val pDigits = p.barkod.trim().filter { it.isDigit() }
-                    pDigits == queryDigits ||
-                    (queryNoLeadingZeros.isNotEmpty() && pDigits.trimStart('0') == queryNoLeadingZeros) ||
-                    (queryDigits.length == 12 && pDigits.length == 13 && pDigits.startsWith(queryDigits)) ||
-                    (queryDigits.length == 13 && pDigits.length == 12 && queryDigits.startsWith(pDigits)) ||
-                    (queryDigits.length == 12 && pDigits == "0$queryDigits") ||
-                    (pDigits.length == 12 && queryDigits == "0$pDigits")
-                }
-            }
-
-            // 4. Fallback product code search
-            if (prod == null) {
-                prod = all.find { p ->
-                    (queryProductCode != null && p.urunKodu.equals(queryProductCode, ignoreCase = true)) ||
-                    p.urunKodu.equals(queryBarcode, ignoreCase = true) ||
-                    p.urunKodu.equals(barkod.trim(), ignoreCase = true) ||
-                    (queryProductCode != null && p.barkod.equals(queryProductCode, ignoreCase = true))
-                }
-            }
+            val matchingList = all.findMatchingProducts(barkod)
+            var prod = matchingList.firstOrNull()
 
             if (prod != null) {
                 val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
@@ -1205,12 +1284,15 @@ class MainViewModel(
 
             val all = repository.getProductListDirect()
 
-            val targetProducts = all.filter { p ->
+            var targetProducts = all.filter { p ->
                 (productCode != null && productCode.isNotBlank() && p.urunKodu.equals(productCode, ignoreCase = true)) ||
                 (productCode != null && productCode.isNotBlank() && p.barkod.equals(productCode, ignoreCase = true)) ||
                 p.urunKodu.equals(realBarcode, ignoreCase = true) ||
-                p.urunKodu.equals(rawInput.trim(), ignoreCase = true) ||
-                (p.barkod == p.urunKodu && p.urunKodu.isNotBlank())
+                p.urunKodu.equals(rawInput.trim(), ignoreCase = true)
+            }
+
+            if (targetProducts.isEmpty()) {
+                targetProducts = all.findMatchingProducts(rawInput)
             }
 
             if (targetProducts.isEmpty()) {
@@ -1256,53 +1338,13 @@ class MainViewModel(
     ) {
         viewModelScope.launch {
             val qrData = parseShelfQrPayload(barkod)
-            val queryBarcode = qrData.barcode
-            val queryProductCode = qrData.productCode
+            val queryBarcode = qrData.barcode.trim()
+            val queryProductCode = qrData.productCode?.trim()
             val scannedPrice = qrData.price
 
-            val queryDigits = queryBarcode.filter { it.isDigit() }
-            val queryNoLeadingZeros = queryDigits.trimStart('0')
-
             val all = repository.getProductListDirect()
-
-            // 1. If product code is explicitly provided in QR, search by product code FIRST
-            var prod: Product? = if (!queryProductCode.isNullOrBlank()) {
-                all.find { p ->
-                    p.urunKodu.equals(queryProductCode, ignoreCase = true) ||
-                    p.barkod.equals(queryProductCode, ignoreCase = true)
-                }
-            } else null
-
-            // 2. Exact barcode match
-            if (prod == null) {
-                prod = all.find { 
-                    it.barkod.equals(queryBarcode, ignoreCase = true) || 
-                    it.barkod.equals(barkod.trim(), ignoreCase = true) 
-                }
-            }
-
-            // 3. Normalized barcode match
-            if (prod == null && queryDigits.isNotEmpty()) {
-                prod = all.find { p ->
-                    val pDigits = p.barkod.trim().filter { it.isDigit() }
-                    pDigits == queryDigits ||
-                    (queryNoLeadingZeros.isNotEmpty() && pDigits.trimStart('0') == queryNoLeadingZeros) ||
-                    (queryDigits.length == 12 && pDigits.length == 13 && pDigits.startsWith(queryDigits)) ||
-                    (queryDigits.length == 13 && pDigits.length == 12 && queryDigits.startsWith(pDigits)) ||
-                    (queryDigits.length == 12 && pDigits == "0$queryDigits") ||
-                    (pDigits.length == 12 && queryDigits == "0$pDigits")
-                }
-            }
-
-            // 4. Fallback product code search
-            if (prod == null) {
-                prod = all.find { p ->
-                    (queryProductCode != null && p.urunKodu.equals(queryProductCode, ignoreCase = true)) ||
-                    p.urunKodu.equals(queryBarcode, ignoreCase = true) ||
-                    p.urunKodu.equals(barkod.trim(), ignoreCase = true) ||
-                    (queryProductCode != null && p.barkod.equals(queryProductCode, ignoreCase = true))
-                }
-            }
+            val matchingList = all.findMatchingProducts(barkod)
+            var prod: Product? = matchingList.firstOrNull()
 
             if (prod != null) {
                 val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
@@ -1312,7 +1354,8 @@ class MainViewModel(
                 var updatedProd = prod
 
                 // Auto-fix barcode in database if queryBarcode is a valid EAN/package barcode and product had missing/code barcode
-                if (queryBarcode.length >= 8 && queryDigits.length >= 8 && queryBarcode != prod.barkod && isProductCodeMatch) {
+                val queryDigits = queryBarcode.filter { it.isDigit() }
+                if (queryDigits.length >= 8 && queryBarcode != prod.barkod && isProductCodeMatch) {
                     val corrected = prod.copy(barkod = queryBarcode)
                     repository.insertOrUpdateProduct(corrected)
                     updatedProd = corrected
