@@ -36,6 +36,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.WindowInsets
@@ -162,21 +163,30 @@ import com.example.data.parseShelfQrPayload
 import com.example.ui.screens.DateOcrScannerDialog
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.CriticalOrange
+import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.CriticalOrangeContainer
+import com.example.ui.theme.CriticalOrangeDark
 import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedContainer
+import com.example.ui.theme.ExpiredRedDark
 import com.example.ui.theme.NormalGreen
+import com.example.ui.theme.NormalGreenBorder
 import com.example.ui.theme.NormalGreenContainer
+import com.example.ui.theme.NormalGreenDark
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate300
 import com.example.ui.theme.SoonYellow
+import com.example.ui.theme.SoonYellowBorder
 import com.example.ui.theme.SoonYellowContainer
+import com.example.ui.theme.SoonYellowDark
 import com.example.ui.theme.WarningBlue
+import com.example.ui.theme.WarningBlueBorder
 import com.example.ui.theme.WarningBlueContainer
+import com.example.ui.theme.WarningBlueDark
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.theme.Slate50
-import com.example.ui.theme.Slate300
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
@@ -184,6 +194,22 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private data class ExpiryChipStyle(
+    val bg: Color,
+    val textColor: Color,
+    val borderColor: Color,
+    val labelText: String
+)
+
+private data class SktChipStyle(
+    val sktBgColor: Color,
+    val sktBorderColor: Color,
+    val sktTextColor: Color,
+    val badgeBgColor: Color,
+    val badgeTextColor: Color,
+    val statusLabel: String
+)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -729,7 +755,9 @@ fun SktBottomNavBar(
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 16.dp,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
     ) {
         Row(
             modifier = Modifier
@@ -853,34 +881,39 @@ fun ExpiryStatusChip(
     daysLeft: Long,
     modifier: Modifier = Modifier
 ) {
-    val (bg, textColor, labelText) = when (status) {
-        ExpiryStatus.EXPIRED -> Triple(
+    val (bg, textColor, borderColor, labelText) = when (status) {
+        ExpiryStatus.EXPIRED -> ExpiryChipStyle(
             ExpiredRedContainer,
-            ExpiredRed,
+            ExpiredRedDark,
+            ExpiredRedBorder,
             "SÜRESİ GEÇEN (${daysLeft} GÜN)"
         )
 
-        ExpiryStatus.CRITICAL -> Triple(
+        ExpiryStatus.CRITICAL -> ExpiryChipStyle(
             CriticalOrangeContainer,
-            CriticalOrange,
+            CriticalOrangeDark,
+            CriticalOrangeBorder,
             "KRİTİK (${daysLeft} GÜN)"
         )
 
-        ExpiryStatus.SOON -> Triple(
+        ExpiryStatus.SOON -> ExpiryChipStyle(
             SoonYellowContainer,
-            Color(0xFFB78103),
+            SoonYellowDark,
+            SoonYellowBorder,
             "YAKIN (${daysLeft} GÜN)"
         )
 
-        ExpiryStatus.WARNING -> Triple(
+        ExpiryStatus.WARNING -> ExpiryChipStyle(
             WarningBlueContainer,
-            WarningBlue,
+            WarningBlueDark,
+            WarningBlueBorder,
             "ORTA VADELİ (${daysLeft} GÜN)"
         )
 
-        ExpiryStatus.NORMAL -> Triple(
+        ExpiryStatus.NORMAL -> ExpiryChipStyle(
             NormalGreenContainer,
-            NormalGreen,
+            NormalGreenDark,
+            NormalGreenBorder,
             "NORMAL (${daysLeft} GÜN)"
         )
     }
@@ -889,7 +922,7 @@ fun ExpiryStatusChip(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(bg)
-            .border(0.5.dp, textColor.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+            .border(0.8.dp, borderColor, RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
         Text(
@@ -942,7 +975,8 @@ fun ProductListItemCard(
             .testTag("product_item_card"),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
     ) {
         Row(
             modifier = Modifier
@@ -1104,7 +1138,8 @@ fun GroupedProductListItemCard(
             .testTag("grouped_product_item_card"),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
     ) {
         Column(
             modifier = Modifier
@@ -1143,14 +1178,14 @@ fun GroupedProductListItemCard(
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = Color(0xFF0F172A)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     val groupSubInfo = if (mainProduct.urunKodu.isNotBlank()) "${mainProduct.kategori} • Kod: ${mainProduct.urunKodu}" else "${mainProduct.kategori} • Barkod: ${mainProduct.barkod}"
                     Text(
                         text = groupSubInfo,
                         fontSize = 11.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1163,15 +1198,15 @@ fun GroupedProductListItemCard(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE0F2FE))
-                                .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
+                                .background(WarningBlueContainer)
+                                .border(0.5.dp, WarningBlueBorder, RoundedCornerShape(6.dp))
                                 .padding(horizontal = 8.dp, vertical = 3.dp)
                         ) {
                             Text(
                                 text = formattedPrice,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Black,
-                                color = Color(0xFF0369A1)
+                                color = WarningBlueDark
                             )
                         }
                         Spacer(modifier = Modifier.height(3.dp))
@@ -1179,14 +1214,14 @@ fun GroupedProductListItemCard(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Slate900)
+                            .background(MaterialTheme.colorScheme.primaryContainer)
                             .padding(horizontal = 7.dp, vertical = 3.dp)
                     ) {
                         Text(
                             text = "Toplam: $totalStock Adet",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     }
                     Spacer(modifier = Modifier.height(3.dp))
@@ -1238,63 +1273,55 @@ fun GroupedProductListItemCard(
                     val daysLeft = if (hasSkt) item.getRemainingDays() else 9999L
                     val status = if (hasSkt) item.getExpiryStatus() else ExpiryStatus.NORMAL
 
-                    val sktBgColor: Color
-                    val sktBorderColor: Color
-                    val sktTextColor: Color
-                    val badgeBgColor: Color
-                    val badgeTextColor: Color
-                    val statusLabel: String
-
-                    if (!hasSkt) {
-                        sktBgColor = Slate50
-                        sktBorderColor = Slate300
-                        sktTextColor = Slate700
-                        badgeBgColor = Slate500
-                        badgeTextColor = Color.White
-                        statusLabel = "SKT YOK"
-                    } else {
-                        when (status) {
-                            ExpiryStatus.EXPIRED -> {
-                                sktBgColor = ExpiredRedContainer
-                                sktBorderColor = ExpiredRed
-                                sktTextColor = ExpiredRed
-                                badgeBgColor = ExpiredRed
-                                badgeTextColor = Color.White
-                                statusLabel = "SÜRESİ GEÇTİ"
-                            }
-                            ExpiryStatus.CRITICAL -> {
-                                sktBgColor = CriticalOrangeContainer
-                                sktBorderColor = CriticalOrange
-                                sktTextColor = CriticalOrange
-                                badgeBgColor = CriticalOrange
-                                badgeTextColor = Color.White
-                                statusLabel = "$daysLeft GÜN"
-                            }
-                            ExpiryStatus.SOON -> {
-                                sktBgColor = SoonYellowContainer
-                                sktBorderColor = SoonYellow
-                                sktTextColor = Color(0xFF8B6B00)
-                                badgeBgColor = SoonYellow
-                                badgeTextColor = Color.Black
-                                statusLabel = "$daysLeft GÜN"
-                            }
-                            ExpiryStatus.WARNING -> {
-                                sktBgColor = WarningBlueContainer
-                                sktBorderColor = WarningBlue
-                                sktTextColor = WarningBlue
-                                badgeBgColor = WarningBlue
-                                badgeTextColor = Color.White
-                                statusLabel = "$daysLeft GÜN"
-                            }
-                            ExpiryStatus.NORMAL -> {
-                                sktBgColor = NormalGreenContainer
-                                sktBorderColor = NormalGreen
-                                sktTextColor = NormalGreen
-                                badgeBgColor = NormalGreen
-                                badgeTextColor = Color.White
-                                statusLabel = "$daysLeft GÜN"
-                            }
-                        }
+                    val (sktBgColor, sktBorderColor, sktTextColor, badgeBgColor, badgeTextColor, statusLabel) = when {
+                        !hasSkt -> SktChipStyle(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                            Slate500,
+                            Color.White,
+                            "SKT YOK"
+                        )
+                        status == ExpiryStatus.EXPIRED -> SktChipStyle(
+                            ExpiredRedContainer,
+                            ExpiredRedBorder,
+                            ExpiredRedDark,
+                            ExpiredRed,
+                            Color.White,
+                            "SÜRESİ GEÇTİ"
+                        )
+                        status == ExpiryStatus.CRITICAL -> SktChipStyle(
+                            CriticalOrangeContainer,
+                            CriticalOrangeBorder,
+                            CriticalOrangeDark,
+                            CriticalOrange,
+                            Color.White,
+                            "$daysLeft GÜN"
+                        )
+                        status == ExpiryStatus.SOON -> SktChipStyle(
+                            SoonYellowContainer,
+                            SoonYellowBorder,
+                            SoonYellowDark,
+                            SoonYellow,
+                            Color.Black,
+                            "$daysLeft GÜN"
+                        )
+                        status == ExpiryStatus.WARNING -> SktChipStyle(
+                            WarningBlueContainer,
+                            WarningBlueBorder,
+                            WarningBlueDark,
+                            WarningBlue,
+                            Color.White,
+                            "$daysLeft GÜN"
+                        )
+                        else -> SktChipStyle(
+                            NormalGreenContainer,
+                            NormalGreenBorder,
+                            NormalGreenDark,
+                            NormalGreen,
+                            Color.White,
+                            "$daysLeft GÜN"
+                        )
                     }
 
                     Surface(
@@ -1331,7 +1358,7 @@ fun GroupedProductListItemCard(
                                     text = "SKT: $sktStr",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Slate900
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
                                     text = "Adet: ${item.stokAdedi}",
@@ -1350,6 +1377,9 @@ fun GroupedProductListItemCard(
 
 @Composable
 fun PriceQrScannerDialog(
+    expectedBarcode: String? = null,
+    expectedProductCode: String? = null,
+    expectedProductName: String? = null,
     onDismiss: () -> Unit,
     onPriceScanned: (Double, String) -> Unit
 ) {
@@ -1426,14 +1456,50 @@ fun PriceQrScannerDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Mağaza etiketindeki QR kodu taratarak fiyatı otomatik ekleyin.",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
+                // Expected product target banner if targeting a specific product
+                val expBar = expectedBarcode?.trim().orEmpty()
+                val expCode = expectedProductCode?.trim().orEmpty()
+                val expName = expectedProductName?.trim().orEmpty()
 
-                Spacer(modifier = Modifier.height(12.dp))
+                if (expBar.isNotBlank() || expCode.isNotBlank() || expName.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TurquoisePrimary.copy(alpha = 0.12f),
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Text(
+                                text = "🎯 Hedef Ürün:",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark
+                            )
+                            if (expName.isNotBlank()) {
+                                Text(
+                                    text = expName,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Text(
+                                text = "Barkod / Kod: ${if (expBar.isNotBlank()) expBar else expCode}",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                } else {
+                    Text(
+                        text = "Mağaza raf etiketindeki QR kodu taratarak ürün ve fiyat bilgilerini otomatik ekleyin.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
 
                 Box(
                     modifier = Modifier
@@ -1445,9 +1511,44 @@ fun PriceQrScannerDialog(
                 ) {
                     com.example.ui.screens.CameraXBarcodeView(
                         isFlashOn = isFlashOn,
+                        filterMode = com.example.ui.screens.ScannerFilterMode.ONLY_QR_CODE,
                         onBarcodeScanned = { raw ->
-                            val parsedPrice = com.example.data.parsePriceFromQr(raw)
+                            val shelfData = parseShelfQrPayload(raw)
+                            val parsedPrice = shelfData.price ?: com.example.data.parsePriceFromQr(raw)
+
                             if (parsedPrice != null && parsedPrice > 0.0) {
+                                // Validate against expected product code/barcode if present
+                                if (expBar.isNotBlank() || expCode.isNotBlank()) {
+                                    val scBarcode = shelfData.barcode.trim()
+                                    val scProductCode = shelfData.productCode?.trim().orEmpty()
+
+                                    val barcodeMatches = scBarcode.isNotBlank() && expBar.isNotBlank() &&
+                                        (scBarcode == expBar || expBar.contains(scBarcode) || scBarcode.contains(expBar))
+
+                                    val codeMatches = scProductCode.isNotBlank() && expCode.isNotBlank() &&
+                                        (scProductCode.equals(expCode, ignoreCase = true) || expCode.contains(scProductCode) || scProductCode.contains(expCode))
+
+                                    val crossMatch1 = scBarcode.isNotBlank() && expCode.isNotBlank() &&
+                                        (scBarcode.equals(expCode, ignoreCase = true) || expCode.contains(scBarcode) || scBarcode.contains(expCode))
+
+                                    val crossMatch2 = scProductCode.isNotBlank() && expBar.isNotBlank() &&
+                                        (scProductCode.equals(expBar, ignoreCase = true) || expBar.contains(scProductCode) || scProductCode.contains(expBar))
+
+                                    val isMatched = barcodeMatches || codeMatches || crossMatch1 || crossMatch2
+
+                                    // If QR has identifying barcode/productCode and it DOES NOT match the expected product
+                                    if (!isMatched && (scBarcode.isNotBlank() || scProductCode.isNotBlank())) {
+                                        val scannedIdentifier = if (scBarcode.isNotBlank()) scBarcode else scProductCode
+                                        val currentIdentifier = if (expBar.isNotBlank()) expBar else expCode
+                                        Toast.makeText(
+                                            context,
+                                            "❌ ÜRÜN UYUŞMAZLIĞI!\nOkutulan Etiket ($scannedIdentifier), hedef ürünle ($currentIdentifier) eşleşmiyor! Fiyat alınmadı.",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                        return@CameraXBarcodeView
+                                    }
+                                }
+
                                 val formatted = if (parsedPrice % 1.0 == 0.0) parsedPrice.toInt().toString() else String.format(Locale.US, "%.2f", parsedPrice)
                                 Toast.makeText(context, "✅ QR Etiketinden Fiyat Alındı: $formatted ₺", Toast.LENGTH_SHORT).show()
                                 onPriceScanned(parsedPrice, raw)
@@ -1468,7 +1569,7 @@ fun PriceQrScannerDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "💡 Mağaza Kodu - Barkod - Fiyat - Ürün Kodu formatındaki etiket QR'larını okur.",
+                    text = "💡 Yalnızca mağaza raf etiketindeki 2D QR kodlarını okur. Barkod ve ürün kodu eşleşmesi doğrulanır.",
                     fontSize = 11.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center
@@ -1531,6 +1632,8 @@ fun AddEditProductModal(
     )
     var expandedCategoryMenu by remember { mutableStateOf(false) }
 
+    var showFullQrScanner by remember { mutableStateOf(false) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1566,6 +1669,63 @@ fun AddEditProductModal(
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
+
+                // QR Etiket Oku Button (Auto-fill barcode, product code, price, name)
+                Button(
+                    onClick = { showFullQrScanner = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .testTag("scan_qr_label_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "QR Etiket Oku",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "📷 QR ETİKET OKU (OTOMATİK DOLDUR)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+
+                if (showFullQrScanner) {
+                    PriceQrScannerDialog(
+                        expectedBarcode = product?.barkod ?: barkod.trim(),
+                        expectedProductCode = product?.urunKodu ?: urunKodu.trim(),
+                        expectedProductName = product?.urunAdi ?: urunAdi.trim(),
+                        onDismiss = { showFullQrScanner = false },
+                        onPriceScanned = { _, rawQr ->
+                            val shelfData = parseShelfQrPayload(rawQr)
+                            if (shelfData.barcode.isNotBlank()) {
+                                barkod = shelfData.barcode
+                            }
+                            if (!shelfData.productCode.isNullOrBlank()) {
+                                urunKodu = shelfData.productCode
+                            }
+                            if (shelfData.price != null && shelfData.price > 0.0) {
+                                fiyatText = if (shelfData.price % 1.0 == 0.0) shelfData.price.toInt().toString() else shelfData.price.toString()
+                            }
+                            if (!shelfData.productName.isNullOrBlank()) {
+                                urunAdi = shelfData.productName
+                            }
+                            Toast.makeText(context, "✅ QR Etiket Bilgileri Dolduruldu", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Info banner explaining SKT separation
                 Surface(
@@ -1759,6 +1919,9 @@ fun AddEditProductModal(
 
                 if (showPriceQrScanner) {
                     PriceQrScannerDialog(
+                        expectedBarcode = product?.barkod ?: barkod.trim(),
+                        expectedProductCode = product?.urunKodu ?: urunKodu.trim(),
+                        expectedProductName = product?.urunAdi ?: urunAdi.trim(),
                         onDismiss = { showPriceQrScanner = false },
                         onPriceScanned = { scannedPrice, rawQr ->
                             fiyatText = if (scannedPrice % 1.0 == 0.0) scannedPrice.toInt().toString() else scannedPrice.toString()
@@ -2067,8 +2230,8 @@ fun ProductDetailModal(
                                     // Category Badge (Soft slate/turquoise pill)
                                     Surface(
                                         shape = RoundedCornerShape(20.dp),
-                                        color = Color(0xFFF1F5F9),
-                                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                                     ) {
                                         Row(
                                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -2077,7 +2240,7 @@ fun ProductDetailModal(
                                             Icon(
                                                 imageVector = Icons.Default.Category,
                                                 contentDescription = null,
-                                                tint = Color(0xFF475569),
+                                                tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(12.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
@@ -2085,7 +2248,7 @@ fun ProductDetailModal(
                                                 text = product.kategori.ifBlank { "Genel" },
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF334155),
+                                                color = MaterialTheme.colorScheme.onSurface,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -2108,7 +2271,7 @@ fun ProductDetailModal(
                                         text = "SATIŞ FİYATI",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF94A3B8),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         letterSpacing = 0.5.sp
                                     )
                                     Spacer(modifier = Modifier.height(2.dp))
@@ -2120,7 +2283,7 @@ fun ProductDetailModal(
                                                 text = formattedVal,
                                                 fontSize = 32.sp,
                                                 fontWeight = FontWeight.Black,
-                                                color = Color(0xFF0F172A)
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
@@ -2136,7 +2299,7 @@ fun ProductDetailModal(
                                             text = "Fiyat Girilmedi",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF94A3B8)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -2167,7 +2330,7 @@ fun ProductDetailModal(
                             }
 
                             Spacer(modifier = Modifier.height(12.dp))
-                            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), thickness = 1.dp)
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // Code and Barcode Row
@@ -2180,7 +2343,7 @@ fun ProductDetailModal(
                                     Icon(
                                         imageVector = Icons.Default.QrCode,
                                         contentDescription = null,
-                                        tint = Color(0xFF64748B),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(15.dp)
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
@@ -2188,7 +2351,7 @@ fun ProductDetailModal(
                                         text = "Barkod: ${product.barkod}",
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium,
-                                        color = Color(0xFF64748B)
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
 
@@ -2197,7 +2360,7 @@ fun ProductDetailModal(
                                         Icon(
                                             imageVector = Icons.Default.Tag,
                                             contentDescription = null,
-                                            tint = Color(0xFF64748B),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(15.dp)
                                         )
                                         Spacer(modifier = Modifier.width(2.dp))
@@ -2205,7 +2368,7 @@ fun ProductDetailModal(
                                             text = "Kod: ${product.urunKodu}",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Color(0xFF64748B)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -2216,7 +2379,7 @@ fun ProductDetailModal(
                                 Surface(
                                     shape = RoundedCornerShape(10.dp),
                                     color = SoonYellowContainer,
-                                    border = BorderStroke(1.dp, SoonYellow.copy(alpha = 0.5f)),
+                                    border = BorderStroke(1.dp, SoonYellowBorder),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -2227,7 +2390,7 @@ fun ProductDetailModal(
                                             text = "⚠️ Barkod ile Ürün Kodu Aynı: QR Fiyat Güncelle butonu ile raf etiketindeki QR'ı okutup barkod ve fiyatı güncelleyebilirsiniz.",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Medium,
-                                            color = Slate900
+                                            color = SoonYellowDark
                                         )
                                     }
                                 }
@@ -2251,7 +2414,7 @@ fun ProductDetailModal(
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = ExpiredRedContainer,
-                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, ExpiredRedBorder),
                             shadowElevation = 2.dp,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -2271,11 +2434,11 @@ fun ProductDetailModal(
                                         .padding(horizontal = 8.dp, vertical = 10.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Geçmiş/Yakın", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ExpiredRed, textAlign = TextAlign.Center)
-                                    Text("(0-3 Gün)", fontSize = 9.sp, color = Color(0xFF991B1B), textAlign = TextAlign.Center)
+                                    Text("Geçmiş/Yakın", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ExpiredRedDark, textAlign = TextAlign.Center)
+                                    Text("(0-3 Gün)", fontSize = 9.sp, color = ExpiredRedDark.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text("$expiredOrNearCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = ExpiredRed, textAlign = TextAlign.Center)
-                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF991B1B), textAlign = TextAlign.Center)
+                                    Text("$expiredOrNearCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = ExpiredRedDark, textAlign = TextAlign.Center)
+                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = ExpiredRedDark.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                                 }
                             }
                         }
@@ -2284,7 +2447,7 @@ fun ProductDetailModal(
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = CriticalOrangeContainer,
-                            border = BorderStroke(1.dp, CriticalOrange.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, CriticalOrangeBorder),
                             shadowElevation = 2.dp,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -2304,11 +2467,11 @@ fun ProductDetailModal(
                                         .padding(horizontal = 8.dp, vertical = 10.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Kritik", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CriticalOrange, textAlign = TextAlign.Center)
-                                    Text("(4-15 Gün)", fontSize = 9.sp, color = Color(0xFF9A3412), textAlign = TextAlign.Center)
+                                    Text("Kritik", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = CriticalOrangeDark, textAlign = TextAlign.Center)
+                                    Text("(4-15 Gün)", fontSize = 9.sp, color = CriticalOrangeDark.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text("$criticalCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = CriticalOrange, textAlign = TextAlign.Center)
-                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF9A3412), textAlign = TextAlign.Center)
+                                    Text("$criticalCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = CriticalOrangeDark, textAlign = TextAlign.Center)
+                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = CriticalOrangeDark.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                                 }
                             }
                         }
@@ -2317,7 +2480,7 @@ fun ProductDetailModal(
                         Surface(
                             shape = RoundedCornerShape(14.dp),
                             color = NormalGreenContainer,
-                            border = BorderStroke(1.dp, NormalGreen.copy(alpha = 0.3f)),
+                            border = BorderStroke(1.dp, NormalGreenBorder),
                             shadowElevation = 2.dp,
                             modifier = Modifier.weight(1f)
                         ) {
@@ -2337,11 +2500,11 @@ fun ProductDetailModal(
                                         .padding(horizontal = 8.dp, vertical = 10.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Text("Güvende", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NormalGreen, textAlign = TextAlign.Center)
-                                    Text("(16+ Gün)", fontSize = 9.sp, color = Color(0xFF166534), textAlign = TextAlign.Center)
+                                    Text("Güvende", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = NormalGreenDark, textAlign = TextAlign.Center)
+                                    Text("(16+ Gün)", fontSize = 9.sp, color = NormalGreenDark.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                                     Spacer(modifier = Modifier.height(6.dp))
-                                    Text("$safeCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = NormalGreen, textAlign = TextAlign.Center)
-                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = Color(0xFF166534), textAlign = TextAlign.Center)
+                                    Text("$safeCount", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = NormalGreenDark, textAlign = TextAlign.Center)
+                                    Text("SKT Adedi", fontSize = 9.sp, fontWeight = FontWeight.Medium, color = NormalGreenDark.copy(alpha = 0.8f), textAlign = TextAlign.Center)
                                 }
                             }
                         }
@@ -2411,24 +2574,24 @@ fun ProductDetailModal(
                                     daysRemaining < 0 -> Triple(
                                         "🚨 GEÇTİ (${kotlin.math.abs(daysRemaining)}g)",
                                         ExpiredRedContainer,
-                                        ExpiredRed
+                                        ExpiredRedDark
                                     )
                                     daysRemaining in 0..7 -> Triple(
                                         "⚠️ KRİTİK (${daysRemaining}g)",
                                         CriticalOrangeContainer,
-                                        CriticalOrange
+                                        CriticalOrangeDark
                                     )
                                     else -> Triple(
                                         "✅ NORMAL (${daysRemaining}g)",
                                         NormalGreenContainer,
-                                        NormalGreen
+                                        NormalGreenDark
                                     )
                                 }
 
                                 Surface(
                                     shape = RoundedCornerShape(14.dp),
                                     color = MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)),
                                     shadowElevation = 2.dp,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2567,6 +2730,9 @@ fun ProductDetailModal(
 
     if (showDetailPriceQrScanner) {
         PriceQrScannerDialog(
+            expectedBarcode = product.barkod,
+            expectedProductCode = product.urunKodu,
+            expectedProductName = product.urunAdi,
             onDismiss = { showDetailPriceQrScanner = false },
             onPriceScanned = { scannedPrice, _ ->
                 onUpdatePrice(product, scannedPrice)

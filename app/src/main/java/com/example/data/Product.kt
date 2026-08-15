@@ -167,6 +167,7 @@ data class ShelfQrData(
     val barcode: String,
     val price: Double? = null,
     val productCode: String? = null,
+    val productName: String? = null,
     val isShelfQr: Boolean = false
 )
 
@@ -176,16 +177,86 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
         return ShelfQrData(barcode = "")
     }
 
+    // 1. Key-Value Formats (BARKOD:..., KOD:..., ADI:..., FIYAT:...)
+    if (trimmed.contains(":") || trimmed.contains("=")) {
+        var b = ""
+        var c: String? = null
+        var n: String? = null
+        var p: Double? = null
+        val pairs = trimmed.split(Regex("[;\n\r,|]")).map { it.trim() }
+        for (pair in pairs) {
+            val kv = pair.split(Regex("[:=]")).map { it.trim() }
+            if (kv.size == 2) {
+                val key = kv[0].lowercase()
+                val value = kv[1]
+                if (key.contains("barkod") || key.contains("bar") || key == "b") {
+                    b = value.replace(Regex("[^0-9]"), "")
+                } else if (key.contains("kod") || key == "k") {
+                    c = value.replace(Regex("[^0-9]"), "")
+                } else if (key.contains("adi") || key.contains("isim") || key.contains("name") || key == "a") {
+                    n = value
+                } else if (key.contains("fiyat") || key.contains("price") || key == "f" || key.contains("tl") || key.contains("₺")) {
+                    val pStr = value.replace("₺", "").replace("TL", "").replace("tl", "").replace(',', '.').trim()
+                    pStr.toDoubleOrNull()?.let { p = it }
+                }
+            }
+        }
+        if (b.isNotBlank() || c != null || n != null || p != null) {
+            return ShelfQrData(
+                barcode = b,
+                productCode = c,
+                productName = n,
+                price = p,
+                isShelfQr = true
+            )
+        }
+    }
+
+    // 2. Delimited formats (Pipe, Semicolon, Tab, Comma, Newline)
+    val delimiters = listOf("|", ";", "\t", ",")
+    for (delim in delimiters) {
+        if (trimmed.contains(delim)) {
+            val parts = trimmed.split(delim).map { it.trim() }.filter { it.isNotEmpty() }
+            if (parts.size >= 2) {
+                var b = ""
+                var c: String? = null
+                var n: String? = null
+                var p: Double? = null
+                for (part in parts) {
+                    if (part.matches(Regex("^[0-9]{12,14}$")) && b.isEmpty()) {
+                        b = part
+                    } else if (part.matches(Regex("^[0-9]{5,11}$")) && c == null) {
+                        c = part
+                    } else if (part.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull() != null && p == null) {
+                        p = part.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull()
+                    } else if (part.length >= 2 && n == null && !part.startsWith("http")) {
+                        n = part
+                    }
+                }
+                if (b.isNotEmpty() || c != null || n != null || p != null) {
+                    return ShelfQrData(
+                        barcode = b,
+                        productCode = c,
+                        productName = n,
+                        price = p,
+                        isShelfQr = true
+                    )
+                }
+            }
+        }
+    }
+
+    // 3. Hyphenated Formats (e.g. D724-8690504005100-28,00-16000491 or with name)
     if (trimmed.contains("-")) {
         val parts = trimmed.split("-").map { it.trim() }
 
-        // Format 1: StoreCode - Barcode - Price - ProductCode
-        // Example: D724-8690504005100-28,00-16000491
+        // Format 1: StoreCode - Barcode - Price - ProductCode [- ProductName]
         if (parts.size >= 4) {
             val storeCode = parts[0]
             val barcodeCandidate = parts[1]
             val priceCandidate = parts[2].replace(",", ".")
             val productCodeCandidate = parts[3]
+            val nameCandidate = if (parts.size >= 5) parts.subList(4, parts.size).joinToString("-") else null
 
             val parsedPrice = priceCandidate.toDoubleOrNull()
             if (parsedPrice != null && barcodeCandidate.isNotEmpty()) {
@@ -194,13 +265,13 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                     barcode = barcodeCandidate,
                     price = parsedPrice,
                     productCode = if (productCodeCandidate.isNotEmpty()) productCodeCandidate else null,
+                    productName = nameCandidate,
                     isShelfQr = true
                 )
             }
         }
 
         // Format 2: Barcode - Price - ProductCode
-        // Example: 8690504005100-28,00-16000491
         if (parts.size == 3) {
             val barcodeCandidate = parts[0]
             val priceCandidate = parts[1].replace(",", ".")
@@ -231,6 +302,35 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                     isShelfQr = false
                 )
             }
+        }
+    }
+
+    // 4. Space-separated format
+    val tokens = trimmed.split(Regex("\\s+")).filter { it.isNotEmpty() }
+    if (tokens.size >= 3) {
+        var b = ""
+        var c: String? = null
+        var p: Double? = null
+        val nameWords = mutableListOf<String>()
+        for (tok in tokens) {
+            if (tok.matches(Regex("^[0-9]{12,14}$")) && b.isEmpty()) {
+                b = tok
+            } else if (tok.matches(Regex("^[0-9]{5,11}$")) && c == null) {
+                c = tok
+            } else if (tok.replace(',', '.').toDoubleOrNull() != null && p == null && !tok.matches(Regex("^[0-9]{5,14}$"))) {
+                p = tok.replace(',', '.').toDoubleOrNull()
+            } else if (!tok.equals("TL", ignoreCase = true) && tok != "₺") {
+                nameWords.add(tok)
+            }
+        }
+        if (b.isNotEmpty() || c != null || p != null) {
+            return ShelfQrData(
+                barcode = b,
+                productCode = c,
+                productName = if (nameWords.isNotEmpty()) nameWords.joinToString(" ") else null,
+                price = p,
+                isShelfQr = true
+            )
         }
     }
 

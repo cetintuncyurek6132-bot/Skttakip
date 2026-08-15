@@ -13,34 +13,42 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme =
   darkColorScheme(
-    primary = TurquoisePrimary,
-    onPrimary = Color.Black,
-    primaryContainer = TurquoiseDark,
+    primary = BrandTeal,
+    onPrimary = Color(0xFF0F172A),
+    primaryContainer = TurquoiseContainer,
     onPrimaryContainer = Color.White,
     secondary = CriticalOrange,
+    onSecondary = Color.White,
     tertiary = NormalGreen,
-    background = Color(0xFF0F172A),
-    surface = Color(0xFF1E293B),
-    surfaceVariant = Color(0xFF334155),
-    onBackground = Color(0xFFF8FAFC),
-    onSurface = Color(0xFFF8FAFC),
-    onSurfaceVariant = Color(0xFFCBD5E1)
+    onTertiary = Color.White,
+    background = Slate900,
+    surface = Slate800,
+    surfaceVariant = Slate700,
+    onBackground = Slate50,
+    onSurface = Slate50,
+    onSurfaceVariant = Slate300,
+    outline = Slate700,
+    outlineVariant = Slate600
   )
 
 private val LightColorScheme =
   lightColorScheme(
-    primary = TurquoiseDark,
+    primary = BrandTealDark,
     onPrimary = Color.White,
-    primaryContainer = TurquoiseContainer,
-    onPrimaryContainer = OnTurquoiseContainer,
+    primaryContainer = BrandTealLight,
+    onPrimaryContainer = Color(0xFF0F172A),
     secondary = CriticalOrange,
+    onSecondary = Color.White,
     tertiary = NormalGreen,
+    onTertiary = Color.White,
     background = Slate50,
     surface = Color.White,
-    surfaceVariant = Color(0xFFF1F5F9),
+    surfaceVariant = Slate100,
     onBackground = Slate900,
     onSurface = Slate900,
-    onSurfaceVariant = Slate500
+    onSurfaceVariant = Slate500,
+    outline = Slate200,
+    outlineVariant = Slate300
   )
 
 @Composable

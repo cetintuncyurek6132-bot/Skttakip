@@ -16,6 +16,8 @@ import android.provider.MediaStore
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.data.Product
+import com.example.data.getDisplayCode
+import com.example.data.getDisplayName
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -525,9 +527,307 @@ object ProductImageGenerator {
         shareBitmap(context, bitmap, "tur_raporu")
     }
 
+    fun createSharePreviewReportBitmap(
+        title: String = "Paylaşım Önizlemesi",
+        note: String = "",
+        productList: List<Product>
+    ): Bitmap {
+        val width = 1080
+        val headerHeight = 320
+        val itemHeight = 175
+        val noteHeight = if (note.isNotBlank()) 140 else 0
+        val footerHeight = 100
+        val totalHeight = headerHeight + (productList.size * itemHeight) + noteHeight + footerHeight
+
+        val bitmap = Bitmap.createBitmap(width, totalHeight.coerceAtLeast(600), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+
+        // Clean Light Canvas Background (#F8FAFC)
+        canvas.drawColor(Color.parseColor("#F8FAFC"))
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val rectF = RectF()
+
+        // 1. TOP HEADER BANNER (#FFFFFF with #E2E8F0 border)
+        paint.color = Color.WHITE
+        rectF.set(24f, 24f, width.toFloat() - 24f, headerHeight.toFloat())
+        canvas.drawRoundRect(rectF, 24f, 24f, paint)
+
+        paint.color = Color.parseColor("#E2E8F0")
+        paint.style = Paint.Style.STROKE
+        paint.strokeWidth = 3f
+        canvas.drawRoundRect(rectF, 24f, 24f, paint)
+        paint.style = Paint.Style.FILL
+
+        // Header Title
+        paint.color = Color.parseColor("#0F172A")
+        paint.textSize = 34f
+        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        canvas.drawText("A101 SKT TAKİP & STOK", 52f, 80f, paint)
+
+        paint.color = Color.parseColor("#0D9488")
+        paint.textSize = 20f
+        paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        canvas.drawText("KONTROL VE PAYLAŞIM RAPORU", 52f, 116f, paint)
+
+        val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR"))
+        val dateStr = sdf.format(Date())
+
+        // 4 Summary Dashboard Cards in Header
+        val cardW = (width - 48f - (3f * 16f) - 32f) / 4f
+        val summaryY = 150f
+        val summaryH = 135f
+
+        val criticalProducts = productList.filter { it.getRemainingDays() <= 3L }
+        val criticalStock = criticalProducts.sumOf { it.stokAdedi }
+        val criticalVariants = criticalProducts.size
+
+        val summaries = listOf(
+            SummaryCardData("SEÇİLEN ÜRÜN", "${productList.size} ÇEŞİT", "#0D9488", "#F0FDFA", "#99F6E4"),
+            SummaryCardData("KRİTİK STOK", "$criticalStock ADET", "#DC2626", "#FEF2F2", "#FECACA"),
+            SummaryCardData("KRİTİK ÇEŞİT", "$criticalVariants ÇEŞİT", "#EA580C", "#FFF7ED", "#FED7AA"),
+            SummaryCardData("TAKİP TARİHİ", dateStr.replace(" ", "\n"), "#2563EB", "#EFF6FF", "#BFDBFE")
+        )
+
+        summaries.forEachIndexed { i, s ->
+            val left = 40f + (i * (cardW + 16f))
+            rectF.set(left, summaryY, left + cardW, summaryY + summaryH)
+            
+            // Kart Arka Planı (Hafif Renkli Tonal)
+            paint.color = Color.parseColor(s.bgHex)
+            canvas.drawRoundRect(rectF, 16f, 16f, paint)
+
+            // Kart Kenarlığı
+            paint.color = Color.parseColor(s.borderHex)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 2.5f
+            canvas.drawRoundRect(rectF, 16f, 16f, paint)
+            paint.style = Paint.Style.FILL
+
+            // Üst İnce Vurgu Çizgisi
+            rectF.set(left, summaryY, left + cardW, summaryY + 6f)
+            paint.color = Color.parseColor(s.colHex)
+            canvas.drawRoundRect(rectF, 6f, 6f, paint)
+
+            // Başlık
+            paint.color = Color.parseColor(s.colHex)
+            paint.textSize = 14.5f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText(s.label, left + 14f, summaryY + 36f, paint)
+
+            // Değer
+            paint.color = Color.parseColor(s.colHex)
+            paint.textSize = 24f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            val lines = s.value.split("\n")
+            if (lines.size > 1) {
+                paint.textSize = 18f
+                canvas.drawText(lines[0], left + 14f, summaryY + 75f, paint)
+                paint.color = Color.parseColor("#64748B")
+                canvas.drawText(lines[1], left + 14f, summaryY + 105f, paint)
+            } else {
+                canvas.drawText(s.value, left + 14f, summaryY + 84f, paint)
+            }
+        }
+
+        // 2. PRODUCT CARDS
+        var currentY = headerHeight.toFloat() + 20f
+
+        productList.forEachIndexed { index, p ->
+            val cardTop = currentY
+            val cardBottom = currentY + itemHeight - 16f
+            val cardLeft = 24f
+            val cardRight = width.toFloat() - 24f
+
+            val days = p.getRemainingDays()
+            val (badgeBg, statusText) = when {
+                days <= 0L -> Pair("#DC2626", "SÜRESİ GEÇTİ")
+                days <= 3L -> Pair("#EA580C", "YAKLAŞIYOR (${days} GÜN)")
+                days <= 15L -> Pair("#CA8A04", "4-15 GÜN (${days} GÜN)")
+                else -> Pair("#16A34A", "GÜVENDE (${days} GÜN)")
+            }
+
+            // Kategori renkleri
+            val (catBgHex, catTextHex) = when (p.kategori.lowercase()) {
+                "süt & kahvaltılık", "şarküteri" -> Pair("#E0F2FE", "#0284C7")
+                "et & tavuk" -> Pair("#FEE2E2", "#DC2626")
+                "unlu mamül", "ekmek" -> Pair("#FEF3C7", "#D97706")
+                "meyve & sebze" -> Pair("#DCFCE7", "#16A34A")
+                else -> Pair("#F1F5F9", "#475569")
+            }
+
+            // Card bg (#FFFFFF)
+            rectF.set(cardLeft, cardTop, cardRight, cardBottom)
+            paint.color = Color.WHITE
+            canvas.drawRoundRect(rectF, 18f, 18f, paint)
+
+            // Border (Canlı risk rengi tonlu)
+            paint.color = Color.parseColor("#CBD5E1")
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 2f
+            canvas.drawRoundRect(rectF, 18f, 18f, paint)
+            paint.style = Paint.Style.FILL
+
+            // SOL: Büyük Renkli Kalan Gün Kutucuğu (56dp eşdeğeri)
+            val badgeBoxLeft = cardLeft + 16f
+            val badgeBoxTop = cardTop + 18f
+            val badgeBoxRight = cardLeft + 16f + 105f
+            val badgeBoxBottom = cardBottom - 18f
+            rectF.set(badgeBoxLeft, badgeBoxTop, badgeBoxRight, badgeBoxBottom)
+            paint.color = Color.parseColor(badgeBg)
+            canvas.drawRoundRect(rectF, 14f, 14f, paint)
+
+            // Gün Sayısı / Durum İçi Metin
+            paint.color = Color.WHITE
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            if (days <= 0L) {
+                paint.textSize = 20f
+                val txt = "GEÇTİ"
+                val tw = paint.measureText(txt)
+                canvas.drawText(txt, badgeBoxLeft + ((badgeBoxRight - badgeBoxLeft - tw) / 2f), cardTop + 76f, paint)
+            } else {
+                paint.textSize = 34f
+                val dayStr = "$days"
+                val dw = paint.measureText(dayStr)
+                canvas.drawText(dayStr, badgeBoxLeft + ((badgeBoxRight - badgeBoxLeft - dw) / 2f), cardTop + 66f, paint)
+                
+                paint.textSize = 15f
+                val gunStr = "GÜN"
+                val gw = paint.measureText(gunStr)
+                canvas.drawText(gunStr, badgeBoxLeft + ((badgeBoxRight - badgeBoxLeft - gw) / 2f), cardTop + 96f, paint)
+            }
+
+            // Ürün Sırası ve Adı (Dark High Contrast)
+            paint.color = Color.parseColor("#0F172A")
+            paint.textSize = 24f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            val displayName = "${index + 1}. ${p.getDisplayName().uppercase()}"
+            val truncatedName = truncateText(paint, displayName, 480f)
+            canvas.drawText(truncatedName, cardLeft + 138f, cardTop + 46f, paint)
+
+            // Kategori Çipi (Renkli Rozet)
+            val catW = paint.measureText(p.kategori.ifBlank { "Genel" }) + 24f
+            val catLeft = cardLeft + 138f
+            val catTop = cardTop + 58f
+            rectF.set(catLeft, catTop, catLeft + catW.coerceAtLeast(80f), catTop + 28f)
+            paint.color = Color.parseColor(catBgHex)
+            canvas.drawRoundRect(rectF, 6f, 6f, paint)
+
+            paint.color = Color.parseColor(catTextHex)
+            paint.textSize = 15f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText(p.kategori.ifBlank { "Genel" }, catLeft + 10f, catTop + 20f, paint)
+
+            // Kod
+            paint.color = Color.parseColor("#64748B")
+            paint.textSize = 15f
+            paint.typeface = Typeface.DEFAULT
+            val codeStr = if (p.urunKodu.isNotBlank()) p.urunKodu else p.id.toString()
+            canvas.drawText("Kod: $codeStr", catLeft + catW.coerceAtLeast(80f) + 12f, catTop + 20f, paint)
+
+            // STOK BADGE (Canlı Amber Vurgulu Kutu)
+            val stockBadgeW = 180f
+            val stockBadgeH = 34f
+            val stockBadgeLeft = cardLeft + 138f
+            val stockBadgeTop = cardTop + 96f
+            rectF.set(stockBadgeLeft, stockBadgeTop, stockBadgeLeft + stockBadgeW, stockBadgeTop + stockBadgeH)
+            paint.color = Color.parseColor("#FEF3C7")
+            canvas.drawRoundRect(rectF, 8f, 8f, paint)
+            
+            paint.color = Color.parseColor("#F59E0B")
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.5f
+            canvas.drawRoundRect(rectF, 8f, 8f, paint)
+            paint.style = Paint.Style.FILL
+
+            paint.color = Color.parseColor("#92400E")
+            paint.textSize = 16f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText("📦 STOK: ${p.stokAdedi} ADET", stockBadgeLeft + 10f, stockBadgeTop + 24f, paint)
+
+            // SKT Date
+            paint.color = Color.parseColor(badgeBg)
+            paint.textSize = 20f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText("📅 SKT: ${p.getFormattedSkt()}", cardLeft + 335f, stockBadgeTop + 24f, paint)
+
+            // Status Badge (Top Right)
+            val badgeW = 230f
+            val badgeH = 42f
+            val badgeLeft = cardRight - badgeW - 20f
+            val badgeTop = cardTop + 20f
+            rectF.set(badgeLeft, badgeTop, badgeLeft + badgeW, badgeTop + badgeH)
+            paint.color = Color.parseColor(badgeBg)
+            canvas.drawRoundRect(rectF, 10f, 10f, paint)
+
+            paint.color = Color.WHITE
+            paint.textSize = 17f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            val textW = paint.measureText(statusText)
+            canvas.drawText(statusText, badgeLeft + ((badgeW - textW) / 2f), badgeTop + 28f, paint)
+
+            // Stock Count Large (Bottom Right)
+            paint.color = Color.parseColor("#64748B")
+            paint.textSize = 14f
+            paint.typeface = Typeface.DEFAULT
+            canvas.drawText("STOK MİKTARI", cardRight - 160f, cardTop + 92f, paint)
+
+            paint.color = Color.parseColor("#0F172A")
+            paint.textSize = 22f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText("${p.stokAdedi} ADET", cardRight - 160f, cardTop + 120f, paint)
+
+            // Bottom Risk Level Bar
+            rectF.set(cardLeft, cardBottom - 5f, cardRight, cardBottom)
+            paint.color = Color.parseColor(badgeBg)
+            canvas.drawRoundRect(rectF, 2f, 2f, paint)
+
+            currentY += itemHeight
+        }
+
+        // 3. NOTE SECTION (IF PROVIDED)
+        if (note.isNotBlank()) {
+            rectF.set(24f, currentY + 10f, width.toFloat() - 24f, currentY + noteHeight - 10f)
+            paint.color = Color.WHITE
+            canvas.drawRoundRect(rectF, 18f, 18f, paint)
+
+            paint.color = Color.parseColor("#E2E8F0")
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 2f
+            canvas.drawRoundRect(rectF, 18f, 18f, paint)
+            paint.style = Paint.Style.FILL
+
+            paint.color = Color.parseColor("#0D9488")
+            paint.textSize = 19f
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            canvas.drawText("📝 EKİP NOTU:", 48f, currentY + 48f, paint)
+
+            paint.color = Color.parseColor("#0F172A")
+            paint.textSize = 21f
+            paint.typeface = Typeface.DEFAULT
+            val safeNote = truncateText(paint, note, width.toFloat() - 120f)
+            canvas.drawText(safeNote, 48f, currentY + 86f, paint)
+
+            currentY += noteHeight
+        }
+
+        // 4. FOOTER
+        paint.color = Color.parseColor("#64748B")
+        paint.textSize = 17f
+        paint.typeface = Typeface.DEFAULT
+        canvas.drawText("Oluşturulma: $dateStr   •   SKT Takip & Stok Yönetim Sistemi", 36f, currentY + 50f, paint)
+
+        return bitmap
+    }
+
     private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
 
-    fun shareBitmap(context: Context, bitmap: Bitmap, fileNamePrefix: String) {
+    fun shareBitmapWithText(
+        context: Context,
+        bitmap: Bitmap,
+        textMessage: String,
+        fileNamePrefix: String = "skt_onizleme"
+    ) {
         try {
             val cachePath = File(context.cacheDir, "images")
             cachePath.mkdirs()
@@ -548,6 +848,9 @@ object ProductImageGenerator {
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     setDataAndType(contentUri, context.contentResolver.getType(contentUri))
                     putExtra(Intent.EXTRA_STREAM, contentUri)
+                    if (textMessage.isNotBlank()) {
+                        putExtra(Intent.EXTRA_TEXT, textMessage)
+                    }
                     type = "image/png"
                 }
 
@@ -558,7 +861,7 @@ object ProductImageGenerator {
                 try {
                     context.startActivity(whatsappIntent)
                 } catch (e: Exception) {
-                    val chooser = Intent.createChooser(shareIntent, "Görseli Paylaş (WhatsApp / Ekip)")
+                    val chooser = Intent.createChooser(shareIntent, "WhatsApp / Ekip ile Paylaş")
                     context.startActivity(chooser)
                 }
             }
@@ -566,6 +869,10 @@ object ProductImageGenerator {
             e.printStackTrace()
             Toast.makeText(context, "Paylaşım hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    fun shareBitmap(context: Context, bitmap: Bitmap, fileNamePrefix: String) {
+        shareBitmapWithText(context, bitmap, "", fileNamePrefix)
     }
 
     fun saveBitmapToGallery(context: Context, bitmap: Bitmap, fileNamePrefix: String) {
@@ -601,4 +908,12 @@ object ProductImageGenerator {
             Toast.makeText(context, "Hata: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
         }
     }
+
+    private data class SummaryCardData(
+        val label: String,
+        val value: String,
+        val colHex: String,
+        val bgHex: String,
+        val borderHex: String
+    )
 }

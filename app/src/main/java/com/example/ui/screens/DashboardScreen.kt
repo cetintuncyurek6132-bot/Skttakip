@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.Warning
@@ -84,11 +85,18 @@ fun DashboardScreen(
 ) {
     val context = LocalContext.current
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var previewProducts by remember { mutableStateOf<List<Product>?>(null) }
 
-    val currentPreview = previewBitmap
-    if (currentPreview != null) {
+    if (previewProducts != null) {
         ReportPreviewDialog(
-            bitmap = currentPreview,
+            products = previewProducts!!,
+            title = "Paylaşım Önizlemesi",
+            subtitle = "Seçilen ürünler WhatsApp üzerinden gönderilecek",
+            onDismiss = { previewProducts = null }
+        )
+    } else if (previewBitmap != null) {
+        ReportPreviewDialog(
+            bitmap = previewBitmap,
             onDismiss = { previewBitmap = null }
         )
     }
@@ -182,41 +190,40 @@ fun DashboardScreen(
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val attentionProducts = (state.nearExpiryProducts + state.removeProducts).distinctBy { it.id }
-                    if (attentionProducts.isNotEmpty()) {
-                        Surface(
-                            onClick = {
-                                previewBitmap = ProductImageGenerator.createProductsBitmap(
-                                    filterLabel = "Dikkat Gerektiren Ürünler",
-                                    searchQuery = "",
-                                    productList = attentionProducts
-                                )
-                            },
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFF25D366),
-                            modifier = Modifier.testTag("dashboard_whatsapp_share_button")
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Görsel Paylaş",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "WhatsApp",
-                                    color = Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
+                    val attentionProducts = (state.nearExpiryProducts + state.removeProducts + state.attentionProducts).distinctBy { it.id }
+                    Surface(
+                        onClick = {
+                            if (attentionProducts.isNotEmpty()) {
+                                previewProducts = attentionProducts
+                            } else {
+                                android.widget.Toast.makeText(context, "Paylaşılacak dikkat gerektiren ürün bulunamadı.", android.widget.Toast.LENGTH_SHORT).show()
                             }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF25D366),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier.testTag("dashboard_whatsapp_share_button")
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "WhatsApp Paylaş",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "WhatsApp",
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
                         text = "Tümünü gör",
@@ -234,13 +241,16 @@ fun DashboardScreen(
 
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(480.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // SOL TARAF: SKT SON 1 VEYA 2 GÜN KALANLAR
+                // SOL TARAF: SKT SON 7 GÜN KALANLAR (1-7 GÜN) - BAĞIMSIZ KAYDIRILABİLİR LİSTE
                 Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -257,7 +267,7 @@ fun DashboardScreen(
                                 Text("⏱️", fontSize = 13.sp)
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = "Son 1-2 Gün",
+                                    text = "Son 7 Gün",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
                                     color = CriticalOrange
@@ -279,23 +289,36 @@ fun DashboardScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     if (state.nearExpiryProducts.isEmpty()) {
-                        CompactEmptyStateCard(message = "Son 1-2 günü kalan ürün yok 👍")
+                        CompactEmptyStateCard(message = "Son 7 günü kalan ürün yok 👍")
                     } else {
-                        state.nearExpiryProducts.take(8).forEach { product ->
-                            CompactAttentionProductCard(
-                                product = product,
-                                isExpired = false,
-                                onClick = { onProductClick(product) }
-                            )
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                items = state.nearExpiryProducts,
+                                key = { "near_${it.id}_${it.sktTarihi}" }
+                            ) { product ->
+                                CompactAttentionProductCard(
+                                    product = product,
+                                    isExpired = false,
+                                    onClick = { onProductClick(product) }
+                                )
+                            }
                         }
                     }
                 }
 
-                // SAĞ TARAF: REYONDAN KALDIRILMASI GEREKENLER (SÜRESİ DOLANLAR)
+                // SAĞ TARAF: REYONDAN KALDIRILMASI GEREKENLER - BAĞIMSIZ KAYDIRILABİLİR LİSTE
                 Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
                 ) {
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -334,15 +357,27 @@ fun DashboardScreen(
                         }
                     }
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     if (state.removeProducts.isEmpty()) {
                         CompactEmptyStateCard(message = "Reyondan kaldırılacak ürün yok 🎉")
                     } else {
-                        state.removeProducts.take(8).forEach { product ->
-                            CompactAttentionProductCard(
-                                product = product,
-                                isExpired = true,
-                                onClick = { onProductClick(product) }
-                            )
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(
+                                items = state.removeProducts,
+                                key = { "remove_${it.id}_${it.sktTarihi}" }
+                            ) { product ->
+                                CompactAttentionProductCard(
+                                    product = product,
+                                    isExpired = true,
+                                    onClick = { onProductClick(product) }
+                                )
+                            }
                         }
                     }
                 }

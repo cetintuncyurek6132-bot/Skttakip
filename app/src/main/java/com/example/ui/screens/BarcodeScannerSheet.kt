@@ -238,6 +238,7 @@ fun BarcodeScannerSheet(
                     if (cameraPermissionState.status.isGranted) {
                         CameraXBarcodeView(
                             isFlashOn = isFlashOn,
+                            filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ONLY_1D_BARCODE,
                             onBarcodeScanned = { barcode ->
                                 val now = System.currentTimeMillis()
                                 val trimmedBar = barcode.trim()
@@ -1485,9 +1486,16 @@ fun TestBarcodeChip(
     }
 }
 
+enum class ScannerFilterMode {
+    ALL,
+    ONLY_1D_BARCODE,
+    ONLY_QR_CODE
+}
+
 @Composable
 fun CameraXBarcodeView(
     isFlashOn: Boolean,
+    filterMode: ScannerFilterMode = ScannerFilterMode.ALL,
     onBarcodeScanned: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -1503,21 +1511,45 @@ fun CameraXBarcodeView(
     val pendingScanRef = remember { java.util.concurrent.atomic.AtomicReference<Pair<String, Long>?>(null) }
     val pendingRunnableRef = remember { java.util.concurrent.atomic.AtomicReference<Runnable?>(null) }
 
-    val barcodeScanner = remember {
-        val options = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(
-                Barcode.FORMAT_EAN_13,
-                Barcode.FORMAT_EAN_8,
-                Barcode.FORMAT_UPC_A,
-                Barcode.FORMAT_UPC_E,
-                Barcode.FORMAT_CODE_128,
-                Barcode.FORMAT_CODE_39,
-                Barcode.FORMAT_CODE_93,
-                Barcode.FORMAT_ITF,
-                Barcode.FORMAT_QR_CODE
-            )
-            .build()
-        BarcodeScanning.getClient(options)
+    val barcodeScanner = remember(filterMode) {
+        val builder = BarcodeScannerOptions.Builder()
+        when (filterMode) {
+            ScannerFilterMode.ONLY_1D_BARCODE -> {
+                builder.setBarcodeFormats(
+                    Barcode.FORMAT_EAN_13,
+                    Barcode.FORMAT_EAN_8,
+                    Barcode.FORMAT_UPC_A,
+                    Barcode.FORMAT_UPC_E,
+                    Barcode.FORMAT_CODE_128,
+                    Barcode.FORMAT_CODE_39,
+                    Barcode.FORMAT_CODE_93,
+                    Barcode.FORMAT_ITF
+                )
+            }
+            ScannerFilterMode.ONLY_QR_CODE -> {
+                builder.setBarcodeFormats(
+                    Barcode.FORMAT_QR_CODE,
+                    Barcode.FORMAT_DATA_MATRIX,
+                    Barcode.FORMAT_AZTEC
+                )
+            }
+            ScannerFilterMode.ALL -> {
+                builder.setBarcodeFormats(
+                    Barcode.FORMAT_EAN_13,
+                    Barcode.FORMAT_EAN_8,
+                    Barcode.FORMAT_UPC_A,
+                    Barcode.FORMAT_UPC_E,
+                    Barcode.FORMAT_CODE_128,
+                    Barcode.FORMAT_CODE_39,
+                    Barcode.FORMAT_CODE_93,
+                    Barcode.FORMAT_ITF,
+                    Barcode.FORMAT_QR_CODE,
+                    Barcode.FORMAT_DATA_MATRIX,
+                    Barcode.FORMAT_AZTEC
+                )
+            }
+        }
+        BarcodeScanning.getClient(builder.build())
     }
 
     LaunchedEffect(isFlashOn) {
@@ -1576,7 +1608,7 @@ fun CameraXBarcodeView(
                         .build()
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                        processImageProxy(barcodeScanner, imageProxy) { barcodes ->
+                        processImageProxy(barcodeScanner, filterMode, imageProxy) { barcodes ->
                             val raw = barcodes.firstOrNull()?.rawValue?.trim()
                             if (!raw.isNullOrBlank()) {
                                 val now = System.currentTimeMillis()
@@ -1609,7 +1641,7 @@ fun CameraXBarcodeView(
                                             val (finalCode, finalTime) = finalPending
                                             val (lCode, lTime) = lastEmittedRef.get()
 
-                                            val isSubStringOfLast = lCode.isNotBlank() && (finalTime - lTime) < 3000L &&
+                                             val isSubStringOfLast = lCode.isNotBlank() && (finalTime - lTime) < 3000L &&
                                                 (lCode == finalCode || lCode.contains(finalCode) || lCode.startsWith(finalCode) || lCode.endsWith(finalCode))
                                             val isTooSoon = (finalTime - lTime) < 800L
 
@@ -1650,6 +1682,7 @@ fun CameraXBarcodeView(
 @SuppressLint("UnsafeOptInUsageError")
 private fun processImageProxy(
     barcodeScanner: com.google.mlkit.vision.barcode.BarcodeScanner,
+    filterMode: ScannerFilterMode,
     imageProxy: ImageProxy,
     onSuccess: (List<Barcode>) -> Unit
 ) {
@@ -1658,8 +1691,23 @@ private fun processImageProxy(
         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
         barcodeScanner.process(image)
             .addOnSuccessListener { barcodes ->
-                if (barcodes.isNotEmpty()) {
-                    onSuccess(barcodes)
+                val validBarcodes = barcodes.filter { b ->
+                    when (filterMode) {
+                        ScannerFilterMode.ONLY_1D_BARCODE -> {
+                            b.format != Barcode.FORMAT_QR_CODE &&
+                            b.format != Barcode.FORMAT_DATA_MATRIX &&
+                            b.format != Barcode.FORMAT_AZTEC
+                        }
+                        ScannerFilterMode.ONLY_QR_CODE -> {
+                            b.format == Barcode.FORMAT_QR_CODE ||
+                            b.format == Barcode.FORMAT_DATA_MATRIX ||
+                            b.format == Barcode.FORMAT_AZTEC
+                        }
+                        ScannerFilterMode.ALL -> true
+                    }
+                }
+                if (validBarcodes.isNotEmpty()) {
+                    onSuccess(validBarcodes)
                 }
             }
             .addOnFailureListener {

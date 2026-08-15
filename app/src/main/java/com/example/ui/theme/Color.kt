@@ -2,37 +2,59 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Turquoise / Cyan Brand Colors
-val TurquoisePrimary = Color(0xFF1DC8CD)
-val TurquoiseDark = Color(0xFF0E9DA1)
-val TurquoiseLight = Color(0xFFD6F8F9)
-val TurquoiseContainer = Color(0xFFE2FAFB)
-val OnTurquoiseContainer = Color(0xFF053E41)
+// Corporate Teal / Cyan Brand Colors
+val BrandTeal = Color(0xFF00C2AB)
+val BrandTealDark = Color(0xFF0E9DA1)
+val BrandTealLight = Color(0xFFD6F8F9)
+val TurquoisePrimary = Color(0xFF00C2AB)
+val TurquoiseDark = Color(0xFF0D9488)
+val TurquoiseLight = Color(0xFFCCFBF1)
+val TurquoiseContainer = Color(0xFF134E4A)
+val OnTurquoiseContainer = Color(0xFF99F6E4)
 
-// Accent & Status Colors
-val ExpiredRed = Color(0xFFE53935)
-val ExpiredRedContainer = Color(0xFFFFEBEE)
-val CriticalOrange = Color(0xFFFB8C00)
-val CriticalOrangeContainer = Color(0xFFFFF3E0)
-val SoonYellow = Color(0xFFFBC02D)
-val SoonYellowContainer = Color(0xFFFFFDE7)
+// Status & Risk Colors
+val ExpiredRed = Color(0xFFEF4444)
+val ExpiredRedDark = Color(0xFFB91C1C)
+val ExpiredRedContainer = Color(0xFFFEE2E2)
+val ExpiredRedBorder = Color(0xFFFCA5A5)
+
+val CriticalOrange = Color(0xFFF97316)
+val CriticalOrangeDark = Color(0xFFC2410C)
+val CriticalOrangeContainer = Color(0xFFFFEDD5)
+val CriticalOrangeBorder = Color(0xFFFDBA74)
+
+val SoonYellow = Color(0xFFEAB308)
+val SoonYellowDark = Color(0xFFB45309)
+val SoonYellowContainer = Color(0xFFFEF9C3)
+val SoonYellowBorder = Color(0xFFFDE047)
+
+val NormalGreen = Color(0xFF10B981)
+val NormalGreenDark = Color(0xFF047857)
+val NormalGreenContainer = Color(0xFFDCFCE7)
+val NormalGreenBorder = Color(0xFF86EFAC)
+
 val WarningBlue = Color(0xFF0284C7)
+val WarningBlueDark = Color(0xFF0369A1)
 val WarningBlueContainer = Color(0xFFE0F2FE)
-val NormalGreen = Color(0xFF43A047)
-val NormalGreenContainer = Color(0xFFE8F5E9)
+val WarningBlueBorder = Color(0xFFBAE6FD)
+
+val AccentIndigo = Color(0xFF818CF8)
 
 // Navy Backgrounds for Game Mode
 val GameNavyDark = Color(0xFF0A1128)
 val GameNavyCard = Color(0xFF132247)
 val GameNavyCardAccent = Color(0xFF1D356D)
 
-// Standard surface & text colors
-val Slate900 = Color(0xFF0F172A)
-val Slate800 = Color(0xFF1E293B)
-val Slate700 = Color(0xFF334155)
-val Slate600 = Color(0xFF475569)
-val Slate500 = Color(0xFF64748B)
-val Slate300 = Color(0xFFCBD5E1)
+// Standard Surface & Slate Colors
+val Slate950 = Color(0xFF020617)
+val Slate900 = Color(0xFF0F172A) // Arka Plan
+val Slate800 = Color(0xFF1E293B) // Kart Arka Plan
+val Slate700 = Color(0xFF334155) // Kenarlık & Çizgiler
+val Slate600 = Color(0xFF475569) // İkincil Vurgular
+val Slate500 = Color(0xFF64748B) // Alt Açıklamalar
+val Slate400 = Color(0xFF94A3B8) // İkincil Yazı
+val Slate300 = Color(0xFFCBD5E1) // Açık Gri Metin
 val Slate200 = Color(0xFFE2E8F0)
 val Slate100 = Color(0xFFF1F5F9)
 val Slate50 = Color(0xFFF8FAFC)
+

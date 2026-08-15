@@ -379,8 +379,8 @@ class MainViewModel(
             .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
             .sortedBy { it.getRemainingDays(todayMidnight) }
 
-        // SKT'sine son 1 ya da 2 gün kalmış ürünler (Sol taraf: 1 <= remainingDays <= 2)
-        val nearExpiryProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1L..2L }
+        // SKT'sine son 1 ila 7 gün kalmış ürünler (Sol taraf: 1 <= remainingDays <= 7)
+        val nearExpiryProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1L..7L }
             .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
             .sortedBy { it.getRemainingDays(todayMidnight) }
 

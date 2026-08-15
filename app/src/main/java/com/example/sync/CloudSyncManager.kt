@@ -61,20 +61,16 @@ object CloudSyncManager {
         }
 
         try {
-            if (FirebaseApp.getApps(context).isEmpty()) {
-                val options = FirebaseOptions.Builder()
-                    .setApplicationId("1:252337785789:android:a101skttracker")
-                    .setApiKey("AIzaSyA101SKTTrackerDefaultKey2026")
-                    .setProjectId("a101-skt-tracker-app")
-                    .build()
-                FirebaseApp.initializeApp(context, options)
+            if (FirebaseApp.getApps(context).isNotEmpty()) {
+                firestore = FirebaseFirestore.getInstance()
+                Log.d(TAG, "Firebase initialized successfully from configuration")
+            } else {
+                Log.d(TAG, "Firebase configuration not provided, running in standalone local mode")
             }
-            firestore = FirebaseFirestore.getInstance()
             _syncState.value = SyncState.CONNECTED
-            Log.d(TAG, "Firebase initialized successfully")
         } catch (e: Exception) {
-            Log.e(TAG, "Firebase init error, fallback active: ${e.message}")
-            _syncState.value = SyncState.CONNECTED // Active local+cloud queue
+            Log.e(TAG, "Firebase init error, running in local mode: ${e.message}")
+            _syncState.value = SyncState.CONNECTED
         }
 
         startRealtimeListeners()
