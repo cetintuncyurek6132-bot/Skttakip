@@ -166,7 +166,7 @@ fun LoginScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Storefront,
-                        contentDescription = "A101 Logo",
+                        contentDescription = "SKT Takip Logo",
                         tint = Color.White,
                         modifier = Modifier.size(30.dp)
                     )
@@ -176,7 +176,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "A101 SKT TAKİP",
+                text = "SKT TAKİP",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = SlateTextDark,
