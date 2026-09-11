@@ -49,7 +49,7 @@ object AppUpdateChecker {
             val json = JSONObject(responseBody)
 
             val rawTagName = json.optString("tag_name", "")
-            val cleanTagName = rawTagName.removePrefix("v").removePrefix("V").trim()
+            val cleanTagName = rawTagName.trim().removePrefix("v").removePrefix("V").trim()
             val releaseNotes = json.optString("body", "")
 
             var downloadUrl = ""
@@ -65,7 +65,7 @@ object AppUpdateChecker {
                 }
             }
 
-            val currentVersion = BuildConfig.VERSION_NAME.removePrefix("v").removePrefix("V").trim()
+            val currentVersion = BuildConfig.VERSION_NAME.trim().removePrefix("v").removePrefix("V").trim()
             val isNewer = isVersionNewer(cleanTagName, currentVersion)
 
             Log.d(TAG, "Mevcut: $currentVersion | GitHub: $cleanTagName | Güncelleme Var mı: $isNewer | URL: $downloadUrl")
@@ -85,27 +85,36 @@ object AppUpdateChecker {
     }
 
     /**
-     * İki sürüm numarasını (Örn: 1.0.2 vs 1.1 veya 1.0.5 vs 1.0.4) semantik olarak karşılaştırır.
+     * İki sürüm numarasını (Örn: 1.0.8 vs 1.0.0 veya 1.0.8 vs 1.0.7) semantik olarak karşılaştırır.
+     * Major, minor ve patch bileşenlerini sayısal olarak kıyaslar.
      */
     fun isVersionNewer(remoteVersion: String, currentVersion: String): Boolean {
-        if (remoteVersion.isBlank()) return false
-        if (remoteVersion == currentVersion) return false
+        val cleanRemote = remoteVersion.trim().removePrefix("v").removePrefix("V").trim()
+        val cleanCurrent = currentVersion.trim().removePrefix("v").removePrefix("V").trim()
+
+        if (cleanRemote.isBlank()) return false
+        if (cleanRemote.equals(cleanCurrent, ignoreCase = true)) return false
 
         try {
-            val remoteParts = remoteVersion.split(".", "-").mapNotNull { it.toIntOrNull() }
-            val currentParts = currentVersion.split(".", "-").mapNotNull { it.toIntOrNull() }
+            val remoteParts = cleanRemote.split(".", "-", "_").mapNotNull { it.trim().toIntOrNull() }
+            val currentParts = cleanCurrent.split(".", "-", "_").mapNotNull { it.trim().toIntOrNull() }
 
-            val maxLen = maxOf(remoteParts.size, currentParts.size)
-            for (i in 0 until maxLen) {
-                val r = remoteParts.getOrElse(i) { 0 }
-                val c = currentParts.getOrElse(i) { 0 }
-                if (r > c) return true
-                if (r < c) return false
+            if (remoteParts.isNotEmpty() && currentParts.isNotEmpty()) {
+                val maxLen = maxOf(remoteParts.size, currentParts.size)
+                for (i in 0 until maxLen) {
+                    val r = remoteParts.getOrElse(i) { 0 }
+                    val c = currentParts.getOrElse(i) { 0 }
+                    if (r > c) return true
+                    if (r < c) return false
+                }
+                return false
             }
         } catch (e: Exception) {
-            return remoteVersion > currentVersion
+            Log.w(TAG, "Semantik sürüm karşılaştırma istisnası: ${e.message}")
         }
-        return false
+
+        // Sayısal parse edilemeyen durumlarda fallback metin karşılaştırması
+        return cleanRemote.compareTo(cleanCurrent, ignoreCase = true) > 0
     }
 
     /**

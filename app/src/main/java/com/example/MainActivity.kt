@@ -515,8 +515,9 @@ fun SktMainApp(viewModel: MainViewModel) {
                 )
             },
             topBar = {
-                Column {
-                    SktTopAppBar(
+                if (currentRoute != "panel") {
+                    Column {
+                        SktTopAppBar(
                             searchQuery = searchQuery,
                             onSearchQueryChange = { query ->
                                 viewModel.onSearchQueryChanged(query)
@@ -584,6 +585,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                         }
                     }
                 }
+            }
         ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -598,7 +600,9 @@ fun SktMainApp(viewModel: MainViewModel) {
                     state = dashboardState,
                     onQuickActionClick = { action ->
                         when (action) {
+                            "add_product" -> viewModel.openAddProductModal()
                             "scan" -> isBarcodeScannerOpen = true
+                            "adetsel" -> navController.navigate("adetsel")
                             "csv" -> navController.navigate("csv")
                             "reports", "takip" -> navController.navigate("takip")
                             else -> navController.navigate("products")
@@ -614,6 +618,12 @@ fun SktMainApp(viewModel: MainViewModel) {
                     onViewAllProductsClick = {
                         viewModel.onFilterSelected(ProductFilter.ALL)
                         navController.navigate("products")
+                    },
+                    onAvatarClick = {
+                        isProfileDialogOpen = true
+                    },
+                    onNotificationClick = {
+                        isNotificationDialogOpen = true
                     }
                 )
             }

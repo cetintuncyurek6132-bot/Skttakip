@@ -18,8 +18,8 @@ android {
     applicationId = "com.aistudio.skttracker.a101skt.v2"
     minSdk = 24
     targetSdk = 36
-    versionCode = 2
-    versionName = "1.1"
+    versionCode = (project.findProperty("android.injected.version.code")?.toString()?.toIntOrNull()) ?: 1
+    versionName = (project.findProperty("android.injected.version.name")?.toString()) ?: "1.0.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

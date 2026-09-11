@@ -32,6 +32,7 @@ import com.example.worker.MorningCheckWorker
 
 import com.example.sync.CloudSyncManager
 import com.example.sync.SyncState
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -460,24 +461,64 @@ fun ProfileSheet(
                         }
                     }
 
-                    // QUICK SYSTEM ACTIONS (CSV Export / Settings)
-                    if (currentUser?.canAccessSettings == true) {
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(18.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
-                            ) {
-                                Column(modifier = Modifier.padding(14.dp)) {
-                                    Text(
-                                        text = "🛠️ SİSTEM VE VERİ YÖNETİMİ",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
+                    // QUICK SYSTEM ACTIONS (CSV Export / Settings & Update Check)
+                    item {
+                        var isProfileCheckingUpdate by remember { mutableStateOf(false) }
+                        val coroutineScope = rememberCoroutineScope()
+                        var profileUpdateInfoDialog by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
+                        var isProfileDownloading by remember { mutableStateOf(false) }
+                        var profileDownloadPercent by remember { mutableIntStateOf(0) }
 
+                        if (profileUpdateInfoDialog != null) {
+                            com.example.ui.components.AppUpdateDialog(
+                                updateInfo = profileUpdateInfoDialog!!,
+                                isDownloading = isProfileDownloading,
+                                downloadProgress = profileDownloadPercent,
+                                onConfirmUpdate = {
+                                    val downloadUrl = profileUpdateInfoDialog?.downloadUrl.orEmpty()
+                                    if (downloadUrl.isNotBlank()) {
+                                        isProfileDownloading = true
+                                        profileDownloadPercent = 0
+                                        coroutineScope.launch {
+                                            val downloadResult = com.example.util.AppUpdateChecker.downloadApk(
+                                                context = context,
+                                                downloadUrl = downloadUrl,
+                                                onProgress = { progress ->
+                                                    profileDownloadPercent = progress
+                                                }
+                                            )
+                                            isProfileDownloading = false
+                                            downloadResult.onSuccess { apkFile ->
+                                                profileUpdateInfoDialog = null
+                                                com.example.util.AppUpdateChecker.installApk(context, apkFile)
+                                            }.onFailure { e ->
+                                                Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }
+                                },
+                                onDismiss = {
+                                    profileUpdateInfoDialog = null
+                                }
+                            )
+                        }
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(18.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(14.dp)) {
+                                Text(
+                                    text = "🛠️ SİSTEM VE GÜNCELLEME",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                if (currentUser?.canAccessSettings == true) {
                                     Button(
                                         onClick = {
                                             onDismiss()
@@ -491,6 +532,43 @@ fun ProfileSheet(
                                         Spacer(modifier = Modifier.width(8.dp))
                                         val settingsBtnText = if (currentUser?.role == "MS") "AYARLAR & CSV VERİ YÖNETİMİ" else "GENEL AYARLAR"
                                         Text(settingsBtnText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        isProfileCheckingUpdate = true
+                                        coroutineScope.launch {
+                                            val result = com.example.util.AppUpdateChecker.checkForUpdates()
+                                            isProfileCheckingUpdate = false
+                                            result.onSuccess { info ->
+                                                if (info.hasUpdate) {
+                                                    profileUpdateInfoDialog = info
+                                                } else {
+                                                    Toast.makeText(context, "✅ Uygulamanız güncel (v${com.example.BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }.onFailure { err ->
+                                                Toast.makeText(context, "Güncelleme kontrolü başarısız: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                                ) {
+                                    if (isProfileCheckingUpdate) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            color = TurquoisePrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("KONTROL EDİLİYOR...", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    } else {
+                                        Icon(imageVector = Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("GÜNCELLEMELERİ DENETLE", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
                                 }
                             }
