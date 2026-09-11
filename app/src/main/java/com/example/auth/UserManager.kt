@@ -52,6 +52,19 @@ object UserManager {
             if (matched != null) {
                 _currentUser.value = matched
                 CloudSyncManager.setUserName("${matched.fullName} (${matched.role})")
+            } else {
+                val defaultUser = _usersList.value.firstOrNull()
+                _currentUser.value = defaultUser
+                if (defaultUser != null) {
+                    CloudSyncManager.setUserName("${defaultUser.fullName} (${defaultUser.role})")
+                }
+            }
+        } else {
+            val defaultUser = _usersList.value.firstOrNull()
+            if (defaultUser != null) {
+                _currentUser.value = defaultUser
+                prefs?.edit()?.putString(KEY_LOGGED_IN_USER, defaultUser.username)?.apply()
+                CloudSyncManager.setUserName("${defaultUser.fullName} (${defaultUser.role})")
             }
         }
     }

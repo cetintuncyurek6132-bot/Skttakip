@@ -3,6 +3,6 @@
     <item
         android:width="66dp"
         android:height="66dp"
-        android:drawable="@drawable/skt_app_icon_1785586373450"
+        android:drawable="@drawable/ic_skt_app_icon"
         android:gravity="center" />
 </layer-list>

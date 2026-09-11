@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 fun getTodayMidnightMillis(): Long {
     val cal = Calendar.getInstance()
@@ -127,8 +128,20 @@ data class Product(
 fun Product.getDisplayName(): String {
     val nameTrim = urunAdi.trim()
     val codeTrim = urunKodu.trim()
+    val catTrim = kategori.trim()
+    val barTrim = barkod.trim()
+
+    // If urunAdi is pure numbers or short code and kategori has descriptive name
+    if ((nameTrim.isBlank() || nameTrim.all { it.isDigit() || it == '-' || it == '_' || it == ' ' }) && catTrim.count { it.isLetter() } >= 3 && !catTrim.equals("Dolap Ürünleri", ignoreCase = true) && !catTrim.equals("Gıda Ürünleri", ignoreCase = true) && !catTrim.equals("Genel", ignoreCase = true)) {
+        return catTrim.uppercase(Locale.forLanguageTag("tr-TR"))
+    }
+    // If name is numeric and code has letters
     if (nameTrim.isNotBlank() && nameTrim.all { it.isDigit() || it == '-' || it == '_' || it == ' ' } && codeTrim.any { it.isLetter() }) {
         return codeTrim
+    }
+    // If name is numeric and barkod has letters
+    if (nameTrim.isNotBlank() && nameTrim.all { it.isDigit() || it == '-' || it == '_' || it == ' ' } && barTrim.any { it.isLetter() }) {
+        return barTrim
     }
     if (nameTrim.isBlank() && codeTrim.isNotBlank()) {
         return codeTrim
@@ -139,10 +152,26 @@ fun Product.getDisplayName(): String {
 fun Product.getDisplayCode(): String {
     val nameTrim = urunAdi.trim()
     val codeTrim = urunKodu.trim()
+    val barTrim = barkod.trim()
+
+    // If urunAdi is 6-8 digit code and urunKodu has 13-digit barcode, code is actually nameTrim
+    if (nameTrim.all { it.isDigit() } && nameTrim.length in 4..9 && codeTrim.length == 13) {
+        return nameTrim
+    }
     if (nameTrim.isNotBlank() && nameTrim.all { it.isDigit() || it == '-' || it == '_' || it == ' ' } && codeTrim.any { it.isLetter() }) {
         return nameTrim
     }
     return codeTrim
+}
+
+fun Product.getDisplayBarcode(): String {
+    val barTrim = barkod.trim()
+    val codeTrim = urunKodu.trim()
+    // If barkod is short reyon number and urunKodu has 13-digit EAN, barcode is urunKodu
+    if (barTrim.length in 1..3 && barTrim.all { it.isDigit() } && codeTrim.length == 13 && codeTrim.all { it.isDigit() }) {
+        return codeTrim
+    }
+    return barTrim
 }
 
 fun Product.isDolapProduct(): Boolean {
@@ -168,11 +197,44 @@ data class ShelfQrData(
     val price: Double? = null,
     val productCode: String? = null,
     val productName: String? = null,
+    val expiryDateMillis: Long? = null,
+    val expiryDateFormatted: String? = null,
+    val isScaleBarcode: Boolean = false,
     val isShelfQr: Boolean = false
 )
 
+private fun parseGs1DateToMillis(rawDate6: String): Pair<Long, String>? {
+    if (rawDate6.length != 6 || !rawDate6.all { it.isDigit() }) return null
+    val yy = rawDate6.substring(0, 2).toIntOrNull() ?: return null
+    val mm = rawDate6.substring(2, 4).toIntOrNull() ?: return null
+    val dd = rawDate6.substring(4, 6).toIntOrNull() ?: return null
+
+    val year = 2000 + yy
+    if (mm in 1..12 && dd in 1..31) {
+        val cal = Calendar.getInstance(TimeZone.getDefault()).apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, mm - 1)
+            set(Calendar.DAY_OF_MONTH, dd)
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }
+        val formatted = String.format(Locale.getDefault(), "%02d/%02d/%04d", dd, mm, year)
+        return Pair(cal.timeInMillis, formatted)
+    }
+    return null
+}
+
 fun parseShelfQrPayload(rawInput: String): ShelfQrData {
-    val trimmed = rawInput.trim().removePrefix("\uFEFF").filterNot { it.code in 0..8 || it.code in 14..31 }
+    val trimmed = rawInput.trim()
+        .removePrefix("\uFEFF")
+        .replace("\u0000", "")
+        .replace("\u001D", " ") // GS separator in GS1 barcodes
+        .replace("\u001E", " ")
+        .replace("\u001F", " ")
+        .filterNot { (it.code in 0..8) || (it.code in 14..31 && it != '\t' && it != '\n' && it != '\r') }
+        
     if (trimmed.isBlank()) {
         return ShelfQrData(barcode = "")
     }
@@ -184,6 +246,8 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
             var c: String? = null
             var n: String? = null
             var p: Double? = null
+            var expMillis: Long? = null
+            var expStr: String? = null
 
             val jsonClean = trimmed.removeSurrounding("{", "}").trim()
             val entries = jsonClean.split(Regex(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)"))
@@ -199,7 +263,15 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                     } else if (key == "urunadi" || key == "urun_adi" || key == "adi" || key == "name" || key == "n" || key == "title") {
                         n = value.trim()
                     } else if (key == "fiyat" || key == "price" || key == "p" || key == "tutar") {
-                        value.replace(',', '.').replace("₺", "").replace("TL", "").trim().toDoubleOrNull()?.let { p = it }
+                        value.replace(',', '.').replace("₺", "").replace("TL", "").replace("tl", "").trim().toDoubleOrNull()?.let { p = it }
+                    } else if (key == "skt" || key == "exp" || key == "tarih" || key == "expiry") {
+                        val digits = value.filter { it.isDigit() }
+                        if (digits.length == 6) {
+                            parseGs1DateToMillis(digits)?.let {
+                                expMillis = it.first
+                                expStr = it.second
+                            }
+                        }
                     }
                 }
             }
@@ -209,6 +281,8 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                     productCode = c,
                     productName = n,
                     price = p,
+                    expiryDateMillis = expMillis,
+                    expiryDateFormatted = expStr,
                     isShelfQr = true
                 )
             }
@@ -217,27 +291,49 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
         }
     }
 
-    // 1. GS1 DataMatrix / GS1 QR format (e.g. (01)08690504005100(17)260815(10)12345 or ]C10869...)
-    if (trimmed.contains("(01)") || trimmed.startsWith("010869") || trimmed.startsWith("]C10869") || trimmed.startsWith("]d20869")) {
-        val gtinMatch = Regex("(?:\\(01\\)|01|^](?:C1|d2)01)?([0-9]{13,14})").find(trimmed)
+    // 1. GS1 DataMatrix / GS1 QR / GS1-128 format (e.g. (01)08690504005100(17)260815(10)12345 or 010869...17260815)
+    if (trimmed.contains("(01)") || trimmed.startsWith("010869") || trimmed.startsWith("]C10869") || trimmed.startsWith("]d20869") || trimmed.startsWith("]Q30869") || trimmed.contains("id.gs1.org/01/")) {
+        var barcodeCandidate: String? = null
+        var expMillis: Long? = null
+        var expStr: String? = null
+
+        val gtinMatch = Regex("(?:\\(01\\)|01|^](?:C1|d2|Q3)01|/01/)?([0-9]{13,14})").find(trimmed)
         if (gtinMatch != null) {
             val rawGtin = gtinMatch.groupValues[1]
-            val barcodeCandidate = if (rawGtin.length == 14 && rawGtin.startsWith("0")) rawGtin.substring(1) else rawGtin
+            barcodeCandidate = if (rawGtin.length == 14 && rawGtin.startsWith("0")) rawGtin.substring(1) else rawGtin
+        }
+
+        // GS1 Expiration date AI (17) YYMMDD
+        val expMatch = Regex("(?:\\(17\\)|/17/|(?<=[0-9]{14})17)([0-9]{6})").find(trimmed)
+        if (expMatch != null) {
+            parseGs1DateToMillis(expMatch.groupValues[1])?.let {
+                expMillis = it.first
+                expStr = it.second
+            }
+        }
+
+        if (barcodeCandidate != null) {
             return ShelfQrData(
                 barcode = barcodeCandidate,
+                expiryDateMillis = expMillis,
+                expiryDateFormatted = expStr,
                 isShelfQr = true
             )
         }
     }
 
-    // 2. URL Formats (e.g. https://.../product?barcode=8690504005100&kod=16000491 or https://.../8690504005100)
+    // 2. URL Formats (e.g. https://.../product?barcode=8690504005100&kod=16000491&price=28.50)
     if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || trimmed.startsWith("www.")) {
         var b = ""
         var c: String? = null
-        val uriQueryMatch = Regex("[?&](?:barcode|barkod|bar|b|ean)=([0-9]+)").find(trimmed)
-        val uriCodeMatch = Regex("[?&](?:kod|code|urunkodu|k)=([a-zA-Z0-9_-]+)").find(trimmed)
+        var p: Double? = null
+        val uriQueryMatch = Regex("[?&](?:barcode|barkod|bar|b|ean|gtin)=([0-9]+)").find(trimmed)
+        val uriCodeMatch = Regex("[?&](?:kod|code|urunkodu|k|item)=([a-zA-Z0-9_-]+)").find(trimmed)
+        val uriPriceMatch = Regex("[?&](?:price|fiyat|f|p)=([0-9.,]+)").find(trimmed)
+
         if (uriQueryMatch != null) b = uriQueryMatch.groupValues[1]
         if (uriCodeMatch != null) c = uriCodeMatch.groupValues[1]
+        if (uriPriceMatch != null) p = uriPriceMatch.groupValues[1].replace(',', '.').toDoubleOrNull()
 
         if (b.isEmpty()) {
             val lastPathSegment = trimmed.substringAfterLast("/").substringBefore("?").filter { it.isDigit() }
@@ -249,6 +345,7 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
             return ShelfQrData(
                 barcode = b,
                 productCode = c,
+                price = p,
                 isShelfQr = true
             )
         }
@@ -260,21 +357,32 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
         var c: String? = null
         var n: String? = null
         var p: Double? = null
-        val pairs = trimmed.split(Regex("[;\n\r,|]")).map { it.trim() }
+        var expMillis: Long? = null
+        var expStr: String? = null
+
+        val pairs = trimmed.split(Regex("[;\n\r,|&]")).map { it.trim() }
         for (pair in pairs) {
             val kv = pair.split(Regex("[:=]"), limit = 2).map { it.trim() }
             if (kv.size == 2) {
                 val key = kv[0].lowercase(Locale.ROOT)
                 val value = kv[1]
-                if (key.contains("barkod") || key.contains("bar") || key == "b" || key == "ean") {
+                if (key.contains("barkod") || key.contains("bar") || key == "b" || key == "ean" || key == "gtin") {
                     b = value.filter { it.isDigit() }
-                } else if (key.contains("kod") || key == "k" || key.contains("code")) {
+                } else if (key.contains("kod") || key == "k" || key.contains("code") || key == "item") {
                     c = value.trim()
-                } else if (key.contains("adi") || key.contains("isim") || key.contains("name") || key == "a") {
+                } else if (key.contains("adi") || key.contains("isim") || key.contains("name") || key == "a" || key == "urun") {
                     n = value.trim()
-                } else if (key.contains("fiyat") || key.contains("price") || key == "f" || key.contains("tl") || key.contains("₺")) {
+                } else if (key.contains("fiyat") || key.contains("price") || key == "f" || key == "p" || key.contains("tl") || key.contains("₺")) {
                     val pStr = value.replace("₺", "").replace("TL", "").replace("tl", "").replace(',', '.').trim()
                     pStr.toDoubleOrNull()?.let { p = it }
+                } else if (key.contains("skt") || key.contains("exp") || key.contains("tarih")) {
+                    val digits = value.filter { it.isDigit() }
+                    if (digits.length == 6) {
+                        parseGs1DateToMillis(digits)?.let {
+                            expMillis = it.first
+                            expStr = it.second
+                        }
+                    }
                 }
             }
         }
@@ -284,13 +392,15 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                 productCode = c,
                 productName = n,
                 price = p,
+                expiryDateMillis = expMillis,
+                expiryDateFormatted = expStr,
                 isShelfQr = true
             )
         }
     }
 
-    // 4. Delimited formats (Pipe, Semicolon, Tab, Comma, Newline)
-    val delimiters = listOf("|", ";", "\t", ",")
+    // 4. Delimited formats (Pipe, Semicolon, Tab, Asterisk, Slash, Comma)
+    val delimiters = listOf("|", ";", "\t", "*", "/", ",")
     for (delim in delimiters) {
         if (trimmed.contains(delim)) {
             val parts = trimmed.split(delim).map { it.trim() }.filter { it.isNotEmpty() }
@@ -324,73 +434,59 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
         }
     }
 
-    // 5. Hyphenated Formats (e.g. D724-8690504005100-28,00-16000491 or 16000491-8690504005100-28,00)
-    if (trimmed.contains("-")) {
-        val parts = trimmed.split("-").map { it.trim() }
+    // 5. Hyphenated & Underscore Formats (e.g. D724-8683130143209-79, D724-8690504005100-28,00-16000491, 16000491-8690504005100-28,00)
+    if (trimmed.contains("-") || trimmed.contains("_")) {
+        val splitDelim = if (trimmed.contains("-")) "-" else "_"
+        val parts = trimmed.split(splitDelim).map { it.trim() }.filter { it.isNotEmpty() }
 
-        // Format 1: StoreCode - Barcode - Price - ProductCode [- ProductName]
-        if (parts.size >= 4) {
-            val storeCode = parts[0]
-            val barcodeCandidate = parts[1]
-            val priceCandidate = parts[2].replace(",", ".")
-            val productCodeCandidate = parts[3]
-            val nameCandidate = if (parts.size >= 5) parts.subList(4, parts.size).joinToString("-") else null
-
-            val parsedPrice = priceCandidate.toDoubleOrNull()
-            if (parsedPrice != null && barcodeCandidate.isNotEmpty()) {
-                return ShelfQrData(
-                    storeCode = storeCode,
-                    barcode = barcodeCandidate,
-                    price = parsedPrice,
-                    productCode = if (productCodeCandidate.isNotEmpty()) productCodeCandidate else null,
-                    productName = nameCandidate,
-                    isShelfQr = true
-                )
-            }
-        }
-
-        // Format 2: Barcode - Price - ProductCode OR ProductCode - Barcode - Price
-        if (parts.size == 3) {
-            val p0Digits = parts[0].filter { it.isDigit() }
-            val p1Digits = parts[1].filter { it.isDigit() }
-            val p2Digits = parts[2].filter { it.isDigit() }
-
-            val parsedP1Price = parts[1].replace(",", ".").toDoubleOrNull()
-            val parsedP2Price = parts[2].replace(",", ".").toDoubleOrNull()
-
-            if (p0Digits.length in 12..14 && parsedP1Price != null) {
-                return ShelfQrData(
-                    barcode = p0Digits,
-                    price = parsedP1Price,
-                    productCode = parts[2].ifBlank { null },
-                    isShelfQr = true
-                )
-            } else if (p1Digits.length in 12..14 && parsedP2Price != null) {
-                return ShelfQrData(
-                    barcode = p1Digits,
-                    price = parsedP2Price,
-                    productCode = parts[0].ifBlank { null },
-                    isShelfQr = true
-                )
-            }
-        }
-
-        // Format 3: Hyphenated label (e.g. 16000491-8690504005100 or D724-8690504005100)
         if (parts.size >= 2) {
-            val longDigitPart = parts.firstOrNull { it.filter { c -> c.isDigit() }.length in 12..14 }
-            val shortDigitPart = parts.firstOrNull { it != longDigitPart && it.filter { c -> c.isDigit() }.length in 4..11 }
-            if (longDigitPart != null) {
+            // Find 12-14 digit EAN/UPC/GTIN barcode part
+            val barcodePart = parts.firstOrNull { it.filter { c -> c.isDigit() }.length in 12..14 }
+                ?: parts.firstOrNull { it.filter { c -> c.isDigit() }.length in 8..14 }
+
+            var detectedStoreCode: String? = null
+            var detectedProductCode: String? = null
+            var detectedPrice: Double? = null
+            var detectedName: String? = null
+
+            val otherParts = if (barcodePart != null) parts.filter { it != barcodePart } else parts
+            for (op in otherParts) {
+                val opDigits = op.filter { it.isDigit() }
+                val parsedOpPrice = op.replace("₺", "").replace("TL", "").replace("tl", "").replace(",", ".").trim().toDoubleOrNull()
+
+                // Check if it's a store/branch code (e.g. D724, M102, S10, B99, or short alphanumeric starting with letter)
+                if (op.length in 2..8 && op.first().isLetter() && opDigits.isNotEmpty() && detectedStoreCode == null) {
+                    detectedStoreCode = op
+                }
+                // Check if it's a valid price (e.g. 79, 79.90, 79,90, 129.50)
+                else if (parsedOpPrice != null && parsedOpPrice > 0.0 && parsedOpPrice < 100000.0 && detectedPrice == null && (opDigits.length <= 6 || op.contains(",") || op.contains("."))) {
+                    detectedPrice = parsedOpPrice
+                }
+                // Check if it's a product/item code (e.g. 16000491, 25001234, 4-10 digits)
+                else if (opDigits.length in 4..10 && detectedProductCode == null) {
+                    detectedProductCode = op
+                }
+                // Otherwise treat as product title/description
+                else if (op.length >= 2 && !op.all { it.isDigit() } && detectedName == null) {
+                    detectedName = op
+                }
+            }
+
+            val cleanBarcode = barcodePart?.filter { it.isDigit() } ?: ""
+            if (cleanBarcode.isNotEmpty() || detectedProductCode != null || detectedStoreCode != null || detectedPrice != null) {
                 return ShelfQrData(
-                    barcode = longDigitPart.filter { it.isDigit() },
-                    price = null,
-                    productCode = shortDigitPart,
+                    storeCode = detectedStoreCode,
+                    barcode = cleanBarcode.ifEmpty { detectedProductCode ?: "" },
+                    price = detectedPrice,
+                    productCode = detectedProductCode,
+                    productName = detectedName,
                     isShelfQr = true
                 )
             }
         }
     }
 
-    // 6. Space-separated format
+    // 6. Space-separated format (e.g. 8690504005100 16000491 28,50 TL DOST SUT)
     val tokens = trimmed.split(Regex("\\s+")).filter { it.isNotEmpty() }
     if (tokens.size >= 3) {
         var b = ""
@@ -403,8 +499,8 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                 b = tokDigits
             } else if (tokDigits.length in 4..11 && c == null) {
                 c = tok
-            } else if (tok.replace(',', '.').toDoubleOrNull() != null && p == null && tokDigits.length !in 5..14) {
-                p = tok.replace(',', '.').toDoubleOrNull()
+            } else if (tok.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull() != null && p == null && tokDigits.length !in 5..14) {
+                p = tok.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull()
             } else if (!tok.equals("TL", ignoreCase = true) && tok != "₺") {
                 nameWords.add(tok)
             }
@@ -420,8 +516,24 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
         }
     }
 
-    // 7. Plain single barcode or product code string
+    // 7. Variable-Weight / Scale Barcode Detection (EAN-13 starting with 20, 21, 22, 23, 24, 27, 28, 29)
     val digitsOnly = trimmed.filter { it.isDigit() }
+    val isScaleCode = digitsOnly.length == 13 && (digitsOnly.startsWith("20") || digitsOnly.startsWith("21") ||
+            digitsOnly.startsWith("22") || digitsOnly.startsWith("23") || digitsOnly.startsWith("24") ||
+            digitsOnly.startsWith("27") || digitsOnly.startsWith("28") || digitsOnly.startsWith("29"))
+
+    if (isScaleCode) {
+        val baseCode = digitsOnly.substring(0, 7) // e.g. 2800456
+        val subCode = digitsOnly.substring(2, 7)  // e.g. 00456
+        return ShelfQrData(
+            barcode = digitsOnly,
+            productCode = baseCode,
+            isScaleBarcode = true,
+            isShelfQr = false
+        )
+    }
+
+    // 8. Plain single barcode or product code string
     return ShelfQrData(
         barcode = if (digitsOnly.length in 8..14) digitsOnly else trimmed,
         productCode = if (digitsOnly.length in 4..11) digitsOnly else trimmed,
@@ -430,22 +542,47 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
 }
 
 /**
- * Universal high-performance product matching engine for 1D barcodes and QR codes.
- * Matches exact barcodes, product codes, normalized digits, leading zeros, and product titles.
+ * Universal high-performance product matching engine for 1D barcodes, 2D QR codes, and Shelf tags.
+ * Matches exact barcodes, product codes, normalized digits, leading zeros, scale barcodes, and product titles.
  */
 fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
-    val raw = rawQuery.trim().removePrefix("\uFEFF").filterNot { it.code in 0..8 || it.code in 14..31 }
+    val raw = rawQuery.trim()
+        .removePrefix("\uFEFF")
+        .replace("\u0000", "")
+        .replace("\u001D", " ")
+        .filterNot { it.code in 0..8 || it.code in 14..31 }
+        
     if (raw.isBlank()) return emptyList()
 
     val qrData = parseShelfQrPayload(raw)
     val queryBarcode = qrData.barcode.trim()
     val queryProductCode = qrData.productCode?.trim()
+    val queryProductCodeDigits = queryProductCode?.filter { it.isDigit() } ?: ""
     val queryDigits = queryBarcode.filter { it.isDigit() }
     val queryNoLeadingZeros = queryDigits.trimStart('0')
     val rawDigits = raw.filter { it.isDigit() }
     val rawNoLeadingZeros = rawDigits.trimStart('0')
 
-    // 1. EXACT BARCODE MATCH (Highest Priority)
+    // 1. SHELF QR PRODUCT CODE MATCH (Top Priority when Shelf QR or Product Code is detected)
+    if (!queryProductCode.isNullOrBlank()) {
+        val codeMatches = this.filter { p ->
+            val pCode = p.urunKodu.trim()
+            val pCodeDigits = pCode.filter { it.isDigit() }
+            val pBarcode = p.barkod.trim()
+            val pBarcodeDigits = pBarcode.filter { it.isDigit() }
+
+            (pCode.isNotEmpty() && pCode.equals(queryProductCode, ignoreCase = true)) ||
+            (queryProductCodeDigits.isNotEmpty() && pCodeDigits.isNotEmpty() && pCodeDigits == queryProductCodeDigits) ||
+            (pCode.isNotEmpty() && pCode.equals(queryBarcode, ignoreCase = true)) ||
+            (pBarcode.isNotEmpty() && pBarcode.equals(queryProductCode, ignoreCase = true)) ||
+            (queryProductCodeDigits.isNotEmpty() && pBarcodeDigits.isNotEmpty() && pBarcodeDigits == queryProductCodeDigits)
+        }
+        if (codeMatches.isNotEmpty()) {
+            return codeMatches.sortedBy { it.sktTarihi }
+        }
+    }
+
+    // 2. EXACT BARCODE MATCH
     val exactBarcodeMatches = this.filter { p ->
         val pBarcode = p.barkod.trim()
         val pBarcodeDigits = pBarcode.filter { it.isDigit() }
@@ -467,7 +604,7 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
         return exactBarcodeMatches.sortedBy { it.sktTarihi }
     }
 
-    // 2. EXACT PRODUCT CODE MATCH
+    // 3. EXACT PRODUCT CODE MATCH (Fallback)
     val exactCodeMatches = this.filter { p ->
         val pCode = p.urunKodu.trim()
         val pCodeDigits = pCode.filter { it.isDigit() }
@@ -486,7 +623,31 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
         return exactCodeMatches.sortedBy { it.sktTarihi }
     }
 
-    // 3. EMBEDDED DIGIT SEQUENCE MATCH (For shelf labels / QR codes containing barcode or code)
+    // 3. VARIABLE-WEIGHT / SCALE BARCODE MATCH (Tartılı ürün eşleşmesi)
+    if (queryDigits.length == 13 && (queryDigits.startsWith("20") || queryDigits.startsWith("21") ||
+            queryDigits.startsWith("22") || queryDigits.startsWith("23") || queryDigits.startsWith("24") ||
+            queryDigits.startsWith("27") || queryDigits.startsWith("28") || queryDigits.startsWith("29"))) {
+        val base7 = queryDigits.substring(0, 7) // e.g. 2800456
+        val base5 = queryDigits.substring(2, 7) // e.g. 00456
+
+        val scaleMatches = this.filter { p ->
+            val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
+            val pCodeDigits = p.urunKodu.trim().filter { it.isDigit() }
+
+            pBarcodeDigits.startsWith(base7) ||
+            pBarcodeDigits == base7 ||
+            pBarcodeDigits == base5 ||
+            pBarcodeDigits == "${base7}000000" ||
+            pCodeDigits == base7 ||
+            pCodeDigits == base5 ||
+            pCodeDigits.startsWith(base7)
+        }
+        if (scaleMatches.isNotEmpty()) {
+            return scaleMatches.sortedBy { it.sktTarihi }
+        }
+    }
+
+    // 4. EMBEDDED DIGIT SEQUENCE MATCH (For shelf labels / QR codes containing barcode or code)
     if (queryDigits.length >= 8 || rawDigits.length >= 8) {
         val embeddedMatches = this.filter { p ->
             val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
@@ -500,7 +661,7 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
         }
     }
 
-    // 4. FALLBACK TEXT SEARCH QUERY MATCH
+    // 5. FALLBACK TEXT SEARCH QUERY MATCH
     val searchMatches = this.filter {
         it.matchesSearchQuery(queryBarcode) ||
         it.matchesSearchQuery(raw) ||
@@ -518,13 +679,20 @@ fun parsePriceFromQr(rawInput: String): Double? {
         return shelfData.price
     }
 
-    val cleaned = trimmed.replace("₺", "").replace("TL", "").replace("tl", "").replace(",", ".").trim()
+    val cleaned = trimmed
+        .replace("₺", "")
+        .replace("TL", "")
+        .replace("tl", "")
+        .replace(" ", "")
+        .replace(",", ".")
+        .trim()
+        
     val directValue = cleaned.toDoubleOrNull()
     if (directValue != null && directValue > 0.0) {
         return directValue
     }
 
-    val parts = trimmed.split("-", ";", " ", "\n", "\t").map { it.trim().replace(",", ".") }
+    val parts = trimmed.split("-", ";", " ", "\n", "\t", "*", "/", "|").map { it.trim().replace(",", ".") }
     for (part in parts) {
         val candidate = part.toDoubleOrNull()
         if (candidate != null && candidate > 0.0 && candidate < 100000.0 && !part.startsWith("869") && part.length <= 7) {

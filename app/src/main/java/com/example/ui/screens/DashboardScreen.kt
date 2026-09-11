@@ -1,12 +1,17 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,21 +22,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -39,512 +32,333 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.ExpiryStatus
 import com.example.data.Product
+import com.example.data.getDisplayName
 import com.example.ui.DashboardState
 import com.example.ui.ProductFilter
-import com.example.ui.components.ProductListItemCard
-import android.graphics.Bitmap
-import com.example.ui.components.ReportPreviewDialog
+import com.example.ui.screens.dashboard.DashboardAlertBanner
+import com.example.ui.screens.dashboard.DashboardProductItemCard
+import com.example.ui.screens.dashboard.DashboardRiskCards
+import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.NormalGreen
+import com.example.ui.theme.IndigoAccent
 import com.example.ui.theme.Slate100
-import com.example.ui.theme.Slate50
+import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoisePrimary
-import com.example.util.ProductImageGenerator
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+enum class DashboardTabFilter(val label: String, val emoji: String) {
+    REMOVE("Kaldır", "🚫"),
+    CRITICAL("Kritik (1-3g)", "⚠️"),
+    SOON("Yaklaşan (4-7g)", "⏱️"),
+    IMPORTANT("Adet ≥10", "🔥"),
+    ALL_ATTENTION("Tümü", "📋")
+}
 
 @Composable
 fun DashboardScreen(
     state: DashboardState,
-    onStartGameClick: () -> Unit,
     onQuickActionClick: (String) -> Unit,
     onFilterSelectAndNavigate: (ProductFilter) -> Unit,
     onProductClick: (Product) -> Unit,
     onViewAllProductsClick: () -> Unit
 ) {
     val context = LocalContext.current
-    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var previewProducts by remember { mutableStateOf<List<Product>?>(null) }
 
-    if (previewProducts != null) {
-        ReportPreviewDialog(
-            products = previewProducts!!,
-            title = "Paylaşım Önizlemesi",
-            subtitle = "Seçilen ürünler WhatsApp üzerinden gönderilecek",
-            onDismiss = { previewProducts = null }
-        )
-    } else if (previewBitmap != null) {
-        ReportPreviewDialog(
-            bitmap = previewBitmap,
-            onDismiss = { previewBitmap = null }
+    val allAttentionList = remember(state.removeProducts, state.nearExpiryProducts, state.attentionProducts) {
+        (state.removeProducts + state.nearExpiryProducts + state.attentionProducts).distinctBy { "${it.id}_${it.sktTarihi}" }
+    }
+
+    val criticalProducts = remember(allAttentionList) {
+        allAttentionList.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays() in 1L..3L }
+    }
+
+    val upcomingProducts = remember(allAttentionList) {
+        allAttentionList.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays() in 4L..7L }
+    }
+
+    val importantProducts = remember(allAttentionList) {
+        allAttentionList.filter { it.stokAdedi >= 10 || it.isImportant }
+    }
+
+    var selectedTab by remember(state.expiredCount, state.criticalCount, state.soonCount) {
+        mutableStateOf(
+            when {
+                state.expiredCount > 0 -> DashboardTabFilter.REMOVE
+                state.criticalCount > 0 -> DashboardTabFilter.CRITICAL
+                state.soonCount > 0 -> DashboardTabFilter.SOON
+                state.importantCount > 0 -> DashboardTabFilter.IMPORTANT
+                else -> DashboardTabFilter.ALL_ATTENTION
+            }
         )
     }
 
-    LazyColumn(
+    fun shareProductsOnWhatsApp(products: List<Product>) {
+        if (products.isEmpty()) {
+            android.widget.Toast.makeText(context, "Paylaşılacak dikkat gerektiren ürün bulunamadı.", android.widget.Toast.LENGTH_SHORT).show()
+            return
+        }
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.forLanguageTag("tr-TR"))
+        val sb = StringBuilder()
+        sb.append("📋 *A101 - DİKKAT GEREKTİREN SKT LİSTESİ*\n")
+        sb.append("Tarih: ").append(SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR")).format(Date())).append("\n\n")
+
+        products.forEachIndexed { index, p ->
+            val days = p.getRemainingDays()
+            val dateStr = if (p.sktTarihi > 0L) dateFormat.format(Date(p.sktTarihi)) else "-"
+            val status = when {
+                days < 0 -> "🚫 SÜRESİ GEÇTİ ($dateStr)"
+                days == 0L -> "⚠️ BUGÜN SON GÜN ($dateStr)"
+                else -> "⏱️ $days GÜN KALDI ($dateStr)"
+            }
+            sb.append("${index + 1}. *${p.getDisplayName()}*\n")
+            sb.append("   • Durum: $status\n")
+            sb.append("   • Adet: ${p.stokAdedi} | Barkod: ${p.barkod}\n\n")
+        }
+
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, sb.toString())
+            `package` = "com.whatsapp"
+        }
+        try {
+            context.startActivity(sendIntent)
+        } catch (e: Exception) {
+            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, sb.toString())
+            }
+            try {
+                context.startActivity(Intent.createChooser(fallbackIntent, "Ürün Listesini Paylaş"))
+            } catch (ex: Exception) {
+                android.widget.Toast.makeText(context, "Paylaşım uygulaması açılamadı.", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val displayedProducts = when (selectedTab) {
+        DashboardTabFilter.REMOVE -> state.removeProducts
+        DashboardTabFilter.CRITICAL -> criticalProducts
+        DashboardTabFilter.SOON -> upcomingProducts
+        DashboardTabFilter.IMPORTANT -> importantProducts
+        DashboardTabFilter.ALL_ATTENTION -> allAttentionList
+    }
+
+    val activeRiskTag = when (selectedTab) {
+        DashboardTabFilter.REMOVE -> "EXPIRED"
+        DashboardTabFilter.CRITICAL -> "CRITICAL"
+        DashboardTabFilter.SOON -> "SOON"
+        DashboardTabFilter.IMPORTANT -> "IMPORTANT"
+        DashboardTabFilter.ALL_ATTENTION -> "ALL"
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 4.dp)
     ) {
-        item {
-            Spacer(modifier = Modifier.height(8.dp))
+        // 1. ULTRA KOMPAKT AKILLI ACİL DURUM ŞERİDİ
+        DashboardAlertBanner(
+            expiredCount = state.expiredCount,
+            nearCount = state.soonCount + state.criticalCount,
+            onShareWhatsApp = { shareProductsOnWhatsApp(allAttentionList) },
+            onReviewClick = {
+                selectedTab = if (state.expiredCount > 0) DashboardTabFilter.REMOVE else DashboardTabFilter.CRITICAL
+            }
+        )
 
-            // Morning Control Tour Banner (Turquoise to Orange gradient)
-            val gradientBrush = Brush.horizontalGradient(
-                colors = listOf(
-                    Color(0xFF1DC8CD),
-                    Color(0xFFF27D26)
-                )
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(gradientBrush)
-                    .clickable { onStartGameClick() }
-                    .padding(20.dp)
-                    .testTag("morning_tour_card")
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Sabah Kontrol Turu",
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = if (state.isMorningTourCompletedToday) {
-                                "✅ Bugünün sayım turu tamamlandı."
-                            } else {
-                                "Tur henüz tamamlanmadı. Reyonları kontrol et!"
-                            },
-                            color = Color.White.copy(alpha = 0.95f),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(Color.White)
-                            .clickable { onStartGameClick() }
-                            .padding(horizontal = 18.dp, vertical = 10.dp)
-                            .testTag("start_morning_tour_button")
-                    ) {
-                        Text(
-                            text = if (state.isMorningTourCompletedToday) "YENİDEN" else "BAŞLAT",
-                            color = TurquoisePrimary,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 13.sp
-                        )
-                    }
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 2. 4'LÜ DOĞRUDAN FİLTRELEYEN KOMPAKT RİSK MATRİSİ
+        DashboardRiskCards(
+            expiredCount = state.expiredCount,
+            criticalCount = state.criticalCount,
+            soonCount = state.soonCount,
+            importantCount = state.importantCount,
+            selectedFilterTag = activeRiskTag,
+            onCardClick = { tag ->
+                selectedTab = when (tag) {
+                    "EXPIRED" -> DashboardTabFilter.REMOVE
+                    "CRITICAL" -> DashboardTabFilter.CRITICAL
+                    "SOON" -> DashboardTabFilter.SOON
+                    "IMPORTANT" -> DashboardTabFilter.IMPORTANT
+                    else -> DashboardTabFilter.ALL_ATTENTION
                 }
             }
-        }
+        )
 
+        Spacer(modifier = Modifier.height(6.dp))
 
-
-        // DİKKAT GEREKTİREN ÜRÜNLER (2'YE AYRILMIŞ: SOL: SON 1-2 GÜN, SAĞ: REYONDAN KALDIRILACAKLAR)
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 4.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "DİKKAT GEREKTİREN ÜRÜNLER",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val attentionProducts = (state.nearExpiryProducts + state.removeProducts + state.attentionProducts).distinctBy { it.id }
-                    Surface(
-                        onClick = {
-                            if (attentionProducts.isNotEmpty()) {
-                                previewProducts = attentionProducts
-                            } else {
-                                android.widget.Toast.makeText(context, "Paylaşılacak dikkat gerektiren ürün bulunamadı.", android.widget.Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFF25D366),
-                        shadowElevation = 2.dp,
-                        modifier = Modifier.testTag("dashboard_whatsapp_share_button")
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "WhatsApp Paylaş",
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "WhatsApp",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Tümünü gör",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TurquoisePrimary,
-                        modifier = Modifier
-                            .clickable { onViewAllProductsClick() }
-                            .padding(4.dp)
-                            .testTag("see_all_products_link")
-                    )
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(480.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                // SOL TARAF: SKT SON 7 GÜN KALANLAR (1-7 GÜN) - BAĞIMSIZ KAYDIRILABİLİR LİSTE
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFF8E1),
-                        border = BorderStroke(1.dp, CriticalOrange.copy(alpha = 0.5f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("⏱️", fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Son 7 Gün",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = CriticalOrange
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(CriticalOrange)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "${state.nearExpiryProducts.size}",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (state.nearExpiryProducts.isEmpty()) {
-                        CompactEmptyStateCard(message = "Son 7 günü kalan ürün yok 👍")
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(
-                                items = state.nearExpiryProducts,
-                                key = { "near_${it.id}_${it.sktTarihi}" }
-                            ) { product ->
-                                CompactAttentionProductCard(
-                                    product = product,
-                                    isExpired = false,
-                                    onClick = { onProductClick(product) }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // SAĞ TARAF: REYONDAN KALDIRILMASI GEREKENLER - BAĞIMSIZ KAYDIRILABİLİR LİSTE
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFFFEBEE),
-                        border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.5f)),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("🚫", fontSize = 13.sp)
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Reyondan Kaldır",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = ExpiredRed
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .background(ExpiredRed)
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            ) {
-                                Text(
-                                    text = "${state.removeProducts.size}",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    if (state.removeProducts.isEmpty()) {
-                        CompactEmptyStateCard(message = "Reyondan kaldırılacak ürün yok 🎉")
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(
-                                items = state.removeProducts,
-                                key = { "remove_${it.id}_${it.sktTarihi}" }
-                            ) { product ->
-                                CompactAttentionProductCard(
-                                    product = product,
-                                    isExpired = true,
-                                    onClick = { onProductClick(product) }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        item {
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-    }
-}
-
-@Composable
-fun QuickActionButton(
-    title: String,
-    subtitle: String,
-    icon: ImageVector,
-    containerColor: Color,
-    borderColor: Color,
-    iconBg: Color,
-    iconTint: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .testTag("quick_action_$title")
-            .clickable { onClick() },
-        shape = RoundedCornerShape(14.dp),
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor),
-        shadowElevation = 1.dp
-    ) {
+        // 3. AKTİF LİSTE BİLGİ & HIZLI KONTROL SATIRI (Tek Satırda!)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 2.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(iconBg),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = title,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
+            // Sol: Aktif listenin başlığı ve sayısı
+            val activeTitle = when (selectedTab) {
+                DashboardTabFilter.REMOVE -> "🚫 Kaldırılacaklar (${displayedProducts.size})"
+                DashboardTabFilter.CRITICAL -> "⚠️ Kritik SKT: 1-3 Gün (${displayedProducts.size})"
+                DashboardTabFilter.SOON -> "⏱️ Yaklaşan: 4-7 Gün (${displayedProducts.size})"
+                DashboardTabFilter.IMPORTANT -> "🔥 Adet ≥10 Riski (${displayedProducts.size})"
+                DashboardTabFilter.ALL_ATTENTION -> "📋 Tüm Dikkat Gerektirenler (${displayedProducts.size})"
             }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            val activeColor = when (selectedTab) {
+                DashboardTabFilter.REMOVE -> ExpiredRed
+                DashboardTabFilter.CRITICAL -> CriticalOrange
+                DashboardTabFilter.SOON -> AmberWarning
+                DashboardTabFilter.IMPORTANT -> IndigoAccent
+                DashboardTabFilter.ALL_ATTENTION -> TurquoisePrimary
+            }
+
+            Text(
+                text = activeTitle,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Black,
+                color = activeColor
+            )
+
+            // Sağ: "Tümü (XX)" çipi ve "Katalog →" linki
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // Tümü çipi
+                Surface(
+                    onClick = { selectedTab = DashboardTabFilter.ALL_ATTENTION },
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (selectedTab == DashboardTabFilter.ALL_ATTENTION) TurquoisePrimary else Slate100,
+                    border = BorderStroke(1.dp, if (selectedTab == DashboardTabFilter.ALL_ATTENTION) TurquoisePrimary else Slate200)
+                ) {
+                    Text(
+                        text = "Tümü (${allAttentionList.size})",
+                        fontSize = 10.5.sp,
+                        fontWeight = if (selectedTab == DashboardTabFilter.ALL_ATTENTION) FontWeight.Black else FontWeight.Bold,
+                        color = if (selectedTab == DashboardTabFilter.ALL_ATTENTION) Color.White else Slate700,
+                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                    )
+                }
+
+                // Tüm Ürünler Katalog Butonu
+                Surface(
+                    onClick = onViewAllProductsClick,
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Transparent,
+                    modifier = Modifier.testTag("see_all_products_link")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "Katalog",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate700
+                        )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = Slate700,
+                            modifier = Modifier.size(12.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // 4. SEÇİLİ RİSK GRUBU LİSTESİ (Ferah, Genişletilmiş ve Hızlı)
+        AnimatedContent(
+            targetState = displayedProducts,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            label = "dashboard_products_list_anim"
+        ) { currentList ->
+            if (currentList.isEmpty()) {
+                val emptyMsg = when (selectedTab) {
+                    DashboardTabFilter.REMOVE -> "Reyondan kaldırılması gereken ürün bulunmuyor 🎉"
+                    DashboardTabFilter.CRITICAL -> "1-3 gün içinde süresi dolacak kritik ürün yok 👍"
+                    DashboardTabFilter.SOON -> "4-7 gün içinde süresi dolacak ürün yok ✨"
+                    DashboardTabFilter.IMPORTANT -> "Yüksek adetli (≥10) riskli ürün bulunmuyor ✨"
+                    DashboardTabFilter.ALL_ATTENTION -> "Dikkat gerektiren herhangi bir ürün bulunmuyor 👏"
+                }
+                DashboardEmptyState(message = emptyMsg)
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(top = 2.dp, bottom = 12.dp)
+                ) {
+                    items(
+                        items = currentList,
+                        key = { "${it.id}_${it.sktTarihi}_${it.barkod}" }
+                    ) { product ->
+                        DashboardProductItemCard(
+                            product = product,
+                            onClick = { onProductClick(product) }
+                        )
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun CompactAttentionProductCard(
-    product: Product,
-    isExpired: Boolean,
-    onClick: () -> Unit
-) {
-    val daysLeft = product.getRemainingDays()
+private fun DashboardEmptyState(message: String) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
-            .testTag("compact_product_${product.id}"),
-        shape = RoundedCornerShape(12.dp),
+            .padding(top = 20.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, if (isExpired) ExpiredRed.copy(alpha = 0.3f) else CriticalOrange.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, Slate100),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(if (isExpired) ExpiredRed else CriticalOrange)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = if (isExpired) "KALDIR!" else if (daysLeft == 1L) "1 GÜN KALDI" else "$daysLeft GÜN KALDI",
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                }
-                Text(
-                    text = "Stok: ${product.stokAdedi}",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            Text(text = "✅", fontSize = 28.sp)
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = product.urunAdi.uppercase(),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 15.sp
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            val codeText = if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu}" else "Kod: -"
-            Text(
-                text = codeText,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
-}
-
-@Composable
-fun CompactEmptyStateCard(message: String) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, Slate100.copy(alpha = 0.3f))
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
                 text = message,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = Slate500,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                lineHeight = 17.sp
             )
         }
     }

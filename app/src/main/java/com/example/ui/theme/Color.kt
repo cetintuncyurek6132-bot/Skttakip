@@ -39,6 +39,9 @@ val WarningBlueContainer = Color(0xFFE0F2FE)
 val WarningBlueBorder = Color(0xFFBAE6FD)
 
 val AccentIndigo = Color(0xFF818CF8)
+val IndigoAccent = Color(0xFF6366F1)
+val EmeraldSuccess = Color(0xFF10B981)
+val AmberWarning = Color(0xFFF59E0B)
 
 // Navy Backgrounds for Game Mode
 val GameNavyDark = Color(0xFF0A1128)

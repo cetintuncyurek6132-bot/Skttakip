@@ -1,16 +1,46 @@
 package com.example.data
 
+import android.content.Context
 import com.example.sync.CloudSyncManager
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 class ProductRepository(
-    private val productDao: ProductDao,
-    private val reportDao: InspectionReportDao,
-    private val turDao: TurDao? = null
+    val productDao: ProductDao,
+    val reportDao: InspectionReportDao,
+    val turDao: TurDao? = null,
+    val adetselDao: AdetselDao? = null
 ) {
     val allProducts: Flow<List<Product>> = productDao.getAllProducts()
     val allReports: Flow<List<InspectionReport>> = reportDao.getAllReports()
     val allTurRaporlari: Flow<List<TurRaporu>> = turDao?.getAllTurRaporlari() ?: kotlinx.coroutines.flow.emptyFlow()
+    val allAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getAllAdetselKayitlari() ?: kotlinx.coroutines.flow.emptyFlow()
+    val yapilacakAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getYapilacakKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()
+    val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()
+
+    suspend fun insertAdetselKayit(kayit: AdetselKayit): Long {
+        return adetselDao?.insertAdetselKayit(kayit) ?: 0L
+    }
+
+    suspend fun updateAdetselKayit(kayit: AdetselKayit) {
+        adetselDao?.updateAdetselKayit(kayit)
+    }
+
+    suspend fun deleteAdetselKayit(kayit: AdetselKayit) {
+        adetselDao?.deleteAdetselKayit(kayit)
+    }
+
+    suspend fun deleteAdetselKayitById(id: Int) {
+        adetselDao?.deleteAdetselKayitById(id)
+    }
+
+    suspend fun clearCompletedAdetselKayitlar() {
+        adetselDao?.clearCompletedAdetselKayitlar()
+    }
+
+    suspend fun getPendingAdetselKayitlarList(): List<AdetselKayit> {
+        return adetselDao?.getPendingKayitlarList() ?: emptyList()
+    }
 
     suspend fun getProductByBarcode(barkod: String): Product? {
         return productDao.getProductByBarcode(barkod)
@@ -56,6 +86,10 @@ class ProductRepository(
 
     fun getKayitlarByTurId(turId: Int): Flow<List<TurKontrolKaydi>> {
         return turDao?.getKayitlarByTurId(turId) ?: kotlinx.coroutines.flow.emptyFlow()
+    }
+
+    suspend fun getAllTourLogsDirect(): List<TurKontrolKaydi> {
+        return turDao?.getAllKontrolKayitlariDirect() ?: emptyList()
     }
 
     suspend fun getProductsByBarcode(barkod: String): List<Product> {
@@ -120,5 +154,21 @@ class ProductRepository(
 
     suspend fun reSeedDefaultData() {
         AppDatabase.populateInitialData(productDao, reportDao)
+    }
+
+    suspend fun createUnifiedBackupJson(context: Context): String {
+        return DataBackupManager.createUnifiedBackupJson(context, productDao, reportDao, turDao, adetselDao)
+    }
+
+    suspend fun saveLocalBackup(context: Context, tag: String = "manual"): File? {
+        return DataBackupManager.saveAutoBackupToStorage(context, productDao, reportDao, turDao, adetselDao, tag)
+    }
+
+    fun getLocalBackups(context: Context): List<BackupMetadata> {
+        return DataBackupManager.listLocalBackups(context)
+    }
+
+    suspend fun restoreFromJson(context: Context, jsonString: String, merge: Boolean = true): BackupRestoreResult {
+        return DataBackupManager.restoreFromJson(context, jsonString, productDao, reportDao, turDao, adetselDao, merge)
     }
 }

@@ -54,6 +54,7 @@ fun ProfileSheet(
     onNavigateToCsv: () -> Unit
 ) {
     val context = LocalContext.current
+    val currentUser by com.example.auth.UserManager.currentUser.collectAsState()
     var isEditing by remember { mutableStateOf(false) }
 
     var tempName by remember(userName) { mutableStateOf(userName) }
@@ -95,10 +96,13 @@ fun ProfileSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .size(46.dp)
+                                .size(42.dp)
                                 .clip(CircleShape)
                                 .background(TurquoisePrimary),
                             contentAlignment = Alignment.Center
@@ -107,21 +111,63 @@ fun ProfileSheet(
                                 imageVector = Icons.Default.Badge,
                                 contentDescription = "Profil",
                                 tint = Color.White,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Text(
                                 text = "Personel Profili",
                                 fontWeight = FontWeight.Black,
-                                fontSize = 18.sp,
+                                fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = ExpiredRed.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.35f)),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        com.example.auth.UserManager.logout()
+                                        onDismiss()
+                                        Toast.makeText(context, "Oturum kapatıldı.", Toast.LENGTH_SHORT).show()
+                                    }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.Logout,
+                                        contentDescription = "Çıkış Yap",
+                                        tint = ExpiredRed,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = "Çıkış Yap",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = ExpiredRed
+                                    )
+                                }
+                            }
                         }
                     }
-                    IconButton(onClick = onDismiss) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
 
@@ -414,25 +460,24 @@ fun ProfileSheet(
                         }
                     }
 
-                    // QUICK SYSTEM ACTIONS (CSV Export, Logout)
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
-                        ) {
-                            Column(modifier = Modifier.padding(14.dp)) {
-                                Text(
-                                    text = "🛠️ SİSTEM VE OTURUM YÖNETİMİ",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(10.dp))
+                    // QUICK SYSTEM ACTIONS (CSV Export / Settings)
+                    if (currentUser?.canAccessSettings == true) {
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(18.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                                border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
+                            ) {
+                                Column(modifier = Modifier.padding(14.dp)) {
+                                    Text(
+                                        text = "🛠️ SİSTEM VE VERİ YÖNETİMİ",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(10.dp))
 
-                                val currentUser by com.example.auth.UserManager.currentUser.collectAsState()
-                                if (currentUser?.canAccessSettings == true) {
                                     Button(
                                         onClick = {
                                             onDismiss()
@@ -447,23 +492,6 @@ fun ProfileSheet(
                                         val settingsBtnText = if (currentUser?.role == "MS") "AYARLAR & CSV VERİ YÖNETİMİ" else "GENEL AYARLAR"
                                         Text(settingsBtnText, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                                     }
-
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                }
-
-                                Button(
-                                    onClick = {
-                                        com.example.auth.UserManager.logout()
-                                        onDismiss()
-                                        Toast.makeText(context, "Oturum kapatıldı.", Toast.LENGTH_SHORT).show()
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed),
-                                    shape = RoundedCornerShape(12.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text("ÇIKIŞ YAP (OTURUMU KAPAT)", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = Color.White)
                                 }
                             }
                         }

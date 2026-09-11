@@ -15,6 +15,12 @@ interface TurDao {
     @Query("SELECT * FROM tur_kontrol_kayitlari WHERE turId = :turId ORDER BY kontrolTarihi ASC")
     fun getKayitlarByTurId(turId: Int): Flow<List<TurKontrolKaydi>>
 
+    @Query("SELECT * FROM tur_kontrol_kayitlari ORDER BY kontrolTarihi DESC")
+    suspend fun getAllKontrolKayitlariDirect(): List<TurKontrolKaydi>
+
+    @Query("SELECT * FROM tur_raporlari ORDER BY turTarihi DESC")
+    suspend fun getAllTurRaporlariDirect(): List<TurRaporu>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTurRaporu(rapor: TurRaporu): Long
 

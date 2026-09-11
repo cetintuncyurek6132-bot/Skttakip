@@ -62,8 +62,21 @@ object CloudSyncManager {
 
         try {
             if (FirebaseApp.getApps(context).isNotEmpty()) {
-                firestore = FirebaseFirestore.getInstance()
-                Log.d(TAG, "Firebase initialized successfully from configuration")
+                val db = FirebaseFirestore.getInstance()
+                try {
+                    val settings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                        .setLocalCacheSettings(
+                            com.google.firebase.firestore.PersistentCacheSettings.newBuilder()
+                                .setSizeBytes(50 * 1024 * 1024L) // 50 MB disk cache limit
+                                .build()
+                        )
+                        .build()
+                    db.firestoreSettings = settings
+                } catch (e: Exception) {
+                    Log.w(TAG, "Persistent cache settings already applied or not supported: ${e.message}")
+                }
+                firestore = db
+                Log.d(TAG, "Firebase initialized successfully with persistent disk cache")
             } else {
                 Log.d(TAG, "Firebase configuration not provided, running in standalone local mode")
             }

@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -11,19 +12,146 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 @Database(
-    entities = [Product::class, InspectionReport::class, TurRaporu::class, TurKontrolKaydi::class],
-    version = 6,
+    entities = [Product::class, InspectionReport::class, TurRaporu::class, TurKontrolKaydi::class, AdetselKayit::class],
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
     abstract fun inspectionReportDao(): InspectionReportDao
     abstract fun turDao(): TurDao
+    abstract fun adetselDao(): AdetselDao
     fun reportDao(): InspectionReportDao = inspectionReportDao()
 
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        // SAFE ROOM MIGRATIONS (Preserves all existing user records, products, and reports)
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE products ADD COLUMN isImportant INTEGER NOT NULL DEFAULT 0")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "Migration 1->2 column already exists: ${e.message}")
+                }
+                try {
+                    db.execSQL("ALTER TABLE products ADD COLUMN sonKontrolTarihi INTEGER NOT NULL DEFAULT 0")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "Migration 1->2 column already exists: ${e.message}")
+                }
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE products ADD COLUMN fiyat REAL")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "Migration 2->3 column already exists: ${e.message}")
+                }
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS inspection_reports (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        tarih INTEGER NOT NULL,
+                        reyonAdi TEXT NOT NULL,
+                        tarananUrunSayisi INTEGER NOT NULL,
+                        suresiGecenSayisi INTEGER NOT NULL,
+                        kritikUrunSayisi INTEGER NOT NULL,
+                        fireTutari REAL NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS tur_raporlari (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        turTarihi INTEGER NOT NULL,
+                        hedefReyon TEXT NOT NULL,
+                        toplamUrunSayisi INTEGER NOT NULL,
+                        satilanUrunSayisi INTEGER NOT NULL,
+                        toplamSatilanAdet INTEGER NOT NULL,
+                        fireUrunSayisi INTEGER NOT NULL,
+                        toplamFireAdet INTEGER NOT NULL,
+                        notrUrunSayisi INTEGER NOT NULL,
+                        tamamlandiMi INTEGER NOT NULL,
+                        turSuresiSaniye INTEGER NOT NULL,
+                        toplamPuan INTEGER NOT NULL,
+                        tahminiFireMaliyeti REAL NOT NULL,
+                        enCokFireKategori TEXT NOT NULL DEFAULT '',
+                        personelAdi TEXT NOT NULL DEFAULT ''
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS tur_kontrol_kayitlari (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        turId INTEGER NOT NULL,
+                        productId INTEGER NOT NULL,
+                        urunAdiSnapshot TEXT NOT NULL,
+                        barkodSnapshot TEXT NOT NULL,
+                        kategoriSnapshot TEXT NOT NULL,
+                        durum TEXT NOT NULL,
+                        islemAdedi INTEGER NOT NULL,
+                        kontrolTarihi INTEGER NOT NULL,
+                        personelSnapshot TEXT NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                try {
+                    db.execSQL("ALTER TABLE tur_raporlari ADD COLUMN enCokFireKategori TEXT NOT NULL DEFAULT ''")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "Migration 5->6 column already exists: ${e.message}")
+                }
+                try {
+                    db.execSQL("ALTER TABLE tur_raporlari ADD COLUMN personelAdi TEXT NOT NULL DEFAULT ''")
+                } catch (e: Exception) {
+                    android.util.Log.w("AppDatabase", "Migration 5->6 column already exists: ${e.message}")
+                }
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS adetsel_kayitlar (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        productId INTEGER NOT NULL,
+                        urunAdi TEXT NOT NULL,
+                        urunKodu TEXT NOT NULL,
+                        barkod TEXT NOT NULL DEFAULT '',
+                        kategori TEXT NOT NULL DEFAULT '',
+                        eklenmeTarihi INTEGER NOT NULL,
+                        yapildiMi INTEGER NOT NULL DEFAULT 0,
+                        sayimSonucu TEXT NOT NULL DEFAULT '',
+                        beklenenAdet INTEGER NOT NULL DEFAULT 0,
+                        sayilanAdet INTEGER NOT NULL DEFAULT 0,
+                        farkAdet INTEGER NOT NULL DEFAULT 0,
+                        notlar TEXT NOT NULL DEFAULT '',
+                        islemTarihi INTEGER NOT NULL DEFAULT 0
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
 
         fun getDatabase(
             context: Context,
@@ -36,7 +164,14 @@ abstract class AppDatabase : RoomDatabase() {
                     "skt_takip_database"
                 )
                     .addCallback(AppDatabaseCallback(scope))
-                    .fallbackToDestructiveMigration(true)
+                    .addMigrations(
+                        MIGRATION_1_2,
+                        MIGRATION_2_3,
+                        MIGRATION_3_4,
+                        MIGRATION_4_5,
+                        MIGRATION_5_6,
+                        MIGRATION_6_7
+                    )
                     .build()
                 INSTANCE = instance
                 instance

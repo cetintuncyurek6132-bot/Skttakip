@@ -1,16 +1,30 @@
 package com.example.ui
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.data.AdetselKayit
+import com.example.data.BackupMetadata
+import com.example.data.BackupRestoreResult
+import com.example.data.DataMigrationManager
 import com.example.data.ExpiryStatus
 import com.example.data.InspectionReport
+import com.example.data.MigrationStatus
 import com.example.data.Product
 import com.example.data.ProductRepository
-import com.example.data.parseShelfQrPayload
-import com.example.data.findMatchingProducts
 import com.example.data.TurKontrolKaydi
 import com.example.data.TurRaporu
+import com.example.data.getTodayMidnightMillis
+import com.example.data.isDolapProduct
+import com.example.data.matchesSearchQuery
+import com.example.data.normalizeForSearch
+import com.example.sync.CloudSyncManager
+import com.example.ui.viewmodel.AdetselSayimManager
+import com.example.ui.viewmodel.BarcodeScanProcessor
+import com.example.ui.viewmodel.DatabaseRepairHelper
+import com.example.ui.viewmodel.TourSessionManager
+import com.example.util.ProductCsvImporter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,19 +32,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Calendar
-import java.util.Locale
-
-import com.example.data.getTodayMidnightMillis
-import com.example.data.normalizeForSearch
-import com.example.data.matchesSearchQuery
-import com.example.data.isDolapProduct
-import com.example.data.getDisplayName
-import kotlinx.coroutines.flow.flowOn
 
 enum class ProductFilter(val label: String) {
     ALL("TÜMÜ"),
@@ -63,6 +70,19 @@ class MainViewModel(
     private val repository: ProductRepository
 ) : ViewModel() {
 
+    // Sub-Managers for Feature Decoupling
+    private val tourSessionManager = TourSessionManager(
+        repository = repository,
+        scope = viewModelScope,
+        getAllProducts = { allProducts.value }
+    )
+
+    private val adetselSayimManager = AdetselSayimManager(
+        repository = repository,
+        scope = viewModelScope
+    )
+
+    // Search and Filter State
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
@@ -93,7 +113,7 @@ class MainViewModel(
     private val _endDateFilter = MutableStateFlow<Long?>(null)
     val endDateFilter: StateFlow<Long?> = _endDateFilter.asStateFlow()
 
-    // State for Add/Edit dialog
+    // Dialog and Modal States
     private val _isAddEditModalOpen = MutableStateFlow(false)
     val isAddEditModalOpen: StateFlow<Boolean> = _isAddEditModalOpen.asStateFlow()
 
@@ -109,56 +129,27 @@ class MainViewModel(
     private val _prefilledBarcode = MutableStateFlow("")
     val prefilledBarcode: StateFlow<String> = _prefilledBarcode.asStateFlow()
 
-    // State for Game Mode / Morning Tour
-    private val _gameTargetCategory = MutableStateFlow("Dolap Ürünleri")
-    val gameTargetCategory: StateFlow<String> = _gameTargetCategory.asStateFlow()
+    // Morning Tour / Gamification State (Delegated to TourSessionManager)
+    val gameTargetCategory: StateFlow<String> = tourSessionManager.gameTargetCategory
+    val gameScannedProducts: StateFlow<List<Product>> = tourSessionManager.gameScannedProducts
+    val gameActive: StateFlow<Boolean> = tourSessionManager.gameActive
+    val lastScannedGameProduct: StateFlow<Product?> = tourSessionManager.lastScannedGameProduct
+    val tourQueue: StateFlow<List<Product>> = tourSessionManager.tourQueue
+    val currentQueueIndex: StateFlow<Int> = tourSessionManager.currentQueueIndex
+    val tourLogs: StateFlow<List<TurKontrolKaydi>> = tourSessionManager.tourLogs
+    val tourFinished: StateFlow<Boolean> = tourSessionManager.tourFinished
+    val isTourPaused: StateFlow<Boolean> = tourSessionManager.isTourPaused
+    val tourStartTime: StateFlow<Long> = tourSessionManager.tourStartTime
+    val tourScore: StateFlow<Int> = tourSessionManager.tourScore
+    val tourStreak: StateFlow<Int> = tourSessionManager.tourStreak
+    val lastActionMessage: StateFlow<String?> = tourSessionManager.lastActionMessage
+    val lastSavedTourRaporu: StateFlow<TurRaporu?> = tourSessionManager.lastSavedTourRaporu
+    val allTurRaporlari: StateFlow<List<TurRaporu>> = tourSessionManager.allTurRaporlari
 
-    private val _gameScannedProducts = MutableStateFlow<List<Product>>(emptyList())
-    val gameScannedProducts: StateFlow<List<Product>> = _gameScannedProducts.asStateFlow()
-
-    private val _gameActive = MutableStateFlow(false)
-    val gameActive: StateFlow<Boolean> = _gameActive.asStateFlow()
-
-    private val _lastScannedGameProduct = MutableStateFlow<Product?>(null)
-    val lastScannedGameProduct: StateFlow<Product?> = _lastScannedGameProduct.asStateFlow()
-
-    // New Morning Check Tour State
-    private val _tourQueue = MutableStateFlow<List<Product>>(emptyList())
-    val tourQueue: StateFlow<List<Product>> = _tourQueue.asStateFlow()
-
-    private val _currentQueueIndex = MutableStateFlow(0)
-    val currentQueueIndex: StateFlow<Int> = _currentQueueIndex.asStateFlow()
-
-    private val _tourLogs = MutableStateFlow<List<TurKontrolKaydi>>(emptyList())
-    val tourLogs: StateFlow<List<TurKontrolKaydi>> = _tourLogs.asStateFlow()
-
-    private val _tourFinished = MutableStateFlow(false)
-    val tourFinished: StateFlow<Boolean> = _tourFinished.asStateFlow()
-
-    private val _isTourPaused = MutableStateFlow(false)
-    val isTourPaused: StateFlow<Boolean> = _isTourPaused.asStateFlow()
-
-    private val _tourStartTime = MutableStateFlow(0L)
-    val tourStartTime: StateFlow<Long> = _tourStartTime.asStateFlow()
-
-    private val _tourScore = MutableStateFlow(0)
-    val tourScore: StateFlow<Int> = _tourScore.asStateFlow()
-
-    private val _tourStreak = MutableStateFlow(0)
-    val tourStreak: StateFlow<Int> = _tourStreak.asStateFlow()
-
-    private val _lastActionMessage = MutableStateFlow<String?>(null)
-    val lastActionMessage: StateFlow<String?> = _lastActionMessage.asStateFlow()
-
-    private val _lastSavedTourRaporu = MutableStateFlow<TurRaporu?>(null)
-    val lastSavedTourRaporu: StateFlow<TurRaporu?> = _lastSavedTourRaporu.asStateFlow()
-
-    val allTurRaporlari: StateFlow<List<TurRaporu>> = repository.allTurRaporlari
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    // Adetsel Sayım State (Delegated to AdetselSayimManager)
+    val allAdetselKayitlari: StateFlow<List<AdetselKayit>> = adetselSayimManager.allAdetselKayitlari
+    val yapilacakAdetselKayitlari: StateFlow<List<AdetselKayit>> = adetselSayimManager.yapilacakAdetselKayitlari
+    val yapildiAdetselKayitlari: StateFlow<List<AdetselKayit>> = adetselSayimManager.yapildiAdetselKayitlari
 
     // All products flow from repository
     val allProducts: StateFlow<List<Product>> = repository.allProducts
@@ -168,19 +159,25 @@ class MainViewModel(
             initialValue = emptyList()
         )
 
+    val allReports: StateFlow<List<InspectionReport>> = repository.allReports
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     init {
         viewModelScope.launch {
             val list = repository.getProductListDirect()
-            val userHasReset = com.example.sync.CloudSyncManager.hasUserResetData()
+            val userHasReset = CloudSyncManager.hasUserResetData()
             if (list.isEmpty() && !userHasReset) {
                 repository.reSeedDefaultData()
             }
             // Automatically clean up any duplicate products from DB on launch
             fixAndRepairDatabase { _, _ -> }
+            cleanDuplicatePendingAdetsel()
         }
     }
-
-
 
     private fun isSameCalendarDay(millis1: Long, millis2: Long): Boolean {
         val cal1 = Calendar.getInstance().apply { timeInMillis = millis1 }
@@ -189,14 +186,7 @@ class MainViewModel(
                 cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 
-    val allReports: StateFlow<List<InspectionReport>> = repository.allReports
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    // User Profile & Notification State
+    // User Profile & Settings State
     private val _userName = MutableStateFlow("Ahmet Yılmaz")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
@@ -248,7 +238,6 @@ class MainViewModel(
         val nextVal = !_isBatterySaverMode.value
         _isBatterySaverMode.value = nextVal
         if (nextVal) {
-            // Suggest or enable Dark Mode automatically for OLED battery savings if light
             _isDarkMode.value = true
         }
     }
@@ -262,99 +251,7 @@ class MainViewModel(
 
     fun fixAndRepairDatabase(onResult: (Int, String) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
-            var fixedCount = 0
-            try {
-                val allProds = repository.getProductListDirect()
-                val updatedProds = mutableListOf<Product>()
-                val seenKeys = mutableSetOf<String>()
-                val itemsToDelete = mutableListOf<Product>()
-
-                fun isCorruptedText(text: String): Boolean {
-                    if (text.isEmpty()) return false
-                    if (text.contains("\uFFFD")) return true
-                    if (text.contains("_rels") || text.contains("[Content_Types]") || text.contains("<xml") || text.contains("PK\u0003") || text.contains("xl/workbooks") || text.contains("Root Entry")) return true
-                    if (text.any { it.code in 0..8 || it.code in 14..31 || it.code == 127 }) return true
-                    return false
-                }
-
-                for (p in allProds) {
-                    // Check if product is binary garbage / corrupted from illegal file import
-                    if (isCorruptedText(p.barkod) || isCorruptedText(p.urunKodu) || isCorruptedText(p.urunAdi)) {
-                        itemsToDelete.add(p)
-                        fixedCount++
-                        continue
-                    }
-
-                    val trimmedName = p.urunAdi.trim().replace("\\s+".toRegex(), " ")
-                    // Clean barcode: filter non-digits and strip leading zero mismatch
-                    var cleanBarcode = p.barkod.trim().filter { it.isDigit() }
-                    var cleanUrunKodu = p.urunKodu.trim().filter { it.isLetterOrDigit() }
-                    var newStok = p.stokAdedi
-                    var isModified = false
-
-                    if (trimmedName != p.urunAdi) {
-                        isModified = true
-                        fixedCount++
-                    }
-                    if (cleanBarcode != p.barkod && cleanBarcode.isNotEmpty()) {
-                        isModified = true
-                        fixedCount++
-                    }
-                    if (cleanUrunKodu != p.urunKodu) {
-                        isModified = true
-                        fixedCount++
-                    }
-                    if (newStok < 0) {
-                        newStok = 0
-                        isModified = true
-                        fixedCount++
-                    }
-
-                    val effectiveBarcode = if (cleanBarcode.isNotEmpty()) cleanBarcode else p.barkod.trim()
-                    val identifier = if (effectiveBarcode.isNotEmpty()) effectiveBarcode else trimmedName.lowercase()
-                    val formattedSkt = p.getFormattedSkt()
-                    // Deduplication key MUST include name and product code so different products sharing product code / placeholder barcode are never deleted
-                    val dupKey = "${identifier}_${cleanUrunKodu.lowercase()}_${trimmedName.lowercase()}-$formattedSkt"
-
-                    if (seenKeys.contains(dupKey)) {
-                        itemsToDelete.add(p)
-                        fixedCount++
-                    } else {
-                        seenKeys.add(dupKey)
-                        if (isModified) {
-                            updatedProds.add(
-                                p.copy(
-                                    urunAdi = trimmedName,
-                                    barkod = effectiveBarcode,
-                                    urunKodu = cleanUrunKodu,
-                                    stokAdedi = newStok
-                                )
-                            )
-                        }
-                    }
-                }
-
-                for (item in itemsToDelete) {
-                    repository.deleteProduct(item)
-                }
-                for (mod in updatedProds) {
-                    repository.insertOrUpdateProduct(mod)
-                }
-
-                val summary = if (fixedCount > 0) {
-                    "🔍 Tarama ve Onarım Tamamlandı!\n\n• Toplam $fixedCount adet tutarsızlık/bozuk veri/mükerrer kayıt temizlendi ve düzeltildi.\n• Ürün metinleri, barkodlar, ürün kodları ve stok sayıları optimize edildi."
-                } else {
-                    "✅ Mükemmel! Veritabanınızda hiçbir hata veya tutarsızlık bulunamadı. Tüm veriler tam uyumlu ve optimize edilmiş durumda."
-                }
-
-                withContext(Dispatchers.Main) {
-                    onResult(fixedCount, summary)
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    onResult(0, "Hata taraması sırasında bir sorun oluştu: ${e.localizedMessage}")
-                }
-            }
+            DatabaseRepairHelper.repairDatabase(repository, onResult)
         }
     }
 
@@ -404,24 +301,20 @@ class MainViewModel(
         val soon = products.count { it.sktTarihi > 0L && it.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON }
         val important = products.count { (it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1..30 && it.stokAdedi >= 10) || it.isImportant }
 
-        // Top attention items sorted by closest remaining days
         val attention = products.filter { it.sktTarihi > 0L }
             .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
             .sortedBy { it.getRemainingDays(todayMidnight) }
             .take(10)
 
-        // Reyondan kaldırılması gerekenler (Sağ taraf: SKT dolmuş / remainingDays <= 0)
         val removeProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) <= 0L }
             .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
             .sortedBy { it.getRemainingDays(todayMidnight) }
 
-        // SKT'sine son 1 ila 7 gün kalmış ürünler (Sol taraf: 1 <= remainingDays <= 7)
         val nearExpiryProds = products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1L..7L }
             .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
             .sortedBy { it.getRemainingDays(todayMidnight) }
 
         val completedToday = reports.any { it.tarih >= todayMidnight }
-
         val activeAlertsCount = expired + critical
         val unreadCount = if (isRead) 0 else (if (activeAlertsCount > 0) activeAlertsCount else 1)
 
@@ -476,28 +369,27 @@ class MainViewModel(
         }
 
         val calStart = startDate?.let {
-            java.util.Calendar.getInstance().apply {
+            Calendar.getInstance().apply {
                 timeInMillis = it
-                set(java.util.Calendar.HOUR_OF_DAY, 0)
-                set(java.util.Calendar.MINUTE, 0)
-                set(java.util.Calendar.SECOND, 0)
-                set(java.util.Calendar.MILLISECOND, 0)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }.timeInMillis
         }
 
         val calEnd = endDate?.let {
-            java.util.Calendar.getInstance().apply {
+            Calendar.getInstance().apply {
                 timeInMillis = it
-                set(java.util.Calendar.HOUR_OF_DAY, 23)
-                set(java.util.Calendar.MINUTE, 59)
-                set(java.util.Calendar.SECOND, 59)
-                set(java.util.Calendar.MILLISECOND, 999)
+                set(Calendar.HOUR_OF_DAY, 23)
+                set(Calendar.MINUTE, 59)
+                set(Calendar.SECOND, 59)
+                set(Calendar.MILLISECOND, 999)
             }.timeInMillis
         }
 
         val baseList = products.filter { prod ->
             val matchesSearch = prod.matchesSearchQuery(rawQuery, queryTokens)
-
             val matchesFilter = when (filter) {
                 ProductFilter.ALL -> prod.sktTarihi > 0L && prod.stokAdedi > 0
                 ProductFilter.IMPORTANT -> (prod.sktTarihi > 0L && prod.getRemainingDays(todayMidnight) in 1..30 && prod.stokAdedi >= 10) || prod.isImportant
@@ -718,13 +610,24 @@ class MainViewModel(
             }
 
             val sameDayMatch = existingList.find { isSameCalendarDay(it.sktTarihi, newSktTarihi) }
+            val placeholder = existingList.find { it.sktTarihi <= 0L }
 
             val savedProduct = if (sameDayMatch != null) {
                 val updatedProduct = sameDayMatch.copy(
                     stokAdedi = sameDayMatch.stokAdedi + newStokAdedi
                 )
                 repository.insertOrUpdateProduct(updatedProduct)
+                if (placeholder != null && placeholder.id != sameDayMatch.id) {
+                    repository.deleteProduct(placeholder)
+                }
                 updatedProduct
+            } else if (placeholder != null) {
+                val updatedPlaceholder = placeholder.copy(
+                    sktTarihi = newSktTarihi,
+                    stokAdedi = newStokAdedi
+                )
+                repository.insertOrUpdateProduct(updatedPlaceholder)
+                updatedPlaceholder
             } else {
                 val newProd = existingProduct.copy(
                     id = 0,
@@ -761,6 +664,45 @@ class MainViewModel(
         }
     }
 
+    fun deductProductStock(
+        product: Product,
+        amount: Int,
+        reason: String,
+        onSuccess: (remaining: Int) -> Unit = {}
+    ) {
+        viewModelScope.launch {
+            val safeAmount = if (amount <= 0) 1 else amount
+            val newStock = maxOf(0, product.stokAdedi - safeAmount)
+            repository.updateProductStock(product.id, newStock)
+            val updated = product.copy(stokAdedi = newStock, sonKontrolTarihi = System.currentTimeMillis())
+            if (_detailProduct.value?.id == product.id) {
+                _detailProduct.value = updated
+            }
+            onSuccess(newStock)
+        }
+    }
+
+    fun removeProductFromShelf(product: Product, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            val updated = product.copy(stokAdedi = 0)
+            repository.insertOrUpdateProduct(updated)
+            if (_detailProduct.value?.id == product.id) {
+                _detailProduct.value = updated
+            }
+            onSuccess()
+        }
+    }
+
+    fun removeMultipleProductsFromShelf(products: List<Product>, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch {
+            products.forEach { prod ->
+                val updated = prod.copy(stokAdedi = 0)
+                repository.insertOrUpdateProduct(updated)
+            }
+            onSuccess()
+        }
+    }
+
     fun deleteProduct(product: Product) {
         viewModelScope.launch {
             repository.deleteProduct(product)
@@ -784,7 +726,7 @@ class MainViewModel(
         viewModelScope.launch {
             showLoading("Veritabanı Sıfırlanıyor...")
             try {
-                com.example.sync.CloudSyncManager.setHasUserResetData(true)
+                CloudSyncManager.setHasUserResetData(true)
                 repository.resetAllData()
             } finally {
                 hideLoading()
@@ -796,7 +738,7 @@ class MainViewModel(
         viewModelScope.launch {
             showLoading("Varsayılan Ürünler Yükleniyor...")
             try {
-                com.example.sync.CloudSyncManager.setHasUserResetData(false)
+                CloudSyncManager.setHasUserResetData(false)
                 repository.reSeedDefaultData()
             } finally {
                 hideLoading()
@@ -804,71 +746,16 @@ class MainViewModel(
         }
     }
 
-    // CSV Batch Import
+    // CSV / XLSX Batch Import with Smart Auto-Heal (Delegated to ProductCsvImporter)
     fun importCsvLines(lines: List<String>): Int {
         val existingKeys = allProducts.value.map {
             "${it.barkod.trim().lowercase()}_${it.urunKodu.trim().lowercase()}_${it.urunAdi.trim().lowercase()}"
         }.toSet()
-        val batchKeys = mutableSetOf<String>()
-        val productsToInsert = mutableListOf<Product>()
 
-        fun isGarbageText(text: String): Boolean {
-            if (text.isEmpty()) return false
-            if (text.contains("\uFFFD")) return true
-            if (text.contains("_rels") || text.contains("[Content_Types]") || text.contains("<xml") || text.contains("PK\u0003") || text.contains("xl/workbooks") || text.contains("Root Entry")) return true
-            if (text.any { it.code in 0..8 || it.code in 14..31 || it.code == 127 }) return true
-            return false
-        }
-
-        fun cleanField(field: String): String {
-            return field.removePrefix("\uFEFF")
-                .trim()
-                .removeSurrounding("\"")
-                .removeSurrounding("'")
-                .trim()
-                .filterNot { it.code in 0..8 || it.code in 14..31 || it.code == 127 || it == '\uFFFD' }
-        }
-
-        for (rawLine in lines) {
-            val line = rawLine.trim()
-            val lowerLine = line.lowercase()
-            if (line.isEmpty() || line.startsWith("#") || lowerLine.startsWith("barkod") || lowerLine.contains("ürün kodu") || lowerLine.contains("urun kodu") || lowerLine.contains("ürün adı") || lowerLine.contains("urun adi") || isGarbageText(line)) continue
-            val parts = line.split(",", ";", "\t").map { cleanField(it) }
-            if (parts.size >= 3) {
-                val rawBarkod = parts[0]
-                val urunKodu = parts[1]
-                val urunAdi = parts[2]
-                val kategori = if (parts.size >= 4 && parts[3].isNotBlank()) parts[3] else "Genel"
-                val sktTarihi = if (parts.size >= 5 && parts[4].isNotBlank()) {
-                    parseDateOrOffset(parts[4])
-                } else {
-                    0L
-                }
-                val stokAdedi = if (sktTarihi > 0L) (if (parts.size >= 6) parts[5].toIntOrNull() ?: 1 else 1) else 0
-
-                val effectiveBarkod = if (rawBarkod.isNotBlank()) rawBarkod else urunKodu
-
-                if (effectiveBarkod.isNotEmpty() && urunAdi.isNotEmpty() && !isGarbageText(effectiveBarkod) && !isGarbageText(urunAdi) && !isGarbageText(urunKodu)) {
-                    val itemKey = "${effectiveBarkod.trim().lowercase()}_${urunKodu.trim().lowercase()}_${urunAdi.trim().lowercase()}"
-                    if (!existingKeys.contains(itemKey) && !batchKeys.contains(itemKey)) {
-                        batchKeys.add(itemKey)
-                        productsToInsert.add(
-                            Product(
-                                barkod = effectiveBarkod,
-                                urunKodu = urunKodu.ifEmpty { "0000" },
-                                urunAdi = urunAdi.uppercase(),
-                                kategori = kategori,
-                                sktTarihi = sktTarihi,
-                                stokAdedi = stokAdedi
-                            )
-                        )
-                    }
-                }
-            }
-        }
+        val productsToInsert = ProductCsvImporter.parseLinesToProducts(lines, existingKeys)
         if (productsToInsert.isNotEmpty()) {
             viewModelScope.launch {
-                showLoading("CSV Ürünleri Aktarılıyor (${productsToInsert.size} Kalem)...")
+                showLoading("Ürünler Aktarılıyor (${productsToInsert.size} Kalem)...")
                 try {
                     repository.insertProductsBatch(productsToInsert)
                 } finally {
@@ -879,386 +766,42 @@ class MainViewModel(
         return productsToInsert.size
     }
 
-    private fun parseDateOrOffset(input: String): Long {
-        if (input.isBlank()) return 0L
-        // Can be either "+N" days offset or day timestamp or "yyyy-MM-dd" / "dd.MM.yyyy" / "dd/MM/yyyy"
-        input.toIntOrNull()?.let { daysOffset ->
-            return System.currentTimeMillis() + daysOffset * 24L * 60 * 60 * 1000
-        }
-        return try {
-            if (input.contains(".")) {
-                val p = input.split(".")
-                if (p.size >= 3) {
-                    val cal = Calendar.getInstance()
-                    cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
-                    cal.timeInMillis
-                } else 0L
-            } else if (input.contains("-")) {
-                val p = input.split("-")
-                if (p.size >= 3) {
-                    val cal = Calendar.getInstance()
-                    cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt(), 0, 0, 0)
-                    cal.timeInMillis
-                } else 0L
-            } else if (input.contains("/")) {
-                val p = input.split("/")
-                if (p.size >= 3) {
-                    val cal = Calendar.getInstance()
-                    cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
-                    cal.timeInMillis
-                } else 0L
-            } else {
-                0L
-            }
-        } catch (e: Exception) {
-            0L
-        }
-    }
+    // Gamification / Kontrol Oyunu methods (Delegated to TourSessionManager)
+    fun setGameTargetCategory(category: String) = tourSessionManager.setGameTargetCategory(category)
+    fun startTourSession() = tourSessionManager.startTourSession()
+    fun pauseTourSession() = tourSessionManager.pauseTourSession()
+    fun resumeTourSession() = tourSessionManager.resumeTourSession()
+    fun clearLastActionMessage() = tourSessionManager.clearLastActionMessage()
+    fun recordTourSold(product: Product, soldCount: Int) = tourSessionManager.recordTourSold(product, soldCount)
+    fun recordTourFire(product: Product, fireCount: Int) = tourSessionManager.recordTourFire(product, fireCount)
+    fun recordTourNotr(product: Product) = tourSessionManager.recordTourNotr(product)
+    fun undoLastTourAction() = tourSessionManager.undoLastTourAction()
+    fun cancelTourSession() = tourSessionManager.cancelTourSession()
+    fun resetTourState() = tourSessionManager.resetTourState()
+    fun startGameSession() = tourSessionManager.startGameSession()
+    fun cancelGameSession() = tourSessionManager.cancelGameSession()
+    fun onGameScanBarcode(barkod: String, onProductNotFound: () -> Unit) = tourSessionManager.onGameScanBarcode(barkod, onProductNotFound)
+    fun completeGameSession(onFinished: (InspectionReport) -> Unit) = tourSessionManager.completeGameSession(onFinished)
+    fun deleteTurRaporu(id: Int) = tourSessionManager.deleteTurRaporu(id)
+    fun clearAllTurRaporlari() = tourSessionManager.clearAllTurRaporlari()
+    fun getKayitlarByTurId(turId: Int): Flow<List<TurKontrolKaydi>> = tourSessionManager.getKayitlarByTurId(turId)
 
-    // Gamification / Kontrol Oyunu methods
-    fun setGameTargetCategory(category: String) {
-        _gameTargetCategory.value = category
-    }
+    // Adetsel Sayım Methods (Delegated to AdetselSayimManager)
+    fun cleanDuplicatePendingAdetsel() = adetselSayimManager.cleanDuplicatePendingAdetsel()
+    fun addToAdetsel(product: Product, onComplete: ((Boolean) -> Unit)? = null) = adetselSayimManager.addToAdetsel(product, onComplete)
+    fun saveAdetselSayim(
+        kayit: AdetselKayit,
+        sonuc: String,
+        fark: Int,
+        sayilanAdet: Int = kayit.beklenenAdet + fark,
+        notlar: String = "",
+        onComplete: (() -> Unit)? = null
+    ) = adetselSayimManager.saveAdetselSayim(kayit, sonuc, fark, sayilanAdet, notlar, onComplete)
+    fun undoAdetselKayit(kayit: AdetselKayit) = adetselSayimManager.undoAdetselKayit(kayit)
+    fun deleteAdetselKayit(id: Int) = adetselSayimManager.deleteAdetselKayit(id)
+    fun clearCompletedAdetselKayitlar() = adetselSayimManager.clearCompletedAdetselKayitlar()
 
-    fun startTourSession() {
-        val allProds = allProducts.value
-
-        if (allProds.isEmpty()) {
-            _tourQueue.value = emptyList()
-            _currentQueueIndex.value = 0
-            _tourLogs.value = emptyList()
-            _tourFinished.value = false
-            _isTourPaused.value = false
-            _tourScore.value = 0
-            _tourStreak.value = 0
-            _lastActionMessage.value = null
-            _lastSavedTourRaporu.value = null
-            _gameActive.value = true
-            _tourStartTime.value = System.currentTimeMillis()
-            return
-        }
-
-        // Filter strictly for products with SKT <= 20 days (maximum 20 days remaining)
-        val filteredEligible = allProds.filter { p ->
-            p.sktTarihi > 0L && p.getRemainingDays() <= 20
-        }
-
-        // Group 1: Dolap Ürünleri (Categories matching dolap, süt, şarküteri, soğuk, peynir, yoğurt, et, tavuk, dondurma)
-        val dolapProds = filteredEligible.filter { p ->
-            p.isDolapProduct()
-        }.sortedWith(compareBy({ it.getRemainingDays() }, { -it.stokAdedi }, { it.urunAdi }))
-
-        // Group 2: Gıda Ürünleri & Other reyonlar
-        val gidaProds = filteredEligible.filter { p ->
-            !p.isDolapProduct()
-        }.sortedWith(compareBy({ it.getRemainingDays() }, { -it.stokAdedi }, { it.urunAdi }))
-
-        val fullQueue = dolapProds + gidaProds
-
-        _gameTargetCategory.value = "Tüm Mağaza Kontrol Turu"
-        _tourQueue.value = fullQueue
-        _currentQueueIndex.value = 0
-        _tourLogs.value = emptyList()
-        _tourFinished.value = false
-        _isTourPaused.value = false
-        _tourScore.value = 0
-        _tourStreak.value = 0
-        _lastActionMessage.value = null
-        _lastSavedTourRaporu.value = null
-        _gameActive.value = true
-        _tourStartTime.value = System.currentTimeMillis()
-    }
-
-    fun pauseTourSession() {
-        _isTourPaused.value = true
-    }
-
-    fun resumeTourSession() {
-        _isTourPaused.value = false
-    }
-
-    fun clearLastActionMessage() {
-        _lastActionMessage.value = null
-    }
-
-    fun recordTourSold(product: Product, soldCount: Int) {
-        viewModelScope.launch {
-            val safeSoldCount = maxOf(1, soldCount)
-            val newStock = maxOf(0, product.stokAdedi - safeSoldCount)
-            repository.updateProductStock(product.id, newStock)
-
-            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
-
-            val log = TurKontrolKaydi(
-                productId = product.id,
-                urunAdiSnapshot = product.getDisplayName(),
-                barkodSnapshot = product.barkod,
-                kategoriSnapshot = product.kategori,
-                durum = "SATILDI",
-                islemAdedi = safeSoldCount,
-                kontrolTarihi = System.currentTimeMillis(),
-                personelSnapshot = currentPersonel
-            )
-            _tourLogs.value = _tourLogs.value + log
-
-            val newStreak = _tourStreak.value + 1
-            _tourStreak.value = newStreak
-            val streakBonus = (newStreak / 3) * 2
-            _tourScore.value += 10 + streakBonus
-            _lastActionMessage.value = "+$safeSoldCount adet stoktan düşüldü"
-
-            val nextIndex = _currentQueueIndex.value + 1
-            if (nextIndex >= _tourQueue.value.size) {
-                finishTourInternal(isEarlyExit = false)
-            } else {
-                _currentQueueIndex.value = nextIndex
-            }
-        }
-    }
-
-    fun recordTourFire(product: Product, fireCount: Int) {
-        viewModelScope.launch {
-            val safeFireCount = maxOf(1, fireCount)
-            val newStock = maxOf(0, product.stokAdedi - safeFireCount)
-            repository.updateProductStock(product.id, newStock)
-
-            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
-
-            val log = TurKontrolKaydi(
-                productId = product.id,
-                urunAdiSnapshot = product.getDisplayName(),
-                barkodSnapshot = product.barkod,
-                kategoriSnapshot = product.kategori,
-                durum = "FIRE",
-                islemAdedi = safeFireCount,
-                kontrolTarihi = System.currentTimeMillis(),
-                personelSnapshot = currentPersonel
-            )
-            _tourLogs.value = _tourLogs.value + log
-
-            val newStreak = _tourStreak.value + 1
-            _tourStreak.value = newStreak
-            _tourScore.value += 2
-            _lastActionMessage.value = "$safeFireCount adet fire kaydedildi"
-
-            val nextIndex = _currentQueueIndex.value + 1
-            if (nextIndex >= _tourQueue.value.size) {
-                finishTourInternal(isEarlyExit = false)
-            } else {
-                _currentQueueIndex.value = nextIndex
-            }
-        }
-    }
-
-    fun recordTourNotr(product: Product) {
-        viewModelScope.launch {
-            repository.updateProductStock(product.id, product.stokAdedi)
-
-            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
-
-            val log = TurKontrolKaydi(
-                productId = product.id,
-                urunAdiSnapshot = product.getDisplayName(),
-                barkodSnapshot = product.barkod,
-                kategoriSnapshot = product.kategori,
-                durum = "NOTR",
-                islemAdedi = 0,
-                kontrolTarihi = System.currentTimeMillis(),
-                personelSnapshot = currentPersonel
-            )
-            _tourLogs.value = _tourLogs.value + log
-
-            val newStreak = _tourStreak.value + 1
-            _tourStreak.value = newStreak
-            val streakBonus = (newStreak / 5) * 2
-            _tourScore.value += 5 + streakBonus
-            _lastActionMessage.value = "Ürün rafta duruyor"
-
-            val nextIndex = _currentQueueIndex.value + 1
-            if (nextIndex >= _tourQueue.value.size) {
-                finishTourInternal(isEarlyExit = false)
-            } else {
-                _currentQueueIndex.value = nextIndex
-            }
-        }
-    }
-
-    fun undoLastTourAction() {
-        val logs = _tourLogs.value
-        val currentIndex = _currentQueueIndex.value
-        if (logs.isNotEmpty() && currentIndex > 0) {
-            val lastLog = logs.last()
-            viewModelScope.launch {
-                if (lastLog.durum == "SATILDI" || lastLog.durum == "FIRE") {
-                    val prod = allProducts.value.find { it.id == lastLog.productId }
-                    if (prod != null) {
-                        val restoredStock = prod.stokAdedi + lastLog.islemAdedi
-                        repository.updateProductStock(prod.id, restoredStock)
-                    }
-                }
-                _tourLogs.value = logs.dropLast(1)
-                _currentQueueIndex.value = currentIndex - 1
-                _tourStreak.value = maxOf(0, _tourStreak.value - 1)
-                _lastActionMessage.value = "Son işlem geri alındı"
-            }
-        }
-    }
-
-    fun cancelTourSession() {
-        if (_tourLogs.value.isNotEmpty()) {
-            finishTourInternal(isEarlyExit = true)
-        } else {
-            _gameActive.value = false
-            _isTourPaused.value = false
-            _tourFinished.value = false
-        }
-    }
-
-    private fun finishTourInternal(isEarlyExit: Boolean) {
-        viewModelScope.launch {
-            val logs = _tourLogs.value
-            val satilanLogs = logs.filter { it.durum == "SATILDI" }
-            val fireLogs = logs.filter { it.durum == "FIRE" }
-
-            val satilanUrunCount = satilanLogs.size
-            val satilanTotalCount = satilanLogs.sumOf { it.islemAdedi }
-            val fireUrunCount = fireLogs.size
-            val fireTotalCount = fireLogs.sumOf { it.islemAdedi }
-            val notrUrunCount = logs.count { it.durum == "NOTR" }
-
-            val allProds = allProducts.value
-            var totalFireCost = 0.0
-            val fireCategoryMap = mutableMapOf<String, Int>()
-
-            fireLogs.forEach { fl ->
-                val prod = allProds.find { it.id == fl.productId }
-                val unitPrice = prod?.fiyat ?: 35.0
-                totalFireCost += unitPrice * fl.islemAdedi
-                val cat = prod?.kategori ?: fl.kategoriSnapshot.ifBlank { "Genel Gıda" }
-                fireCategoryMap[cat] = (fireCategoryMap[cat] ?: 0) + fl.islemAdedi
-            }
-
-            val topFireCat = fireCategoryMap.maxByOrNull { it.value }?.key ?: if (fireLogs.isNotEmpty()) "Dolap / Şarküteri" else "Yok"
-
-            val durationSeconds = if (_tourStartTime.value > 0L) {
-                ((System.currentTimeMillis() - _tourStartTime.value) / 1000L).coerceAtLeast(1L)
-            } else 0L
-
-            val currentPersonel = com.example.auth.UserManager.currentUser.value?.fullName ?: "Görevli Ekip"
-
-            val tourRaporu = TurRaporu(
-                turTarihi = System.currentTimeMillis(),
-                hedefReyon = _gameTargetCategory.value,
-                toplamUrunSayisi = logs.size,
-                satilanUrunSayisi = satilanUrunCount,
-                toplamSatilanAdet = satilanTotalCount,
-                fireUrunSayisi = fireUrunCount,
-                toplamFireAdet = fireTotalCount,
-                notrUrunSayisi = notrUrunCount,
-                tamamlandiMi = !isEarlyExit,
-                turSuresiSaniye = durationSeconds,
-                toplamPuan = _tourScore.value,
-                tahminiFireMaliyeti = totalFireCost,
-                enCokFireKategori = topFireCat,
-                personelAdi = currentPersonel
-            )
-
-            val savedId = repository.saveTourReport(tourRaporu, logs)
-            _lastSavedTourRaporu.value = tourRaporu.copy(id = savedId.toInt())
-
-            // Mirror to legacy report list
-            val legacyReport = InspectionReport(
-                tarih = System.currentTimeMillis(),
-                reyonAdi = _gameTargetCategory.value,
-                tarananUrunSayisi = logs.size,
-                suresiGecenSayisi = fireUrunCount,
-                kritikUrunSayisi = satilanUrunCount,
-                fireTutari = if (totalFireCost > 0.0) totalFireCost else (fireTotalCount * 35.0)
-            )
-            repository.insertReport(legacyReport)
-
-            _gameActive.value = false
-            _isTourPaused.value = false
-            _tourFinished.value = true
-        }
-    }
-
-    fun resetTourState() {
-        _gameActive.value = false
-        _isTourPaused.value = false
-        _tourFinished.value = false
-        _tourQueue.value = emptyList()
-        _currentQueueIndex.value = 0
-        _tourLogs.value = emptyList()
-        _tourScore.value = 0
-        _tourStreak.value = 0
-        _lastActionMessage.value = null
-        _lastSavedTourRaporu.value = null
-    }
-
-    fun startGameSession() {
-        startTourSession()
-    }
-
-    fun cancelGameSession() {
-        cancelTourSession()
-    }
-
-    fun onGameScanBarcode(barkod: String, onProductNotFound: () -> Unit) {
-        viewModelScope.launch {
-            val qrData = parseShelfQrPayload(barkod)
-            val queryBarcode = qrData.barcode
-            val queryProductCode = qrData.productCode
-            val scannedPrice = qrData.price
-
-            val queryDigits = queryBarcode.filter { it.isDigit() }
-            val queryNoLeadingZeros = queryDigits.trimStart('0')
-
-            val all = repository.getProductListDirect()
-            val matchingList = all.findMatchingProducts(barkod)
-            var prod = matchingList.firstOrNull()
-
-            if (prod != null) {
-                val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
-                    prod.urunKodu.isBlank() ||
-                    prod.urunKodu.equals(queryProductCode, ignoreCase = true)
-
-                if (scannedPrice != null && scannedPrice > 0.0 && isProductCodeMatch) {
-                    updateProductPrice(prod, scannedPrice)
-                    prod = prod.copy(fiyat = scannedPrice)
-                }
-                _lastScannedGameProduct.value = prod
-                val currentList = _gameScannedProducts.value.toMutableList()
-                if (currentList.none { it.id == prod.id }) {
-                    currentList.add(0, prod)
-                    _gameScannedProducts.value = currentList
-                }
-            } else {
-                onProductNotFound()
-            }
-        }
-    }
-
-    fun completeGameSession(onFinished: (InspectionReport) -> Unit) {
-        cancelTourSession()
-    }
-
-    fun deleteTurRaporu(id: Int) {
-        viewModelScope.launch {
-            repository.deleteTurRaporu(id)
-        }
-    }
-
-    fun clearAllTurRaporlari() {
-        viewModelScope.launch {
-            repository.clearAllTurRaporlari()
-        }
-    }
-
-    fun getKayitlarByTurId(turId: Int): Flow<List<TurKontrolKaydi>> {
-        return repository.getKayitlarByTurId(turId)
-    }
-
+    // Legacy Inspection Reports
     fun deleteReport(reportId: Int) {
         viewModelScope.launch {
             repository.deleteReport(reportId)
@@ -1271,63 +814,13 @@ class MainViewModel(
         }
     }
 
-    // Helper for barcode lookup in normal mode
+    // Barcode & QR code scanning (Delegated to BarcodeScanProcessor)
     fun fixProductBarcodeAndPriceFromQr(
         rawInput: String,
         onResult: (message: String, isSuccess: Boolean) -> Unit
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            val qrData = parseShelfQrPayload(rawInput)
-            val realBarcode = qrData.barcode.trim()
-            val productCode = qrData.productCode?.trim()
-            val newPrice = qrData.price
-
-            val all = repository.getProductListDirect()
-
-            var targetProducts = all.filter { p ->
-                (productCode != null && productCode.isNotBlank() && p.urunKodu.equals(productCode, ignoreCase = true)) ||
-                (productCode != null && productCode.isNotBlank() && p.barkod.equals(productCode, ignoreCase = true)) ||
-                p.urunKodu.equals(realBarcode, ignoreCase = true) ||
-                p.urunKodu.equals(rawInput.trim(), ignoreCase = true)
-            }
-
-            if (targetProducts.isEmpty()) {
-                targetProducts = all.findMatchingProducts(rawInput)
-            }
-
-            if (targetProducts.isEmpty()) {
-                withContext(Dispatchers.Main) {
-                    onResult("⚠️ Ürün kodu '${productCode ?: realBarcode}' ile eşleşen ürün bulunamadı.", false)
-                }
-                return@launch
-            }
-
-            var updatedCount = 0
-            var sampleName = ""
-
-            targetProducts.forEach { prod ->
-                val finalBarcode = if (realBarcode.length >= 8 && realBarcode != prod.urunKodu) realBarcode else prod.barkod
-                val finalPrice = newPrice ?: prod.fiyat
-
-                if (finalBarcode != prod.barkod || finalPrice != prod.fiyat) {
-                    val updated = prod.copy(
-                        barkod = finalBarcode,
-                        fiyat = finalPrice
-                    )
-                    repository.insertOrUpdateProduct(updated)
-                    updatedCount++
-                    if (sampleName.isBlank()) sampleName = prod.urunAdi
-                }
-            }
-
-            withContext(Dispatchers.Main) {
-                if (updatedCount > 0) {
-                    val priceInfo = if (newPrice != null) " • Fiyat: $newPrice TL" else ""
-                    onResult("✅ '$sampleName' ($updatedCount kayıt) barkodu: $realBarcode$priceInfo olarak güncellendi!", true)
-                } else {
-                    onResult("ℹ️ '$sampleName' ürünü zaten güncel barkoda ($realBarcode) sahip.", true)
-                }
-            }
+            BarcodeScanProcessor.fixProductBarcodeAndPriceFromQr(repository, rawInput, onResult)
         }
     }
 
@@ -1337,37 +830,67 @@ class MainViewModel(
         onNotFound: (String) -> Unit
     ) {
         viewModelScope.launch {
-            val qrData = parseShelfQrPayload(barkod)
-            val queryBarcode = qrData.barcode.trim()
-            val queryProductCode = qrData.productCode?.trim()
-            val scannedPrice = qrData.price
+            BarcodeScanProcessor.handleBarcodeScanned(
+                repository = repository,
+                barkod = barkod,
+                onUpdatePrice = { prod, price -> updateProductPrice(prod, price) },
+                onFound = onFound,
+                onNotFound = onNotFound
+            )
+        }
+    }
 
-            val all = repository.getProductListDirect()
-            val matchingList = all.findMatchingProducts(barkod)
-            var prod: Product? = matchingList.firstOrNull()
+    // Data Protection & Backup / Restore System
+    val migrationStatus: StateFlow<MigrationStatus?> = DataMigrationManager.migrationStatus
 
-            if (prod != null) {
-                val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
-                    prod.urunKodu.isBlank() ||
-                    prod.urunKodu.equals(queryProductCode, ignoreCase = true)
+    fun dismissMigrationStatus() {
+        DataMigrationManager.dismissStatus()
+    }
 
-                var updatedProd = prod
+    fun runStartupDataProtection(context: Context) {
+        viewModelScope.launch(Dispatchers.IO) {
+            DataMigrationManager.performStartupDataProtectionCheck(
+                context = context,
+                productDao = repository.productDao,
+                reportDao = repository.reportDao,
+                turDao = repository.turDao,
+                adetselDao = repository.adetselDao
+            )
+        }
+    }
 
-                // Auto-fix barcode in database if queryBarcode is a valid EAN/package barcode and product had missing/code barcode
-                val queryDigits = queryBarcode.filter { it.isDigit() }
-                if (queryDigits.length >= 8 && queryBarcode != prod.barkod && isProductCodeMatch) {
-                    val corrected = prod.copy(barkod = queryBarcode)
-                    repository.insertOrUpdateProduct(corrected)
-                    updatedProd = corrected
-                }
+    fun createUnifiedBackupJson(context: Context, onResult: (String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val json = repository.createUnifiedBackupJson(context)
+            withContext(Dispatchers.Main) {
+                onResult(json)
+            }
+        }
+    }
 
-                if (scannedPrice != null && scannedPrice > 0.0 && isProductCodeMatch) {
-                    updateProductPrice(updatedProd, scannedPrice)
-                    updatedProd = updatedProd.copy(fiyat = scannedPrice)
-                }
-                onFound(updatedProd)
-            } else {
-                onNotFound(barkod)
+    fun saveLocalBackup(context: Context, tag: String = "manual", onResult: (File?) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val file = repository.saveLocalBackup(context, tag)
+            withContext(Dispatchers.Main) {
+                onResult(file)
+            }
+        }
+    }
+
+    fun getLocalBackups(context: Context): List<BackupMetadata> {
+        return repository.getLocalBackups(context)
+    }
+
+    fun restoreFromJson(
+        context: Context,
+        jsonString: String,
+        mergeWithExisting: Boolean = true,
+        onResult: (BackupRestoreResult) -> Unit
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val result = repository.restoreFromJson(context, jsonString, mergeWithExisting)
+            withContext(Dispatchers.Main) {
+                onResult(result)
             }
         }
     }

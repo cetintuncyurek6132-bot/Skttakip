@@ -1,12 +1,23 @@
 package com.example
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,9 +38,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -51,6 +65,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -88,6 +104,7 @@ import com.example.ui.components.AddSktModal
 import com.example.ui.components.ProductDetailModal
 import com.example.ui.components.SktBottomNavBar
 import com.example.ui.components.SktTopAppBar
+import com.example.ui.screens.AdetselScreen
 import com.example.ui.screens.BarcodeScannerSheet
 import com.example.ui.screens.CsvScreen
 import com.example.ui.screens.DashboardScreen
@@ -103,10 +120,11 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoisePrimary
+import com.example.worker.MorningCheckWorker
 import java.util.Locale
-import com.example.ui.screens.GameScreen
 import com.example.ui.screens.ProductsScreen
-import com.example.ui.screens.ReportsScreen
+import com.example.ui.screens.RemindersScreen
+import com.example.ui.screens.TakipScreen
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.Slate50
@@ -118,21 +136,52 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var viewModel: MainViewModel
 
+    override fun attachBaseContext(newBase: android.content.Context) {
+        try {
+            val trLocale = java.util.Locale.forLanguageTag("tr-TR")
+            java.util.Locale.setDefault(trLocale)
+            val config = android.content.res.Configuration(newBase.resources.configuration)
+            config.setLocale(trLocale)
+            super.attachBaseContext(newBase.createConfigurationContext(config))
+        } catch (e: Exception) {
+            super.attachBaseContext(newBase)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
-        java.util.Locale.setDefault(trLocale)
-        val config = resources.configuration
-        config.setLocale(trLocale)
-        @Suppress("DEPRECATION")
-        resources.updateConfiguration(config, resources.displayMetrics)
         enableEdgeToEdge()
 
+        try {
+            val trLocale = java.util.Locale.forLanguageTag("tr-TR")
+            java.util.Locale.setDefault(trLocale)
+        } catch (e: Exception) {
+            android.util.Log.w("MainActivity", "Locale setup fallback: ${e.message}")
+        }
+
         val db = AppDatabase.getDatabase(applicationContext)
-        com.example.auth.UserManager.initialize(applicationContext)
-        com.example.sync.CloudSyncManager.initialize(applicationContext, db.productDao(), db.turDao())
-        val repository = ProductRepository(db.productDao(), db.reportDao(), db.turDao())
+        try {
+            com.example.auth.UserManager.initialize(applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "UserManager init error", e)
+        }
+
+        try {
+            com.example.sync.CloudSyncManager.initialize(applicationContext, db.productDao(), db.turDao())
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "CloudSyncManager init error", e)
+        }
+
+        val repository = ProductRepository(db.productDao(), db.reportDao(), db.turDao(), db.adetselDao())
         viewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
+
+        try {
+            MorningCheckWorker.scheduleDailyMorningCheck(applicationContext)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Worker schedule error", e)
+        }
+
+        viewModel.runStartupDataProtection(applicationContext)
 
         setContent {
             val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
@@ -160,21 +209,23 @@ fun SktMainApp(viewModel: MainViewModel) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "panel"
 
-    val currentUser by com.example.auth.UserManager.currentUser.collectAsStateWithLifecycle()
-
-    if (currentUser == null) {
-        com.example.ui.screens.LoginScreen(
-            onLoginSuccess = { user ->
-                viewModel.updateUserProfile(
-                    name = user.fullName,
-                    branch = "Kadıköy Şubesi #4102",
-                    role = "${user.roleTitle} (${user.role})",
-                    department = user.department
-                )
-            }
-        )
-        return
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            MorningCheckWorker.scheduleDailyMorningCheck(context)
+        }
     }
+
+    LaunchedEffect(Unit) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+    }
+
+    val currentUser by com.example.auth.UserManager.currentUser.collectAsStateWithLifecycle()
 
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val loadingMessage by viewModel.loadingMessage.collectAsStateWithLifecycle()
@@ -197,23 +248,17 @@ fun SktMainApp(viewModel: MainViewModel) {
     val prefilledBarcode by viewModel.prefilledBarcode.collectAsStateWithLifecycle()
 
     val allReports by viewModel.allReports.collectAsStateWithLifecycle()
+    val migrationStatus by viewModel.migrationStatus.collectAsStateWithLifecycle()
+    val yapilacakAdetsel by viewModel.yapilacakAdetselKayitlari.collectAsStateWithLifecycle()
+    val yapildiAdetsel by viewModel.yapildiAdetselKayitlari.collectAsStateWithLifecycle()
 
-    // Game / Tour Mode State
-    val gameTargetCategory by viewModel.gameTargetCategory.collectAsStateWithLifecycle()
-    val gameActive by viewModel.gameActive.collectAsStateWithLifecycle()
-    val gameScannedProducts by viewModel.gameScannedProducts.collectAsStateWithLifecycle()
-    val lastScannedGameProduct by viewModel.lastScannedGameProduct.collectAsStateWithLifecycle()
-
-    val tourQueue by viewModel.tourQueue.collectAsStateWithLifecycle()
-    val currentQueueIndex by viewModel.currentQueueIndex.collectAsStateWithLifecycle()
-    val tourLogs by viewModel.tourLogs.collectAsStateWithLifecycle()
-    val tourFinished by viewModel.tourFinished.collectAsStateWithLifecycle()
-    val isTourPaused by viewModel.isTourPaused.collectAsStateWithLifecycle()
-    val tourScore by viewModel.tourScore.collectAsStateWithLifecycle()
-    val tourStreak by viewModel.tourStreak.collectAsStateWithLifecycle()
-    val lastActionMessage by viewModel.lastActionMessage.collectAsStateWithLifecycle()
-    val lastSavedTourRaporu by viewModel.lastSavedTourRaporu.collectAsStateWithLifecycle()
-    val allTurRaporlari by viewModel.allTurRaporlari.collectAsStateWithLifecycle()
+    // Bilgilendirme çubuğunu 3 saniye sonra otomatik olarak kaybet
+    LaunchedEffect(migrationStatus) {
+        if (migrationStatus != null && migrationStatus?.isVisible == true) {
+            kotlinx.coroutines.delay(3000L)
+            viewModel.dismissMigrationStatus()
+        }
+    }
 
     val userName by viewModel.userName.collectAsStateWithLifecycle()
     val userBranch by viewModel.userBranch.collectAsStateWithLifecycle()
@@ -247,7 +292,11 @@ fun SktMainApp(viewModel: MainViewModel) {
             onMarkAllAsRead = { viewModel.markNotificationsAsRead() },
             onToggleMorningReminder = { viewModel.toggleMorningCheckReminder() },
             onToggleCriticalAlert = { viewModel.toggleCriticalSktAlert() },
-            onToggleHighStockAlert = { viewModel.toggleHighStockAlert() }
+            onToggleHighStockAlert = { viewModel.toggleHighStockAlert() },
+            onRemoveFromShelf = { prod -> viewModel.removeProductFromShelf(prod) },
+            onRemoveMultipleFromShelf = { list -> viewModel.removeMultipleProductsFromShelf(list) },
+            onAddToAdetsel = { prod -> viewModel.addToAdetsel(prod) },
+            onOpenProductDetail = { prod -> viewModel.openProductDetailModal(prod) }
         )
     }
 
@@ -321,6 +370,18 @@ fun SktMainApp(viewModel: MainViewModel) {
             },
             onUpdatePrice = { prod, newPrice ->
                 viewModel.updateProductPrice(prod, newPrice)
+            },
+            onAddToAdetsel = { prod ->
+                viewModel.addToAdetsel(prod) { isSuccess ->
+                    if (isSuccess) {
+                        Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "⚠️ Bu ürün zaten Adetsel Yapılacak listesinde mevcut!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDeductStock = { prod, amount, reason ->
+                viewModel.deductProductStock(prod, amount, reason)
             }
         )
     }
@@ -350,33 +411,24 @@ fun SktMainApp(viewModel: MainViewModel) {
                 viewModel.fixProductBarcodeAndPriceFromQr(rawQr, onResult)
             },
             onBarcodeDetected = { scannedRaw ->
-                if (currentRoute == "game" && gameActive) {
-                    // We are in Gamification mode
-                    viewModel.onGameScanBarcode(
-                        barkod = scannedRaw,
-                        onProductNotFound = {
-                            isBarcodeScannerOpen = false
-                            viewModel.openAddProductModal(prefilledBarcode = scannedRaw)
-                        }
-                    )
-                    isBarcodeScannerOpen = false
-                } else {
-                    // Normal app barcode search mode
-                    viewModel.handleBarcodeScanned(
-                        barkod = scannedRaw,
-                        onFound = { productFound ->
-                            isBarcodeScannerOpen = false
-                            viewModel.openEditProductModal(productFound)
-                        },
-                        onNotFound = { barcodeNotFound ->
-                            isBarcodeScannerOpen = false
-                            viewModel.openAddProductModal(prefilledBarcode = barcodeNotFound)
-                        }
-                    )
-                }
+                viewModel.handleBarcodeScanned(
+                    barkod = scannedRaw,
+                    onFound = { productFound ->
+                        isBarcodeScannerOpen = false
+                        viewModel.openEditProductModal(productFound)
+                    },
+                    onNotFound = { barcodeNotFound ->
+                        val notFoundClean = com.example.data.parseShelfQrPayload(barcodeNotFound).barcode.ifBlank { barcodeNotFound }
+                        isBarcodeScannerOpen = false
+                        viewModel.openAddProductModal(prefilledBarcode = notFoundClean)
+                    }
+                )
             },
             onAddSkt = { product, sktMillis, count ->
                 viewModel.addSktToExistingProduct(product, sktMillis, count)
+            },
+            onDeductStock = { product, amount, reason ->
+                viewModel.deductProductStock(product, amount, reason)
             }
         )
     }
@@ -384,44 +436,31 @@ fun SktMainApp(viewModel: MainViewModel) {
     val focusManager = LocalFocusManager.current
 
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        if (event.type == PointerEventType.Press) {
-                            focusManager.clearFocus(force = true)
-                        }
-                    }
-                }
-            }
+        modifier = Modifier.fillMaxSize()
     ) {
         Scaffold(
+            contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
-                if (currentRoute != "game") {
-                    SktBottomNavBar(
-                        currentRoute = currentRoute,
-                        onNavigate = { target ->
-                            val user = currentUser
-                            if (target == "reports" && user?.canAccessReports == false) {
-                                Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                navController.navigate(target) {
-                                    popUpTo("panel") { inclusive = (target == "panel") }
-                                }
+                SktBottomNavBar(
+                    currentRoute = currentRoute,
+                    onNavigate = { target ->
+                        val user = currentUser
+                        if (target == "reports" && user?.canAccessReports == false) {
+                            Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            navController.navigate(target) {
+                                popUpTo("panel") { inclusive = (target == "panel") }
                             }
-                        },
-                        onScanClick = { isBarcodeScannerOpen = true },
-                        userRoleCode = currentUser?.role ?: "MS"
-                    )
-                }
+                        }
+                    },
+                    onScanClick = { isBarcodeScannerOpen = true },
+                    userRoleCode = currentUser?.role ?: "MS"
+                )
             },
             topBar = {
-                if (currentRoute != "game") {
-                    Column {
-                        SktTopAppBar(
+                Column {
+                    SktTopAppBar(
                             searchQuery = searchQuery,
                             onSearchQueryChange = { query ->
                                 viewModel.onSearchQueryChanged(query)
@@ -436,12 +475,59 @@ fun SktMainApp(viewModel: MainViewModel) {
                             onOpenScanner = { isBarcodeScannerOpen = true },
                             onBellClick = { isNotificationDialogOpen = true },
                             unreadCount = dashboardState.unreadNotificationCount,
-                            onAvatarClick = { isProfileDialogOpen = true }
+                            onAvatarClick = { navController.navigate("reminders") },
+                            onRemindersClick = { navController.navigate("reminders") },
+                            onSettingsClick = { navController.navigate("csv") }
                         )
                         com.example.ui.components.TopBarLoadingBar(isLoading = isSyncingOrLoading)
+
+                        AnimatedVisibility(
+                            visible = migrationStatus != null && migrationStatus?.isVisible == true,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            migrationStatus?.let { status ->
+                                Surface(
+                                    color = if (status.isSuccess) com.example.ui.theme.EmeraldSuccess else com.example.ui.theme.TurquoisePrimary,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = if (status.isSuccess) Icons.Default.Check else Icons.Default.Info,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = status.message,
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        IconButton(
+                                            onClick = { viewModel.dismissMigrationStatus() },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Kapat",
+                                                tint = Color.White,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-            }
         ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -454,20 +540,11 @@ fun SktMainApp(viewModel: MainViewModel) {
             composable("panel") {
                 DashboardScreen(
                     state = dashboardState,
-                    onStartGameClick = {
-                        navController.navigate("game")
-                    },
                     onQuickActionClick = { action ->
                         when (action) {
                             "scan" -> isBarcodeScannerOpen = true
                             "csv" -> navController.navigate("csv")
-                            "reports" -> {
-                                if (currentUser?.canAccessReports == true) {
-                                    navController.navigate("reports")
-                                } else {
-                                    Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                            "reports", "takip" -> navController.navigate("takip")
                             else -> navController.navigate("products")
                         }
                     },
@@ -502,6 +579,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                     onProductClick = { prod -> viewModel.openProductDetailModal(prod) },
                     onDeleteProduct = { prod -> viewModel.deleteProduct(prod) },
                     onAddProductClick = { viewModel.openAddProductModal() },
+                    onQuickAddSkt = { prod -> viewModel.openAddSktModal(prod) },
                     onOpenQrFixMode = {
                         startScannerInFixMode = true
                         isBarcodeScannerOpen = true
@@ -509,50 +587,33 @@ fun SktMainApp(viewModel: MainViewModel) {
                 )
             }
 
-            // 3. KONTROL OYUNU (SABAH KONTROL TURU)
-            composable("game") {
-                GameScreen(
-                    targetCategory = gameTargetCategory,
-                    onCategoryChange = { cat -> viewModel.setGameTargetCategory(cat) },
-                    tourActive = gameActive,
-                    tourFinished = tourFinished,
-                    isPaused = isTourPaused,
-                    tourQueue = tourQueue,
-                    currentQueueIndex = currentQueueIndex,
-                    tourLogs = tourLogs,
-                    tourScore = tourScore,
-                    tourStreak = tourStreak,
-                    lastActionMessage = lastActionMessage,
-                    lastSavedReport = lastSavedTourRaporu,
-                    onStartTour = { viewModel.startTourSession() },
-                    onPauseTour = { viewModel.pauseTourSession() },
-                    onResumeTour = { viewModel.resumeTourSession() },
-                    onClearLastActionMessage = { viewModel.clearLastActionMessage() },
-                    onRecordSold = { prod, count -> viewModel.recordTourSold(prod, count) },
-                    onRecordFire = { prod, count -> viewModel.recordTourFire(prod, count) },
-                    onRecordNotr = { prod -> viewModel.recordTourNotr(prod) },
-                    onUndoLastAction = { viewModel.undoLastTourAction() },
-                    onCancelTour = { viewModel.cancelTourSession() },
-                    onResetTour = { viewModel.resetTourState() },
-                    onBackClick = { navController.popBackStack() }
-                )
-            }
-
-            // 4. RAPORLAR (REPORTS)
-            composable("reports") {
-                ReportsScreen(
-                    reports = allReports,
-                    turRaporlari = allTurRaporlari,
+            // 3. TAKİP (İADE & DEPO RED TAKİBİ)
+            composable("takip") {
+                val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
+                TakipScreen(
+                    products = allProducts,
                     onBackClick = {
                         navController.navigate("panel") {
                             popUpTo("panel") { inclusive = true }
                         }
                     },
-                    onDeleteReport = { reportId -> viewModel.deleteReport(reportId) },
-                    onDeleteTurRaporu = { turId -> viewModel.deleteTurRaporu(turId) },
-                    onClearAllReports = {
-                        viewModel.clearAllReports()
-                        viewModel.clearAllTurRaporlari()
+                    onOpenScanner = {
+                        isBarcodeScannerOpen = true
+                    }
+                )
+            }
+
+            composable("reports") {
+                val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
+                TakipScreen(
+                    products = allProducts,
+                    onBackClick = {
+                        navController.navigate("panel") {
+                            popUpTo("panel") { inclusive = true }
+                        }
+                    },
+                    onOpenScanner = {
+                        isBarcodeScannerOpen = true
                     }
                 )
             }
@@ -582,6 +643,52 @@ fun SktMainApp(viewModel: MainViewModel) {
                     onOpenQrFixMode = {
                         startScannerInFixMode = true
                         isBarcodeScannerOpen = true
+                    },
+                    onExportJsonBackup = { cb -> viewModel.createUnifiedBackupJson(context, cb) },
+                    onSaveLocalBackup = { tag, cb -> viewModel.saveLocalBackup(context, tag, cb) },
+                    onGetLocalBackups = { viewModel.getLocalBackups(context) },
+                    onRestoreFromJson = { json, merge, cb -> viewModel.restoreFromJson(context, json, merge, cb) },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+
+            // 6. HATIRLATICILAR & MAĞAZA NOTLARI
+            composable("reminders") {
+                RemindersScreen(
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            // 7. ADETSEL SAYIM TAKİBİ
+            composable("adetsel") {
+                AdetselScreen(
+                    yapilacakList = yapilacakAdetsel,
+                    yapildiList = yapildiAdetsel,
+                    onSaveSayim = { kayit, sonuc, fark, notlar ->
+                        viewModel.saveAdetselSayim(kayit, sonuc, fark, notlar = notlar) {
+                            val msg = when (sonuc) {
+                                "EKSIK" -> "${kayit.urunAdi} ($fark Eksik) kaydedildi"
+                                "FAZLA" -> "${kayit.urunAdi} (+$fark Fazla) kaydedildi"
+                                else -> "${kayit.urunAdi} (Tam) kaydedildi"
+                            }
+                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onUndoSayim = { kayit ->
+                        viewModel.undoAdetselKayit(kayit)
+                        Toast.makeText(context, "${kayit.urunAdi} tekrar yapılacaklar listesine alındı", Toast.LENGTH_SHORT).show()
+                    },
+                    onDeleteKayit = { id ->
+                        viewModel.deleteAdetselKayit(id)
+                    },
+                    onClearCompleted = {
+                        viewModel.clearCompletedAdetselKayitlar()
+                        Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
+                    },
+                    onNavigateToProducts = {
+                        navController.navigate("products")
                     }
                 )
             }
