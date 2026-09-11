@@ -27,10 +27,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -286,22 +290,29 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Sol Üst: A101 Turkuaz Yuvarlatılmış Kare Marka Rozeti
+                    // Sol Üst: SKT Turkuaz Marka Rozeti
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = TurquoisePrimary,
                         shadowElevation = 6.dp
                     ) {
-                        Box(
+                        Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                            contentAlignment = Alignment.Center
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
+                            Icon(
+                                imageVector = Icons.Default.CalendarMonth,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(19.dp)
+                            )
                             Text(
-                                text = "A101",
+                                text = "SKT",
                                 fontSize = 19.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
-                                letterSpacing = 0.5.sp
+                                letterSpacing = 0.8.sp
                             )
                         }
                     }
@@ -485,16 +496,130 @@ fun DashboardScreen(
                         }
                     }
                 }
-            }
 
-            // -----------------------------------------------------------------
-            // 4. ANA AKSİYON BUTONU ("Hızlı İşlemler ->")
-            // -----------------------------------------------------------------
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 6.dp)
-            ) {
+                Spacer(modifier = Modifier.height(22.dp))
+
+                // -------------------------------------------------------------
+                // 4. HIZLI ERİŞİM ARAÇLARI (4'LÜ CAM BUTON GRID'İ)
+                // -------------------------------------------------------------
+                Text(
+                    text = "Hızlı Araçlar",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    letterSpacing = 0.3.sp
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    QuickActionGlassTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Barkod Tara",
+                        subtitle = "Kamera ile oku",
+                        icon = Icons.Default.QrCodeScanner,
+                        accentColor = TurquoisePrimary,
+                        onClick = { onQuickActionClick("scan") }
+                    )
+                    QuickActionGlassTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Ürün Ekle",
+                        subtitle = "Yeni SKT kaydet",
+                        icon = Icons.Default.AddCircleOutline,
+                        accentColor = Color(0xFF22C55E),
+                        onClick = { onQuickActionClick("add_product") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    QuickActionGlassTile(
+                        modifier = Modifier.weight(1f),
+                        title = "Adetsel Sayım",
+                        subtitle = "Reyon kontrolü",
+                        icon = Icons.Default.AssignmentTurnedIn,
+                        accentColor = Color(0xFFF97316),
+                        onClick = { onQuickActionClick("adetsel") }
+                    )
+                    QuickActionGlassTile(
+                        modifier = Modifier.weight(1f),
+                        title = "İade & Depo",
+                        subtitle = "Depo iadeleri",
+                        icon = Icons.Default.Checklist,
+                        accentColor = Color(0xFF38BDF8),
+                        onClick = { onQuickActionClick("takip") }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // -------------------------------------------------------------
+                // 5. ÖNCELİKLİ SKT KONTROL LİSTESİ
+                // -------------------------------------------------------------
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Text(
+                            text = "Acil Kontrol Listesi",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.3.sp
+                        )
+                    }
+
+                    Text(
+                        text = "Tümünü Gör (${state.totalCount})",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TurquoisePrimary,
+                        modifier = Modifier.clickable { onViewAllProductsClick() }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                val priorityList = (state.attentionProducts + state.nearExpiryProducts).distinctBy { it.id }.take(3)
+                if (priorityList.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        priorityList.forEach { product ->
+                            DashboardProductPreviewCard(
+                                product = product,
+                                onClick = { onProductClick(product) }
+                            )
+                        }
+                    }
+                } else {
+                    DashboardSafeStatusCard(onViewAll = onViewAllProductsClick)
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // -------------------------------------------------------------
+                // 6. TÜM HIZLI İŞLEMLER PANELİ BUTONU
+                // -------------------------------------------------------------
                 Surface(
                     onClick = { showQuickActionsSheet = true },
                     shape = RoundedCornerShape(18.dp),
@@ -512,9 +637,16 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Hızlı İşlemler",
-                            fontSize = 16.5.sp,
+                            text = "Tüm Hızlı İşlemler Paneli",
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
                             letterSpacing = 0.2.sp
@@ -524,10 +656,12 @@ fun DashboardScreen(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -806,6 +940,223 @@ private fun QuickSheetItem(
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
+            )
+        }
+    }
+}
+
+/**
+ * Hızlı İşlem Cam Karo Butonu
+ */
+@Composable
+private fun QuickActionGlassTile(
+    modifier: Modifier = Modifier,
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    accentColor: Color,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0x550D1B2D),
+        border = BorderStroke(1.dp, Color(0x28FFFFFF)),
+        modifier = modifier.height(72.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(accentColor.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = accentColor,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Column(
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = subtitle,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Slate400,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Ana Sayfa Kritik / Yaklaşan Ürün Önizleme Kartı
+ */
+@Composable
+private fun DashboardProductPreviewCard(
+    product: Product,
+    onClick: () -> Unit
+) {
+    val remainingDays = product.getRemainingDays()
+    val isExpired = remainingDays <= 0
+    val isCritical = remainingDays in 1..7
+
+    val badgeColor = when {
+        isExpired -> Color(0xFFEF4444)
+        isCritical -> Color(0xFFF97316)
+        else -> Color(0xFF38BDF8)
+    }
+
+    val badgeText = when {
+        remainingDays < 0 -> "${-remainingDays} gün geçti"
+        remainingDays == 0L -> "Bugün son gün!"
+        remainingDays == 1L -> "Yarın son gün"
+        else -> "$remainingDays gün kaldı"
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0x450A1626),
+        border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 4.dp, height = 36.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(badgeColor)
+                )
+
+                Column {
+                    Text(
+                        text = product.getDisplayName(),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${product.kategori.ifBlank { "Genel" }} • Stok: ${product.stokAdedi} adet",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Slate400,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = badgeColor.copy(alpha = 0.2f),
+                border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.4f))
+            ) {
+                Text(
+                    text = badgeText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = badgeColor,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Kritik Ürün Olmadığında Gösterilen Güvenli Durum Kartı
+ */
+@Composable
+private fun DashboardSafeStatusCard(
+    onViewAll: () -> Unit
+) {
+    Surface(
+        onClick = onViewAll,
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0x350A1626),
+        border = BorderStroke(1.dp, Color(0x22FFFFFF)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x2222C55E)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = Color(0xFF22C55E),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Tüm Reyonlar Güvende",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = "Bugün acil müdahale gerektiren kritik ürün yok.",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Slate400
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                tint = Slate400,
+                modifier = Modifier.size(18.dp)
             )
         }
     }

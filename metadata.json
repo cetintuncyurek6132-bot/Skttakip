@@ -1,5 +1,5 @@
 {
-  "name": "SKT Takip",
+  "name": "SKT Takip V2",
   "description": "Market ve mağaza çalışanları için offline-first Son Kullanma Tarihi (SKT) takip, barkod tarama ve reyon stok yönetimi uygulaması.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

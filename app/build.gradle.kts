@@ -15,7 +15,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.skttracker.a101skt.v2"
+    applicationId = "com.aistudio.skttakip.yeni"
     minSdk = 24
     targetSdk = 36
     versionCode = (project.findProperty("android.injected.version.code")?.toString()?.toIntOrNull()) ?: 1
