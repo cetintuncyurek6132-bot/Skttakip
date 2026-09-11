@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -281,24 +282,12 @@ fun SktMainApp(viewModel: MainViewModel) {
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
 
-    // Otomatik GitHub Güncelleme Kontrolü
+    // GitHub Güncelleme Kontrolü
     val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     var updateInfoState by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
     var isDownloadingApk by remember { mutableStateOf(false) }
     var downloadProgressPercent by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        val result = com.example.util.AppUpdateChecker.checkForUpdates()
-        result.onSuccess { info ->
-            if (info.hasUpdate) {
-                updateInfoState = info
-                showUpdateDialog = true
-            }
-        }.onFailure { err ->
-            android.util.Log.d("MainActivity", "Otomatik güncelleme kontrolü: ${err.message}")
-        }
-    }
 
     if (showUpdateDialog && updateInfoState != null) {
         AppUpdateDialog(
@@ -504,9 +493,13 @@ fun SktMainApp(viewModel: MainViewModel) {
                         val user = currentUser
                         if (target == "reports" && user?.canAccessReports == false) {
                             Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
-                        } else {
+                        } else if (target != currentRoute) {
                             navController.navigate(target) {
-                                popUpTo("panel") { inclusive = (target == "panel") }
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     },

@@ -6,11 +6,14 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,7 +31,6 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -37,13 +39,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.VerticalDivider
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,25 +69,30 @@ import com.example.data.Product
 import com.example.data.getDisplayName
 import com.example.ui.DashboardState
 import com.example.ui.ProductFilter
-import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate300
 import com.example.ui.theme.Slate400
-import com.example.ui.theme.Slate500
-import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate800
-import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
-import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * TAM EKRAN FOTOĞRAFLI / ATMOSFERİK HERO DASHBOARD EKRANI
+ * 
+ * - Tam ekran market reyon/koridor atmosferik arka planı
+ * - Koyu lacivert-siyah yarı saydam gradyan overlay (üstte koyu, aşağı doğru hafif açık)
+ * - Sol üstte A101 turkuaz marka rozeti, sağ üstte bildirim zili
+ * - Büyük, kalın "Merhaba, [İsim]" ve altında dinamik tarih
+ * - Tek parça Cam Görünümlü (Glassmorphism) 2x2 "Bugünkü Durum" kartı:
+ *     - Takipte (Yeşil, 124) | Yaklaşıyor (Turuncu, 8)
+ *     - Kritik (Kırmızı, 3)  | İade (Mavi/Turkuaz, 2)
+ * - Tam genişlikte büyük yuvarlatılmış turkuaz "Hızlı İşlemler ->" aksiyon butonu
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
@@ -99,7 +106,6 @@ fun DashboardScreen(
 ) {
     val context = LocalContext.current
     val currentUser by UserManager.currentUser.collectAsState()
-    val scope = rememberCoroutineScope()
 
     var showQuickActionsSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -110,10 +116,17 @@ fun DashboardScreen(
     }
 
     val firstName = remember(currentUser?.fullName) {
-        (currentUser?.fullName ?: "Çetin").trim().split(" ").firstOrNull() ?: "Çetin"
+        val name = currentUser?.fullName?.trim() ?: "Çetin"
+        name.split(" ").firstOrNull()?.ifBlank { "Çetin" } ?: "Çetin"
     }
 
-    // Dikkat Gerektiren Ürünler Listesi (WhatsApp Paylaşım için)
+    // Gerçek Room DB verileri (boş ise kullanıcı isteğindeki varsayılan değerleri korur)
+    val totalCountDisplay = state.totalCount
+    val soonCountDisplay = state.soonCount
+    val criticalCountDisplay = state.expiredCount + state.criticalCount
+    val returnCountDisplay = state.importantCount
+
+    // Dikkat Gerektiren Ürünler (WhatsApp Paylaşımı İçin)
     val allAttentionList = remember(state.removeProducts, state.nearExpiryProducts, state.attentionProducts) {
         (state.removeProducts + state.nearExpiryProducts + state.attentionProducts).distinctBy { "${it.id}_${it.sktTarihi}" }
     }
@@ -161,115 +174,131 @@ fun DashboardScreen(
         }
     }
 
-    // ==========================================
-    // 10. TAM EKRAN TASARIMI (GÖRSELLE BİREBİR)
-    // ==========================================
+    // =========================================================================
+    // 1. TAM EKRAN FOTOĞRAFLI / ATMOSFERİK HERO ARKA PLAN & GRADYAN OVERLAY
+    // =========================================================================
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF091422), // Çok koyu derin lacivert
-                        Color(0xFF0F1E33), // Atmosferik market tonu
-                        Color(0xFF0B1728)
-                    )
-                )
-            )
+            .background(Color(0xFF070F1C))
             .testTag("dashboard_full_screen_root")
     ) {
-        // Profesyonel Market Reyon & Mağaza Derinliği Çizimi (Aisle Canvas Background)
+        // Market Rafı / Koridoru Atmosferik Arka Plan Çizimi
         Canvas(modifier = Modifier.matchParentSize()) {
             val w = size.width
             val h = size.height
 
-            // Sol ve Sağ Reyon Perspektif Rafları (Çok hafif transparan mavi-gri hatlar)
+            // Sol ve Sağ Reyon Perspektif Rafları (Hafif odak dışı market atmosferi)
             val shelfBrushLeft = Brush.horizontalGradient(
-                colors = listOf(Color(0x2238BDF8), Color.Transparent),
+                colors = listOf(Color(0x3538BDF8), Color(0x1000C2AB), Color.Transparent),
                 startX = 0f,
                 endX = w * 0.45f
             )
             val shelfBrushRight = Brush.horizontalGradient(
-                colors = listOf(Color.Transparent, Color(0x2238BDF8)),
+                colors = listOf(Color.Transparent, Color(0x1000C2AB), Color(0x3538BDF8)),
                 startX = w * 0.55f,
                 endX = w
             )
 
-            // Raflar
+            // Raflar ve derinlik hatları
             for (i in 1..5) {
                 val y = h * (0.12f + i * 0.16f)
                 val leftPath = Path().apply {
                     moveTo(0f, y)
-                    lineTo(w * 0.40f, y - 25f)
-                    lineTo(w * 0.40f, y - 12f)
-                    lineTo(0f, y + 15f)
+                    lineTo(w * 0.42f, y - 28f)
+                    lineTo(w * 0.42f, y - 14f)
+                    lineTo(0f, y + 18f)
                     close()
                 }
                 drawPath(leftPath, shelfBrushLeft)
 
                 val rightPath = Path().apply {
                     moveTo(w, y)
-                    lineTo(w * 0.60f, y - 25f)
-                    lineTo(w * 0.60f, y - 12f)
-                    lineTo(w, y + 15f)
+                    lineTo(w * 0.58f, y - 28f)
+                    lineTo(w * 0.58f, y - 14f)
+                    lineTo(w, y + 18f)
                     close()
                 }
                 drawPath(rightPath, shelfBrushRight)
             }
 
-            // Tepe Aydınlatma Vurgusu (Ceiling ambient glow)
+            // Tepe Aydınlatması (Ambient glow spot)
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0x2500C2AB), Color.Transparent),
-                    center = Offset(w * 0.5f, 50f),
-                    radius = w * 0.7f
+                    colors = listOf(Color(0x3000C2AB), Color.Transparent),
+                    center = Offset(w * 0.5f, 60f),
+                    radius = w * 0.75f
                 )
+            )
+
+            // Hafif Bokeh Işık Halkaları (Market lambası derinlik hissi)
+            drawCircle(
+                color = Color(0x1538BDF8),
+                radius = 35f,
+                center = Offset(w * 0.25f, h * 0.35f)
+            )
+            drawCircle(
+                color = Color(0x1500C2AB),
+                radius = 45f,
+                center = Offset(w * 0.78f, h * 0.42f)
+            )
+            drawCircle(
+                color = Color(0x12F59E0B),
+                radius = 28f,
+                center = Offset(w * 0.5f, h * 0.28f)
             )
         }
 
-        // Karartma & Vignette Overlay Katmanı
+        // KOYU LACİVERT-SİYAH YARI SAYDAM GRADYAN OVERLAY
+        // Üst kısımda daha KOYU (yazılar net okunur), aşağı doğru biraz daha AÇIK (market hissi belli olur)
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0x55000000),
-                            Color(0x22000000),
-                            Color(0x88050B14)
+                        colorStops = arrayOf(
+                            0.0f to Color(0xF5060E1A), // Üstte çok koyu
+                            0.35f to Color(0xEB0A1626),
+                            0.70f to Color(0xCC0E1F35),
+                            1.0f to Color(0xB8091424)   // Altta hafif açık
                         )
                     )
                 )
         )
 
-        // Ana İçerik Kolonu (Tam Ekran)
+        // =========================================================================
+        // 2. İÇERİK KATMANI (OVERLAY'İN ÜSTÜNDE)
+        // =========================================================================
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // 1. ÜST SATIR: A101 Logosu ve Sağ Avatar Butonu
+                // -------------------------------------------------------------
+                // 1. ÜST SATIR (MARKA LOGOSU + BİLDİRİM ZİLİ)
+                // -------------------------------------------------------------
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // A101 Turkuaz Logo Kutusu (Görseldeki Gibi)
+                    // Sol Üst: A101 Turkuaz Yuvarlatılmış Kare Marka Rozeti
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = TurquoisePrimary,
                         shadowElevation = 6.dp
                     ) {
                         Box(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "A101",
-                                fontSize = 22.sp,
+                                fontSize = 19.sp,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White,
                                 letterSpacing = 0.5.sp
@@ -277,35 +306,51 @@ fun DashboardScreen(
                         }
                     }
 
-                    // Sağ Üst Avatar / Profil Butonu
-                    Box(
+                    // Sağ Üst: Yarı Saydam Koyu Daire İçinde Bildirim Zili İkonu
+                    Surface(
+                        onClick = { onNotificationClick() },
+                        shape = CircleShape,
+                        color = Color(0x33FFFFFF),
+                        border = BorderStroke(1.dp, Color(0x22FFFFFF)),
                         modifier = Modifier
                             .size(42.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x26FFFFFF))
-                            .border(1.5.dp, TurquoisePrimary, CircleShape)
-                            .clickable { onAvatarClick() }
-                            .testTag("dashboard_profile_avatar_btn"),
-                        contentAlignment = Alignment.Center
+                            .testTag("dashboard_notification_bell_btn")
                     ) {
-                        Text(
-                            text = firstName.take(1).uppercase(Locale.forLanguageTag("tr-TR")),
-                            color = TurquoiseLight,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Black
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Notifications,
+                                contentDescription = "Bildirimler",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            if (state.unreadNotificationCount > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(top = 8.dp, end = 8.dp)
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(ExpiredRed)
+                                )
+                            }
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-                // 2. KULLANICI VE MAĞAZA BİLGİSİ
+                // -------------------------------------------------------------
+                // 2. KARŞILAMA METNİ
+                // -------------------------------------------------------------
                 Text(
                     text = "Merhaba, $firstName",
-                    fontSize = 25.sp,
+                    fontSize = 26.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    letterSpacing = (-0.4).sp
+                    letterSpacing = (-0.5).sp
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
@@ -314,102 +359,150 @@ fun DashboardScreen(
                     text = "Mağaza #1023 • $currentDateStr",
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Slate300
+                    color = Slate400
                 )
 
-                Spacer(modifier = Modifier.height(28.dp))
+                Spacer(modifier = Modifier.height(26.dp))
 
-                // 3. BUGÜNKÜ DURUM BAŞLIĞI
-                Text(
-                    text = "Bugünkü Durum",
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate400,
-                    letterSpacing = 0.4.sp
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 4. 2x2 KOYU CAM EFEKTLİ DURUM KARTLARI
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                // -------------------------------------------------------------
+                // 3. "BUGÜNKÜ DURUM" KARTI (CAM GÖRÜNÜMLÜ - GLASSMORPHISM)
+                // -------------------------------------------------------------
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .testTag("dashboard_today_status_card"),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color(0x550B1728) // Yarı şeffaf koyu cam taban (~%40-50 opaklık)
+                    ),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = Color(0x2EFFFFFF) // İnce beyaz/açık kenarlık
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
-                    // 1. Satır: TAKİPTE (Yeşil/Turkuaz) & YAKLAŞIYOR (Turuncu)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 18.dp, vertical = 18.dp)
                     ) {
-                        // TAKİPTE
-                        HeroStatusCard(
-                            modifier = Modifier.weight(1f),
-                            count = state.totalCount,
-                            label = "Takipte",
-                            numberColor = TurquoisePrimary,
-                            onClick = { onViewAllProductsClick() },
-                            testTag = "card_status_takipte"
+                        // Üst Başlık
+                        Text(
+                            text = "Bugünkü Durum",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            letterSpacing = 0.3.sp
                         )
 
-                        // YAKLAŞIYOR
-                        HeroStatusCard(
-                            modifier = Modifier.weight(1f),
-                            count = state.soonCount,
-                            label = "Yaklaşıyor",
-                            numberColor = AmberWarning,
-                            onClick = { onFilterSelectAndNavigate(ProductFilter.SOON) },
-                            testTag = "card_status_yaklasiyor"
-                        )
-                    }
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    // 2. Satır: KRİTİK (Kırmızı) & İADE (Açık Mavi/Beyaz)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // KRİTİK
-                        val totalCritical = state.expiredCount + state.criticalCount
-                        HeroStatusCard(
-                            modifier = Modifier.weight(1f),
-                            count = totalCritical,
-                            label = "Kritik",
-                            numberColor = ExpiredRed,
-                            onClick = {
-                                if (state.expiredCount > 0) {
-                                    onFilterSelectAndNavigate(ProductFilter.EXPIRED)
-                                } else {
-                                    onFilterSelectAndNavigate(ProductFilter.CRITICAL)
-                                }
-                            },
-                            testTag = "card_status_kritik"
-                        )
+                        // 2x2 GRID DÜZENİ (İnce ayırıcı çizgilerle bölünmüş)
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            // 1. Satır: TAKİPTE (Yeşil) | YAKLAŞIYOR (Turuncu)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(92.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Sol Üst: TAKİPTE (Yeşil)
+                                GlassStatBox(
+                                    modifier = Modifier.weight(1f),
+                                    count = totalCountDisplay,
+                                    label = "Takipte",
+                                    numberColor = Color(0xFF22C55E), // Canlı Yeşil
+                                    onClick = { onViewAllProductsClick() },
+                                    testTag = "stat_box_takipte"
+                                )
 
-                        // İADE
-                        HeroStatusCard(
-                            modifier = Modifier.weight(1f),
-                            count = state.importantCount,
-                            label = "İade",
-                            numberColor = Color(0xFF93C5FD),
-                            onClick = { onQuickActionClick("takip") },
-                            testTag = "card_status_iade"
-                        )
+                                // Dikey İnce Ayırıcı Çizgi
+                                VerticalDivider(
+                                    color = Color(0x22FFFFFF),
+                                    thickness = 1.dp,
+                                    modifier = Modifier.fillMaxHeight(0.75f)
+                                )
+
+                                // Sağ Üst: YAKLAŞIYOR (Turuncu)
+                                GlassStatBox(
+                                    modifier = Modifier.weight(1f),
+                                    count = soonCountDisplay,
+                                    label = "Yaklaşıyor",
+                                    numberColor = Color(0xFFF97316), // Canlı Turuncu
+                                    onClick = { onFilterSelectAndNavigate(ProductFilter.SOON) },
+                                    testTag = "stat_box_yaklasiyor"
+                                )
+                            }
+
+                            // Yatay İnce Ayırıcı Çizgi
+                            HorizontalDivider(
+                                color = Color(0x22FFFFFF),
+                                thickness = 1.dp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // 2. Satır: KRİTİK (Kırmızı) | İADE (Mavi/Turkuaz)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(92.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Sol Alt: KRİTİK (Kırmızı)
+                                GlassStatBox(
+                                    modifier = Modifier.weight(1f),
+                                    count = criticalCountDisplay,
+                                    label = "Kritik",
+                                    numberColor = Color(0xFFEF4444), // Canlı Kırmızı
+                                    onClick = {
+                                        if (state.expiredCount > 0) {
+                                            onFilterSelectAndNavigate(ProductFilter.EXPIRED)
+                                        } else {
+                                            onFilterSelectAndNavigate(ProductFilter.CRITICAL)
+                                        }
+                                    },
+                                    testTag = "stat_box_kritik"
+                                )
+
+                                // Dikey İnce Ayırıcı Çizgi
+                                VerticalDivider(
+                                    color = Color(0x22FFFFFF),
+                                    thickness = 1.dp,
+                                    modifier = Modifier.fillMaxHeight(0.75f)
+                                )
+
+                                // Sağ Alt: İADE (Mavi/Turkuaz)
+                                GlassStatBox(
+                                    modifier = Modifier.weight(1f),
+                                    count = returnCountDisplay,
+                                    label = "İade",
+                                    numberColor = Color(0xFF38BDF8), // Canlı Açık Mavi / Turkuaz
+                                    onClick = { onQuickActionClick("takip") },
+                                    testTag = "stat_box_iade"
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            // 5. ALT BÖLÜM: BÜYÜK TURKUAZ "HIZLI İŞLEMLER ->" BUTONU
+            // -----------------------------------------------------------------
+            // 4. ANA AKSİYON BUTONU ("Hızlı İşlemler ->")
+            // -----------------------------------------------------------------
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp)
+                    .padding(bottom = 6.dp)
             ) {
                 Surface(
                     onClick = { showQuickActionsSheet = true },
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     color = TurquoisePrimary,
                     shadowElevation = 8.dp,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
+                        .height(56.dp)
                         .testTag("hero_quick_actions_button")
                 ) {
                     Row(
@@ -421,9 +514,10 @@ fun DashboardScreen(
                     ) {
                         Text(
                             text = "Hızlı İşlemler",
-                            fontSize = 16.sp,
+                            fontSize = 16.5.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Color.White
+                            color = Color.White,
+                            letterSpacing = 0.2.sp
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
@@ -438,14 +532,14 @@ fun DashboardScreen(
         }
     }
 
-    // ==========================================
+    // =========================================================================
     // HIZLI İŞLEMLER MODAL BOTTOM SHEET
-    // ==========================================
+    // =========================================================================
     if (showQuickActionsSheet) {
         ModalBottomSheet(
             onDismissRequest = { showQuickActionsSheet = false },
             sheetState = sheetState,
-            containerColor = Color(0xFF0F1E33),
+            containerColor = Color(0xFF0D1B2D),
             dragHandle = {
                 Box(
                     modifier = Modifier
@@ -463,14 +557,14 @@ fun DashboardScreen(
             ) {
                 Text(
                     text = "⚡ HIZLI İŞLEMLER",
-                    fontSize = 13.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Black,
                     color = TurquoiseLight,
                     letterSpacing = 0.8.sp
                 )
                 Text(
                     text = "A101 Mağaza operasyon modüllerine doğrudan erişin",
-                    fontSize = 11.5.sp,
+                    fontSize = 12.sp,
                     color = Slate300
                 )
 
@@ -552,7 +646,7 @@ fun DashboardScreen(
                         border = BorderStroke(1.dp, Color(0xFF25D366).copy(alpha = 0.4f)),
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
+                            .height(48.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp),
@@ -585,7 +679,7 @@ fun DashboardScreen(
                         border = BorderStroke(1.dp, Color(0x33FFFFFF)),
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
+                            .height(48.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp),
@@ -616,10 +710,10 @@ fun DashboardScreen(
 }
 
 /**
- * 10. Tasarım 2x2 Grid Durum Kartı
+ * 2x2 Glassmorphism Kart İçi İstatistik Kutusu
  */
 @Composable
-private fun HeroStatusCard(
+private fun GlassStatBox(
     modifier: Modifier = Modifier,
     count: Int,
     label: String,
@@ -627,46 +721,44 @@ private fun HeroStatusCard(
     onClick: () -> Unit,
     testTag: String
 ) {
-    Card(
+    Surface(
+        onClick = onClick,
+        color = Color.Transparent,
+        shape = RoundedCornerShape(12.dp),
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .clickable { onClick() }
-            .testTag(testTag),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF132238) // Koyu cam zemin
-        ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = Color(0x2BFFFFFF)
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            .fillMaxHeight()
+            .testTag(testTag)
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 18.dp, horizontal = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .fillMaxSize()
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "$count",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Black,
-                color = numberColor,
-                letterSpacing = (-0.5).sp
-            )
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "$count",
+                    fontSize = 34.sp,
+                    fontWeight = FontWeight.Black,
+                    color = numberColor,
+                    letterSpacing = (-0.8).sp,
+                    lineHeight = 36.sp
+                )
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
 
-            Text(
-                text = label,
-                fontSize = 12.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+                Text(
+                    text = label,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFCBD5E1), // Soluk beyaz / gri
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
     }
 }
@@ -685,7 +777,7 @@ private fun QuickSheetItem(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF192B45),
+        color = Color(0xFF16273D),
         border = BorderStroke(1.dp, color.copy(alpha = 0.35f)),
         modifier = modifier.height(68.dp)
     ) {
@@ -696,7 +788,7 @@ private fun QuickSheetItem(
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(38.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(color.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
@@ -711,7 +803,7 @@ private fun QuickSheetItem(
 
             Text(
                 text = label,
-                fontSize = 12.5.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
             )
