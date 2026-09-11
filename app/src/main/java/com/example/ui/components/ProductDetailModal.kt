@@ -114,8 +114,14 @@ fun ProductDetailModal(
     var showDetailPriceQrScanner by remember { mutableStateOf(false) }
 
     val sortedBatches = remember(matchingProducts, product) {
-        val list = if (matchingProducts.isNotEmpty()) matchingProducts else listOf(product)
-        list.sortedBy { if (it.sktTarihi > 0L) it.sktTarihi else Long.MAX_VALUE }
+        val list = matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }
+        if (list.isNotEmpty()) {
+            list.sortedBy { it.sktTarihi }
+        } else if (product.sktTarihi > 0L && product.stokAdedi > 0) {
+            listOf(product)
+        } else {
+            emptyList()
+        }
     }
 
     var selectedBatchId by remember(sortedBatches) {
@@ -344,293 +350,294 @@ fun ProductDetailModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 2.5 HIZLI STOK DÜŞME PANELİ (SATILDI & FİRE)
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                // 2.5 HIZLI STOK DÜŞME PANELİ (SATILDI & FİRE) - Yalnızca kayıtlı ve stoklu SKT partisi varsa gösterilir
+                if (sortedBatches.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        // Eğer ürünün birden fazla SKT partisi varsa parti seçimi yap ("2 skt partili olan ürünler içinde seçimi yap")
-                        if (sortedBatches.size > 1) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "SKT PARTİSİ SEÇİMİ (${sortedBatches.size} Parti):",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate700
-                                )
-                                Text(
-                                    text = "Seçilen: ${currentSelectedBatch.stokAdedi} Adet",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = if (currentSelectedBatch.stokAdedi > 0) TurquoiseDark else ExpiredRed
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                sortedBatches.forEach { batch ->
-                                    val isSelected = batch.id == currentSelectedBatch.id
-                                    val batchSkt = if (batch.sktTarihi > 0L) dateFormat.format(Date(batch.sktTarihi)) else "Tarihsiz"
-                                    Surface(
-                                        onClick = { selectedBatchId = batch.id },
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = if (isSelected) TurquoisePrimary.copy(alpha = 0.18f) else Color.White,
-                                        border = BorderStroke(
-                                            if (isSelected) 1.8.dp else 1.dp,
-                                            if (isSelected) TurquoiseDark else Color(0xFFCBD5E1)
-                                        ),
-                                        modifier = Modifier.height(38.dp)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            if (isSelected) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Check,
-                                                    contentDescription = null,
-                                                    tint = TurquoiseDark,
-                                                    modifier = Modifier.size(15.dp)
-                                                )
-                                            }
-                                            Text(
-                                                text = "📅 $batchSkt",
-                                                fontSize = 12.sp,
-                                                fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
-                                                color = if (isSelected) TurquoiseDark else Slate700
-                                            )
-                                            Text(
-                                                text = "(${batch.stokAdedi} Adet)",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = if (batch.stokAdedi > 0) Color(0xFF0284C7) else ExpiredRed
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-
-                        // Miktar Girişi ("hemen üstüne de miktar girilen yer yap")
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Düşülecek Miktar:",
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate700
-                                )
-                                if (sortedBatches.size == 1) {
-                                    Spacer(modifier = Modifier.width(6.dp))
+                            // Eğer ürünün birden fazla SKT partisi varsa parti seçimi yap ("2 skt partili olan ürünler içinde seçimi yap")
+                            if (sortedBatches.size > 1) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Text(
-                                        text = "(Mevcut: ${currentSelectedBatch.stokAdedi} Adet)",
+                                        text = "SKT PARTİSİ SEÇİMİ (${sortedBatches.size} Parti):",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate700
+                                    )
+                                    Text(
+                                        text = "Seçilen: ${currentSelectedBatch.stokAdedi} Adet",
                                         fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = FontWeight.Black,
                                         color = if (currentSelectedBatch.stokAdedi > 0) TurquoiseDark else ExpiredRed
                                     )
                                 }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    sortedBatches.forEach { batch ->
+                                        val isSelected = batch.id == currentSelectedBatch.id
+                                        val batchSkt = if (batch.sktTarihi > 0L) dateFormat.format(Date(batch.sktTarihi)) else "Tarihsiz"
+                                        Surface(
+                                            onClick = { selectedBatchId = batch.id },
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isSelected) TurquoisePrimary.copy(alpha = 0.18f) else Color.White,
+                                            border = BorderStroke(
+                                                if (isSelected) 1.8.dp else 1.dp,
+                                                if (isSelected) TurquoiseDark else Color(0xFFCBD5E1)
+                                            ),
+                                            modifier = Modifier.height(38.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = TurquoiseDark,
+                                                        modifier = Modifier.size(15.dp)
+                                                    )
+                                                }
+                                                Text(
+                                                    text = "📅 $batchSkt",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                                    color = if (isSelected) TurquoiseDark else Slate700
+                                                )
+                                                Text(
+                                                    text = "(${batch.stokAdedi} Adet)",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (batch.stokAdedi > 0) Color(0xFF0284C7) else ExpiredRed
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
                             }
 
+                            // Miktar Girişi ("hemen üstüne de miktar girilen yer yap")
                             Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                // - butonu (Erişilebilir Dokunma Alanı: 40dp)
-                                Surface(
-                                    onClick = {
-                                        val q = deductAmountText.toIntOrNull() ?: 1
-                                        if (q > 1) deductAmountText = (q - 1).toString()
-                                    },
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFE2E8F0),
-                                    modifier = Modifier.size(38.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("-", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Slate700)
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "Düşülecek Miktar:",
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate700
+                                    )
+                                    if (sortedBatches.size == 1) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "(Mevcut: ${currentSelectedBatch.stokAdedi} Adet)",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (currentSelectedBatch.stokAdedi > 0) TurquoiseDark else ExpiredRed
+                                        )
                                     }
                                 }
 
-                                // Sayı kutusu (Genişlik: 60dp)
-                                BasicTextField(
-                                    value = deductAmountText,
-                                    onValueChange = { input ->
-                                        val filtered = input.filter { it.isDigit() }.take(4)
-                                        deductAmountText = filtered
-                                    },
-                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                    textStyle = TextStyle(
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color(0xFF0F172A),
-                                        textAlign = TextAlign.Center
-                                    ),
-                                    singleLine = true,
-                                    modifier = Modifier
-                                        .width(60.dp)
-                                        .height(38.dp)
-                                        .background(Color.White, RoundedCornerShape(8.dp))
-                                        .border(1.2.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
-                                        .padding(horizontal = 4.dp, vertical = 7.dp)
-                                        .testTag("detail_deduct_amount_field")
-                                )
-
-                                // + butonu (Erişilebilir Dokunma Alanı: 40dp)
-                                Surface(
-                                    onClick = {
-                                        val q = deductAmountText.toIntOrNull() ?: 0
-                                        val maxLimit = if (currentSelectedBatch.stokAdedi > 0) currentSelectedBatch.stokAdedi else 999
-                                        if (q < maxLimit) deductAmountText = (q + 1).toString()
-                                    },
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = Color(0xFFE2E8F0),
-                                    modifier = Modifier.size(38.dp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text("+", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Slate700)
-                                    }
-                                }
-
-                                if (currentSelectedBatch.stokAdedi > 1) {
+                                    // - butonu (Erişilebilir Dokunma Alanı: 40dp)
                                     Surface(
-                                        onClick = { deductAmountText = currentSelectedBatch.stokAdedi.toString() },
+                                        onClick = {
+                                            val q = deductAmountText.toIntOrNull() ?: 1
+                                            if (q > 1) deductAmountText = (q - 1).toString()
+                                        },
                                         shape = RoundedCornerShape(8.dp),
-                                        color = TurquoisePrimary.copy(alpha = 0.15f),
-                                        border = BorderStroke(1.2.dp, TurquoiseDark),
-                                        modifier = Modifier.height(38.dp)
+                                        color = Color(0xFFE2E8F0),
+                                        modifier = Modifier.size(38.dp)
                                     ) {
-                                        Box(
-                                            contentAlignment = Alignment.Center,
-                                            modifier = Modifier.padding(horizontal = 9.dp)
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text("-", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Slate700)
+                                        }
+                                    }
+
+                                    // Sayı kutusu (Genişlik: 60dp)
+                                    BasicTextField(
+                                        value = deductAmountText,
+                                        onValueChange = { input ->
+                                            val filtered = input.filter { it.isDigit() }.take(4)
+                                            deductAmountText = filtered
+                                        },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        textStyle = TextStyle(
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color(0xFF0F172A),
+                                            textAlign = TextAlign.Center
+                                        ),
+                                        singleLine = true,
+                                        modifier = Modifier
+                                            .width(60.dp)
+                                            .height(38.dp)
+                                            .background(Color.White, RoundedCornerShape(8.dp))
+                                            .border(1.2.dp, Color(0xFFCBD5E1), RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 4.dp, vertical = 7.dp)
+                                            .testTag("detail_deduct_amount_field")
+                                    )
+
+                                    // + butonu (Erişilebilir Dokunma Alanı: 40dp)
+                                    Surface(
+                                        onClick = {
+                                            val q = deductAmountText.toIntOrNull() ?: 0
+                                            val maxLimit = if (currentSelectedBatch.stokAdedi > 0) currentSelectedBatch.stokAdedi else 999
+                                            if (q < maxLimit) deductAmountText = (q + 1).toString()
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        color = Color(0xFFE2E8F0),
+                                        modifier = Modifier.size(38.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text("+", fontSize = 20.sp, fontWeight = FontWeight.Black, color = Slate700)
+                                        }
+                                    }
+
+                                    if (currentSelectedBatch.stokAdedi > 1) {
+                                        Surface(
+                                            onClick = { deductAmountText = currentSelectedBatch.stokAdedi.toString() },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = TurquoisePrimary.copy(alpha = 0.15f),
+                                            border = BorderStroke(1.2.dp, TurquoiseDark),
+                                            modifier = Modifier.height(38.dp)
                                         ) {
-                                            Text(
-                                                text = "Tümü",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = TurquoiseDark
-                                            )
+                                            Box(
+                                                contentAlignment = Alignment.Center,
+                                                modifier = Modifier.padding(horizontal = 9.dp)
+                                            ) {
+                                                Text(
+                                                    text = "Tümü",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = TurquoiseDark
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
-                        // İki Buton: Sol Taraf SATILDI, Sağ Taraf FİRE ("sol tara satıldı sağ tarafa fire diye iki buton ekle")
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Sol Buton: SATILDI
-                            Button(
-                                onClick = {
-                                    val qty = deductAmountText.toIntOrNull() ?: 1
-                                    if (qty <= 0) {
-                                        Toast.makeText(context, "Lütfen en az 1 adet girin", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                    if (currentSelectedBatch.stokAdedi <= 0) {
-                                        Toast.makeText(context, "Bu partide düşülecek stok kalmadı (0 adet)", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                    val safeQty = minOf(qty, currentSelectedBatch.stokAdedi)
-                                    onDeductStock(currentSelectedBatch, safeQty, "Satıldı")
-                                    val remaining = currentSelectedBatch.stokAdedi - safeQty
-                                    Toast.makeText(context, "✓ $safeQty Adet SATILDI olarak düşüldü (Kalan: $remaining Adet)", Toast.LENGTH_SHORT).show()
-                                    deductAmountText = "1"
-                                },
-                                enabled = currentSelectedBatch.stokAdedi > 0,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFF16A34A),
-                                    disabledContainerColor = Color(0xFFCBD5E1)
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .testTag("action_satildi_button")
+                            // İki Buton: Sol Taraf SATILDI, Sağ Taraf FİRE ("sol tara satıldı sağ tarafa fire diye iki buton ekle")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "SATILDI",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
-                            }
+                                // Sol Buton: SATILDI
+                                Button(
+                                    onClick = {
+                                        val qty = deductAmountText.toIntOrNull() ?: 1
+                                        if (qty <= 0) {
+                                            Toast.makeText(context, "Lütfen en az 1 adet girin", Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
+                                        if (currentSelectedBatch.stokAdedi <= 0) {
+                                            Toast.makeText(context, "Bu partide düşülecek stok kalmadı (0 adet)", Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
+                                        val safeQty = minOf(qty, currentSelectedBatch.stokAdedi)
+                                        onDeductStock(currentSelectedBatch, safeQty, "Satıldı")
+                                        val remaining = currentSelectedBatch.stokAdedi - safeQty
+                                        Toast.makeText(context, "✓ $safeQty Adet SATILDI olarak düşüldü (Kalan: $remaining Adet)", Toast.LENGTH_SHORT).show()
+                                        deductAmountText = "1"
+                                    },
+                                    enabled = currentSelectedBatch.stokAdedi > 0,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF16A34A),
+                                        disabledContainerColor = Color(0xFFCBD5E1)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(46.dp)
+                                        .testTag("action_satildi_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "SATILDI",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
 
-                            // Sağ Buton: FİRE
-                            Button(
-                                onClick = {
-                                    val qty = deductAmountText.toIntOrNull() ?: 1
-                                    if (qty <= 0) {
-                                        Toast.makeText(context, "Lütfen en az 1 adet girin", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                    if (currentSelectedBatch.stokAdedi <= 0) {
-                                        Toast.makeText(context, "Bu partide düşülecek stok kalmadı (0 adet)", Toast.LENGTH_SHORT).show()
-                                        return@Button
-                                    }
-                                    val safeQty = minOf(qty, currentSelectedBatch.stokAdedi)
-                                    onDeductStock(currentSelectedBatch, safeQty, "Fire")
-                                    val remaining = currentSelectedBatch.stokAdedi - safeQty
-                                    Toast.makeText(context, "⚠️ $safeQty Adet FİRE olarak düşüldü (Kalan: $remaining Adet)", Toast.LENGTH_SHORT).show()
-                                    deductAmountText = "1"
-                                },
-                                enabled = currentSelectedBatch.stokAdedi > 0,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFDC2626),
-                                    disabledContainerColor = Color(0xFFCBD5E1)
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .testTag("action_fire_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "FİRE",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Color.White
-                                )
+                                // Sağ Buton: FİRE
+                                Button(
+                                    onClick = {
+                                        val qty = deductAmountText.toIntOrNull() ?: 1
+                                        if (qty <= 0) {
+                                            Toast.makeText(context, "Lütfen en az 1 adet girin", Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
+                                        if (currentSelectedBatch.stokAdedi <= 0) {
+                                            Toast.makeText(context, "Bu partide düşülecek stok kalmadı (0 adet)", Toast.LENGTH_SHORT).show()
+                                            return@Button
+                                        }
+                                        val safeQty = minOf(qty, currentSelectedBatch.stokAdedi)
+                                        onDeductStock(currentSelectedBatch, safeQty, "Fire")
+                                        val remaining = currentSelectedBatch.stokAdedi - safeQty
+                                        Toast.makeText(context, "⚠️ $safeQty Adet FİRE olarak düşüldü (Kalan: $remaining Adet)", Toast.LENGTH_SHORT).show()
+                                        deductAmountText = "1"
+                                    },
+                                    enabled = currentSelectedBatch.stokAdedi > 0,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFDC2626),
+                                        disabledContainerColor = Color(0xFFCBD5E1)
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(46.dp)
+                                        .testTag("action_fire_button")
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "FİRE",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }

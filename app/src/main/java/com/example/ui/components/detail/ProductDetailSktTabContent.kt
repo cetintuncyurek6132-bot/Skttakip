@@ -50,12 +50,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
+import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.CriticalOrangeContainer
 import com.example.ui.theme.CriticalOrangeDark
+import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedContainer
 import com.example.ui.theme.ExpiredRedDark
+import com.example.ui.theme.NormalGreen
 import com.example.ui.theme.NormalGreenBorder
 import com.example.ui.theme.NormalGreenContainer
 import com.example.ui.theme.NormalGreenDark
@@ -129,7 +132,7 @@ fun ProductDetailSktTabContent(
                 modifier = Modifier.weight(1f),
                 title = "Geçmiş / 0-3g",
                 count = expiredOrNearCount,
-                accentColor = ExpiredRedDark,
+                accentColor = ExpiredRed,
                 containerColor = ExpiredRedContainer,
                 borderColor = ExpiredRedBorder,
                 isSelected = selectedRiskFilter == SktRiskFilter.EXPIRED_NEAR,
@@ -143,7 +146,7 @@ fun ProductDetailSktTabContent(
                 modifier = Modifier.weight(1f),
                 title = "Kritik 4-15g",
                 count = criticalCount,
-                accentColor = CriticalOrangeDark,
+                accentColor = CriticalOrange,
                 containerColor = CriticalOrangeContainer,
                 borderColor = CriticalOrangeBorder,
                 isSelected = selectedRiskFilter == SktRiskFilter.CRITICAL,
@@ -157,7 +160,7 @@ fun ProductDetailSktTabContent(
                 modifier = Modifier.weight(1f),
                 title = "Güvenli 16+g",
                 count = safeCount,
-                accentColor = NormalGreenDark,
+                accentColor = NormalGreen,
                 containerColor = NormalGreenContainer,
                 borderColor = NormalGreenBorder,
                 isSelected = selectedRiskFilter == SktRiskFilter.SAFE,
@@ -208,7 +211,7 @@ fun ProductDetailSktTabContent(
                     text = "KAYITLI SKT PARTİLERİ",
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.Black,
-                    color = Slate700,
+                    color = MaterialTheme.colorScheme.onSurface,
                     letterSpacing = 0.5.sp
                 )
                 if (selectedRiskFilter != SktRiskFilter.ALL) {
@@ -216,8 +219,8 @@ fun ProductDetailSktTabContent(
                     Surface(
                         onClick = { selectedRiskFilter = SktRiskFilter.ALL },
                         shape = RoundedCornerShape(6.dp),
-                        color = Color(0xFFF1F5F9),
-                        border = BorderStroke(1.dp, Slate200)
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
@@ -232,13 +235,13 @@ fun ProductDetailSktTabContent(
                                 },
                                 fontSize = 9.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Slate700
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             Spacer(modifier = Modifier.width(3.dp))
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Filtreyi Temizle",
-                                tint = Slate500,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.size(11.dp)
                             )
                         }

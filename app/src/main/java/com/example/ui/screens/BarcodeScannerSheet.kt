@@ -207,14 +207,22 @@ fun BarcodeScannerSheet(
     var lastRemainingDays by remember { mutableStateOf<Long?>(null) }
     var resumeCooldownUntil by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     var isCooldownActive by remember { mutableStateOf(false) }
+    var cooldownRemainingSeconds by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
     LaunchedEffect(resumeCooldownUntil) {
         val remaining = resumeCooldownUntil - System.currentTimeMillis()
         if (remaining > 0) {
             isCooldownActive = true
-            kotlinx.coroutines.delay(remaining)
+            while (true) {
+                val remMs = resumeCooldownUntil - System.currentTimeMillis()
+                if (remMs <= 0) break
+                cooldownRemainingSeconds = ((remMs + 999L) / 1000L).toInt()
+                kotlinx.coroutines.delay(200L)
+            }
+            cooldownRemainingSeconds = 0
             isCooldownActive = false
         } else {
+            cooldownRemainingSeconds = 0
             isCooldownActive = false
         }
     }
@@ -322,8 +330,8 @@ fun BarcodeScannerSheet(
                                 }
                                 val trimmedBar = barcode.trim()
                                 if (trimmedBar.isNotBlank()) {
-                                    // Throttle identical barcode by 1300ms to allow smooth scanning across different items
-                                    val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 1300L
+                                    // Debounce to prevent rapid repeated scans of same or multiple barcodes (12s cooldown)
+                                    val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 12000L
 
                                     if (!isSameRecent) {
                                         val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(trimmedBar, products)
@@ -340,6 +348,7 @@ fun BarcodeScannerSheet(
                                         manualBarcode = trimmedBar
                                         selectedProductOverride = null
                                         serialScanCount++
+                                        resumeCooldownUntil = now + 12000L
 
                                         if (isFixQrMode && onFixQrScanned != null) {
                                             onFixQrScanned(trimmedBar) { msg, _ ->
@@ -435,7 +444,35 @@ fun BarcodeScannerSheet(
                                 )
 
                                 // Viewfinder Status / Proximity Guidance Badge
-                                if (isBarcodeTooFar) {
+                                if (isCooldownActive && cooldownRemainingSeconds > 0) {
+                                    Surface(
+                                        onClick = {
+                                            resumeCooldownUntil = 0L
+                                            isCooldownActive = false
+                                            cooldownRemainingSeconds = 0
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.TopCenter)
+                                            .padding(top = 6.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color(0xFF0F172A).copy(alpha = 0.90f),
+                                        border = BorderStroke(1.dp, TurquoisePrimary),
+                                        shadowElevation = 6.dp
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Text(
+                                                text = "⏳ Bekleme: ${cooldownRemainingSeconds}sn (Dokun: Hemen Oku)",
+                                                color = TurquoisePrimary,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Black
+                                            )
+                                        }
+                                    }
+                                } else if (isBarcodeTooFar) {
                                     Surface(
                                         modifier = Modifier
                                             .align(Alignment.TopCenter)
