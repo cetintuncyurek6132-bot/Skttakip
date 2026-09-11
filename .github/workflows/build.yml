@@ -1,0 +1,43 @@
+name: Otomatik APK Derle ve Yayinla
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Kodu Cek
+        uses: actions/checkout@v4
+
+      - name: JDK 17 Kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Gradle Calistirma Izni Ver
+        run: chmod +x gradlew
+
+      - name: APK Derle
+        run: ./gradlew assembleDebug
+
+      - name: Surum Etiketi Olustur
+        id: tagger
+        run: echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      - name: GitHub Release Olarak Yayinla
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tagger.outputs.TAG_NAME }}
+          name: "Surum ${{ steps.tagger.outputs.TAG_NAME }}"
+          files: app/build/outputs/apk/debug/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
