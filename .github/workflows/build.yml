@@ -41,9 +41,7 @@ jobs:
             -Pandroid.injected.version.code=${{ github.run_number }} \
             -Pandroid.injected.version.name="1.0.${{ github.run_number }}" \
             -x lint \
-            -x lintVitalRelease \
             -x test \
-            -x mockableAndroidJar \
             --build-cache \
             --parallel
 
