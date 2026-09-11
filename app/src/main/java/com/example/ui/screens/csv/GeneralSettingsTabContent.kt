@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import com.example.auth.UserAccount
 import com.example.auth.UserManager
 import com.example.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun GeneralSettingsTabContent(
@@ -499,6 +500,155 @@ fun GeneralSettingsTabContent(
                         fontSize = 12.sp,
                         color = Color.White
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 5. UYGULAMA SÜRÜMÜ & GÜNCELLEME KONTROLÜ
+        var isCheckingUpdate by remember { mutableStateOf(false) }
+        val coroutineScope = rememberCoroutineScope()
+        var updateInfoDialog by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
+        var isManualDownloading by remember { mutableStateOf(false) }
+        var manualDownloadPercent by remember { mutableIntStateOf(0) }
+
+        if (updateInfoDialog != null) {
+            com.example.ui.components.AppUpdateDialog(
+                updateInfo = updateInfoDialog!!,
+                isDownloading = isManualDownloading,
+                downloadProgress = manualDownloadPercent,
+                onConfirmUpdate = {
+                    val downloadUrl = updateInfoDialog?.downloadUrl.orEmpty()
+                    if (downloadUrl.isNotBlank()) {
+                        isManualDownloading = true
+                        manualDownloadPercent = 0
+                        coroutineScope.launch {
+                            val downloadResult = com.example.util.AppUpdateChecker.downloadApk(
+                                context = context,
+                                downloadUrl = downloadUrl,
+                                onProgress = { progress ->
+                                    manualDownloadPercent = progress
+                                }
+                            )
+                            isManualDownloading = false
+                            downloadResult.onSuccess { apkFile ->
+                                updateInfoDialog = null
+                                com.example.util.AppUpdateChecker.installApk(context, apkFile)
+                            }.onFailure { e ->
+                                Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    }
+                },
+                onDismiss = {
+                    updateInfoDialog = null
+                }
+            )
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "🚀 UYGULAMA GÜNCELLEME",
+                                fontWeight = FontWeight.Black,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Mevcut Sürüm: v${com.example.BuildConfig.VERSION_NAME}",
+                                fontSize = 11.sp,
+                                color = TurquoiseDark,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Text(
+                    text = "GitHub Releases üzerinden yeni sürüm kontrolü yapabilir, tek tıkla en son APK sürümünü indirip güncelleyebilirsiniz.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Button(
+                    onClick = {
+                        isCheckingUpdate = true
+                        coroutineScope.launch {
+                            val result = com.example.util.AppUpdateChecker.checkForUpdates()
+                            isCheckingUpdate = false
+                            result.onSuccess { info ->
+                                if (info.hasUpdate) {
+                                    updateInfoDialog = info
+                                } else {
+                                    Toast.makeText(context, "✅ Uygulamanız güncel (v${com.example.BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                                }
+                            }.onFailure { err ->
+                                Toast.makeText(context, "Güncelleme kontrolü başarısız: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                ) {
+                    if (isCheckingUpdate) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("KONTROL EDİLİYOR...", fontWeight = FontWeight.Bold, color = Color.White, fontSize = 12.sp)
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = Color.White
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "GÜNCELLEMELERİ KONTROL ET",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            color = Color.White
+                        )
+                    }
                 }
             }
         }

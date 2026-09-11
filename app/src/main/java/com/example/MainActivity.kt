@@ -67,9 +67,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -101,6 +103,7 @@ import com.example.ui.MainViewModel
 import com.example.ui.ProductFilter
 import com.example.ui.components.AddEditProductModal
 import com.example.ui.components.AddSktModal
+import com.example.ui.components.AppUpdateDialog
 import com.example.ui.components.ProductDetailModal
 import com.example.ui.components.SktBottomNavBar
 import com.example.ui.components.SktTopAppBar
@@ -277,6 +280,59 @@ fun SktMainApp(viewModel: MainViewModel) {
     var startScannerInFixMode by remember { mutableStateOf(false) }
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
+
+    // Otomatik GitHub Güncelleme Kontrolü
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    var updateInfoState by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isDownloadingApk by remember { mutableStateOf(false) }
+    var downloadProgressPercent by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        val result = com.example.util.AppUpdateChecker.checkForUpdates()
+        result.onSuccess { info ->
+            if (info.hasUpdate) {
+                updateInfoState = info
+                showUpdateDialog = true
+            }
+        }.onFailure { err ->
+            android.util.Log.d("MainActivity", "Otomatik güncelleme kontrolü: ${err.message}")
+        }
+    }
+
+    if (showUpdateDialog && updateInfoState != null) {
+        AppUpdateDialog(
+            updateInfo = updateInfoState!!,
+            isDownloading = isDownloadingApk,
+            downloadProgress = downloadProgressPercent,
+            onConfirmUpdate = {
+                val downloadUrl = updateInfoState?.downloadUrl.orEmpty()
+                if (downloadUrl.isNotBlank()) {
+                    isDownloadingApk = true
+                    downloadProgressPercent = 0
+                    coroutineScope.launch {
+                        val downloadResult = com.example.util.AppUpdateChecker.downloadApk(
+                            context = context,
+                            downloadUrl = downloadUrl,
+                            onProgress = { progress ->
+                                downloadProgressPercent = progress
+                            }
+                        )
+                        isDownloadingApk = false
+                        downloadResult.onSuccess { apkFile ->
+                            showUpdateDialog = false
+                            com.example.util.AppUpdateChecker.installApk(context, apkFile)
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            },
+            onDismiss = {
+                showUpdateDialog = false
+            }
+        )
+    }
 
     // NOTIFICATIONS DIALOG (Geliştirilmiş Bildirim & Aksiyon Merkezi)
     if (isNotificationDialogOpen) {
