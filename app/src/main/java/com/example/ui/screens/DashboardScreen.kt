@@ -167,7 +167,6 @@ fun DashboardScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Slate50)
-            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 14.dp)
             .testTag("dashboard_screen_root"),

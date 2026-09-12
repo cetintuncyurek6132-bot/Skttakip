@@ -43,8 +43,7 @@ object ScannerFeedbackHelper {
         }
 
         val nearest = prodsWithSkt.minByOrNull { it.sktTarihi } ?: prodsWithSkt.first()
-        val now = System.currentTimeMillis()
-        val remainingDays = (nearest.sktTarihi - now) / (1000 * 60 * 60 * 24)
+        val remainingDays = nearest.getRemainingDays()
 
         val risk = when {
             remainingDays < 0 -> ScanResultRisk.EXPIRED

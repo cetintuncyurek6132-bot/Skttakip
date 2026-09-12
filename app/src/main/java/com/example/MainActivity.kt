@@ -6,12 +6,14 @@ import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -275,6 +277,7 @@ fun SktMainApp(viewModel: MainViewModel) {
     val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
     val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
     val isBatterySaverMode by viewModel.isBatterySaverMode.collectAsStateWithLifecycle()
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
 
     // Dialog & Scanner control states
     var isBarcodeScannerOpen by remember { mutableStateOf(false) }
@@ -480,6 +483,40 @@ fun SktMainApp(viewModel: MainViewModel) {
 
     val focusManager = LocalFocusManager.current
 
+    val navigateToTab: (String) -> Unit = { target ->
+        val user = currentUser
+        if (target == "reports" && user?.canAccessReports == false) {
+            Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
+        } else {
+            if (target == "panel") {
+                val popped = navController.popBackStack("panel", inclusive = false)
+                if (!popped) {
+                    navController.navigate("panel") {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            inclusive = false
+                            saveState = true
+                        }
+                        launchSingleTop = true
+                        restoreState = true
+                    }
+                }
+            } else {
+                navController.navigate(target) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
+    }
+
+    // Android sistem geri tuşunda her zaman ana sayfaya dön
+    BackHandler(enabled = currentRoute != "panel") {
+        navigateToTab("panel")
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -490,25 +527,14 @@ fun SktMainApp(viewModel: MainViewModel) {
                 SktBottomNavBar(
                     currentRoute = currentRoute,
                     onNavigate = { target ->
-                        val user = currentUser
-                        if (target == "reports" && user?.canAccessReports == false) {
-                            Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
-                        } else if (target != currentRoute) {
-                            navController.navigate(target) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
+                        navigateToTab(target)
                     },
                     onScanClick = { isBarcodeScannerOpen = true },
                     userRoleCode = currentUser?.role ?: "MS"
                 )
             },
             topBar = {
-                if (currentRoute != "panel") {
+                if (currentRoute == "panel" || currentRoute == "products") {
                     Column {
                         SktTopAppBar(
                             searchQuery = searchQuery,
@@ -525,9 +551,11 @@ fun SktMainApp(viewModel: MainViewModel) {
                             onOpenScanner = { isBarcodeScannerOpen = true },
                             onBellClick = { isNotificationDialogOpen = true },
                             unreadCount = dashboardState.unreadNotificationCount,
-                            onAvatarClick = { navController.navigate("reminders") },
-                            onRemindersClick = { navController.navigate("reminders") },
-                            onSettingsClick = { navController.navigate("csv") }
+                            onAvatarClick = { navigateToTab("reminders") },
+                            onRemindersClick = { navigateToTab("reminders") },
+                            onSettingsClick = { navigateToTab("csv") },
+                            showHomeButton = currentRoute != "panel",
+                            onHomeClick = { navigateToTab("panel") }
                         )
                         com.example.ui.components.TopBarLoadingBar(isLoading = isSyncingOrLoading)
 
@@ -585,7 +613,11 @@ fun SktMainApp(viewModel: MainViewModel) {
             startDestination = "panel",
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(innerPadding),
+            enterTransition = { fadeIn(animationSpec = tween(150)) },
+            exitTransition = { fadeOut(animationSpec = tween(150)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(150)) },
+            popExitTransition = { fadeOut(animationSpec = tween(150)) }
         ) {
             // 1. PANEL (DASHBOARD)
             composable("panel") {
@@ -595,22 +627,22 @@ fun SktMainApp(viewModel: MainViewModel) {
                         when (action) {
                             "add_product" -> viewModel.openAddProductModal()
                             "scan" -> isBarcodeScannerOpen = true
-                            "adetsel" -> navController.navigate("adetsel")
-                            "csv" -> navController.navigate("csv")
-                            "reports", "takip" -> navController.navigate("takip")
-                            else -> navController.navigate("products")
+                            "adetsel" -> navigateToTab("adetsel")
+                            "csv" -> navigateToTab("csv")
+                            "reports", "takip" -> navigateToTab("takip")
+                            else -> navigateToTab("products")
                         }
                     },
                     onFilterSelectAndNavigate = { filter ->
                         viewModel.onFilterSelected(filter)
-                        navController.navigate("products")
+                        navigateToTab("products")
                     },
                     onProductClick = { prod ->
                         viewModel.openProductDetailModal(prod)
                     },
                     onViewAllProductsClick = {
                         viewModel.onFilterSelected(ProductFilter.ALL)
-                        navController.navigate("products")
+                        navigateToTab("products")
                     },
                     onAvatarClick = {
                         isProfileDialogOpen = true
@@ -648,13 +680,10 @@ fun SktMainApp(viewModel: MainViewModel) {
 
             // 3. TAKİP (İADE & DEPO RED TAKİBİ)
             composable("takip") {
-                val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
                 TakipScreen(
                     products = allProducts,
                     onBackClick = {
-                        navController.navigate("panel") {
-                            popUpTo("panel") { inclusive = true }
-                        }
+                        navigateToTab("panel")
                     },
                     onOpenScanner = {
                         isBarcodeScannerOpen = true
@@ -663,13 +692,10 @@ fun SktMainApp(viewModel: MainViewModel) {
             }
 
             composable("reports") {
-                val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
                 TakipScreen(
                     products = allProducts,
                     onBackClick = {
-                        navController.navigate("panel") {
-                            popUpTo("panel") { inclusive = true }
-                        }
+                        navigateToTab("panel")
                     },
                     onOpenScanner = {
                         isBarcodeScannerOpen = true
@@ -679,12 +705,6 @@ fun SktMainApp(viewModel: MainViewModel) {
 
             // 5. CSV VERİ AKTARIMI
             composable("csv") {
-                val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
-                val isBatterySaverMode by viewModel.isBatterySaverMode.collectAsStateWithLifecycle()
-                val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
-                val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
-                val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
-
                 CsvScreen(
                     isDarkMode = isDarkMode,
                     isBatterySaverMode = isBatterySaverMode,
@@ -707,7 +727,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                     onSaveLocalBackup = { tag, cb -> viewModel.saveLocalBackup(context, tag, cb) },
                     onGetLocalBackups = { viewModel.getLocalBackups(context) },
                     onRestoreFromJson = { json, merge, cb -> viewModel.restoreFromJson(context, json, merge, cb) },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navigateToTab("panel") }
                 )
             }
 
@@ -715,7 +735,7 @@ fun SktMainApp(viewModel: MainViewModel) {
             composable("reminders") {
                 RemindersScreen(
                     onBackClick = {
-                        navController.popBackStack()
+                        navigateToTab("panel")
                     }
                 )
             }
@@ -747,7 +767,10 @@ fun SktMainApp(viewModel: MainViewModel) {
                         Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
                     },
                     onNavigateToProducts = {
-                        navController.navigate("products")
+                        navigateToTab("products")
+                    },
+                    onBackClick = {
+                        navigateToTab("panel")
                     }
                 )
             }

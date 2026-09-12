@@ -82,7 +82,7 @@ fun ProductsGroupedList(
             items = groupedProducts,
             key = { group: List<Product> ->
                 val first = group.first()
-                if (first.barkod.isNotBlank()) first.barkod else "${first.urunAdi}_${first.id}"
+                if (first.barkod.isNotBlank()) "b_${first.barkod.trim().lowercase()}" else "p_${first.id}_${first.urunAdi.trim().lowercase()}"
             }
         ) { group: List<Product> ->
             if (group.size == 1) {

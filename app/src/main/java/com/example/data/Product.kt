@@ -108,8 +108,22 @@ data class Product(
     }
     fun getRemainingDays(todayMidnight: Long = getTodayMidnightMillis()): Long {
         if (sktTarihi <= 0L) return 9999L
-        val diffMillis = sktTarihi - todayMidnight
-        return diffMillis / (1000L * 60 * 60 * 24)
+        val sktCal = Calendar.getInstance().apply {
+            timeInMillis = sktTarihi
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val todayCal = Calendar.getInstance().apply {
+            timeInMillis = todayMidnight
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
+        return kotlin.math.round(diffMillis.toDouble() / (1000.0 * 60 * 60 * 24)).toLong()
     }
 
     fun getExpiryStatus(todayMidnight: Long = getTodayMidnightMillis()): ExpiryStatus {

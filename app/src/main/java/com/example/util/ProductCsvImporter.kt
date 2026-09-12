@@ -35,21 +35,30 @@ object ProductCsvImporter {
                 val p = input.split(".")
                 if (p.size >= 3) {
                     val cal = Calendar.getInstance()
-                    cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    val rawYear = p[2].toInt()
+                    val year = if (rawYear < 100) 2000 + rawYear else rawYear
+                    cal.set(year, p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
                     cal.timeInMillis
                 } else 0L
             } else if (input.contains("-")) {
                 val p = input.split("-")
                 if (p.size >= 3) {
                     val cal = Calendar.getInstance()
-                    cal.set(p[0].toInt(), p[1].toInt() - 1, p[2].toInt(), 0, 0, 0)
+                    val rawYear = p[0].toInt()
+                    val year = if (rawYear < 100) 2000 + rawYear else rawYear
+                    cal.set(year, p[1].toInt() - 1, p[2].toInt(), 0, 0, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
                     cal.timeInMillis
                 } else 0L
             } else if (input.contains("/")) {
                 val p = input.split("/")
                 if (p.size >= 3) {
                     val cal = Calendar.getInstance()
-                    cal.set(p[2].toInt(), p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    val rawYear = p[2].toInt()
+                    val year = if (rawYear < 100) 2000 + rawYear else rawYear
+                    cal.set(year, p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
                     cal.timeInMillis
                 } else 0L
             } else {

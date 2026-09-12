@@ -181,8 +181,22 @@ object MorningSktCheckEvaluator {
         }
 
         val sktStr = dateFormatter.format(Date(sktMillis))
-        val diffMillis = sktMillis - todayMidnightMillis
-        val remainingDays = diffMillis / (1000L * 60 * 60 * 24)
+        val sktCal = Calendar.getInstance().apply {
+            timeInMillis = sktMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val todayCal = Calendar.getInstance().apply {
+            timeInMillis = todayMidnightMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
+        val remainingDays = kotlin.math.round(diffMillis.toDouble() / (1000.0 * 60 * 60 * 24)).toLong()
 
         return when {
             // Tarihi Geçmiş (diff < 0)
@@ -361,8 +375,22 @@ object MorningSktCheckEvaluator {
     ): MorningSktEvaluationResult {
         val todayStr = dateFormatter.format(Date(todayMidnightMillis))
         val sktStr = dateFormatter.format(Date(detectedSktMillis))
-        val diffMillis = detectedSktMillis - todayMidnightMillis
-        val remainingDays = diffMillis / (1000L * 60 * 60 * 24)
+        val sktCal = Calendar.getInstance().apply {
+            timeInMillis = detectedSktMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val todayCal = Calendar.getInstance().apply {
+            timeInMillis = todayMidnightMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
+        val remainingDays = kotlin.math.round(diffMillis.toDouble() / (1000.0 * 60 * 60 * 24)).toLong()
 
         return when {
             remainingDays < 0L -> {

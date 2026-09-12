@@ -89,7 +89,7 @@ fun TakipScreen(
     }
 
     fun normalizeSearch(text: String): String {
-        return text.lowercase(Locale("tr"))
+        return text.lowercase(Locale.forLanguageTag("tr-TR"))
             .replace("ı", "i")
             .replace("ü", "u")
             .replace("ö", "o")
@@ -163,7 +163,7 @@ fun TakipScreen(
         }
         val message = buildString {
             append("📋 *A101 - İADE VE DEPO RED TAKİP LİSTESİ*\n")
-            append("Tarih: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale("tr")).format(Date())}\n")
+            append("Tarih: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR")).format(Date())}\n")
             append("Toplam: ${records.size} Kayıt | Devam Eden: ${stats.devamEdenSayisi} | Onaylanan: ${stats.onaylananSayisi} | Red: ${stats.reddedilenSayisi}\n\n")
 
             records.forEachIndexed { index, r ->

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "SKT Takip"
+rootProject.name = "SKT Takip V2"
 
 include(":app")

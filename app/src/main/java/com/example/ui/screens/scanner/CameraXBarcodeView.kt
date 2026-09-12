@@ -61,6 +61,9 @@ fun CameraXBarcodeView(
 
     val currentOnBarcodeScanned by rememberUpdatedState(onBarcodeScanned)
     val currentOnDistanceStateChanged by rememberUpdatedState(onDistanceStateChanged)
+    val currentFilterMode by rememberUpdatedState(filterMode)
+    val currentRequireCloseDistance by rememberUpdatedState(requireCloseDistance)
+    val currentIsBatterySaverMode by rememberUpdatedState(isBatterySaverMode)
     val isPausedAtomic = remember { java.util.concurrent.atomic.AtomicBoolean(isPaused) }
     isPausedAtomic.set(isPaused)
 
@@ -194,8 +197,6 @@ fun CameraXBarcodeView(
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
 
-                    val minFrameIntervalMs = if (isBatterySaverMode) 260L else 180L
-
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         if (isPausedAtomic.get()) {
                             pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
@@ -204,6 +205,7 @@ fun CameraXBarcodeView(
                             return@setAnalyzer
                         }
 
+                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 260L else 180L
                         val currentTime = System.currentTimeMillis()
                         val lastAnalyzed = lastAnalyzedTimeRef.get()
                         if (currentTime - lastAnalyzed < minFrameIntervalMs) {
@@ -214,8 +216,8 @@ fun CameraXBarcodeView(
 
                         processImageProxy(
                             barcodeScanner = barcodeScanner,
-                            filterMode = filterMode,
-                            requireCloseDistance = requireCloseDistance,
+                            filterMode = currentFilterMode,
+                            requireCloseDistance = currentRequireCloseDistance,
                             imageProxy = imageProxy,
                             onDistanceFeedback = { isTooFar ->
                                 if (isPausedAtomic.get()) return@processImageProxy

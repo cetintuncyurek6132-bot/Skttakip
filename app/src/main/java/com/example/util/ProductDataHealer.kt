@@ -348,6 +348,7 @@ object ProductDataHealer {
                     val cal = Calendar.getInstance()
                     val year = p[2].toInt().let { if (it < 100) 2000 + it else it }
                     cal.set(year, p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
                     cal.timeInMillis
                 } else 0L
             } else if (input.contains("-")) {
@@ -356,6 +357,7 @@ object ProductDataHealer {
                     val cal = Calendar.getInstance()
                     val year = p[0].toInt().let { if (it < 100) 2000 + it else it }
                     cal.set(year, p[1].toInt() - 1, p[2].toInt(), 0, 0, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
                     cal.timeInMillis
                 } else 0L
             } else if (input.contains("/")) {
@@ -364,6 +366,7 @@ object ProductDataHealer {
                     val cal = Calendar.getInstance()
                     val year = p[2].toInt().let { if (it < 100) 2000 + it else it }
                     cal.set(year, p[1].toInt() - 1, p[0].toInt(), 0, 0, 0)
+                    cal.set(Calendar.MILLISECOND, 0)
                     cal.timeInMillis
                 } else 0L
             } else {
