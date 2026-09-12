@@ -203,68 +203,58 @@ fun TakipScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 2.dp
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Slate50)
+    ) {
+        // KOMPAKT SAYFA BAŞLIĞI VE İŞLEMLER
+        Surface(
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 1.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "İade & Depo Takibi",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900,
+                            fontSize = 17.sp
+                        )
+                    )
+                    Text(
+                        text = "${filteredRecords.size} aktif takip kaydı",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = Slate500,
+                            fontSize = 11.5.sp
+                        )
+                    )
+                }
+
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(Slate100, CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
-                            tint = Slate700
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "İade & Depo Takibi",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Slate900,
-                                fontSize = 20.sp
-                            )
-                        )
-                        Text(
-                            text = "Depo ret ve iade süreçleri",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = Slate500,
-                                fontSize = 12.sp
-                            )
-                        )
-                    }
-
-                    // Top Action Buttons
                     IconButton(
                         onClick = { shareAllRecordsOnWhatsApp() },
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(36.dp)
                             .background(Color(0xFFE8F5E9), CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Share,
                             contentDescription = "WhatsApp ile Paylaş",
                             tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
-
-                    Spacer(modifier = Modifier.width(8.dp))
 
                     FilledTonalButton(
                         onClick = {
@@ -275,33 +265,30 @@ fun TakipScreen(
                             containerColor = TurquoisePrimary,
                             contentColor = Color.White
                         ),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        modifier = Modifier.height(40.dp)
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.height(36.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = null,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Yeni Kayıt",
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
             }
-        },
-        containerColor = Slate50
-    ) { innerPadding ->
+        }
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // 1. İSTATİSTİK KARTLARI
             item {

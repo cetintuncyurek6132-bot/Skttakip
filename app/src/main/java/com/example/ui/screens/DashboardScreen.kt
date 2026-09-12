@@ -106,16 +106,6 @@ fun DashboardScreen(
     val context = LocalContext.current
     val currentUser by UserManager.currentUser.collectAsState()
 
-    val currentDateStr = remember {
-        val dateFormat = SimpleDateFormat("d MMMM yyyy, EEEE", Locale.forLanguageTag("tr-TR"))
-        dateFormat.format(Date())
-    }
-
-    val firstName = remember(currentUser?.fullName) {
-        val name = currentUser?.fullName?.trim() ?: "Kullanıcı"
-        name.split(" ").firstOrNull()?.ifBlank { "Kullanıcı" } ?: "Kullanıcı"
-    }
-
     val urgentProducts = remember(state.removeProducts, state.nearExpiryProducts, state.attentionProducts) {
         (state.removeProducts + state.nearExpiryProducts + state.attentionProducts)
             .distinctBy { it.id }
@@ -173,107 +163,17 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
         // =====================================================================
-        // 1. ÜST KARŞILAMA SATIRI (Sade, Hızlı Okunabilir)
-        // =====================================================================
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = "Merhaba, $firstName",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900,
-                    letterSpacing = (-0.3).sp
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "${currentUser?.department ?: "Mağaza Reyon"} • $currentDateStr",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Slate500,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                // Bildirim Zili Butonu
-                Surface(
-                    onClick = onNotificationClick,
-                    shape = CircleShape,
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Slate200),
-                    shadowElevation = 1.dp,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .testTag("dashboard_notification_btn")
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Notifications,
-                            contentDescription = "Bildirimler",
-                            tint = Slate700,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        if (state.unreadNotificationCount > 0) {
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(top = 7.dp, end = 7.dp)
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(ExpiredRed)
-                            )
-                        }
-                    }
-                }
-
-                // Profil / Kullanıcı Butonu
-                Surface(
-                    onClick = onAvatarClick,
-                    shape = CircleShape,
-                    color = TurquoiseLight,
-                    border = BorderStroke(1.dp, TurquoisePrimary),
-                    modifier = Modifier
-                        .size(40.dp)
-                        .testTag("dashboard_avatar_btn")
-                ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = firstName.take(1).uppercase(),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark
-                        )
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // 2. ÖZET İSTATİSTİK ŞERİDİ (4'LÜ YATAY KART DİZİLİMİ - TIKLANABİLİR)
+        // 1. ÖZET İSTATİSTİK ŞERİDİ (4'LÜ YATAY KART DİZİLİMİ - TIKLANABİLİR)
         // =====================================================================
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 1. TAKİPTE (Tüm Ürünler Listesi)
+            // 1. TOPLAM (Tüm Ürünler Listesi)
             StatSummaryCard(
                 modifier = Modifier.weight(1f),
                 count = state.totalCount,
-                label = "Takipte",
+                label = "Toplam",
                 numberColor = Slate900,
                 testTag = "stat_card_total",
                 onClick = { onFilterSelectAndNavigate(ProductFilter.ALL) }

@@ -50,7 +50,9 @@ object AppUpdateChecker {
 
             val rawTagName = json.optString("tag_name", "")
             val cleanTagName = rawTagName.trim().removePrefix("v").removePrefix("V").trim()
-            val releaseNotes = json.optString("body", "")
+            val rawReleaseNotes = json.optString("body", "")
+            val defaultNotes = "Bulunan hatalar düzeltildi.\nAna sayfa adetsel ve takip sayfaları düzeltildi.\nÜrün hataları giderildi.\nOptimizasyonu yapıldı"
+            val releaseNotes = rawReleaseNotes.ifBlank { defaultNotes }
 
             var downloadUrl = ""
             val assetsArray = json.optJSONArray("assets")

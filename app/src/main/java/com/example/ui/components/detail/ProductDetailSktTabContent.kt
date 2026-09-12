@@ -92,21 +92,21 @@ fun ProductDetailSktTabContent(
 ) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
     val allValidSktProducts = remember(matchingProducts) {
-        matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }.sortedBy { it.sktTarihi }
+        matchingProducts.filter { it.sktTarihi > 0L }.sortedBy { it.sktTarihi }
     }
 
     var selectedRiskFilter by remember { mutableStateOf(SktRiskFilter.ALL) }
 
     val expiredOrNearCount = remember(allValidSktProducts) {
-        allValidSktProducts.filter { it.getRemainingDays() <= 3 }.sumOf { it.stokAdedi }
+        allValidSktProducts.filter { it.getRemainingDays() <= 3 }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
     val criticalCount = remember(allValidSktProducts) {
-        allValidSktProducts.filter { it.getRemainingDays() in 4..15 }.sumOf { it.stokAdedi }
+        allValidSktProducts.filter { it.getRemainingDays() in 4..15 }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
     val safeCount = remember(allValidSktProducts) {
-        allValidSktProducts.filter { it.getRemainingDays() >= 16 }.sumOf { it.stokAdedi }
+        allValidSktProducts.filter { it.getRemainingDays() >= 16 }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
     val displayedSktProducts = remember(allValidSktProducts, selectedRiskFilter) {

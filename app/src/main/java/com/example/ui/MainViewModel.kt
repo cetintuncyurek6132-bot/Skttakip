@@ -511,11 +511,31 @@ class MainViewModel(
                     urunAdi = urunAdi.uppercase().trim(),
                     kategori = kategori,
                     sktTarihi = if (sktTarihi > 0L) sktTarihi else currentEditing.sktTarihi,
-                    stokAdedi = if (stokAdedi > 0) stokAdedi else currentEditing.stokAdedi,
-                    fiyat = fiyat ?: currentEditing.fiyat,
+                    stokAdedi = if (stokAdedi > 0) stokAdedi else currentEditing.sktTarihi.let { if (it > 0L) currentEditing.stokAdedi else 0 },
+                    fiyat = fiyat,
                     isImportant = isImportant
                 )
                 repository.insertOrUpdateProduct(productToSave)
+
+                // Sync sibling items of same barcode / urunKodu
+                val siblings = if (currentEditing.barkod.isNotBlank()) {
+                    repository.getProductsByBarcode(currentEditing.barkod)
+                } else if (currentEditing.urunKodu.isNotBlank()) {
+                    allProducts.value.filter { it.urunKodu == currentEditing.urunKodu }
+                } else emptyList()
+
+                siblings.filter { it.id != currentEditing.id }.forEach { sibling ->
+                    val updatedSibling = sibling.copy(
+                        barkod = finalBarkod,
+                        urunKodu = urunKodu.trim().ifBlank { sibling.urunKodu },
+                        urunAdi = urunAdi.uppercase().trim().ifBlank { sibling.urunAdi },
+                        kategori = kategori.ifBlank { sibling.kategori },
+                        fiyat = fiyat ?: sibling.fiyat,
+                        isImportant = isImportant
+                    )
+                    repository.insertOrUpdateProduct(updatedSibling)
+                }
+
                 productToSave
             } else {
                 val existingList = if (finalBarkod.isNotBlank()) {
@@ -719,6 +739,23 @@ class MainViewModel(
                     closeProductDetailModal()
                 }
             }
+        }
+    }
+
+    fun deleteProductWithAllBatches(product: Product) {
+        viewModelScope.launch {
+            val allMatches = if (product.barkod.isNotBlank()) {
+                repository.getProductsByBarcode(product.barkod)
+            } else {
+                allProducts.value.filter { it.urunAdi.equals(product.urunAdi, ignoreCase = true) }
+            }
+            if (allMatches.isNotEmpty()) {
+                allMatches.forEach { repository.deleteProduct(it) }
+            } else {
+                repository.deleteProduct(product)
+            }
+            closeAddEditModal()
+            closeProductDetailModal()
         }
     }
 

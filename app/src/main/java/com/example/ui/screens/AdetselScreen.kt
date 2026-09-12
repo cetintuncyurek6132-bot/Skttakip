@@ -258,64 +258,44 @@ fun AdetselScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // TOP HEADER
+        // TOP HEADER - KOMPAKT VE ŞIK
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 1.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(Slate100, CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri",
-                                tint = Slate700,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
                         Surface(
                             shape = CircleShape,
                             color = TurquoisePrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.FactCheck,
                                     contentDescription = null,
                                     tint = TurquoiseDark,
-                                    modifier = Modifier.size(19.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "ADETSEL SAYIM",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Black,
-                                color = TurquoiseDark
-                            )
-                            Text(
-                                text = "Eksik / Fazla / Tam Durum Takibi",
-                                fontSize = 10.5.sp,
-                                color = Slate500,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Adetsel Sayım",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
                     }
 
                     if (selectedTab == AdetselTab.YAPILDI && yapildiList.isNotEmpty()) {
@@ -325,31 +305,31 @@ fun AdetselScreen(
                             border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.5f)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed),
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.height(30.dp)
+                            modifier = Modifier.height(28.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.ClearAll, contentDescription = null, modifier = Modifier.size(14.dp))
+                            Icon(imageVector = Icons.Default.ClearAll, contentDescription = null, modifier = Modifier.size(13.dp))
                             Spacer(modifier = Modifier.width(3.dp))
                             Text("Temizle", fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
 
+                Spacer(modifier = Modifier.height(6.dp))
+
                 // TAB ROW
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 2.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // TAB 1: ADETSEL YAPILACAK
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .clickable { selectedTab = AdetselTab.YAPILACAK },
                         color = if (selectedTab == AdetselTab.YAPILACAK) TurquoiseDark else Slate100,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         border = if (selectedTab == AdetselTab.YAPILACAK) null else BorderStroke(1.dp, Slate200)
                     ) {
                         Row(
@@ -359,8 +339,8 @@ fun AdetselScreen(
                         ) {
                             Text(
                                 text = "YAPILACAK",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = if (selectedTab == AdetselTab.YAPILACAK) Color.White else Slate700
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -383,11 +363,11 @@ fun AdetselScreen(
                     Surface(
                         modifier = Modifier
                             .weight(1f)
-                            .height(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
+                            .height(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
                             .clickable { selectedTab = AdetselTab.YAPILDI },
                         color = if (selectedTab == AdetselTab.YAPILDI) TurquoiseDark else Slate100,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         border = if (selectedTab == AdetselTab.YAPILDI) null else BorderStroke(1.dp, Slate200)
                     ) {
                         Row(
@@ -397,8 +377,8 @@ fun AdetselScreen(
                         ) {
                             Text(
                                 text = "YAPILDI",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = if (selectedTab == AdetselTab.YAPILDI) Color.White else Slate700
                             )
                             Spacer(modifier = Modifier.width(6.dp))
@@ -417,8 +397,6 @@ fun AdetselScreen(
                         }
                     }
                 }
-
-                Spacer(modifier = Modifier.height(6.dp))
             }
         }
 

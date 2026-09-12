@@ -2,6 +2,8 @@ package com.example.ui.components
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -97,7 +99,7 @@ fun AddEditProductModal(
     }
     var urunKodu by remember {
         mutableStateOf(
-            healedProduct?.urunKodu ?: parsedPrefill?.productCode ?: "2500${(1000..9999).random()}"
+            healedProduct?.urunKodu ?: parsedPrefill?.productCode ?: ""
         )
     }
     var urunAdi by remember { mutableStateOf(healedProduct?.urunAdi ?: "") }
@@ -136,6 +138,7 @@ fun AddEditProductModal(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
                 // Header

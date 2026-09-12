@@ -601,6 +601,31 @@ fun GeneralSettingsTabContent(
                     lineHeight = 18.sp
                 )
 
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = TurquoisePrimary.copy(alpha = 0.08f),
+                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.25f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = "📝 Güncel Sürüm Notları:",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "• Bulunan hatalar düzeltildi.\n• Ana sayfa adetsel ve takip sayfaları düzeltildi.\n• Ürün hataları giderildi.\n• Optimizasyonu yapıldı",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 17.sp
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Button(

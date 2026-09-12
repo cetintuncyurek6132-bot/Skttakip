@@ -13,6 +13,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -388,7 +390,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                 }
             },
             onDelete = if (editingProduct != null) {
-                { prod -> viewModel.deleteProduct(prod) }
+                { prod -> viewModel.deleteProductWithAllBatches(prod) }
             } else null
         )
     }
@@ -484,29 +486,31 @@ fun SktMainApp(viewModel: MainViewModel) {
     val focusManager = LocalFocusManager.current
 
     val navigateToTab: (String) -> Unit = { target ->
-        val user = currentUser
-        if (target == "reports" && user?.canAccessReports == false) {
-            Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
+        if (target == currentRoute) {
+            // Zaten mevcut sayfadayız, gereksiz recomposition ve navigasyon yapma
         } else {
-            if (target == "panel") {
-                val popped = navController.popBackStack("panel", inclusive = false)
-                if (!popped) {
-                    navController.navigate("panel") {
+            val user = currentUser
+            if (target == "reports" && user?.canAccessReports == false) {
+                Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
+            } else {
+                if (target == "panel") {
+                    val popped = navController.popBackStack("panel", inclusive = false)
+                    if (!popped) {
+                        navController.navigate("panel") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = false
+                            }
+                            launchSingleTop = true
+                        }
+                    }
+                } else {
+                    navController.navigate(target) {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            inclusive = false
                             saveState = true
                         }
                         launchSingleTop = true
                         restoreState = true
                     }
-                }
-            } else {
-                navController.navigate(target) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        saveState = true
-                    }
-                    launchSingleTop = true
-                    restoreState = true
                 }
             }
         }
@@ -534,7 +538,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                 )
             },
             topBar = {
-                if (currentRoute == "panel" || currentRoute == "products") {
+                if (currentRoute in listOf("panel", "products", "takip", "adetsel", "reports", "csv")) {
                     Column {
                         SktTopAppBar(
                             searchQuery = searchQuery,
@@ -614,10 +618,10 @@ fun SktMainApp(viewModel: MainViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            enterTransition = { fadeIn(animationSpec = tween(150)) },
-            exitTransition = { fadeOut(animationSpec = tween(150)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(150)) },
-            popExitTransition = { fadeOut(animationSpec = tween(150)) }
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
         ) {
             // 1. PANEL (DASHBOARD)
             composable("panel") {

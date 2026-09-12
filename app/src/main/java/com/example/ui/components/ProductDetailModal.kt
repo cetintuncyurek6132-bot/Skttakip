@@ -114,10 +114,10 @@ fun ProductDetailModal(
     var showDetailPriceQrScanner by remember { mutableStateOf(false) }
 
     val sortedBatches = remember(matchingProducts, product) {
-        val list = matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }
+        val list = matchingProducts.filter { it.sktTarihi > 0L }
         if (list.isNotEmpty()) {
             list.sortedBy { it.sktTarihi }
-        } else if (product.sktTarihi > 0L && product.stokAdedi > 0) {
+        } else if (product.sktTarihi > 0L) {
             listOf(product)
         } else {
             emptyList()
@@ -136,7 +136,7 @@ fun ProductDetailModal(
     var deductAmountText by remember { mutableStateOf("1") }
 
     val totalStockCount = remember(matchingProducts) {
-        matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }.sumOf { it.stokAdedi }
+        matchingProducts.filter { it.sktTarihi > 0L }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
     Dialog(
