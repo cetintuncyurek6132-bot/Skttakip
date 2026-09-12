@@ -627,12 +627,14 @@ fun SktMainApp(viewModel: MainViewModel) {
             composable("panel") {
                 DashboardScreen(
                     state = dashboardState,
+                    products = allProducts,
                     onQuickActionClick = { action ->
                         when (action) {
                             "add_product" -> viewModel.openAddProductModal()
                             "scan" -> isBarcodeScannerOpen = true
-                            "adetsel" -> navigateToTab("adetsel")
+                            "reminders" -> navigateToTab("reminders")
                             "csv" -> navigateToTab("csv")
+                            "adetsel" -> navigateToTab("adetsel")
                             "reports", "takip" -> navigateToTab("takip")
                             else -> navigateToTab("products")
                         }

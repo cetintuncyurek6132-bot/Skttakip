@@ -41,7 +41,7 @@ import java.util.Calendar
 
 enum class ProductFilter(val label: String) {
     ALL("TÜMÜ"),
-    IMPORTANT("🔥 ÖNEMLİ (STOK≥10 & SKT≤30 GÜN)"),
+    IMPORTANT("🔥 ÖNEMLİ"),
     EXPIRED("SÜRESİ GEÇEN"),
     CRITICAL("KRİTİK"),
     SOON("YAKIN")
@@ -55,6 +55,7 @@ enum class ProductGroupFilter(val label: String) {
 
 data class DashboardState(
     val totalCount: Int = 0,
+    val allRegisteredCount: Int = 0,
     val expiredCount: Int = 0,
     val criticalCount: Int = 0,
     val soonCount: Int = 0,
@@ -62,7 +63,6 @@ data class DashboardState(
     val attentionProducts: List<Product> = emptyList(),
     val removeProducts: List<Product> = emptyList(),
     val nearExpiryProducts: List<Product> = emptyList(),
-    val isMorningTourCompletedToday: Boolean = false,
     val unreadNotificationCount: Int = 3
 )
 
@@ -314,12 +314,13 @@ class MainViewModel(
             .distinctBy { "${if (it.barkod.isNotBlank()) it.barkod else it.urunAdi.trim().lowercase()}-${it.getFormattedSkt()}" }
             .sortedBy { it.getRemainingDays(todayMidnight) }
 
-        val completedToday = reports.any { it.tarih >= todayMidnight }
         val activeAlertsCount = expired + critical
         val unreadCount = if (isRead) 0 else (if (activeAlertsCount > 0) activeAlertsCount else 1)
+        val sktEnteredCount = products.count { it.sktTarihi > 0L }
 
         DashboardState(
-            totalCount = products.size,
+            totalCount = sktEnteredCount,
+            allRegisteredCount = products.size,
             expiredCount = expired,
             criticalCount = critical,
             soonCount = soon,
@@ -327,7 +328,6 @@ class MainViewModel(
             attentionProducts = attention,
             removeProducts = removeProds,
             nearExpiryProducts = nearExpiryProds,
-            isMorningTourCompletedToday = completedToday,
             unreadNotificationCount = unreadCount
         )
     }

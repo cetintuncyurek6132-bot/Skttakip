@@ -21,6 +21,8 @@ import com.example.ui.components.GroupedProductListItemCard
 import com.example.ui.components.ProductListItemCard
 import com.example.ui.theme.CriticalOrange
 
+import java.util.Calendar
+
 @Composable
 fun ProductsGroupedList(
     products: List<Product>,
@@ -30,6 +32,15 @@ fun ProductsGroupedList(
     onQuickAddSkt: (Product) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val todayMidnight = remember {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.timeInMillis
+    }
+
     val groupedProducts = remember(products) {
         products.groupBy {
             if (it.barkod.isNotBlank()) it.barkod.trim().lowercase() else it.urunAdi.trim().lowercase()
@@ -89,6 +100,7 @@ fun ProductsGroupedList(
                 val product = group.first()
                 ProductListItemCard(
                     product = product,
+                    todayMidnight = todayMidnight,
                     onClick = { onProductClick(product) },
                     onQuickAddSkt = { onQuickAddSkt(product) },
                     onDelete = { onDeleteProduct(product) }
@@ -96,6 +108,7 @@ fun ProductsGroupedList(
             } else {
                 GroupedProductListItemCard(
                     productList = group,
+                    todayMidnight = todayMidnight,
                     onClick = { product -> onProductClick(product) },
                     onQuickAddSkt = { product -> onQuickAddSkt(product) },
                     onDeleteProduct = { product -> onDeleteProduct(product) }

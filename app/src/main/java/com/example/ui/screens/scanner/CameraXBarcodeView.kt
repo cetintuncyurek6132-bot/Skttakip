@@ -72,13 +72,16 @@ fun CameraXBarcodeView(
     val pendingRunnableRef = remember { java.util.concurrent.atomic.AtomicReference<Runnable?>(null) }
     val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
     val lastFarDetectedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val currentDistanceStateRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
 
     LaunchedEffect(isPaused) {
         isPausedAtomic.set(isPaused)
         if (isPaused) {
             pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
             pendingScanRef.set(null)
-            currentOnDistanceStateChanged?.invoke(false)
+            if (currentDistanceStateRef.compareAndSet(true, false)) {
+                currentOnDistanceStateChanged?.invoke(false)
+            }
         }
     }
 
@@ -205,7 +208,7 @@ fun CameraXBarcodeView(
                             return@setAnalyzer
                         }
 
-                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 260L else 180L
+                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 320L else 220L
                         val currentTime = System.currentTimeMillis()
                         val lastAnalyzed = lastAnalyzedTimeRef.get()
                         if (currentTime - lastAnalyzed < minFrameIntervalMs) {
@@ -224,16 +227,20 @@ fun CameraXBarcodeView(
                                 val now = System.currentTimeMillis()
                                 if (isTooFar) {
                                     lastFarDetectedTimeRef.set(now)
-                                    mainHandler.post {
-                                        if (!isPausedAtomic.get()) {
-                                            currentOnDistanceStateChanged?.invoke(true)
+                                    if (currentDistanceStateRef.compareAndSet(false, true)) {
+                                        mainHandler.post {
+                                            if (!isPausedAtomic.get()) {
+                                                currentOnDistanceStateChanged?.invoke(true)
+                                            }
                                         }
                                     }
                                 } else {
                                     if (now - lastFarDetectedTimeRef.get() > 350L) {
-                                        mainHandler.post {
-                                            if (!isPausedAtomic.get()) {
-                                                currentOnDistanceStateChanged?.invoke(false)
+                                        if (currentDistanceStateRef.compareAndSet(true, false)) {
+                                            mainHandler.post {
+                                                if (!isPausedAtomic.get()) {
+                                                    currentOnDistanceStateChanged?.invoke(false)
+                                                }
                                             }
                                         }
                                     }
@@ -241,8 +248,10 @@ fun CameraXBarcodeView(
                             }
                         ) { barcodes ->
                             lastFarDetectedTimeRef.set(0L)
-                            mainHandler.post {
-                                currentOnDistanceStateChanged?.invoke(false)
+                            if (currentDistanceStateRef.compareAndSet(true, false)) {
+                                mainHandler.post {
+                                    currentOnDistanceStateChanged?.invoke(false)
+                                }
                             }
                             if (isPausedAtomic.get()) {
                                 return@processImageProxy

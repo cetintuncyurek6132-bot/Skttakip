@@ -209,6 +209,15 @@ fun BarcodeScannerSheet(
     var isCooldownActive by remember { mutableStateOf(false) }
     var cooldownRemainingSeconds by remember { androidx.compose.runtime.mutableIntStateOf(0) }
 
+    val todayMidnight = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
     LaunchedEffect(resumeCooldownUntil) {
         val remaining = resumeCooldownUntil - System.currentTimeMillis()
         if (remaining > 0) {
@@ -217,7 +226,7 @@ fun BarcodeScannerSheet(
                 val remMs = resumeCooldownUntil - System.currentTimeMillis()
                 if (remMs <= 0) break
                 cooldownRemainingSeconds = ((remMs + 999L) / 1000L).toInt()
-                kotlinx.coroutines.delay(200L)
+                kotlinx.coroutines.delay(300L)
             }
             cooldownRemainingSeconds = 0
             isCooldownActive = false
@@ -330,11 +339,11 @@ fun BarcodeScannerSheet(
                                 }
                                 val trimmedBar = barcode.trim()
                                 if (trimmedBar.isNotBlank()) {
-                                    // Debounce to prevent rapid repeated scans of same or multiple barcodes (12s cooldown)
-                                    val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 12000L
+                                    // Debounce to prevent rapid repeated scans of same barcode (1800ms)
+                                    val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 1800L
 
                                     if (!isSameRecent) {
-                                        val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(trimmedBar, products)
+                                        val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(trimmedBar, products, todayMidnight)
                                         ScannerFeedbackHelper.playFeedback(
                                             context = context,
                                             toneGenerator = toneGenerator,
@@ -348,7 +357,7 @@ fun BarcodeScannerSheet(
                                         manualBarcode = trimmedBar
                                         selectedProductOverride = null
                                         serialScanCount++
-                                        resumeCooldownUntil = now + 12000L
+                                        resumeCooldownUntil = now + 1200L
 
                                         if (isFixQrMode && onFixQrScanned != null) {
                                             onFixQrScanned(trimmedBar) { msg, _ ->
@@ -687,6 +696,7 @@ fun BarcodeScannerSheet(
                             activeBarcode = activeBarcode,
                             products = products,
                             selectedProductOverride = selectedProductOverride,
+                            todayMidnight = todayMidnight,
                             onSelectOverride = { selectedProductOverride = it },
                             onAddSkt = onAddSkt,
                             onDeductStock = onDeductStock,
@@ -698,7 +708,9 @@ fun BarcodeScannerSheet(
                                 lastScannedCode = null
                                 lastScannedTime = 0L
                                 lastScannedRisk = null
-                                resumeCooldownUntil = System.currentTimeMillis() + 600L
+                                resumeCooldownUntil = 0L
+                                isCooldownActive = false
+                                cooldownRemainingSeconds = 0
                             }
                         )
                     }

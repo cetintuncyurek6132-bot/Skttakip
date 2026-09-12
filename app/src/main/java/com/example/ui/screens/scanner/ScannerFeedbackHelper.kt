@@ -31,7 +31,13 @@ enum class ScanResultRisk(
 
 object ScannerFeedbackHelper {
 
-    fun evaluateProductRisk(barcode: String, products: List<Product>): Pair<ScanResultRisk, Long?> {
+    private var lastFeedbackTime = 0L
+
+    fun evaluateProductRisk(
+        barcode: String,
+        products: List<Product>,
+        todayMidnight: Long = System.currentTimeMillis()
+    ): Pair<ScanResultRisk, Long?> {
         val matches = products.findMatchingProducts(barcode)
         if (matches.isEmpty()) {
             return Pair(ScanResultRisk.NOT_FOUND, null)
@@ -43,7 +49,7 @@ object ScannerFeedbackHelper {
         }
 
         val nearest = prodsWithSkt.minByOrNull { it.sktTarihi } ?: prodsWithSkt.first()
-        val remainingDays = nearest.getRemainingDays()
+        val remainingDays = nearest.getRemainingDays(todayMidnight)
 
         val risk = when {
             remainingDays < 0 -> ScanResultRisk.EXPIRED
@@ -61,6 +67,12 @@ object ScannerFeedbackHelper {
         soundEnabled: Boolean = true,
         vibrationEnabled: Boolean = true
     ) {
+        val now = System.currentTimeMillis()
+        if (now - lastFeedbackTime < 450L) {
+            return // Prevent audio & vibrator IPC floods that trigger SELinux audit rate limit
+        }
+        lastFeedbackTime = now
+
         if (soundEnabled && toneGenerator != null) {
             try {
                 when (risk) {

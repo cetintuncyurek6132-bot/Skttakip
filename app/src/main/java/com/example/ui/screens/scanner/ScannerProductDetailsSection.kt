@@ -26,6 +26,14 @@ fun ScannerProductDetailsSection(
     activeBarcode: String,
     products: List<Product>,
     selectedProductOverride: Product?,
+    todayMidnight: Long = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    },
     onSelectOverride: (Product) -> Unit,
     onAddSkt: (Product, Long, Int) -> Unit,
     onDeductStock: (Product, Int, String) -> Unit = { _, _, _ -> },
@@ -118,6 +126,7 @@ fun ScannerProductDetailsSection(
                     product = foundProduct,
                     matchingProducts = if (sameProductSktList.isNotEmpty()) sameProductSktList else listOf(foundProduct),
                     initialSktMillis = parsedActiveQr.expiryDateMillis,
+                    todayMidnight = todayMidnight,
                     onAddSkt = { prod, millis, count ->
                         onAddSkt(prod, millis, count)
                     },

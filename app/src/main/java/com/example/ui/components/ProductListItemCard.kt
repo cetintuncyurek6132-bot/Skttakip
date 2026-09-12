@@ -69,6 +69,7 @@ import com.example.ui.theme.WarningBlueBorder
 import com.example.ui.theme.WarningBlueContainer
 import com.example.ui.theme.WarningBlueDark
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -86,11 +87,19 @@ fun ProductListItemCard(
     product: Product,
     onClick: () -> Unit,
     onQuickAddSkt: (() -> Unit)? = null,
-    onDelete: (() -> Unit)? = null
+    onDelete: (() -> Unit)? = null,
+    todayMidnight: Long = remember {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.timeInMillis
+    }
 ) {
     val hasSkt = product.sktTarihi > 0L
-    val daysLeft = if (hasSkt) product.getRemainingDays() else 9999L
-    val status = if (hasSkt) product.getExpiryStatus() else ExpiryStatus.NORMAL
+    val daysLeft = if (hasSkt) product.getRemainingDays(todayMidnight) else 9999L
+    val status = if (hasSkt) product.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
 
     val squareBg: Color = if (!hasSkt) {
         Slate500
@@ -226,7 +235,8 @@ fun ProductListItemCard(
                     text = product.getDisplayName().uppercase(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    maxLines = 1,
+                    maxLines = 2,
+                    lineHeight = 18.sp,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -396,7 +406,15 @@ fun GroupedProductListItemCard(
     productList: List<Product>,
     onClick: (Product) -> Unit,
     onQuickAddSkt: ((Product) -> Unit)? = null,
-    onDeleteProduct: ((Product) -> Unit)? = null
+    onDeleteProduct: ((Product) -> Unit)? = null,
+    todayMidnight: Long = remember {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.timeInMillis
+    }
 ) {
     if (productList.isEmpty()) return
     val mainProduct = productList.first()
@@ -451,7 +469,8 @@ fun GroupedProductListItemCard(
                         text = mainProduct.getDisplayName().uppercase(),
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        maxLines = 1,
+                        maxLines = 2,
+                        lineHeight = 18.sp,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -591,8 +610,8 @@ fun GroupedProductListItemCard(
             ) {
                 sortedList.forEach { item ->
                     val hasSkt = item.sktTarihi > 0L
-                    val daysLeft = if (hasSkt) item.getRemainingDays() else 9999L
-                    val status = if (hasSkt) item.getExpiryStatus() else ExpiryStatus.NORMAL
+                    val daysLeft = if (hasSkt) item.getRemainingDays(todayMidnight) else 9999L
+                    val status = if (hasSkt) item.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
 
                     val (sktBgColor, sktBorderColor, sktTextColor, badgeBgColor, badgeTextColor, statusLabel) = when {
                         !hasSkt -> SktChipStyle(

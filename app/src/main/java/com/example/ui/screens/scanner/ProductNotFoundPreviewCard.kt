@@ -108,14 +108,16 @@ fun ProductNotFoundPreviewCard(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
+                            lineHeight = 18.sp,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = "Bu barkod veritabanında henüz kayıtlı değil",
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
+                            lineHeight = 15.sp,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                     }

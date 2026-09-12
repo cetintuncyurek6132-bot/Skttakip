@@ -76,22 +76,9 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 
-private fun getDaysRemaining(sktTarihi: Long): Long {
+private fun getDaysRemaining(sktTarihi: Long, todayMidnight: Long): Long {
     if (sktTarihi <= 0L) return 9999L
-    val calSkt = java.util.Calendar.getInstance().apply {
-        timeInMillis = sktTarihi
-        set(java.util.Calendar.HOUR_OF_DAY, 0)
-        set(java.util.Calendar.MINUTE, 0)
-        set(java.util.Calendar.SECOND, 0)
-        set(java.util.Calendar.MILLISECOND, 0)
-    }
-    val calNow = java.util.Calendar.getInstance().apply {
-        set(java.util.Calendar.HOUR_OF_DAY, 0)
-        set(java.util.Calendar.MINUTE, 0)
-        set(java.util.Calendar.SECOND, 0)
-        set(java.util.Calendar.MILLISECOND, 0)
-    }
-    val diffMillis = calSkt.timeInMillis - calNow.timeInMillis
+    val diffMillis = sktTarihi - todayMidnight
     return java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diffMillis)
 }
 
@@ -101,6 +88,14 @@ fun ProductDetailPreviewCard(
     product: Product,
     matchingProducts: List<Product> = listOf(product),
     initialSktMillis: Long? = null,
+    todayMidnight: Long = remember {
+        java.util.Calendar.getInstance().apply {
+            set(java.util.Calendar.HOUR_OF_DAY, 0)
+            set(java.util.Calendar.MINUTE, 0)
+            set(java.util.Calendar.SECOND, 0)
+            set(java.util.Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    },
     onAddSkt: (Product, Long, Int) -> Unit = { _, _, _ -> },
     onDeductStock: (Product, Int, String) -> Unit = { _, _, _ -> },
     onSelectProduct: () -> Unit,
@@ -123,7 +118,7 @@ fun ProductDetailPreviewCard(
     }
 
     val hasSkt = effectiveProduct.sktTarihi > 0L
-    val daysRemaining = if (hasSkt) effectiveProduct.getRemainingDays() else 9999L
+    val daysRemaining = if (hasSkt) effectiveProduct.getRemainingDays(todayMidnight) else 9999L
 
     var selectedSktMillis by remember(product.barkod, initialSktMillis) {
         mutableStateOf(initialSktMillis ?: (if (product.sktTarihi > 0L) product.sktTarihi else System.currentTimeMillis()))
@@ -144,21 +139,21 @@ fun ProductDetailPreviewCard(
     }
 
     // Risk Level Breakdown calculated only on valid SKT products
-    val expiredOrNearCount = remember(validSktProducts) {
-        validSktProducts.filter { getDaysRemaining(it.sktTarihi) <= 3 }.sumOf { it.stokAdedi }
+    val expiredOrNearCount = remember(validSktProducts, todayMidnight) {
+        validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) <= 3 }.sumOf { it.stokAdedi }
     }
-    val criticalCount = remember(validSktProducts) {
-        validSktProducts.filter { getDaysRemaining(it.sktTarihi) in 4..15 }.sumOf { it.stokAdedi }
+    val criticalCount = remember(validSktProducts, todayMidnight) {
+        validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) in 4..15 }.sumOf { it.stokAdedi }
     }
-    val safeCount = remember(validSktProducts) {
-        validSktProducts.filter { getDaysRemaining(it.sktTarihi) >= 16 }.sumOf { it.stokAdedi }
+    val safeCount = remember(validSktProducts, todayMidnight) {
+        validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) >= 16 }.sumOf { it.stokAdedi }
     }
 
-    val filteredValidSktProducts = remember(validSktProducts, selectedRiskFilter) {
+    val filteredValidSktProducts = remember(validSktProducts, selectedRiskFilter, todayMidnight) {
         val filtered = when (selectedRiskFilter) {
-            "EXPIRED" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi) <= 3 }
-            "CRITICAL" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi) in 4..15 }
-            "SAFE" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi) >= 16 }
+            "EXPIRED" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) <= 3 }
+            "CRITICAL" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) in 4..15 }
+            "SAFE" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) >= 16 }
             else -> validSktProducts
         }
         filtered.sortedBy { it.sktTarihi }
