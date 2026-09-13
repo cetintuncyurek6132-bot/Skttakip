@@ -36,14 +36,11 @@ jobs:
       - name: local.properties Olustur
         run: touch local.properties
 
-      - name: Gradlew Calistirma Yetkisi Ver
-        run: chmod +x gradlew
-
       - name: Hizlandirilmis APK Derle
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
         run: |
-          ./gradlew assembleDebug \
+          gradle assembleDebug \
             -Pandroid.injected.version.code=${{ github.run_number }} \
             -Pandroid.injected.version.name="1.0.${{ github.run_number }}" \
             -x lint \
