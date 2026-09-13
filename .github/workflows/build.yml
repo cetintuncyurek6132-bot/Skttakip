@@ -36,6 +36,9 @@ jobs:
       - name: local.properties Olustur
         run: touch local.properties
 
+      - name: Gradlew Calistirma Yetkisi Ver
+        run: chmod +x gradlew
+
       - name: Hizlandirilmis APK Derle
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
