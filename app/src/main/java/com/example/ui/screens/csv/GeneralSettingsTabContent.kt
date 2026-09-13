@@ -90,7 +90,7 @@ fun GeneralSettingsTabContent(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${user?.roleTitle ?: "Mağaza Sorumlusu"} • A101 Mağaza",
+                            text = "${user?.roleTitle ?: "Mağaza Sorumlusu"} • Mağaza",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

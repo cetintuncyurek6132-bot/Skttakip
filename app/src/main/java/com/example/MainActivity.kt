@@ -113,6 +113,7 @@ import com.example.ui.components.ProductDetailModal
 import com.example.ui.components.SktBottomNavBar
 import com.example.ui.components.SktTopAppBar
 import com.example.ui.screens.AdetselScreen
+import com.example.ui.screens.AppSplashScreen
 import com.example.ui.screens.BarcodeScannerSheet
 import com.example.ui.screens.CsvScreen
 import com.example.ui.screens.DashboardScreen
@@ -193,8 +194,20 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+            var isSplashVisible by remember { mutableStateOf(true) }
+
             MyApplicationTheme(darkTheme = isDarkMode) {
-                SktMainApp(viewModel = viewModel)
+                Box(modifier = Modifier.fillMaxSize()) {
+                    SktMainApp(viewModel = viewModel)
+
+                    if (isSplashVisible) {
+                        AppSplashScreen(
+                            onSplashFinished = {
+                                isSplashVisible = false
+                            }
+                        )
+                    }
+                }
             }
         }
     }

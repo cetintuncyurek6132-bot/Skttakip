@@ -1,6 +1,7 @@
 package com.example.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
@@ -54,6 +55,19 @@ object DataBackupManager {
             dir.mkdirs()
         }
         return dir
+    }
+
+    private fun getSettingsPrefs(context: Context): SharedPreferences {
+        val sp = context.getSharedPreferences("skt_settings_prefs", Context.MODE_PRIVATE)
+        val legacy = context.getSharedPreferences("a101_settings_prefs", Context.MODE_PRIVATE)
+        if (sp.all.isEmpty() && legacy.all.isNotEmpty()) {
+            val ed = sp.edit()
+            legacy.all.forEach { (k, v) ->
+                if (v is String) ed.putString(k, v)
+            }
+            ed.apply()
+        }
+        return sp
     }
 
     fun generateDefaultExportFileName(): String {
@@ -195,7 +209,7 @@ object DataBackupManager {
         root.put("turKontrolKayitlari", kontrolKayitlariArray)
 
         // 7. Reminders Notes & Settings
-        val reminderPrefs = context.getSharedPreferences("a101_settings_prefs", Context.MODE_PRIVATE)
+        val reminderPrefs = getSettingsPrefs(context)
         val reminderNotes = reminderPrefs.getString("store_reminders_notes", "") ?: ""
         root.put("remindersNotes", reminderNotes)
 
@@ -394,7 +408,7 @@ object DataBackupManager {
                 // 7. Reminders Notes
                 val notes = root.optString("remindersNotes", "")
                 if (notes.isNotBlank()) {
-                    val reminderPrefs = context.getSharedPreferences("a101_settings_prefs", Context.MODE_PRIVATE)
+                    val reminderPrefs = getSettingsPrefs(context)
                     reminderPrefs.edit().putString("store_reminders_notes", notes).apply()
                     remindersRestored = true
                 }

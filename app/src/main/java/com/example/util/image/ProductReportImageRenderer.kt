@@ -54,7 +54,7 @@ object ProductReportImageRenderer {
         paint.color = Color.parseColor("#BAE6FD")
         paint.textSize = 20f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("A101 SKT TAKİP & STOK", 124f, 62f, paint)
+        canvas.drawText("SKT TAKİP & STOK", 124f, 62f, paint)
 
         paint.color = Color.WHITE
         paint.textSize = 34f
@@ -235,7 +235,7 @@ object ProductReportImageRenderer {
         paint.color = Color.parseColor("#0EA5B7")
         paint.textSize = 18f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        val footerRight = "A101 SKT TAKİP & STOK"
+        val footerRight = "SKT TAKİP & STOK"
         val frWidth = paint.measureText(footerRight)
         canvas.drawText(footerRight, width.toFloat() - 36f - frWidth, currentY + 62f, paint)
 

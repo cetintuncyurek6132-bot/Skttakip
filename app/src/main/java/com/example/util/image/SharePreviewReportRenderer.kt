@@ -62,7 +62,7 @@ object SharePreviewReportRenderer {
         paint.color = Color.parseColor("#0D9488")
         paint.textSize = 19f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("A101 SKT TAKİP & STOK KONTROL RAPORU", 52f, 110f, paint)
+        canvas.drawText("SKT TAKİP & STOK KONTROL RAPORU", 52f, 110f, paint)
 
         val sdfDate = SimpleDateFormat("dd.MM.yyyy", Locale.forLanguageTag("tr-TR"))
         val sdfTime = SimpleDateFormat("HH:mm", Locale.forLanguageTag("tr-TR"))
@@ -311,7 +311,7 @@ object SharePreviewReportRenderer {
         paint.color = Color.parseColor("#64748B")
         paint.textSize = 18f
         paint.typeface = Typeface.DEFAULT
-        canvas.drawText("Rapor Tarihi: $dateStr $timeStr   •   A101 SKT Takip & Stok Kontrol Sistemi", 36f, currentY + 52f, paint)
+        canvas.drawText("Rapor Tarihi: $dateStr $timeStr   •   SKT Takip & Stok Kontrol Sistemi", 36f, currentY + 52f, paint)
 
         return bitmap
     }

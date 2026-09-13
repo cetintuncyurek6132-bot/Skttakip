@@ -35,7 +35,7 @@ object AppUpdateChecker {
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "application/vnd.github.v3+json")
-                setRequestProperty("User-Agent", "A101-SKT-Takip-App")
+                setRequestProperty("User-Agent", "SKT-Takip-App")
                 connectTimeout = 8000
                 readTimeout = 8000
             }
@@ -131,7 +131,7 @@ object AppUpdateChecker {
             val url = URL(downloadUrl)
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", "A101-SKT-Takip-App")
+                setRequestProperty("User-Agent", "SKT-Takip-App")
                 instanceFollowRedirects = true
                 connectTimeout = 15000
                 readTimeout = 20000
@@ -149,7 +149,7 @@ object AppUpdateChecker {
                 val newUrl = redirectConn.getHeaderField("Location")
                 redirectConn = (URL(newUrl).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
-                    setRequestProperty("User-Agent", "A101-SKT-Takip-App")
+                    setRequestProperty("User-Agent", "SKT-Takip-App")
                     connectTimeout = 15000
                     readTimeout = 20000
                 }

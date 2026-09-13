@@ -5,7 +5,7 @@ import java.util.Calendar
 import java.util.Locale
 
 /**
- * Intelligent Data Disambiguation & Self-Healing Engine for Retail Products (A101 / BİM / General Retail).
+ * Intelligent Data Disambiguation & Self-Healing Engine for Retail Products (Supermarket / General Retail).
  *
  * Automatically detects and fixes column shifts, field swaps, category anomalies, and data corruption
  * during Excel/CSV imports, QR scanning, or database loading.

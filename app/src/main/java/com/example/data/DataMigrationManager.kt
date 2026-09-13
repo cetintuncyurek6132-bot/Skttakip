@@ -19,7 +19,7 @@ data class MigrationStatus(
 
 object DataMigrationManager {
     private const val TAG = "DataMigrationManager"
-    private const val PREFS_NAME = "a101_migration_prefs"
+    private const val PREFS_NAME = "skt_migration_prefs"
     private const val KEY_DATA_VERSION = "app_data_schema_version"
     private const val KEY_FIRST_INSTALL_TIME = "app_first_install_timestamp"
     private const val KEY_LAST_UPDATE_TIME = "app_last_data_protection_check"
@@ -46,6 +46,20 @@ object DataMigrationManager {
     ) = withContext(Dispatchers.IO) {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val oldPrefs = context.getSharedPreferences("a101_migration_prefs", Context.MODE_PRIVATE)
+            if (prefs.all.isEmpty() && oldPrefs.all.isNotEmpty()) {
+                val editor = prefs.edit()
+                oldPrefs.all.forEach { (key, value) ->
+                    when (value) {
+                        is Int -> editor.putInt(key, value)
+                        is Long -> editor.putLong(key, value)
+                        is String -> editor.putString(key, value)
+                        is Boolean -> editor.putBoolean(key, value)
+                        is Float -> editor.putFloat(key, value)
+                    }
+                }
+                editor.apply()
+            }
             val storedVersion = prefs.getInt(KEY_DATA_VERSION, 0)
             val now = System.currentTimeMillis()
 

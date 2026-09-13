@@ -71,7 +71,18 @@ fun RemindersScreen(
 ) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
-    val prefs = remember { context.getSharedPreferences("a101_settings_prefs", Context.MODE_PRIVATE) }
+    val prefs = remember {
+        val sp = context.getSharedPreferences("skt_settings_prefs", Context.MODE_PRIVATE)
+        val legacy = context.getSharedPreferences("a101_settings_prefs", Context.MODE_PRIVATE)
+        if (sp.all.isEmpty() && legacy.all.isNotEmpty()) {
+            val ed = sp.edit()
+            legacy.all.forEach { (k, v) ->
+                if (v is String) ed.putString(k, v)
+            }
+            ed.apply()
+        }
+        sp
+    }
 
     val defaultText = "• Dolap derece kontrollerini saat 10:00 ve 16:00'da kaydetmeyi unutma.\n• Son günü gelen ürünlerde %50 indirim etiketini yapıştır.\n• Sayım sonrası fire tutanaklarını sisteme gir.\n• Reyon düzeni ve SKT öncelik (FIFO) kuralını kontrol et.\n• Akşam kasa kapanışında fiş rulosu ve poşet stoğunu tamamla."
 

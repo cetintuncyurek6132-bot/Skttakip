@@ -26,7 +26,7 @@ enum class SyncState {
 
 object CloudSyncManager {
     private const val TAG = "CloudSyncManager"
-    private const val PREF_NAME = "a101_sync_prefs"
+    private const val PREF_NAME = "skt_sync_prefs"
     private const val KEY_STORE_CODE = "store_code"
     private const val KEY_USER_NAME = "user_name"
     private const val KEY_DEVICE_ID = "device_id"
@@ -54,6 +54,25 @@ object CloudSyncManager {
         this.productDaoRef = productDao
         this.turDaoRef = turDao
         this.prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+
+        // Seamless migration from legacy prefs if needed
+        val oldPrefs = context.getSharedPreferences("a101_sync_prefs", Context.MODE_PRIVATE)
+        if (prefs?.all.isNullOrEmpty() && oldPrefs.all.isNotEmpty()) {
+            val editor = prefs?.edit()
+            oldPrefs.all.forEach { (key, value) ->
+                when (value) {
+                    is String -> {
+                        val v = if (value == "A101-MAĞAZA-101") "MAĞAZA-101" else value
+                        editor?.putString(key, v)
+                    }
+                    is Boolean -> editor?.putBoolean(key, value)
+                    is Int -> editor?.putInt(key, value)
+                    is Long -> editor?.putLong(key, value)
+                    is Float -> editor?.putFloat(key, value)
+                }
+            }
+            editor?.apply()
+        }
 
         if (getDeviceId().isBlank()) {
             val newDeviceId = UUID.randomUUID().toString().take(8)
@@ -90,7 +109,8 @@ object CloudSyncManager {
     }
 
     fun getStoreCode(): String {
-        return prefs?.getString(KEY_STORE_CODE, "A101-MAĞAZA-101") ?: "A101-MAĞAZA-101"
+        val code = prefs?.getString(KEY_STORE_CODE, "MAĞAZA-101") ?: "MAĞAZA-101"
+        return if (code == "A101-MAĞAZA-101") "MAĞAZA-101" else code
     }
 
     fun setStoreCode(code: String) {

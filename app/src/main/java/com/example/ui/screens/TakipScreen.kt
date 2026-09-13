@@ -162,7 +162,7 @@ fun TakipScreen(
             return
         }
         val message = buildString {
-            append("📋 *A101 - İADE VE DEPO RED TAKİP LİSTESİ*\n")
+            append("📋 *İADE VE DEPO RED TAKİP LİSTESİ*\n")
             append("Tarih: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR")).format(Date())}\n")
             append("Toplam: ${records.size} Kayıt | Devam Eden: ${stats.devamEdenSayisi} | Onaylanan: ${stats.onaylananSayisi} | Red: ${stats.reddedilenSayisi}\n\n")
 

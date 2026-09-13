@@ -53,7 +53,7 @@ object TourReportImageRenderer {
         paint.color = Color.parseColor("#BAE6FD")
         paint.textSize = 20f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("A101 SKT TAKİP & STOK", 124f, 62f, paint)
+        canvas.drawText("SKT TAKİP & STOK", 124f, 62f, paint)
 
         paint.color = Color.WHITE
         paint.textSize = 34f
