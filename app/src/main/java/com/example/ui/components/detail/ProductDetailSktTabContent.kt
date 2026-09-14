@@ -92,7 +92,8 @@ fun ProductDetailSktTabContent(
     matchingProducts: List<Product>,
     onAddNewSktClick: () -> Unit,
     onEditSktItem: (Product) -> Unit,
-    onDeleteSkt: (Product) -> Unit
+    onDeleteSkt: (Product) -> Unit,
+    onBatchClick: (Product) -> Unit = {}
 ) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
     val allValidSktProducts = remember(matchingProducts) {
@@ -323,7 +324,13 @@ fun ProductDetailSktTabContent(
                         color = MaterialTheme.colorScheme.surface,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
                         shadowElevation = 1.5.dp,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = TurquoiseDark)
+                            ) { onBatchClick(item) }
                     ) {
                         Row(
                             modifier = Modifier

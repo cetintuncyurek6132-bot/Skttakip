@@ -41,27 +41,24 @@ import kotlinx.coroutines.launch
 fun AppSplashScreen(
     onSplashFinished: () -> Unit
 ) {
-    // Animasyon durumları
-    val sktAlpha = remember { Animatable(0f) }
-    val sktScale = remember { Animatable(0.88f) }
-    val glowAlpha = remember { Animatable(0f) }
+    // Animasyon durumları - İlk karede doğrudan görünür başlar (kara ekran beklemesi sıfırlandı)
+    val sktAlpha = remember { Animatable(0.2f) }
+    val sktScale = remember { Animatable(0.92f) }
+    val glowAlpha = remember { Animatable(0.3f) }
 
     val subtitleAlpha = remember { Animatable(0f) }
-    val subtitleOffset = remember { Animatable(8f) }
+    val subtitleOffset = remember { Animatable(6f) }
 
     val exitAlpha = remember { Animatable(1f) }
     val exitScale = remember { Animatable(1f) }
 
     LaunchedEffect(Unit) {
-        // Aşama 0: İlk an tamamen siyah (~120 ms)
-        delay(120)
-
-        // Aşama 1: SKT harfleri ve hafif arka turkuaz ışığın akıcı girişi (~360 ms)
+        // Aşama 1: SKT harfleri ve arka turkuaz ışıltı hemen akıcı şekilde tam netliğe ulaşır (~300 ms)
         val sktAlphaJob = launch {
             sktAlpha.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
-                    durationMillis = 360,
+                    durationMillis = 300,
                     easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
                 )
             )
@@ -70,7 +67,7 @@ fun AppSplashScreen(
             sktScale.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
-                    durationMillis = 360,
+                    durationMillis = 300,
                     easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
                 )
             )
@@ -79,19 +76,19 @@ fun AppSplashScreen(
             glowAlpha.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
-                    durationMillis = 400,
+                    durationMillis = 350,
                     easing = LinearEasing
                 )
             )
         }
 
-        // Aşama 2: "Takip & Stok" alt başlığının hafif gecikmeli fade-in girişi (~320 ms)
-        delay(100)
+        // Aşama 2: "Takip & Stok" alt başlığı fade-in (~280 ms)
+        delay(60)
         val subtitleAlphaJob = launch {
             subtitleAlpha.animateTo(
                 targetValue = 1f,
                 animationSpec = tween(
-                    durationMillis = 320,
+                    durationMillis = 280,
                     easing = LinearOutSlowInEasing
                 )
             )
@@ -100,7 +97,7 @@ fun AppSplashScreen(
             subtitleOffset.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(
-                    durationMillis = 320,
+                    durationMillis = 280,
                     easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
                 )
             )
@@ -113,24 +110,24 @@ fun AppSplashScreen(
         subtitleAlphaJob.join()
         subtitleOffsetJob.join()
 
-        // Aşama 3: Logoların ekranda stabil ve okunur kalması (~580 ms)
-        delay(580)
+        // Aşama 3: Logoların ekranda stabil kalması (~450 ms)
+        delay(450)
 
-        // Aşama 4: Birlikte yumuşak fade-out ve çok hafif scale küçülmesi (~320 ms)
+        // Aşama 4: Birlikte yumuşak fade-out (~260 ms)
         val exitAlphaJob = launch {
             exitAlpha.animateTo(
                 targetValue = 0f,
                 animationSpec = tween(
-                    durationMillis = 320,
+                    durationMillis = 260,
                     easing = FastOutLinearInEasing
                 )
             )
         }
         val exitScaleJob = launch {
             exitScale.animateTo(
-                targetValue = 0.95f,
+                targetValue = 0.96f,
                 animationSpec = tween(
-                    durationMillis = 320,
+                    durationMillis = 260,
                     easing = FastOutLinearInEasing
                 )
             )
