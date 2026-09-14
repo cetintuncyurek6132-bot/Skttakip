@@ -44,7 +44,7 @@ fun CsvScreen(
     onToggleSoundEffects: () -> Unit = {},
     onToggleVibration: () -> Unit = {},
     onFixAndRepairDatabase: (onResult: (Int, String) -> Unit) -> Unit = {},
-    onImportLines: (List<String>) -> Int = { 0 },
+    onImportLines: (List<String>) -> com.example.util.CsvParseResult = { com.example.util.CsvParseResult(emptyList(), 0, 0) },
     onResetDatabase: () -> Unit = {},
     onRestoreSeedData: () -> Unit = {},
     onOpenQrFixMode: () -> Unit = {},
@@ -183,20 +183,20 @@ fun CsvScreen(
                 if (isZipOrXlsx) {
                     val xlsxLines = com.example.util.XlsxParser.parseXlsxToCsvLines(bytes)
                     if (xlsxLines.isNotEmpty()) {
-                        val newCount = onImportLines(xlsxLines)
-                        if (newCount > 0) {
-                            Toast.makeText(
-                                context,
-                                "✅ Excel (.xlsx) dosyasından $newCount adet yeni ürün başarıyla eklendi!",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        } else {
-                            Toast.makeText(
-                                context,
-                                "Excel dosyasında eklenecek yeni ürün bulunamadı (Tüm ürünler kayıtlı veya geçersiz).",
-                                Toast.LENGTH_LONG
-                            ).show()
+                        val importResult = onImportLines(xlsxLines)
+                        val newCount = importResult.productsToInsert.size
+                        val skippedCount = importResult.skippedLineCount
+                        val message = buildString {
+                            if (newCount > 0) {
+                                append("✅ Excel (.xlsx) dosyasından $newCount adet yeni ürün başarıyla eklendi!")
+                            } else {
+                                append("Excel dosyasında eklenecek yeni ürün bulunamadı.")
+                            }
+                            if (skippedCount > 0) {
+                                append("\n⚠️ $skippedCount adet satır hatalı format nedeniyle atlandı.")
+                            }
                         }
+                        Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         return@let
                     } else {
                         Toast.makeText(context, "⚠️ Excel dosyası okunamadı veya içerik boş.", Toast.LENGTH_LONG).show()
@@ -230,20 +230,20 @@ fun CsvScreen(
                 }
 
                 val lines = textContent.lines()
-                val newCount = onImportLines(lines)
-                if (newCount > 0) {
-                    Toast.makeText(
-                        context,
-                        "✅ $newCount adet yeni ürün başarıyla eklendi!",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
-                    Toast.makeText(
-                        context,
-                        "Seçilen dosyada eklenecek yeni ürün bulunamadı (Tüm ürünler kayıtlı veya geçersiz).",
-                        Toast.LENGTH_LONG
-                    ).show()
+                val importResult = onImportLines(lines)
+                val newCount = importResult.productsToInsert.size
+                val skippedCount = importResult.skippedLineCount
+                val message = buildString {
+                    if (newCount > 0) {
+                        append("✅ $newCount adet yeni ürün başarıyla eklendi!")
+                    } else {
+                        append("Seçilen dosyada eklenecek yeni ürün bulunamadı.")
+                    }
+                    if (skippedCount > 0) {
+                        append("\n⚠️ $skippedCount adet satır hatalı format nedeniyle atlandı.")
+                    }
                 }
+                Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
                 Toast.makeText(
                     context,

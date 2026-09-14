@@ -178,6 +178,7 @@ fun CustomBoxedCalendarDialog(
                         IconButton(
                             onClick = {
                                 val nextCal = calendarView.clone() as Calendar
+                                nextCal.set(Calendar.DAY_OF_MONTH, 1)
                                 nextCal.add(Calendar.MONTH, -1)
                                 calendarView = nextCal
                             },
@@ -202,6 +203,7 @@ fun CustomBoxedCalendarDialog(
                         IconButton(
                             onClick = {
                                 val nextCal = calendarView.clone() as Calendar
+                                nextCal.set(Calendar.DAY_OF_MONTH, 1)
                                 nextCal.add(Calendar.MONTH, 1)
                                 calendarView = nextCal
                             },

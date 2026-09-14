@@ -41,38 +41,21 @@ object DataMigrationManager {
         context: Context,
         productDao: ProductDao,
         reportDao: InspectionReportDao,
-        turDao: TurDao?,
         adetselDao: AdetselDao? = null
     ) = withContext(Dispatchers.IO) {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            val oldPrefs = context.getSharedPreferences("a101_migration_prefs", Context.MODE_PRIVATE)
-            if (prefs.all.isEmpty() && oldPrefs.all.isNotEmpty()) {
-                val editor = prefs.edit()
-                oldPrefs.all.forEach { (key, value) ->
-                    when (value) {
-                        is Int -> editor.putInt(key, value)
-                        is Long -> editor.putLong(key, value)
-                        is String -> editor.putString(key, value)
-                        is Boolean -> editor.putBoolean(key, value)
-                        is Float -> editor.putFloat(key, value)
-                    }
-                }
-                editor.apply()
-            }
             val storedVersion = prefs.getInt(KEY_DATA_VERSION, 0)
             val now = System.currentTimeMillis()
 
             val existingProducts = productDao.getAllProductsList()
             val existingDepo = DepoIadeManager.loadRecords(context)
-            val existingTurRaporlari = turDao?.getAllTurRaporlariDirect() ?: emptyList()
             val existingAdetsel = adetselDao?.getAllAdetselKayitlariDirect() ?: emptyList()
 
             val productCount = existingProducts.size
             val depoCount = existingDepo.size
-            val turCount = existingTurRaporlari.size
             val adetselCount = existingAdetsel.size
-            val hasExistingUserData = productCount > 0 || depoCount > 0 || turCount > 0 || adetselCount > 0
+            val hasExistingUserData = productCount > 0 || depoCount > 0 || adetselCount > 0
 
             Log.i(TAG, "Data check: storedVersion=$storedVersion, currentVersion=$CURRENT_DATA_VERSION, existingProducts=$productCount, existingDepo=$depoCount, existingAdetsel=$adetselCount")
 
@@ -82,7 +65,6 @@ object DataMigrationManager {
                     context = context,
                     productDao = productDao,
                     reportDao = reportDao,
-                    turDao = turDao,
                     adetselDao = adetselDao,
                     tag = "protection_v${CURRENT_DATA_VERSION}"
                 )
@@ -116,7 +98,7 @@ object DataMigrationManager {
                     _migrationStatus.value = MigrationStatus(
                         isVisible = true,
                         title = "Verileriniz Başarıyla Korundu",
-                        message = "$productCount ürün, $depoCount takip kaydı ve $turCount tur raporu yeni sürüme kayıpsız aktarıldı.",
+                        message = "$productCount ürün, $depoCount takip kaydı ve $adetselCount adetsel sayım kaydı yeni sürüme kayıpsız aktarıldı.",
                         isSuccess = true,
                         preservedProductsCount = productCount,
                         preservedDepoCount = depoCount

@@ -161,7 +161,7 @@ fun ProductDetailPreviewCard(
 
     val (badgeText, badgeBg, badgeTextColor) = when {
         !hasSkt -> Triple(
-            "ℹ️ SKT GİRİLMEDİ",
+            "Tarihsiz",
             MaterialTheme.colorScheme.surfaceVariant,
             MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -584,10 +584,12 @@ fun ProductDetailPreviewCard(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "OCR",
+                            text = "Tarih Oku",
                             fontWeight = FontWeight.Black,
                             color = Color.White,
-                            fontSize = 11.sp
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
@@ -601,7 +603,7 @@ fun ProductDetailPreviewCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val presets = listOf(
-                        "+15G" to {
+                        "+15 Gün" to {
                             val c = Calendar.getInstance()
                             c.add(Calendar.DAY_OF_YEAR, 15)
                             c.timeInMillis
@@ -656,14 +658,16 @@ fun ProductDetailPreviewCard(
                                     text = label,
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = TurquoiseDark
+                                    color = TurquoiseDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
                     }
                 }
 
-                // Row 2: Quantity Stepper & Optional "+ Başka SKT Ekle"
+                // Row 2: Quantity Stepper & Optional "+ Farklı Tarih"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -749,21 +753,23 @@ fun ProductDetailPreviewCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Add,
-                            contentDescription = "Başka SKT Ekle",
+                            contentDescription = "Farklı Tarih Ekle",
                             tint = TurquoiseDark,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "+ Başka SKT Ekle",
+                            text = "+ Farklı Tarih",
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark,
-                            fontSize = 11.5.sp
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
 
-                // Row 3: Tek Adımlı Ana Buton: "KAYDET VE SIRADAKİNİ TARA"
+                // Row 3: Tek Adımlı Ana Buton: "Kaydet ve Devam Et"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -786,16 +792,18 @@ fun ProductDetailPreviewCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.CheckCircle,
-                            contentDescription = "Kaydet ve Sıradakine Geç",
+                            contentDescription = "Kaydet ve Devam Et",
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = "KAYDET & SIRADAKİNİ TARA",
+                            text = "Kaydet ve Devam Et",
                             fontWeight = FontWeight.ExtraBold,
                             color = Color.White,
-                            fontSize = 12.5.sp
+                            fontSize = 12.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
 
@@ -811,7 +819,9 @@ fun ProductDetailPreviewCard(
                             text = "Kapat",
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 12.sp
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

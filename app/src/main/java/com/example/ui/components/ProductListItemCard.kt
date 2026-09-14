@@ -5,6 +5,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -31,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -135,12 +137,17 @@ fun ProductListItemCard(
         ExpiryStatus.NORMAL -> Triple(NormalGreenContainer, NormalGreenBorder, NormalGreenDark)
     }
 
+    val cardShape = RoundedCornerShape(12.dp)
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() }
+            .clip(cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true)
+            ) { onClick() }
             .testTag("product_item_card"),
-        shape = RoundedCornerShape(12.dp),
+        shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
@@ -349,17 +356,22 @@ fun ProductListItemCard(
 
             // Hızlı SKT Ekle Butonu (Modal içinde modal döngüsünü bitiren 1 tık aksiyonu)
             if (onQuickAddSkt != null) {
-                Surface(
-                    onClick = onQuickAddSkt,
+                val quickAddShape = RoundedCornerShape(8.dp)
+                Box(
                     modifier = Modifier
                         .height(34.dp)
+                        .clip(quickAddShape)
+                        .background(TurquoisePrimary.copy(alpha = 0.12f))
+                        .border(BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.55f)), quickAddShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true, color = TurquoiseDark)
+                        ) { onQuickAddSkt() }
+                        .padding(horizontal = 7.dp)
                         .testTag("quick_add_skt_button_${product.id}"),
-                    shape = RoundedCornerShape(8.dp),
-                    color = TurquoisePrimary.copy(alpha = 0.12f),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.55f))
+                    contentAlignment = Alignment.Center
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 7.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
@@ -370,7 +382,7 @@ fun ProductListItemCard(
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "SKT EKLE",
+                            text = "Tarih Ekle",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = TurquoiseDark
@@ -424,12 +436,17 @@ fun GroupedProductListItemCard(
     val totalStock = productList.sumOf { it.stokAdedi }
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
+    val cardShape = RoundedCornerShape(14.dp)
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick(sortedList.first()) }
+            .clip(cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true)
+            ) { onClick(sortedList.first()) }
             .testTag("grouped_product_item_card"),
-        shape = RoundedCornerShape(14.dp),
+        shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
@@ -544,32 +561,36 @@ fun GroupedProductListItemCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "SKT VE ADETLERİ (${sortedList.size}):",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Black,
+                        text = "Partiler:",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Slate500
                     )
 
                     if (onQuickAddSkt != null) {
-                        Surface(
-                            onClick = { onQuickAddSkt(sortedList.first()) },
-                            shape = RoundedCornerShape(6.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.12f),
-                            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f)),
+                        val quickAddShape = RoundedCornerShape(6.dp)
+                        Box(
                             modifier = Modifier
                                 .height(24.dp)
-                                .testTag("group_quick_add_skt_button_${mainProduct.id}")
+                                .clip(quickAddShape)
+                                .background(TurquoisePrimary.copy(alpha = 0.12f))
+                                .border(BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f)), quickAddShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true, color = TurquoiseDark)
+                                ) { onQuickAddSkt(sortedList.first()) }
+                                .padding(horizontal = 6.dp)
+                                .testTag("group_quick_add_skt_button_${mainProduct.id}"),
+                            contentAlignment = Alignment.Center
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
@@ -580,7 +601,7 @@ fun GroupedProductListItemCard(
                                     modifier = Modifier.size(12.dp)
                                 )
                                 Text(
-                                    text = "SKT EKLE",
+                                    text = "Tarih Ekle",
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = TurquoiseDark
@@ -589,13 +610,6 @@ fun GroupedProductListItemCard(
                         }
                     }
                 }
-
-                Text(
-                    text = "Kaydır →",
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TurquoiseDark
-                )
             }
 
             Spacer(modifier = Modifier.height(6.dp))
@@ -668,15 +682,21 @@ fun GroupedProductListItemCard(
                         )
                     }
 
-                    Surface(
-                        onClick = { onClick(item) },
-                        shape = RoundedCornerShape(10.dp),
-                        color = sktBgColor,
-                        border = BorderStroke(1.dp, sktBorderColor),
-                        modifier = Modifier.testTag("skt_chip_${item.id}")
+                    val chipShape = RoundedCornerShape(10.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(chipShape)
+                            .background(sktBgColor)
+                            .border(BorderStroke(1.dp, sktBorderColor), chipShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = sktTextColor)
+                            ) { onClick(item) }
+                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                            .testTag("skt_chip_${item.id}"),
+                        contentAlignment = Alignment.Center
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Box(

@@ -80,10 +80,12 @@ fun ScannerTopControls(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "🔍 Arama",
+                        text = "Barkod Ara",
                         color = if (!isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
                         fontWeight = if (!isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
 
@@ -97,10 +99,12 @@ fun ScannerTopControls(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "🏷️ QR Düzelt",
+                        text = "Etiket Düzelt",
                         color = if (isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
                         fontWeight = if (isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        fontSize = 11.sp
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
                 }
             }

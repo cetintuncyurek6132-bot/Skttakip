@@ -69,11 +69,10 @@ fun ProductDetailPriceInfoTabContent(
                     .padding(14.dp)
             ) {
                 Text(
-                    text = "SATIŞ FİYATI",
-                    fontSize = 10.5.sp,
+                    text = "Satış Fiyatı",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Slate500,
-                    letterSpacing = 0.5.sp
+                    color = Slate500
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -89,7 +88,7 @@ fun ProductDetailPriceInfoTabContent(
                             Text(
                                 text = "₺$formattedVal",
                                 fontSize = 28.sp,
-                                fontWeight = FontWeight.Black,
+                                fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -111,13 +110,13 @@ fun ProductDetailPriceInfoTabContent(
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "QR ile Fiyat Tara",
+                            contentDescription = "QR Fiyat",
                             tint = TurquoiseDark,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(5.dp))
                         Text(
-                            text = if (priceVal != null && priceVal > 0) "QR Güncelle" else "QR Fiyat Ekle",
+                            text = if (priceVal != null && priceVal > 0) "QR ile Güncelle" else "QR ile Fiyat Ekle",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark
@@ -142,11 +141,10 @@ fun ProductDetailPriceInfoTabContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "KOD & BARKOD BİLGİLERİ",
-                    fontSize = 10.5.sp,
+                    text = "Barkod ve Kod Bilgileri",
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Slate500,
-                    letterSpacing = 0.5.sp
+                    color = Slate500
                 )
 
                 Row(

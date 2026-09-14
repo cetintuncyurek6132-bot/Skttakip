@@ -1,10 +1,14 @@
 package com.example.ui.components.detail
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -184,17 +188,16 @@ fun ProductDetailSktTabContent(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = "Yeni SKT Partisi Ekle",
+                contentDescription = "SKT Ekle",
                 tint = Color.White,
                 modifier = Modifier.size(19.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "YENİ SKT & ADET EKLE",
-                fontWeight = FontWeight.Black,
+                text = "SKT Ekle",
+                fontWeight = FontWeight.Bold,
                 color = Color.White,
-                fontSize = 12.5.sp,
-                letterSpacing = 0.5.sp
+                fontSize = 13.sp
             )
         }
 
@@ -208,29 +211,34 @@ fun ProductDetailSktTabContent(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "KAYITLI SKT PARTİLERİ",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    letterSpacing = 0.5.sp
+                    text = "Kayıtlı Partiler",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 if (selectedRiskFilter != SktRiskFilter.ALL) {
                     Spacer(modifier = Modifier.width(6.dp))
-                    Surface(
-                        onClick = { selectedRiskFilter = SktRiskFilter.ALL },
-                        shape = RoundedCornerShape(6.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+                    val clearFilterShape = RoundedCornerShape(6.dp)
+                    Box(
+                        modifier = Modifier
+                            .clip(clearFilterShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)), clearFilterShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true)
+                            ) { selectedRiskFilter = SktRiskFilter.ALL }
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 text = when (selectedRiskFilter) {
-                                    SktRiskFilter.EXPIRED_NEAR -> "0-3g Filtreli"
-                                    SktRiskFilter.CRITICAL -> "4-15g Filtreli"
-                                    SktRiskFilter.SAFE -> "16+g Filtreli"
+                                    SktRiskFilter.EXPIRED_NEAR -> "0-3 Gün Filtreli"
+                                    SktRiskFilter.CRITICAL -> "4-15 Gün Filtreli"
+                                    SktRiskFilter.SAFE -> "16+ Gün Filtreli"
                                     else -> ""
                                 },
                                 fontSize = 9.5.sp,
@@ -273,7 +281,7 @@ fun ProductDetailSktTabContent(
                         text = if (selectedRiskFilter != SktRiskFilter.ALL) {
                             "Bu filtreye uygun SKT partisi bulunmuyor."
                         } else {
-                            "Henüz SKT ve adet bilgisi girilmemiş."
+                            "Henüz SKT girilmemiş."
                         },
                         fontSize = 12.5.sp,
                         fontWeight = FontWeight.Bold,
@@ -285,7 +293,7 @@ fun ProductDetailSktTabContent(
                         text = if (selectedRiskFilter != SktRiskFilter.ALL) {
                             "Filtreyi sıfırlamak için yukarıdaki kutucuğa tekrar dokunun."
                         } else {
-                            "Yukarıdaki butona dokunarak SKT tarihi ve reyon/depo adedi ekleyin."
+                            "Yeni SKT eklemek için butona dokunun."
                         },
                         fontSize = 11.sp,
                         color = Slate500,
@@ -303,11 +311,11 @@ fun ProductDetailSktTabContent(
                     val dateStr = dateFormat.format(Date(item.sktTarihi))
 
                     val (badgeText, badgeBg, badgeTextColor) = when {
-                        daysRemaining < 0 -> Triple("🚨 ${kotlin.math.abs(daysRemaining)}g GEÇTİ", ExpiredRedContainer, ExpiredRedDark)
-                        daysRemaining == 0L -> Triple("🚨 BUGÜN SON GÜN", ExpiredRedContainer, ExpiredRedDark)
-                        daysRemaining in 1..3 -> Triple("🚨 ${daysRemaining}g KALDI", ExpiredRedContainer, ExpiredRedDark)
-                        daysRemaining in 4..15 -> Triple("⚠️ ${daysRemaining}g KALDI", CriticalOrangeContainer, CriticalOrangeDark)
-                        else -> Triple("✅ ${daysRemaining}g KALDI", NormalGreenContainer, NormalGreenDark)
+                        daysRemaining < 0 -> Triple("${kotlin.math.abs(daysRemaining)} gün geçti", ExpiredRedContainer, ExpiredRedDark)
+                        daysRemaining == 0L -> Triple("Son gün", ExpiredRedContainer, ExpiredRedDark)
+                        daysRemaining in 1..3 -> Triple("$daysRemaining gün kaldı", ExpiredRedContainer, ExpiredRedDark)
+                        daysRemaining in 4..15 -> Triple("$daysRemaining gün kaldı", CriticalOrangeContainer, CriticalOrangeDark)
+                        else -> Triple("$daysRemaining gün kaldı", NormalGreenContainer, NormalGreenDark)
                     }
 
                     Surface(
@@ -418,18 +426,21 @@ private fun ClickableRiskCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) containerColor else containerColor.copy(alpha = 0.65f),
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) accentColor else borderColor),
-        shadowElevation = if (isSelected) 3.dp else 1.dp,
+    val cardShape = RoundedCornerShape(12.dp)
+    Box(
         modifier = modifier
+            .clip(cardShape)
+            .background(if (isSelected) containerColor else containerColor.copy(alpha = 0.65f))
+            .border(BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) accentColor else borderColor), cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = accentColor)
+            ) { onClick() }
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp, horizontal = 4.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(

@@ -36,25 +36,27 @@ class ExampleRobolectricTest {
 
   @Test
   fun `navigate from dashboard to other screens`() {
+    composeTestRule.mainClock.advanceTimeBy(2500)
     composeTestRule.waitForIdle()
-    // Click on stat_card_total (Takipte -> Products)
+
+    // Click on stat_card_total
     composeTestRule.onNodeWithTag("stat_card_total").performClick()
     composeTestRule.waitForIdle()
 
-    // Now on products screen, click on BottomNav ANA SAYFA
-    composeTestRule.onNodeWithText("ANA SAYFA").performClick()
-    composeTestRule.waitForIdle()
-
-    // Click on Adetsel quick action
-    composeTestRule.onNodeWithTag("quick_action_adetsel").performClick()
+    // Navigate to ÜRÜNLER
+    composeTestRule.onNodeWithText("ÜRÜNLER").performClick()
     composeTestRule.waitForIdle()
 
     // Back to ANA SAYFA
     composeTestRule.onNodeWithText("ANA SAYFA").performClick()
     composeTestRule.waitForIdle()
 
-    // Click on Takip quick action
-    composeTestRule.onNodeWithTag("quick_action_takip").performClick()
+    // Navigate to TAKİP
+    composeTestRule.onNodeWithText("TAKİP").performClick()
+    composeTestRule.waitForIdle()
+
+    // Back to ANA SAYFA
+    composeTestRule.onNodeWithText("ANA SAYFA").performClick()
     composeTestRule.waitForIdle()
   }
 }

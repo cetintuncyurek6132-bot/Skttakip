@@ -3,12 +3,9 @@ package com.example.util
 import android.content.Context
 import android.graphics.Bitmap
 import com.example.data.Product
-import com.example.data.TurKontrolKaydi
-import com.example.data.TurRaporu
 import com.example.util.image.BitmapSharingHelper
 import com.example.util.image.ProductReportImageRenderer
 import com.example.util.image.SharePreviewReportRenderer
-import com.example.util.image.TourReportImageRenderer
 
 data class ExpiryReportInfo(
     val statusText: String,        // "SÜRESİ GEÇTİ", "BUGÜN DOLUYOR", "2 GÜN KALDI", "16 GÜN VAR"
@@ -110,17 +107,6 @@ object ProductImageGenerator {
         searchQuery: String,
         productList: List<Product>
     ) = ProductReportImageRenderer.shareProductsAsImage(context, filterLabel, searchQuery, productList)
-
-    fun createTourReportBitmap(
-        rapor: TurRaporu,
-        logs: List<TurKontrolKaydi> = emptyList()
-    ): Bitmap = TourReportImageRenderer.createTourReportBitmap(rapor, logs)
-
-    fun shareTourReportAsImage(
-        context: Context,
-        rapor: TurRaporu,
-        logs: List<TurKontrolKaydi> = emptyList()
-    ) = TourReportImageRenderer.shareTourReportAsImage(context, rapor, logs)
 
     fun createSharePreviewReportBitmap(
         title: String = "KONTROL EDİLECEK ÜRÜNLER",

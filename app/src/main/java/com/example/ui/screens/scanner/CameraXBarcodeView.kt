@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -73,6 +75,31 @@ fun CameraXBarcodeView(
     val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
     val lastFarDetectedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
     val currentDistanceStateRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    val scanCooldownUntilRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+
+    val previewViewRef = remember { mutableStateOf<PreviewView?>(null) }
+    val previewUseCaseRef = remember { mutableStateOf<Preview?>(null) }
+    val imageAnalysisRef = remember { mutableStateOf<ImageAnalysis?>(null) }
+
+    fun rebindCamera() {
+        val provider = cameraProviderRef.value ?: return
+        val preview = previewUseCaseRef.value ?: return
+        val analysis = imageAnalysisRef.value ?: return
+        try {
+            provider.unbindAll()
+            val camera = provider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                analysis
+            )
+            cameraRef.value = camera
+            camera.cameraControl.enableTorch(isFlashOn)
+            camera.cameraControl.setZoomRatio(zoomRatio)
+        } catch (e: Exception) {
+            android.util.Log.e("CameraXBarcodeView", "Camera rebind failed", e)
+        }
+    }
 
     LaunchedEffect(isPaused) {
         isPausedAtomic.set(isPaused)
@@ -122,7 +149,26 @@ fun CameraXBarcodeView(
     }
 
     DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    try {
+                        cameraRef.value?.cameraControl?.enableTorch(false)
+                        cameraProviderRef.value?.unbindAll()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    rebindCamera()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             try {
                 cameraRef.value?.cameraControl?.enableTorch(false)
             } catch (e: Exception) {
@@ -153,6 +199,7 @@ fun CameraXBarcodeView(
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 scaleType = PreviewView.ScaleType.FILL_CENTER
             }
+            previewViewRef.value = previewView
 
             // Tap-to-Focus support
             previewView.setOnTouchListener { v, event ->
@@ -185,6 +232,7 @@ fun CameraXBarcodeView(
                     val preview = Preview.Builder().build().apply {
                         setSurfaceProvider(previewView.surfaceProvider)
                     }
+                    previewUseCaseRef.value = preview
 
                     val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
                         .setResolutionStrategy(
@@ -199,6 +247,7 @@ fun CameraXBarcodeView(
                         .setResolutionSelector(resolutionSelector)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
+                    imageAnalysisRef.value = imageAnalysis
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         if (isPausedAtomic.get()) {
@@ -208,8 +257,14 @@ fun CameraXBarcodeView(
                             return@setAnalyzer
                         }
 
-                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 320L else 220L
                         val currentTime = System.currentTimeMillis()
+                        // Stop analyzing frames if cooldown active after successful detection
+                        if (currentTime < scanCooldownUntilRef.get()) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
+
+                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 320L else 220L
                         val lastAnalyzed = lastAnalyzedTimeRef.get()
                         if (currentTime - lastAnalyzed < minFrameIntervalMs) {
                             imageProxy.close()
@@ -300,6 +355,8 @@ fun CameraXBarcodeView(
 
                                             if (lCode != finalCode || (finalTime - lTime) >= 1200L) {
                                                 lastEmittedRef.set(Pair(finalCode, finalTime))
+                                                // Throttle subsequent frame analysis for 800ms to conserve power
+                                                scanCooldownUntilRef.set(finalTime + 800L)
                                                 currentOnBarcodeScanned(finalCode)
                                             }
                                         }

@@ -160,11 +160,10 @@ class MorningCheckWorker(
         }
 
         /**
-         * Schedules both WorkManager and AlarmManager for background reliability.
+         * Schedules WorkManager periodic check for günü gelen/yaklaşan SKT notifications.
          */
         fun scheduleDailyMorningCheck(context: Context) {
             try {
-                // 1. WorkManager Periodic Work
                 val constraints = Constraints.Builder()
                     .setRequiresBatteryNotLow(false)
                     .build()
@@ -191,71 +190,16 @@ class MorningCheckWorker(
 
                 WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.UPDATE,
+                    ExistingPeriodicWorkPolicy.KEEP,
                     periodicWorkRequest
                 )
             } catch (e: Exception) {
                 Log.w("MorningCheckWorker", "WorkManager schedule failed: ${e.message}")
             }
-
-            // 2. Exact AlarmManager Fallback (Fires even if app process is closed/killed)
-            scheduleExactAlarm(context)
         }
 
         fun scheduleExactAlarm(context: Context) {
-            try {
-                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
-                val intent = Intent(context, AlarmReceiver::class.java).apply {
-                    action = "com.example.action.DAILY_SKT_CHECK"
-                }
-                val pendingIntent = PendingIntent.getBroadcast(
-                    context,
-                    ALARM_REQUEST_CODE,
-                    intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-                )
-
-                val target = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 8)
-                    set(Calendar.MINUTE, 30)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }
-                val now = Calendar.getInstance()
-                if (target.before(now) || target.equals(now)) {
-                    target.add(Calendar.DAY_OF_MONTH, 1)
-                }
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    if (alarmManager.canScheduleExactAlarms()) {
-                        alarmManager.setExactAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP,
-                            target.timeInMillis,
-                            pendingIntent
-                        )
-                    } else {
-                        alarmManager.setAndAllowWhileIdle(
-                            AlarmManager.RTC_WAKEUP,
-                            target.timeInMillis,
-                            pendingIntent
-                        )
-                    }
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    alarmManager.setExactAndAllowWhileIdle(
-                        AlarmManager.RTC_WAKEUP,
-                        target.timeInMillis,
-                        pendingIntent
-                    )
-                } else {
-                    alarmManager.set(
-                        AlarmManager.RTC_WAKEUP,
-                        target.timeInMillis,
-                        pendingIntent
-                    )
-                }
-            } catch (e: Exception) {
-                Log.w("MorningCheckWorker", "Exact alarm schedule fallback failed", e)
-            }
+            // Deprecated: WorkManager handles periodic background checks cleanly without alarm manager overhead
         }
 
         /**

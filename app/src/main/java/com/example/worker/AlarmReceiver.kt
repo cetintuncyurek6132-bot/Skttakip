@@ -20,7 +20,6 @@ class AlarmReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 MorningCheckWorker.performDirectCheckAndNotify(context)
-                MorningCheckWorker.scheduleExactAlarm(context)
             } finally {
                 pendingResult.finish()
             }

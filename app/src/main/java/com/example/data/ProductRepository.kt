@@ -8,12 +8,10 @@ import java.io.File
 class ProductRepository(
     val productDao: ProductDao,
     val reportDao: InspectionReportDao,
-    val turDao: TurDao? = null,
     val adetselDao: AdetselDao? = null
 ) {
     val allProducts: Flow<List<Product>> = productDao.getAllProducts()
     val allReports: Flow<List<InspectionReport>> = reportDao.getAllReports()
-    val allTurRaporlari: Flow<List<TurRaporu>> = turDao?.getAllTurRaporlari() ?: kotlinx.coroutines.flow.emptyFlow()
     val allAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getAllAdetselKayitlari() ?: kotlinx.coroutines.flow.emptyFlow()
     val yapilacakAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getYapilacakKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()
     val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()
@@ -46,50 +44,45 @@ class ProductRepository(
         return productDao.getProductByBarcode(barkod)
     }
 
+    suspend fun getProductById(productId: Int): Product? {
+        return productDao.getProductById(productId)
+    }
+
     suspend fun getProductListDirect(): List<Product> {
         return productDao.getAllProductsList()
     }
 
-    suspend fun updateProductStock(productId: Int, newStok: Int) {
-        val list = productDao.getAllProductsList()
-        val prod = list.find { it.id == productId }
+    suspend fun updateProduct(product: Product): Int {
+        val count = productDao.updateProduct(product)
+        CloudSyncManager.syncProductToCloud(product)
+        return count
+    }
+
+    suspend fun updateProductStock(product: Product, newStok: Int) {
         val safeStok = maxOf(0, newStok)
-        productDao.updateStockAndControlDate(productId, safeStok, System.currentTimeMillis())
+        val updated = product.copy(stokAdedi = safeStok, sonKontrolTarihi = System.currentTimeMillis())
+        productDao.updateProduct(updated)
+        CloudSyncManager.syncProductToCloud(updated)
+    }
+
+    suspend fun updateProductStock(productId: Int, newStok: Int) {
+        val safeStok = maxOf(0, newStok)
+        val now = System.currentTimeMillis()
+        val prod = productDao.getProductById(productId)
         if (prod != null) {
-            CloudSyncManager.syncProductToCloud(prod.copy(stokAdedi = safeStok, sonKontrolTarihi = System.currentTimeMillis()))
+            val updated = prod.copy(stokAdedi = safeStok, sonKontrolTarihi = now)
+            productDao.updateProduct(updated)
+            CloudSyncManager.syncProductToCloud(updated)
+        } else {
+            productDao.updateStockAndControlDate(productId, safeStok, now)
         }
     }
 
     private suspend fun scopeSyncProduct(productId: Int) {
-        val list = productDao.getAllProductsList()
-        val prod = list.find { it.id == productId }
+        val prod = productDao.getProductById(productId)
         if (prod != null) {
             CloudSyncManager.syncProductToCloud(prod)
         }
-    }
-
-    suspend fun saveTourReport(rapor: TurRaporu, kayitlar: List<TurKontrolKaydi>): Long {
-        val res = turDao?.saveCompletedTour(rapor, kayitlar) ?: 0L
-        CloudSyncManager.syncTourReportToCloud(rapor, kayitlar)
-        return res
-    }
-
-    suspend fun deleteTurRaporu(id: Int) {
-        turDao?.deleteTurRaporu(id)
-        turDao?.deleteKontrolKayitlariByTurId(id)
-    }
-
-    suspend fun clearAllTurRaporlari() {
-        turDao?.deleteAllTurRaporlari()
-        turDao?.deleteAllKontrolKayitlari()
-    }
-
-    fun getKayitlarByTurId(turId: Int): Flow<List<TurKontrolKaydi>> {
-        return turDao?.getKayitlarByTurId(turId) ?: kotlinx.coroutines.flow.emptyFlow()
-    }
-
-    suspend fun getAllTourLogsDirect(): List<TurKontrolKaydi> {
-        return turDao?.getAllKontrolKayitlariDirect() ?: emptyList()
     }
 
     suspend fun getProductsByBarcode(barkod: String): List<Product> {
@@ -135,8 +128,7 @@ class ProductRepository(
     suspend fun resetAllData() {
         productDao.deleteAllProducts()
         reportDao.deleteAllReports()
-        turDao?.deleteAllTurRaporlari()
-        turDao?.deleteAllKontrolKayitlari()
+        adetselDao?.deleteAllAdetselKayitlar()
         CloudSyncManager.clearAllCloudData()
     }
 
@@ -157,11 +149,11 @@ class ProductRepository(
     }
 
     suspend fun createUnifiedBackupJson(context: Context): String {
-        return DataBackupManager.createUnifiedBackupJson(context, productDao, reportDao, turDao, adetselDao)
+        return DataBackupManager.createUnifiedBackupJson(context, productDao, reportDao, adetselDao)
     }
 
     suspend fun saveLocalBackup(context: Context, tag: String = "manual"): File? {
-        return DataBackupManager.saveAutoBackupToStorage(context, productDao, reportDao, turDao, adetselDao, tag)
+        return DataBackupManager.saveAutoBackupToStorage(context, productDao, reportDao, adetselDao, tag)
     }
 
     fun getLocalBackups(context: Context): List<BackupMetadata> {
@@ -169,6 +161,6 @@ class ProductRepository(
     }
 
     suspend fun restoreFromJson(context: Context, jsonString: String, merge: Boolean = true): BackupRestoreResult {
-        return DataBackupManager.restoreFromJson(context, jsonString, productDao, reportDao, turDao, adetselDao, merge)
+        return DataBackupManager.restoreFromJson(context, jsonString, productDao, reportDao, adetselDao, merge)
     }
 }

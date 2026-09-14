@@ -20,7 +20,6 @@ data class BackupMetadata(
     val productCount: Int,
     val sktCount: Int = 0,
     val depoRecordCount: Int,
-    val tourReportCount: Int,
     val adetselCount: Int = 0,
     val fileSizeFormatted: String,
     val isAutoBackup: Boolean,
@@ -35,7 +34,6 @@ data class BackupRestoreResult(
     val productsRestored: Int = 0,
     val sktEntriesRestored: Int = 0,
     val depoRecordsRestored: Int = 0,
-    val tourReportsRestored: Int = 0,
     val adetselRecordsRestored: Int = 0,
     val inspectionReportsRestored: Int = 0,
     val remindersRestored: Boolean = false
@@ -86,7 +84,6 @@ object DataBackupManager {
         context: Context,
         productDao: ProductDao,
         reportDao: InspectionReportDao,
-        turDao: TurDao?,
         adetselDao: AdetselDao? = null
     ): String {
         val root = JSONObject()
@@ -165,50 +162,7 @@ object DataBackupManager {
         }
         root.put("adetselKayitlar", adetselArray)
 
-        // 5. Tur Raporları
-        val turRaporlari = turDao?.getAllTurRaporlariDirect() ?: emptyList()
-        val turRaporlariArray = JSONArray()
-        for (tr in turRaporlari) {
-            val trObj = JSONObject()
-            trObj.put("id", tr.id)
-            trObj.put("turTarihi", tr.turTarihi)
-            trObj.put("hedefReyon", tr.hedefReyon)
-            trObj.put("toplamUrunSayisi", tr.toplamUrunSayisi)
-            trObj.put("satilanUrunSayisi", tr.satilanUrunSayisi)
-            trObj.put("toplamSatilanAdet", tr.toplamSatilanAdet)
-            trObj.put("fireUrunSayisi", tr.fireUrunSayisi)
-            trObj.put("toplamFireAdet", tr.toplamFireAdet)
-            trObj.put("notrUrunSayisi", tr.notrUrunSayisi)
-            trObj.put("tamamlandiMi", tr.tamamlandiMi)
-            trObj.put("turSuresiSaniye", tr.turSuresiSaniye)
-            trObj.put("toplamPuan", tr.toplamPuan)
-            trObj.put("tahminiFireMaliyeti", tr.tahminiFireMaliyeti)
-            trObj.put("enCokFireKategori", tr.enCokFireKategori)
-            trObj.put("personelAdi", tr.personelAdi)
-            turRaporlariArray.put(trObj)
-        }
-        root.put("turRaporlari", turRaporlariArray)
-
-        // 6. Tur Kontrol Kayıtları
-        val kontrolKayitlari = turDao?.getAllKontrolKayitlariDirect() ?: emptyList()
-        val kontrolKayitlariArray = JSONArray()
-        for (k in kontrolKayitlari) {
-            val kObj = JSONObject()
-            kObj.put("id", k.id)
-            kObj.put("turId", k.turId)
-            kObj.put("productId", k.productId)
-            kObj.put("urunAdiSnapshot", k.urunAdiSnapshot)
-            kObj.put("barkodSnapshot", k.barkodSnapshot)
-            kObj.put("kategoriSnapshot", k.kategoriSnapshot)
-            kObj.put("durum", k.durum)
-            kObj.put("islemAdedi", k.islemAdedi)
-            kObj.put("kontrolTarihi", k.kontrolTarihi)
-            kObj.put("personelSnapshot", k.personelSnapshot)
-            kontrolKayitlariArray.put(kObj)
-        }
-        root.put("turKontrolKayitlari", kontrolKayitlariArray)
-
-        // 7. Reminders Notes & Settings
+        // 5. Reminders Notes & Settings
         val reminderPrefs = getSettingsPrefs(context)
         val reminderNotes = reminderPrefs.getString("store_reminders_notes", "") ?: ""
         root.put("remindersNotes", reminderNotes)
@@ -223,12 +177,11 @@ object DataBackupManager {
         context: Context,
         productDao: ProductDao,
         reportDao: InspectionReportDao,
-        turDao: TurDao?,
         adetselDao: AdetselDao? = null,
         tag: String = "auto"
     ): File? {
         return try {
-            val jsonContent = createUnifiedBackupJson(context, productDao, reportDao, turDao, adetselDao)
+            val jsonContent = createUnifiedBackupJson(context, productDao, reportDao, adetselDao)
             val dir = getBackupDirectory(context)
             val timestampStr = fileDateFormat.format(Date())
             val fileName = "backup_${tag}_$timestampStr.json"
@@ -259,7 +212,6 @@ object DataBackupManager {
                 val timestamp = json.optLong("exportTimestamp", file.lastModified())
                 val productsArr = json.optJSONArray("products") ?: json.optJSONArray("urunler")
                 val depoArr = json.optJSONArray("depoIadeKayitlari") ?: json.optJSONArray("depoKayitlari")
-                val turArr = json.optJSONArray("turRaporlari")
                 val adetselArr = json.optJSONArray("adetselKayitlar") ?: json.optJSONArray("adetsel")
 
                 var sktCount = 0
@@ -287,7 +239,6 @@ object DataBackupManager {
                     productCount = productsArr?.length() ?: 0,
                     sktCount = sktCount,
                     depoRecordCount = depoArr?.length() ?: 0,
-                    tourReportCount = turArr?.length() ?: 0,
                     adetselCount = adetselArr?.length() ?: 0,
                     fileSizeFormatted = sizeStr,
                     isAutoBackup = file.name.contains("auto") || file.name.contains("migration")
@@ -306,7 +257,6 @@ object DataBackupManager {
         jsonString: String,
         productDao: ProductDao,
         reportDao: InspectionReportDao,
-        turDao: TurDao?,
         adetselDao: AdetselDao? = null,
         mergeWithExisting: Boolean = true
     ): BackupRestoreResult {
@@ -319,15 +269,12 @@ object DataBackupManager {
             var productsRestored = 0
             var depoRestored = 0
             var adetselRestored = 0
-            var turReportsRestored = 0
             var inspectionRestored = 0
             var remindersRestored = false
 
             val parsedProducts = mutableListOf<Product>()
             val parsedDepoRecords = mutableListOf<DepoIadeKaydi>()
             val parsedAdetselKayitlar = mutableListOf<AdetselKayit>()
-            val parsedTurRaporlari = mutableListOf<TurRaporu>()
-            val parsedTurKayitlari = mutableListOf<TurKontrolKaydi>()
             val parsedReports = mutableListOf<InspectionReport>()
 
             if (trimmed.startsWith("[")) {
@@ -378,25 +325,7 @@ object DataBackupManager {
                     }
                 }
 
-                // 4. Tur Raporları
-                val turArr = root.optJSONArray("turRaporlari")
-                if (turArr != null) {
-                    for (i in 0 until turArr.length()) {
-                        val tObj = turArr.getJSONObject(i)
-                        parseTurRaporuFromJson(tObj)?.let { parsedTurRaporlari.add(it) }
-                    }
-                }
-
-                // 5. Tur Kontrol Kayıtları
-                val kontrolArr = root.optJSONArray("turKontrolKayitlari")
-                if (kontrolArr != null) {
-                    for (i in 0 until kontrolArr.length()) {
-                        val kObj = kontrolArr.getJSONObject(i)
-                        parseTurKontrolKaydiFromJson(kObj)?.let { parsedTurKayitlari.add(it) }
-                    }
-                }
-
-                // 6. Inspection Reports
+                // 4. Inspection Reports
                 val repArr = root.optJSONArray("inspectionReports") ?: root.optJSONArray("reports")
                 if (repArr != null) {
                     for (i in 0 until repArr.length()) {
@@ -405,7 +334,7 @@ object DataBackupManager {
                     }
                 }
 
-                // 7. Reminders Notes
+                // 5. Reminders Notes
                 val notes = root.optString("remindersNotes", "")
                 if (notes.isNotBlank()) {
                     val reminderPrefs = getSettingsPrefs(context)
@@ -417,11 +346,9 @@ object DataBackupManager {
             // Perform Save / Merge
             if (!mergeWithExisting) {
                 productDao.deleteAllProducts()
-                turDao?.deleteAllTurRaporlari()
-                turDao?.deleteAllKontrolKayitlari()
                 reportDao.deleteAllReports()
                 adetselDao?.deleteAllAdetselKayitlar()
-                DepoIadeManager.saveRecords(context, emptyList())
+                DepoIadeManager.clearAllRecords(context)
             }
 
             // 1. Ürünler ve SKT / Adetlerini Yükle
@@ -502,18 +429,7 @@ object DataBackupManager {
                 }
             }
 
-            // 4. Tur Raporları & Kontrol Kayıtları
-            if (turDao != null) {
-                for (tr in parsedTurRaporlari) {
-                    turDao.insertTurRaporu(tr.copy(id = 0))
-                    turReportsRestored++
-                }
-                if (parsedTurKayitlari.isNotEmpty()) {
-                    turDao.insertKontrolKayitlari(parsedTurKayitlari.map { it.copy(id = 0) })
-                }
-            }
-
-            // 5. Inspection Reports
+            // 4. Inspection Reports
             for (ir in parsedReports) {
                 reportDao.insertReport(ir.copy(id = 0))
                 inspectionRestored++
@@ -529,9 +445,6 @@ object DataBackupManager {
                 append("\n")
                 append("• $depoRestored takip kaydı\n")
                 append("• $adetselRestored adetsel sayım kaydı aktarıldı.")
-                if (turReportsRestored > 0) {
-                    append("\n• $turReportsRestored tur raporu")
-                }
             }
 
             BackupRestoreResult(
@@ -540,7 +453,6 @@ object DataBackupManager {
                 productsRestored = productsRestored,
                 sktEntriesRestored = sktWithDateCount,
                 depoRecordsRestored = depoRestored,
-                tourReportsRestored = turReportsRestored,
                 adetselRecordsRestored = adetselRestored,
                 inspectionReportsRestored = inspectionRestored,
                 remindersRestored = remindersRestored
@@ -630,7 +542,7 @@ object DataBackupManager {
         val urunAdi = obj.optString("urunAdi", "").ifBlank { obj.optString("name", "") }.trim()
         if (urunAdi.isBlank()) return null
 
-        val id = obj.optString("id", System.currentTimeMillis().toString())
+        val id = obj.optString("id", "").ifBlank { java.util.UUID.randomUUID().toString() }
         val irsaliyeGorselPath = obj.optString("irsaliyeGorselPath", "").takeIf { it.isNotBlank() }
         val iadeTarihi = obj.optString("iadeTarihi", DepoIadeManager.getTodayDateString())
         val iadeTarihiMillis = obj.optLong("iadeTarihiMillis", System.currentTimeMillis())
@@ -676,44 +588,6 @@ object DataBackupManager {
             hatirlatmaTarihiMillis = hatirlatmaTarihiMillis,
             olusturmaTarihiMillis = olusturmaTarihiMillis,
             guncellemeTarihiMillis = guncellemeTarihiMillis
-        )
-    }
-
-    private fun parseTurRaporuFromJson(obj: JSONObject): TurRaporu? {
-        val hedefReyon = obj.optString("hedefReyon", "").ifBlank { "Dolap Ürünleri" }
-        return TurRaporu(
-            id = 0,
-            turTarihi = obj.optLong("turTarihi", System.currentTimeMillis()),
-            hedefReyon = hedefReyon,
-            toplamUrunSayisi = obj.optInt("toplamUrunSayisi", 0),
-            satilanUrunSayisi = obj.optInt("satilanUrunSayisi", 0),
-            toplamSatilanAdet = obj.optInt("toplamSatilanAdet", 0),
-            fireUrunSayisi = obj.optInt("fireUrunSayisi", 0),
-            toplamFireAdet = obj.optInt("toplamFireAdet", 0),
-            notrUrunSayisi = obj.optInt("notrUrunSayisi", 0),
-            tamamlandiMi = obj.optBoolean("tamamlandiMi", true),
-            turSuresiSaniye = obj.optLong("turSuresiSaniye", 0L),
-            toplamPuan = obj.optInt("toplamPuan", 0),
-            tahminiFireMaliyeti = obj.optDouble("tahminiFireMaliyeti", 0.0),
-            enCokFireKategori = obj.optString("enCokFireKategori", ""),
-            personelAdi = obj.optString("personelAdi", "")
-        )
-    }
-
-    private fun parseTurKontrolKaydiFromJson(obj: JSONObject): TurKontrolKaydi? {
-        val urunAdi = obj.optString("urunAdiSnapshot", "").trim()
-        if (urunAdi.isBlank()) return null
-        return TurKontrolKaydi(
-            id = 0,
-            turId = obj.optInt("turId", 0),
-            productId = obj.optInt("productId", 0),
-            urunAdiSnapshot = urunAdi,
-            barkodSnapshot = obj.optString("barkodSnapshot", ""),
-            kategoriSnapshot = obj.optString("kategoriSnapshot", ""),
-            durum = obj.optString("durum", "NOTR"),
-            islemAdedi = obj.optInt("islemAdedi", 0),
-            kontrolTarihi = obj.optLong("kontrolTarihi", System.currentTimeMillis()),
-            personelSnapshot = obj.optString("personelSnapshot", "")
         )
     }
 

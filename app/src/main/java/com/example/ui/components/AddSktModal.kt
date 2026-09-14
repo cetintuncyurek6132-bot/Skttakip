@@ -151,9 +151,9 @@ fun AddSktModal(
                             }
                         }
                         Text(
-                            text = if (isEditMode) "SKT VE ADET DÜZENLE" else "Tarih ve Adet Ekle",
+                            text = if (isEditMode) "Tarih ve Adet Düzenle" else "SKT ve Adet Girişi",
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontWeight = FontWeight.Bold,
                             color = TurquoiseDark
                         )
                     }
@@ -206,7 +206,7 @@ fun AddSktModal(
                 // 3. NEW SKT DATE & OCR SCANNER BUTTON
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
-                        text = "Yeni SKT Tarihi",
+                        text = "Son Kullanma Tarihi",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = TurquoiseDark
@@ -261,13 +261,13 @@ fun AddSktModal(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Kamera ile Tarih Tara",
+                                contentDescription = "Tarih Oku",
                                 tint = TurquoiseDark,
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                "OCR TARA",
+                                "Tarih Oku",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TurquoiseDark
@@ -357,7 +357,7 @@ fun AddSktModal(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "SKT Adedi (Giriş Miktarı):",
+                        text = "Adet",
                         fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = Slate900
@@ -461,7 +461,7 @@ fun AddSktModal(
                             onClick = {
                                 val count = stokAdedi.toIntOrNull() ?: 1
                                 onSaveSkt(product, selectedDateMillis, count)
-                                Toast.makeText(context, "✓ SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
                                 stokAdedi = "1"
                             },
                             modifier = Modifier
@@ -475,7 +475,7 @@ fun AddSktModal(
                             Icon(imageVector = Icons.Default.Add, contentDescription = "Ekle", tint = Color.White)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "EKLE",
+                                text = "Ekle",
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 fontSize = 13.sp
@@ -487,7 +487,7 @@ fun AddSktModal(
                         onClick = {
                             val count = stokAdedi.toIntOrNull() ?: 1
                             onSaveSkt(product, selectedDateMillis, count)
-                            val msg = if (isEditMode) "✓ SKT güncellendi ($count adet)" else "✓ Kaydedildi"
+                            val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             onDismiss()
                         },
@@ -502,8 +502,8 @@ fun AddSktModal(
                         Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Kaydet", tint = Color.White)
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = if (isEditMode) "DÜZENLEMEYİ KAYDET" else "KAYDET",
-                            fontWeight = FontWeight.ExtraBold,
+                            text = "Kaydet",
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
                             fontSize = 13.sp
                         )

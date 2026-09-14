@@ -13,6 +13,8 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -124,12 +126,18 @@ fun ProductNameOcrScannerDialog(
 
     DisposableEffect(Unit) {
         onDispose {
+            isFlashOn = false
             try {
                 toneGenerator?.release()
             } catch (e: Exception) {
                 // Ignore
             }
         }
+    }
+
+    val safeDismiss = {
+        isFlashOn = false
+        onDismiss()
     }
 
     LaunchedEffect(Unit) {
@@ -139,7 +147,7 @@ fun ProductNameOcrScannerDialog(
     }
 
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = safeDismiss,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false
@@ -242,7 +250,7 @@ fun ProductNameOcrScannerDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            onClick = onDismiss,
+                            onClick = safeDismiss,
                             shape = CircleShape,
                             color = Color.Black.copy(alpha = 0.65f),
                             modifier = Modifier.size(42.dp)
@@ -427,7 +435,7 @@ fun ProductNameOcrScannerDialog(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = onDismiss,
+                                onClick = safeDismiss,
                                 modifier = Modifier
                                     .weight(0.7f)
                                     .height(46.dp),
@@ -441,6 +449,7 @@ fun ProductNameOcrScannerDialog(
                                 onClick = {
                                     val cleaned = currentDetectedName.trim()
                                     if (cleaned.isNotBlank()) {
+                                        isFlashOn = false
                                         try {
                                             toneGenerator?.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
                                         } catch (e: Exception) {
@@ -493,6 +502,29 @@ private fun CameraXProductNameOcrView(
     val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val scanCooldownUntilRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val previewViewRef = remember { mutableStateOf<PreviewView?>(null) }
+    val previewUseCaseRef = remember { mutableStateOf<Preview?>(null) }
+    val imageAnalysisRef = remember { mutableStateOf<ImageAnalysis?>(null) }
+
+    fun rebindCamera() {
+        val provider = cameraProviderRef.value ?: return
+        val preview = previewUseCaseRef.value ?: return
+        val analysis = imageAnalysisRef.value ?: return
+        try {
+            provider.unbindAll()
+            val camera = provider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                analysis
+            )
+            cameraRef.value = camera
+            camera.cameraControl.enableTorch(isFlashOn)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
@@ -505,13 +537,33 @@ private fun CameraXProductNameOcrView(
     }
 
     DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    try {
+                        cameraRef.value?.cameraControl?.enableTorch(false)
+                        cameraProviderRef.value?.unbindAll()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    rebindCamera()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             try {
                 cameraRef.value?.cameraControl?.enableTorch(false)
             } catch (e: Exception) {
                 // Ignore
             }
             try {
+                imageAnalysisRef.value?.clearAnalyzer()
                 cameraProviderRef.value?.unbindAll()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -535,6 +587,7 @@ private fun CameraXProductNameOcrView(
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 scaleType = PreviewView.ScaleType.FILL_CENTER
             }
+            previewViewRef.value = previewView
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
             cameraProviderFuture.addListener({
@@ -544,6 +597,7 @@ private fun CameraXProductNameOcrView(
                     val preview = Preview.Builder().build().apply {
                         setSurfaceProvider(previewView.surfaceProvider)
                     }
+                    previewUseCaseRef.value = preview
 
                     val resolutionSelector = ResolutionSelector.Builder()
                         .setResolutionStrategy(
@@ -558,11 +612,17 @@ private fun CameraXProductNameOcrView(
                         .setResolutionSelector(resolutionSelector)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
+                    imageAnalysisRef.value = imageAnalysis
 
                     val minFrameIntervalMs = 250L // Throttles OCR analysis to ~4 FPS to prevent rate limit and buffer overrun
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
                         val currentTime = System.currentTimeMillis()
+                        if (currentTime < scanCooldownUntilRef.get()) {
+                            imageProxy.close()
+                            return@setAnalyzer
+                        }
+
                         val lastAnalyzed = lastAnalyzedTimeRef.get()
                         if (currentTime - lastAnalyzed < minFrameIntervalMs) {
                             imageProxy.close()
@@ -570,7 +630,12 @@ private fun CameraXProductNameOcrView(
                         }
                         lastAnalyzedTimeRef.set(currentTime)
 
-                        processImageForProductName(recognizer, imageProxy, onParsedResult)
+                        processImageForProductName(recognizer, imageProxy) { best, sugg ->
+                            if (best.isNotBlank() || sugg.isNotEmpty()) {
+                                scanCooldownUntilRef.set(System.currentTimeMillis() + 600L)
+                            }
+                            onParsedResult(best, sugg)
+                        }
                     }
 
                     cameraProvider.unbindAll()
@@ -652,7 +717,14 @@ fun extractProductNameAndGramaj(visionText: com.google.mlkit.vision.text.Text): 
 
     for (block in visionText.textBlocks) {
         for (line in block.lines) {
-            val lineText = line.text.trim()
+            // Join individual elements (words) with explicit spaces so ML Kit bounds don't glue adjacent words
+            val lineWords = line.elements.map { it.text.trim() }.filter { it.isNotBlank() }
+            val lineText = if (lineWords.isNotEmpty()) {
+                lineWords.joinToString(" ")
+            } else {
+                line.text.trim()
+            }.replace(Regex("\\s+"), " ")
+
             if (lineText.isNotBlank() && lineText.length >= 2) {
                 rawLines.add(lineText)
             }
@@ -660,7 +732,12 @@ fun extractProductNameAndGramaj(visionText: com.google.mlkit.vision.text.Text): 
     }
 
     if (rawLines.isEmpty() && visionText.text.isNotBlank()) {
-        rawLines.addAll(visionText.text.split("\n", "\r").map { it.trim() }.filter { it.length >= 2 })
+        rawLines.addAll(
+            visionText.text
+                .split("\n", "\r")
+                .map { it.trim().replace(Regex("\\s+"), " ") }
+                .filter { it.length >= 2 }
+        )
     }
 
     var extractedGramaj: String? = null
@@ -679,7 +756,7 @@ fun extractProductNameAndGramaj(visionText: com.google.mlkit.vision.text.Text): 
         val isMostlyCode = (digitAndSymbolCount.toDouble() / rawLine.length) > 0.65
 
         // Check for isolated price like "129,90 TL" or "785,71"
-        val isPriceOnly = rawLine.matches(Regex("^[0-9.,\\s]+(TL|₺|kr)?$", RegexOption.IGNORE_CASE))
+        val isPriceOnly = rawLine.matches(Regex("^[0-9.,\\s]+(TL|₺|kr|krş)?$", RegexOption.IGNORE_CASE))
 
         if (isMetadata || isMostlyCode || isPriceOnly) {
             continue
@@ -694,9 +771,9 @@ fun extractProductNameAndGramaj(visionText: com.google.mlkit.vision.text.Text): 
             }
         }
 
-        // Clean line from stray punctuation
+        // Clean line from stray punctuation and normalize spacing
         val cleanedLine = rawLine
-            .replace(Regex("[*#_~|•]"), "")
+            .replace(Regex("[*#_~|•\\[\\]{}]"), " ")
             .replace(Regex("\\s+"), " ")
             .trim()
 
@@ -706,14 +783,13 @@ fun extractProductNameAndGramaj(visionText: com.google.mlkit.vision.text.Text): 
         }
     }
 
-    // Build the combined best product name candidate
+    // Build the combined best product name candidate across lines with clean spaces
     val combinedCandidate = when {
         filteredProductLines.isEmpty() -> ""
         filteredProductLines.size == 1 -> filteredProductLines[0]
         else -> {
-            // Join lines (e.g. "ÜSTAD" + "KLASİK EZİNE PEYNİRİ" + "350 G")
-            val joined = filteredProductLines.take(3).joinToString(" ")
-            joined
+            // Join lines (e.g. "ÜSTAD" + "KLASİK EZİNE PEYNİRİ" + "350 G") with clean spaces
+            filteredProductLines.take(3).joinToString(" ").replace(Regex("\\s+"), " ").trim()
         }
     }
 

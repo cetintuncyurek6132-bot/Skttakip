@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,9 +60,21 @@ fun PriceQrScannerDialog(
 ) {
     val context = LocalContext.current
     var isFlashOn by remember { mutableStateOf(false) }
+    var hasHandledScan by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            isFlashOn = false
+        }
+    }
+
+    val safeDismiss = {
+        isFlashOn = false
+        onDismiss()
+    }
 
     Dialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = safeDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
@@ -117,7 +130,7 @@ fun PriceQrScannerDialog(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        IconButton(onClick = safeDismiss, modifier = Modifier.size(32.dp)) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Kapat",
@@ -186,27 +199,30 @@ fun PriceQrScannerDialog(
                     CameraXBarcodeView(
                         isFlashOn = isFlashOn,
                         filterMode = ScannerFilterMode.ONLY_QR_CODE,
+                        isPaused = hasHandledScan,
                         onBarcodeScanned = { raw ->
+                            if (hasHandledScan) return@CameraXBarcodeView
+
                             val shelfData = parseShelfQrPayload(raw)
                             val parsedPrice = shelfData.price ?: parsePriceFromQr(raw)
 
-                            if (parsedPrice != null && parsedPrice > 0.0) {
+                            if (parsedPrice != null && parsedPrice in 0.01..9999.99) {
                                 // Validate against expected product code/barcode if present
                                 if (expBar.isNotBlank() || expCode.isNotBlank()) {
                                     val scBarcode = shelfData.barcode.trim()
                                     val scProductCode = shelfData.productCode?.trim().orEmpty()
 
                                     val barcodeMatches = scBarcode.isNotBlank() && expBar.isNotBlank() &&
-                                        (scBarcode == expBar || expBar.contains(scBarcode) || scBarcode.contains(expBar))
+                                        scBarcode.equals(expBar, ignoreCase = true)
 
                                     val codeMatches = scProductCode.isNotBlank() && expCode.isNotBlank() &&
-                                        (scProductCode.equals(expCode, ignoreCase = true) || expCode.contains(scProductCode) || scProductCode.contains(expCode))
+                                        scProductCode.equals(expCode, ignoreCase = true)
 
                                     val crossMatch1 = scBarcode.isNotBlank() && expCode.isNotBlank() &&
-                                        (scBarcode.equals(expCode, ignoreCase = true) || expCode.contains(scBarcode) || scBarcode.contains(expCode))
+                                        scBarcode.equals(expCode, ignoreCase = true)
 
                                     val crossMatch2 = scProductCode.isNotBlank() && expBar.isNotBlank() &&
-                                        (scProductCode.equals(expBar, ignoreCase = true) || expBar.contains(scProductCode) || scProductCode.contains(expBar))
+                                        scProductCode.equals(expBar, ignoreCase = true)
 
                                     val isMatched = barcodeMatches || codeMatches || crossMatch1 || crossMatch2
 
@@ -223,6 +239,8 @@ fun PriceQrScannerDialog(
                                     }
                                 }
 
+                                hasHandledScan = true
+                                isFlashOn = false
                                 val formatted = if (parsedPrice % 1.0 == 0.0) parsedPrice.toInt().toString() else String.format(Locale.US, "%.2f", parsedPrice)
                                 Toast.makeText(context, "✅ QR Etiketinden Fiyat Alındı: $formatted ₺", Toast.LENGTH_SHORT).show()
                                 onPriceScanned(parsedPrice, raw)

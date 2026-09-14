@@ -18,48 +18,33 @@ fun getTodayMidnightMillis(): Long {
 
 fun String.normalizeForSearch(): String {
     if (this.isBlank()) return ""
-
-    var normalized = this.lowercase(Locale.forLanguageTag("tr-TR"))
+    return this.lowercase(Locale.forLanguageTag("tr-TR"))
         .replace('ı', 'i')
+        .replace('İ', 'i')
         .replace('ö', 'o')
         .replace('ü', 'u')
         .replace('ç', 'c')
         .replace('ş', 's')
         .replace('ğ', 'g')
-
-    if (normalized.any { it.isDigit() || it == 'l' || it == 'g' || it == 'k' || it == 'm' }) {
-        normalized = normalized
-            .replace("1 litre", "1l 1lt 1litre 1000ml")
-            .replace("1 lt", "1l 1lt 1000ml")
-            .replace("1.5 litre", "1.5l 1.5lt 1.5litre 1500ml")
-            .replace("2.5 litre", "2.5l 2.5lt 2.5litre 2500ml")
-            .replace("2 litre", "2l 2lt 2litre 2000ml")
-            .replace("500 ml", "500ml 0.5l")
-            .replace("330 ml", "330ml 0.33l")
-            .replace("250 ml", "250ml 0.25l")
-            .replace("200 ml", "200ml 0.2l")
-            .replace("1 kg", "1kg 1000g 1000gr")
-            .replace("500 gr", "500gr 500g")
-            .replace("250 gr", "250gr 250g")
-    }
-
-    return normalized
 }
 
 fun Product.matchesSearchQuery(rawQuery: String, queryTokens: List<String> = emptyList()): Boolean {
     val q = rawQuery.trim()
     if (q.isEmpty()) return true
 
+    val hasRealBarcode = !this.barkod.startsWith("NO_BARCODE_")
+
     // Direct substring match in name, barcode, product code or category
     if (this.urunAdi.contains(q, ignoreCase = true) ||
-        this.barkod.contains(q, ignoreCase = true) ||
+        (hasRealBarcode && this.barkod.contains(q, ignoreCase = true)) ||
         this.urunKodu.contains(q, ignoreCase = true) ||
         this.kategori.contains(q, ignoreCase = true)) {
         return true
     }
 
     val qNorm = q.normalizeForSearch()
-    val targetText = "${this.urunAdi} ${this.barkod} ${this.urunKodu} ${this.kategori}".normalizeForSearch()
+    val barcodePart = if (hasRealBarcode) this.barkod else ""
+    val targetText = "${this.urunAdi} $barcodePart ${this.urunKodu} ${this.kategori}".normalizeForSearch()
 
     if (qNorm.isNotEmpty() && targetText.contains(qNorm)) {
         return true
@@ -123,7 +108,7 @@ data class Product(
             set(Calendar.MILLISECOND, 0)
         }
         val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
-        return kotlin.math.round(diffMillis.toDouble() / (1000.0 * 60 * 60 * 24)).toLong()
+        return diffMillis / (1000L * 60 * 60 * 24)
     }
 
     fun getExpiryStatus(todayMidnight: Long = getTodayMidnightMillis()): ExpiryStatus {
@@ -253,6 +238,60 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
         return ShelfQrData(barcode = "")
     }
 
+    // Special Rule: Standard Store Shelf QR format: [MağazaKodu]-[13 Haneli EAN Barkod]-[Fiyat]-[Boşluk/Tire]
+    // Example: "D724-8690574117291-275,00-", "D724-8690574117291-275,00", "8690574117291-275,00-"
+    val cleanHyphenStr = trimmed.trim().trim('-').trim()
+    if (cleanHyphenStr.contains("-")) {
+        val rawHyphenParts = cleanHyphenStr.split("-").map { it.trim() }.filter { it.isNotEmpty() }
+        val eanIndex = rawHyphenParts.indexOfFirst { part ->
+            val digits = part.filter { it.isDigit() }
+            digits.length in 8..14 && !part.contains(",") && !part.contains(".")
+        }
+
+        if (eanIndex != -1) {
+            val cleanBarcode = rawHyphenParts[eanIndex].filter { it.isDigit() }
+            var foundPrice: Double? = null
+            var foundStoreCode: String? = null
+            var foundProductCode: String? = null
+            var foundName: String? = null
+
+            for (i in rawHyphenParts.indices) {
+                if (i == eanIndex) continue
+                val part = rawHyphenParts[i]
+                val partDigits = part.filter { it.isDigit() }
+                val partClean = part.replace("₺", "").replace("TL", "").replace("tl", "").trim()
+                val hasDecimal = partClean.contains(",") || partClean.contains(".")
+
+                if (foundPrice == null && (hasDecimal || partDigits.length <= 4)) {
+                    val candidate = partClean.replace(",", ".").toDoubleOrNull()
+                    if (candidate != null && candidate in 0.01..9999.99) {
+                        foundPrice = candidate
+                        continue
+                    }
+                }
+
+                if (part.length in 2..8 && part.first().isLetter() && partDigits.isNotEmpty() && foundStoreCode == null) {
+                    foundStoreCode = part
+                } else if (partDigits.length in 4..11 && foundProductCode == null && !hasDecimal) {
+                    foundProductCode = part
+                } else if (part.length >= 2 && !part.all { it.isDigit() } && foundName == null) {
+                    foundName = part
+                }
+            }
+
+            if (cleanBarcode.isNotEmpty()) {
+                return ShelfQrData(
+                    storeCode = foundStoreCode,
+                    barcode = cleanBarcode,
+                    price = foundPrice,
+                    productCode = foundProductCode,
+                    productName = foundName,
+                    isShelfQr = true
+                )
+            }
+        }
+    }
+
     // 0. JSON Formats (e.g. {"barcode":"8690504005100","code":"16000491","price":28.0,"name":"DOST SUT"})
     if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
         try {
@@ -317,8 +356,8 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
             barcodeCandidate = if (rawGtin.length == 14 && rawGtin.startsWith("0")) rawGtin.substring(1) else rawGtin
         }
 
-        // GS1 Expiration date AI (17) YYMMDD
-        val expMatch = Regex("(?:\\(17\\)|/17/|(?<=[0-9]{14})17)([0-9]{6})").find(trimmed)
+        // GS1 Expiration date AI (17) YYMMDD - Sıkılaştırılmış ve güvenli eşleşme
+        val expMatch = Regex("""(?:\(17\)|/17/|(?<=[\u001D\s])17|^(?:\](?:C1|d2|Q3))?01[0-9]{14}17)([0-9]{6})""").find(trimmed)
         if (expMatch != null) {
             parseGs1DateToMillis(expMatch.groupValues[1])?.let {
                 expMillis = it.first
@@ -347,7 +386,17 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
 
         if (uriQueryMatch != null) b = uriQueryMatch.groupValues[1]
         if (uriCodeMatch != null) c = uriCodeMatch.groupValues[1]
-        if (uriPriceMatch != null) p = uriPriceMatch.groupValues[1].replace(',', '.').toDoubleOrNull()
+        if (uriPriceMatch != null) {
+            val rawP = uriPriceMatch.groupValues[1].trim()
+            val hasDecimal = rawP.contains(",") || rawP.contains(".")
+            val digitsOnly = rawP.filter { it.isDigit() }
+            if (hasDecimal || digitsOnly.length <= 4) {
+                val candidateP = rawP.replace(',', '.').toDoubleOrNull()
+                if (candidateP != null && candidateP in 0.01..9999.99) {
+                    p = candidateP
+                }
+            }
+        }
 
         if (b.isEmpty()) {
             val lastPathSegment = trimmed.substringAfterLast("/").substringBefore("?").filter { it.isDigit() }
@@ -387,8 +436,15 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                 } else if (key.contains("adi") || key.contains("isim") || key.contains("name") || key == "a" || key == "urun") {
                     n = value.trim()
                 } else if (key.contains("fiyat") || key.contains("price") || key == "f" || key == "p" || key.contains("tl") || key.contains("₺")) {
-                    val pStr = value.replace("₺", "").replace("TL", "").replace("tl", "").replace(',', '.').trim()
-                    pStr.toDoubleOrNull()?.let { p = it }
+                    val pRaw = value.replace("₺", "").replace("TL", "").replace("tl", "").trim()
+                    val hasDecimal = pRaw.contains(",") || pRaw.contains(".")
+                    val digitsOnly = pRaw.filter { it.isDigit() }
+                    if (hasDecimal || digitsOnly.length <= 4) {
+                        val candidate = pRaw.replace(',', '.').toDoubleOrNull()
+                        if (candidate != null && candidate in 0.01..9999.99) {
+                            p = candidate
+                        }
+                    }
                 } else if (key.contains("skt") || key.contains("exp") || key.contains("tarih")) {
                     val digits = value.filter { it.isDigit() }
                     if (digits.length == 6) {
@@ -429,8 +485,16 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                         b = partDigits
                     } else if (partDigits.length in 4..11 && c == null && !part.contains(",") && !part.contains(".")) {
                         c = part
-                    } else if (part.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull() != null && p == null) {
-                        p = part.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull()
+                    } else if (part.replace('₺', ' ').replace("TL", "").replace("tl", "").trim().isNotEmpty() && p == null) {
+                        val pClean = part.replace('₺', ' ').replace("TL", "").replace("tl", "").trim()
+                        val hasDecimal = pClean.contains(",") || pClean.contains(".")
+                        val digitsOnly = pClean.filter { it.isDigit() }
+                        if (hasDecimal || digitsOnly.length <= 4) {
+                            val candidate = pClean.replace(',', '.').toDoubleOrNull()
+                            if (candidate != null && candidate in 0.01..9999.99) {
+                                p = candidate
+                            }
+                        }
                     } else if (part.length >= 2 && n == null && !part.startsWith("http")) {
                         n = part
                     }
@@ -472,8 +536,8 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                 if (op.length in 2..8 && op.first().isLetter() && opDigits.isNotEmpty() && detectedStoreCode == null) {
                     detectedStoreCode = op
                 }
-                // Check if it's a valid price (e.g. 79, 79.90, 79,90, 129.50)
-                else if (parsedOpPrice != null && parsedOpPrice > 0.0 && parsedOpPrice < 100000.0 && detectedPrice == null && (opDigits.length <= 6 || op.contains(",") || op.contains("."))) {
+                // Check if it's a valid price (e.g. 79, 79.90, 79,90, 129.50) - max 4 digits if integer, 1..9999 TL
+                else if (parsedOpPrice != null && parsedOpPrice in 0.01..9999.99 && detectedPrice == null && (op.contains(",") || op.contains(".") || opDigits.length <= 4)) {
                     detectedPrice = parsedOpPrice
                 }
                 // Check if it's a product/item code (e.g. 16000491, 25001234, 4-10 digits)
@@ -513,8 +577,15 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
                 b = tokDigits
             } else if (tokDigits.length in 4..11 && c == null) {
                 c = tok
-            } else if (tok.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull() != null && p == null && tokDigits.length !in 5..14) {
-                p = tok.replace('₺', ' ').replace("TL", "").replace("tl", "").replace(',', '.').trim().toDoubleOrNull()
+            } else if (tok.replace('₺', ' ').replace("TL", "").replace("tl", "").trim().isNotEmpty() && p == null) {
+                val tokClean = tok.replace('₺', ' ').replace("TL", "").replace("tl", "").trim()
+                val hasDecimal = tokClean.contains(",") || tokClean.contains(".")
+                if ((hasDecimal || tokDigits.length <= 4) && tokDigits.length !in 5..14) {
+                    val candidate = tokClean.replace(',', '.').toDoubleOrNull()
+                    if (candidate != null && candidate in 0.01..9999.99) {
+                        p = candidate
+                    }
+                }
             } else if (!tok.equals("TL", ignoreCase = true) && tok != "₺") {
                 nameWords.add(tok)
             }
@@ -577,6 +648,33 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
     val rawDigits = raw.filter { it.isDigit() }
     val rawNoLeadingZeros = rawDigits.trimStart('0')
 
+    // 0. VARIABLE-WEIGHT / SCALE BARCODE MATCH (Tartılı ürün eşleşmesi - En yüksek öncelik)
+    if (qrData.isScaleBarcode || (queryDigits.length == 13 && (queryDigits.startsWith("20") || queryDigits.startsWith("21") ||
+            queryDigits.startsWith("22") || queryDigits.startsWith("23") || queryDigits.startsWith("24") ||
+            queryDigits.startsWith("27") || queryDigits.startsWith("28") || queryDigits.startsWith("29")))) {
+        val scaleDigits = if (queryDigits.length == 13) queryDigits else rawDigits
+        if (scaleDigits.length == 13) {
+            val base7 = scaleDigits.substring(0, 7) // e.g. 2800456
+            val base5 = scaleDigits.substring(2, 7) // e.g. 00456
+
+            val scaleMatches = this.filter { p ->
+                val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
+                val pCodeDigits = p.urunKodu.trim().filter { it.isDigit() }
+
+                pBarcodeDigits.startsWith(base7) ||
+                pBarcodeDigits == base7 ||
+                pBarcodeDigits == base5 ||
+                pBarcodeDigits == "${base7}000000" ||
+                pCodeDigits == base7 ||
+                pCodeDigits == base5 ||
+                pCodeDigits.startsWith(base7)
+            }
+            if (scaleMatches.isNotEmpty()) {
+                return scaleMatches.sortedBy { it.sktTarihi }
+            }
+        }
+    }
+
     // 1. SHELF QR PRODUCT CODE MATCH (Top Priority when Shelf QR or Product Code is detected)
     if (!queryProductCode.isNullOrBlank()) {
         val codeMatches = this.filter { p ->
@@ -637,30 +735,6 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
         return exactCodeMatches.sortedBy { it.sktTarihi }
     }
 
-    // 3. VARIABLE-WEIGHT / SCALE BARCODE MATCH (Tartılı ürün eşleşmesi)
-    if (queryDigits.length == 13 && (queryDigits.startsWith("20") || queryDigits.startsWith("21") ||
-            queryDigits.startsWith("22") || queryDigits.startsWith("23") || queryDigits.startsWith("24") ||
-            queryDigits.startsWith("27") || queryDigits.startsWith("28") || queryDigits.startsWith("29"))) {
-        val base7 = queryDigits.substring(0, 7) // e.g. 2800456
-        val base5 = queryDigits.substring(2, 7) // e.g. 00456
-
-        val scaleMatches = this.filter { p ->
-            val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
-            val pCodeDigits = p.urunKodu.trim().filter { it.isDigit() }
-
-            pBarcodeDigits.startsWith(base7) ||
-            pBarcodeDigits == base7 ||
-            pBarcodeDigits == base5 ||
-            pBarcodeDigits == "${base7}000000" ||
-            pCodeDigits == base7 ||
-            pCodeDigits == base5 ||
-            pCodeDigits.startsWith(base7)
-        }
-        if (scaleMatches.isNotEmpty()) {
-            return scaleMatches.sortedBy { it.sktTarihi }
-        }
-    }
-
     // 4. EMBEDDED DIGIT SEQUENCE MATCH (For shelf labels / QR codes containing barcode or code)
     if (queryDigits.length >= 8 || rawDigits.length >= 8) {
         val embeddedMatches = this.filter { p ->
@@ -689,7 +763,7 @@ fun parsePriceFromQr(rawInput: String): Double? {
     if (trimmed.isBlank()) return null
 
     val shelfData = parseShelfQrPayload(trimmed)
-    if (shelfData.price != null && shelfData.price > 0.0) {
+    if (shelfData.price != null && shelfData.price in 0.01..9999.99) {
         return shelfData.price
     }
 
@@ -698,18 +772,36 @@ fun parsePriceFromQr(rawInput: String): Double? {
         .replace("TL", "")
         .replace("tl", "")
         .replace(" ", "")
-        .replace(",", ".")
         .trim()
-        
-    val directValue = cleaned.toDoubleOrNull()
-    if (directValue != null && directValue > 0.0) {
-        return directValue
+
+    val hasDecimal = cleaned.contains(",") || cleaned.contains(".")
+    val digitsOnly = cleaned.filter { it.isDigit() }
+    if (hasDecimal || digitsOnly.length <= 4) {
+        val directValue = cleaned.replace(",", ".").toDoubleOrNull()
+        if (directValue != null && directValue in 0.01..9999.99) {
+            return directValue
+        }
     }
 
-    val parts = trimmed.split("-", ";", " ", "\n", "\t", "*", "/", "|").map { it.trim().replace(",", ".") }
+    val parts = trimmed.split("-", ";", " ", "\n", "\r", "\t", "*", "/", "|")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+
     for (part in parts) {
-        val candidate = part.toDoubleOrNull()
-        if (candidate != null && candidate > 0.0 && candidate < 100000.0 && !part.startsWith("869") && part.length <= 7) {
+        val partClean = part.replace("₺", "").replace("TL", "").replace("tl", "").trim()
+        val partHasDecimal = partClean.contains(",") || partClean.contains(".")
+        val partDigits = partClean.filter { it.isDigit() }
+
+        // Ignore parts that have no comma/dot and > 4 digits (product codes, barcodes)
+        if (!partHasDecimal && partDigits.length > 4) {
+            continue
+        }
+        if (partClean.startsWith("869") || partClean.startsWith("0869")) {
+            continue
+        }
+
+        val candidate = partClean.replace(",", ".").toDoubleOrNull()
+        if (candidate != null && candidate in 0.01..9999.99) {
             return candidate
         }
     }

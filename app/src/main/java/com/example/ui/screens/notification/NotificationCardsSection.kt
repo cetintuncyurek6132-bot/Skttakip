@@ -43,7 +43,7 @@ fun LazyListScope.notificationCardsList(
     onDismiss: () -> Unit
 ) {
     // 1. OVERDUE 2+ DAYS ALERT (SKT +2 GÜN GEÇTİ)
-    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.CRITICAL_SKT) && overdue2DaysProducts.isNotEmpty()) {
+    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.EXPIRED) && overdue2DaysProducts.isNotEmpty()) {
         item {
             val context = LocalContext.current
             val totalOverdueStock = overdue2DaysProducts.sumOf { it.stokAdedi }
@@ -76,8 +76,8 @@ fun LazyListScope.notificationCardsList(
                             }
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "🛑 ACİL: SKT +2 Gün Geçti!",
-                                fontWeight = FontWeight.Black,
+                                text = "Tarihi Geçen Ürünler",
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
                                 color = ExpiredRedDark
                             )
@@ -89,7 +89,7 @@ fun LazyListScope.notificationCardsList(
                             Text(
                                 text = "${overdue2DaysProducts.size} ÜRÜN",
                                 fontSize = 9.sp,
-                                fontWeight = FontWeight.Black,
+                                fontWeight = FontWeight.Bold,
                                 color = Color.White,
                                 modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                             )
@@ -97,7 +97,7 @@ fun LazyListScope.notificationCardsList(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Toplam $totalOverdueStock adet ürünün SKT'si 2 günden fazla süredir geçmiş. Acilen raftan alıp imha/fire kaydı açılmalıdır.",
+                        text = "Toplam $totalOverdueStock adet ürünün son kullanma tarihi geçmiştir. Raftan alınıp iade veya imha işlemi yapılmalıdır.",
                         fontSize = 11.sp,
                         color = Slate900,
                         lineHeight = 15.sp
@@ -142,7 +142,7 @@ fun LazyListScope.notificationCardsList(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                         ) {
-                            Text("⚡ Tümünü Raftan Kaldır", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
+                            Text("Tümünü Raftan Kaldır", fontSize = 10.5.sp, fontWeight = FontWeight.Bold)
                         }
 
                         Button(
@@ -155,7 +155,7 @@ fun LazyListScope.notificationCardsList(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Tüm Listeyi Gör", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Ürünleri Göster", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -164,7 +164,7 @@ fun LazyListScope.notificationCardsList(
     }
 
     // 2. EXPIRED TODAY NOTIFICATION (SKT BUGÜN BİTTİ)
-    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.CRITICAL_SKT) && expiredProducts.isNotEmpty()) {
+    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.EXPIRED) && expiredProducts.isNotEmpty()) {
         item {
             val context = LocalContext.current
             Card(
@@ -188,8 +188,8 @@ fun LazyListScope.notificationCardsList(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "🚨 SKT'si Dolan ${expiredProducts.size} Ürün Bulundu",
-                                fontWeight = FontWeight.Black,
+                                text = "Son Kullanma Tarihi Dolan Ürünler (${expiredProducts.size})",
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 12.5.sp,
                                 color = ExpiredRed
                             )
@@ -203,7 +203,7 @@ fun LazyListScope.notificationCardsList(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Aşağıdaki ürünler müşteriye sunulamaz. Tek tıkla raftan kaldırabilir veya detayını inceleyebilirsiniz.",
+                        text = "Bu ürünlerin satış süresi dolmuştur. Raftan kaldırılması gerekmektedir.",
                         fontSize = 11.sp,
                         color = Slate700,
                         lineHeight = 15.sp
@@ -250,7 +250,7 @@ fun LazyListScope.notificationCardsList(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Ürünler Sayfasında Aç", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Ürünleri Göster", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -259,7 +259,7 @@ fun LazyListScope.notificationCardsList(
     }
 
     // 3. CRITICAL ITEMS NOTIFICATION (SKT ≤ 7 GÜN)
-    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.CRITICAL_SKT) && criticalProducts.isNotEmpty()) {
+    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.APPROACHING) && criticalProducts.isNotEmpty()) {
         item {
             val context = LocalContext.current
             Card(
@@ -283,8 +283,8 @@ fun LazyListScope.notificationCardsList(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "⚠️ KRİTİK: ${criticalProducts.size} Ürünün SKT'sine ≤ 7 Gün Kaldı",
-                                fontWeight = FontWeight.Black,
+                                text = "Yaklaşan SKT (${criticalProducts.size} Ürün)",
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 12.5.sp,
                                 color = CriticalOrange
                             )
@@ -292,7 +292,7 @@ fun LazyListScope.notificationCardsList(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Ön sıraya alma (FIFO), %30-%50 etiket indirimi veya sayım kontrolü yapılması önerilir.",
+                        text = "Ön sıralara alınması veya indirim uygulanması önerilir.",
                         fontSize = 11.sp,
                         color = Slate700,
                         lineHeight = 15.sp
@@ -339,7 +339,7 @@ fun LazyListScope.notificationCardsList(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Kritik Ürünleri Listele", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Ürünleri Göster", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -348,7 +348,7 @@ fun LazyListScope.notificationCardsList(
     }
 
     // 4. HIGH STOCK NEAR EXPIRY NOTIFICATION (≥10 ADET & ≤30 GÜN)
-    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.STOCK_DISCOUNT) && highStockNearExpiry.isNotEmpty()) {
+    if ((selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.HIGH_STOCK) && highStockNearExpiry.isNotEmpty()) {
         item {
             val context = LocalContext.current
             Card(
@@ -364,8 +364,8 @@ fun LazyListScope.notificationCardsList(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "🔥 YÜKSEK ADET & SKT RİSKİ (${highStockNearExpiry.size} Kalem)",
-                            fontWeight = FontWeight.Black,
+                            text = "Yüksek Stoklu Yaklaşan Ürünler (${highStockNearExpiry.size} Kalem)",
+                            fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             color = Color(0xFF4338CA)
                         )
@@ -378,7 +378,7 @@ fun LazyListScope.notificationCardsList(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Yüksek adette (≥10 Adet) ve 30 günden az süresi kalan ürünler için indirim veya sepet alanı oluşturulabilir.",
+                        text = "Stok miktarı yüksek ve son kullanma tarihi yaklaşan ürünler.",
                         fontSize = 11.sp,
                         color = Slate700,
                         lineHeight = 15.sp
@@ -425,48 +425,8 @@ fun LazyListScope.notificationCardsList(
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             shape = RoundedCornerShape(8.dp)
                         ) {
-                            Text("Riskli Adetleri Filtrele", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("Ürünleri Göster", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White)
                         }
-                    }
-                }
-            }
-        }
-    }
-
-    // 5. SYSTEM BACKUP & ROOM DB INFO
-    if (selectedCategory == NotificationCategoryFilter.ALL || selectedCategory == NotificationCategoryFilter.SYSTEM_TASKS) {
-        item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Slate50),
-                border = BorderStroke(1.dp, Slate200)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Storage,
-                        contentDescription = null,
-                        tint = Slate700,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "💾 Çevrimdışı Room DB Aktif",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Text(
-                            text = "Toplam ${dashboardState.totalCount} ürün yerel bellekte güvenle saklanıyor.",
-                            fontSize = 10.5.sp,
-                            color = Slate500
-                        )
                     }
                 }
             }

@@ -51,11 +51,9 @@ fun AppUpdateDialog(
     onDismiss: () -> Unit
 ) {
     AlertDialog(
-        onDismissRequest = {
-            if (!isDownloading) onDismiss()
-        },
+        onDismissRequest = onDismiss,
         properties = DialogProperties(
-            dismissOnBackPress = !isDownloading,
+            dismissOnBackPress = true,
             dismissOnClickOutside = !isDownloading
         ),
         shape = RoundedCornerShape(20.dp),
@@ -191,13 +189,14 @@ fun AppUpdateDialog(
             }
         },
         dismissButton = {
-            if (!isDownloading) {
-                TextButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.testTag("app_update_dismiss_button")
-                ) {
-                    Text("Daha Sonra", color = MaterialTheme.colorScheme.outline)
-                }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.testTag("app_update_dismiss_button")
+            ) {
+                Text(
+                    text = if (isDownloading) "İptal Et" else "Daha Sonra",
+                    color = if (isDownloading) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline
+                )
             }
         }
     )

@@ -13,6 +13,8 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -415,6 +417,29 @@ private fun CameraXDateOcrView(
     val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
     val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
     val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
+    val previewViewRef = remember { mutableStateOf<PreviewView?>(null) }
+    val previewUseCaseRef = remember { mutableStateOf<Preview?>(null) }
+    val imageAnalysisRef = remember { mutableStateOf<ImageAnalysis?>(null) }
+
+    fun rebindCamera() {
+        if (hasFound) return
+        val provider = cameraProviderRef.value ?: return
+        val preview = previewUseCaseRef.value ?: return
+        val analysis = imageAnalysisRef.value ?: return
+        try {
+            provider.unbindAll()
+            val camera = provider.bindToLifecycle(
+                lifecycleOwner,
+                CameraSelector.DEFAULT_BACK_CAMERA,
+                preview,
+                analysis
+            )
+            cameraRef.value = camera
+            camera.cameraControl.enableTorch(isFlashOn)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
 
@@ -427,13 +452,33 @@ private fun CameraXDateOcrView(
     }
 
     DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
+                    try {
+                        cameraRef.value?.cameraControl?.enableTorch(false)
+                        cameraProviderRef.value?.unbindAll()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+                Lifecycle.Event.ON_RESUME -> {
+                    rebindCamera()
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             try {
                 cameraRef.value?.cameraControl?.enableTorch(false)
             } catch (e: Exception) {
                 // Ignore torch disable failure
             }
             try {
+                imageAnalysisRef.value?.clearAnalyzer()
                 cameraProviderRef.value?.unbindAll()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -457,6 +502,7 @@ private fun CameraXDateOcrView(
                 implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                 scaleType = PreviewView.ScaleType.FILL_CENTER
             }
+            previewViewRef.value = previewView
             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
             cameraProviderFuture.addListener({
@@ -466,6 +512,7 @@ private fun CameraXDateOcrView(
                     val preview = Preview.Builder().build().apply {
                         setSurfaceProvider(previewView.surfaceProvider)
                     }
+                    previewUseCaseRef.value = preview
 
                     val resolutionSelector = ResolutionSelector.Builder()
                         .setResolutionStrategy(
@@ -480,6 +527,7 @@ private fun CameraXDateOcrView(
                         .setResolutionSelector(resolutionSelector)
                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                         .build()
+                    imageAnalysisRef.value = imageAnalysis
 
                     val minFrameIntervalMs = 250L // Throttles OCR processing to ~4 FPS to prevent rate limit and buffer overrun
 
@@ -495,6 +543,12 @@ private fun CameraXDateOcrView(
 
                             processImageForDate(recognizer, imageProxy, onTextUpdate) { millis, dateStr ->
                                 hasFound = true
+                                try {
+                                    imageAnalysis.clearAnalyzer()
+                                    cameraProvider.unbindAll()
+                                } catch (e: Exception) {
+                                    e.printStackTrace()
+                                }
                                 onDateFound(millis, dateStr)
                             }
                         } else {

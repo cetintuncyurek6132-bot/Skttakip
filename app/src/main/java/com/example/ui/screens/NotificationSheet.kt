@@ -34,9 +34,9 @@ import com.example.ui.theme.*
 
 enum class NotificationCategoryFilter {
     ALL,
-    CRITICAL_SKT,
-    STOCK_DISCOUNT,
-    SYSTEM_TASKS
+    EXPIRED,
+    APPROACHING,
+    HIGH_STOCK
 }
 
 @Composable
@@ -155,9 +155,9 @@ fun NotificationSheet(
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = "Bildirim & Hızlı Aksiyon",
+                                    text = "Bildirimler",
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 16.sp,
+                                    fontSize = 17.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                                 if (dashboardState.unreadNotificationCount > 0) {
@@ -169,7 +169,7 @@ fun NotificationSheet(
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
                                         Text(
-                                            text = "${dashboardState.unreadNotificationCount} Yeni",
+                                            text = "${dashboardState.unreadNotificationCount}",
                                             fontSize = 9.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Color.White
@@ -177,11 +177,6 @@ fun NotificationSheet(
                                     }
                                 }
                             }
-                            Text(
-                                text = "Kritik SKT ve reyon uyarıları",
-                                fontSize = 11.sp,
-                                color = Slate500
-                            )
                         }
                     }
 
@@ -227,7 +222,7 @@ fun NotificationSheet(
                                 coroutineScope.launch {
                                     try {
                                         com.example.worker.MorningCheckWorker.triggerTestNotificationDirectly(context)
-                                        Toast.makeText(context, "🔔 Test bildirimi ve uyarı sesi gönderildi", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "Test bildirimi gönderildi", Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Bildirim hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                                     }
@@ -246,12 +241,12 @@ fun NotificationSheet(
                         TextButton(
                             onClick = {
                                 onMarkAllAsRead()
-                                Toast.makeText(context, "Tüm bildirimler okundu", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Bildirimler temizlendi", Toast.LENGTH_SHORT).show()
                             },
                             contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
                         ) {
                             Text(
-                                text = "Tümünü Oku",
+                                text = "Bildirimleri Temizle",
                                 fontSize = 10.5.sp,
                                 color = TurquoiseDark,
                                 fontWeight = FontWeight.Bold
@@ -289,22 +284,22 @@ fun NotificationSheet(
                         onClick = { selectedCategory = NotificationCategoryFilter.ALL }
                     )
                     NotificationCategoryChip(
-                        title = "🚨 Acil SKT",
-                        badgeCount = dashboardState.expiredCount + dashboardState.criticalCount,
-                        isSelected = selectedCategory == NotificationCategoryFilter.CRITICAL_SKT,
-                        onClick = { selectedCategory = NotificationCategoryFilter.CRITICAL_SKT }
+                        title = "Günü Geçen",
+                        badgeCount = if (dashboardState.expiredCount > 0) dashboardState.expiredCount else null,
+                        isSelected = selectedCategory == NotificationCategoryFilter.EXPIRED,
+                        onClick = { selectedCategory = NotificationCategoryFilter.EXPIRED }
                     )
                     NotificationCategoryChip(
-                        title = "🔥 Adet ≥10",
-                        badgeCount = dashboardState.importantCount,
-                        isSelected = selectedCategory == NotificationCategoryFilter.STOCK_DISCOUNT,
-                        onClick = { selectedCategory = NotificationCategoryFilter.STOCK_DISCOUNT }
+                        title = "Yaklaşan",
+                        badgeCount = if (dashboardState.criticalCount > 0) dashboardState.criticalCount else null,
+                        isSelected = selectedCategory == NotificationCategoryFilter.APPROACHING,
+                        onClick = { selectedCategory = NotificationCategoryFilter.APPROACHING }
                     )
                     NotificationCategoryChip(
-                        title = "📋 Sistem & Bilgi",
-                        badgeCount = null,
-                        isSelected = selectedCategory == NotificationCategoryFilter.SYSTEM_TASKS,
-                        onClick = { selectedCategory = NotificationCategoryFilter.SYSTEM_TASKS }
+                        title = "Yüksek Stok",
+                        badgeCount = if (highStockNearExpiry.isNotEmpty()) highStockNearExpiry.size else null,
+                        isSelected = selectedCategory == NotificationCategoryFilter.HIGH_STOCK,
+                        onClick = { selectedCategory = NotificationCategoryFilter.HIGH_STOCK }
                     )
                 }
 
@@ -344,8 +339,8 @@ fun NotificationSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "TAMAM / ANLADIM",
-                        fontWeight = FontWeight.Black,
+                        text = "Kapat",
+                        fontWeight = FontWeight.Bold,
                         fontSize = 13.sp,
                         color = Color.White
                     )

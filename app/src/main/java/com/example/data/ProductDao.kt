@@ -19,6 +19,9 @@ interface ProductDao {
     @Query("SELECT * FROM products WHERE barkod = :barkod LIMIT 1")
     suspend fun getProductByBarcode(barkod: String): Product?
 
+    @Query("SELECT * FROM products WHERE id = :productId LIMIT 1")
+    suspend fun getProductById(productId: Int): Product?
+
     @Query("SELECT * FROM products WHERE barkod = :barkod ORDER BY sktTarihi ASC")
     suspend fun getProductsByBarcode(barkod: String): List<Product>
 

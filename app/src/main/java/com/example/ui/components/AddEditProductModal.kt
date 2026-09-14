@@ -56,6 +56,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
+import com.example.data.isDolapProduct
 import com.example.data.parseShelfQrPayload
 import com.example.ui.screens.ProductNameOcrScannerDialog
 import com.example.ui.theme.CriticalOrange
@@ -148,9 +149,9 @@ fun AddEditProductModal(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (product == null) "YENİ ÜRÜN KARTİ EKLE" else "ÜRÜN BİLGİLERİNİ DÜZENLE",
+                        text = if (product == null) "Yeni Ürün" else "Ürünü Düzenle",
                         fontSize = 17.sp,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Bold,
                         color = TurquoiseDark
                     )
                     IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
@@ -176,13 +177,13 @@ fun AddEditProductModal(
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "QR Etiket Oku",
+                            contentDescription = "Raf Etiketi Oku",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "📷 QR ETİKET OKU (OTOMATİK DOLDUR)",
+                            text = "Raf Etiketi Oku",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
@@ -192,11 +193,11 @@ fun AddEditProductModal(
 
                 if (showFullQrScanner) {
                     PriceQrScannerDialog(
-                        expectedBarcode = product?.barkod ?: barkod.trim(),
-                        expectedProductCode = product?.urunKodu ?: urunKodu.trim(),
+                        expectedBarcode = if (product != null) (product.barkod.ifBlank { barkod.trim() }) else "",
+                        expectedProductCode = if (product != null) (product.urunKodu.ifBlank { urunKodu.trim() }) else "",
                         expectedProductName = product?.urunAdi ?: urunAdi.trim(),
                         onDismiss = { showFullQrScanner = false },
-                        onPriceScanned = { _, rawQr ->
+                        onPriceScanned = { scannedPrice, rawQr ->
                             val shelfData = parseShelfQrPayload(rawQr)
                             if (shelfData.barcode.isNotBlank()) {
                                 barkod = shelfData.barcode
@@ -204,51 +205,36 @@ fun AddEditProductModal(
                             if (!shelfData.productCode.isNullOrBlank()) {
                                 urunKodu = shelfData.productCode
                             }
-                            if (shelfData.price != null && shelfData.price > 0.0) {
-                                fiyatText = if (shelfData.price % 1.0 == 0.0) shelfData.price.toInt().toString() else shelfData.price.toString()
+                            val finalPrice = shelfData.price ?: scannedPrice
+                            if (finalPrice > 0.0) {
+                                fiyatText = if (finalPrice % 1.0 == 0.0) finalPrice.toInt().toString() else finalPrice.toString()
                             }
                             if (!shelfData.productName.isNullOrBlank()) {
                                 urunAdi = shelfData.productName
+                                val testProduct = Product(
+                                    barkod = barkod,
+                                    urunKodu = urunKodu,
+                                    urunAdi = shelfData.productName,
+                                    kategori = shelfData.productName,
+                                    sktTarihi = 0L,
+                                    stokAdedi = 0
+                                )
+                                if (testProduct.isDolapProduct()) {
+                                    kategori = "Dolap Ürünleri"
+                                }
                             }
-                            Toast.makeText(context, "✅ QR Etiket Bilgileri Dolduruldu", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Raf etiketi okundu", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Info banner explaining SKT separation
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = TurquoisePrimary.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "ℹ️",
-                            fontSize = 16.sp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Bu ekranda sadece Ana Ürün Bilgileri (Barkod, İsim, Kategori) yönetilir. SKT tarihleri ve miktarları Barkod Okuyucu veya 'Yeni SKT Ekle' butonundan ayrı olarak kaydedilir.",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 15.sp
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Barcode input
                 OutlinedTextField(
                     value = barkod,
                     onValueChange = { barkod = it },
-                    label = { Text("Barkod No (Örn: 8690526010011)") },
+                    label = { Text("Barkod") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("input_barkod"),
@@ -270,7 +256,7 @@ fun AddEditProductModal(
                 OutlinedTextField(
                     value = urunKodu,
                     onValueChange = { urunKodu = it },
-                    label = { Text("Ürün Kodu (Örn: 25001234)") },
+                    label = { Text("Ürün Kodu") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -297,8 +283,8 @@ fun AddEditProductModal(
                     OutlinedTextField(
                         value = urunAdi,
                         onValueChange = { urunAdi = it.uppercase(java.util.Locale.forLanguageTag("tr-TR")) },
-                        label = { Text("Ürün Adı (Örn: BENİMO KOMBO)") },
-                        placeholder = { Text("Örn: ÜSTAD KLASİK EZİNE 350 G") },
+                        label = { Text("Ürün Adı") },
+                        placeholder = { Text("Örn: Klasik Peynir 350g") },
                         modifier = Modifier
                             .weight(1f)
                             .testTag("input_urun_adi"),
@@ -316,7 +302,7 @@ fun AddEditProductModal(
                         )
                     )
 
-                    // Tek Kamera Butonu (İsim Oku)
+                    // Tek Kamera Butonu (Yazı Oku)
                     Button(
                         onClick = { showProductNameOcrScanner = true },
                         modifier = Modifier
@@ -333,15 +319,15 @@ fun AddEditProductModal(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "İsim Oku",
+                                contentDescription = "Yazı Oku",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "İSİM OKU",
+                                text = "Yazı Oku",
                                 fontSize = 10.sp,
-                                fontWeight = FontWeight.Black,
+                                fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                         }
@@ -354,14 +340,14 @@ fun AddEditProductModal(
                         onProductNameDetected = { detectedName ->
                             urunAdi = detectedName
                             showProductNameOcrScanner = false
-                            Toast.makeText(context, "✅ Ürün Adı Okundu: $detectedName", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Yazı okundu: $detectedName", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Category Dropdown
+                // Category / Reyon Dropdown
                 ExposedDropdownMenuBox(
                     expanded = expandedCategoryMenu,
                     onExpandedChange = { expandedCategoryMenu = !expandedCategoryMenu },
@@ -371,7 +357,7 @@ fun AddEditProductModal(
                         value = kategori,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Kategori") },
+                        label = { Text("Reyon") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryMenu) },
                         modifier = Modifier
                             .menuAnchor(MenuAnchorType.PrimaryNotEditable)
@@ -414,7 +400,7 @@ fun AddEditProductModal(
                     OutlinedTextField(
                         value = fiyatText,
                         onValueChange = { fiyatText = it },
-                        label = { Text("Fiyat (₺) (İsteğe Bağlı)") },
+                        label = { Text("Fiyat (₺)") },
                         placeholder = { Text("Örn: 45.50") },
                         modifier = Modifier
                             .weight(1f)
@@ -447,7 +433,7 @@ fun AddEditProductModal(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = "QR Fiyat Tara",
+                                contentDescription = "QR Fiyat",
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -492,26 +478,19 @@ fun AddEditProductModal(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("🔥", fontSize = 16.sp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Column {
-                                Text(
-                                    text = "Önemli Ürün Olarak İşaretle",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Her zaman Önemli listesinde gösterilir",
-                                    fontSize = 10.sp,
-                                    color = Color.Gray
-                                )
-                            }
+                            Text("⭐", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Önemli Ürün",
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                         Switch(
                             checked = isImportant,
@@ -539,7 +518,7 @@ fun AddEditProductModal(
                         ) {
                             Icon(imageVector = Icons.Default.Delete, contentDescription = "Sil")
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("SİL", fontWeight = FontWeight.Bold)
+                            Text("Sil", fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -550,15 +529,18 @@ fun AddEditProductModal(
                             val enteredCode = urunKodu.trim()
                             val enteredCategory = kategori.trim()
 
+                            val parsedFiyat = fiyatText.trim().replace(',', '.').toDoubleOrNull()
+                            val validFiyat = if (parsedFiyat != null && parsedFiyat > 0.0) parsedFiyat else null
+
                             val candidate = Product(
                                 id = product?.id ?: 0,
-                                barkod = enteredBarkod.ifBlank { if (enteredCode.isNotBlank()) "2500$enteredCode" else "869${(100000000..999999999).random()}" },
+                                barkod = enteredBarkod.ifBlank { if (enteredCode.isNotBlank()) "2500$enteredCode" else "NO_BARCODE_${System.currentTimeMillis()}" },
                                 urunKodu = enteredCode.ifBlank { "0000" },
                                 urunAdi = enteredName,
                                 kategori = enteredCategory,
                                 sktTarihi = product?.sktTarihi ?: 0L,
                                 stokAdedi = product?.stokAdedi ?: 0,
-                                fiyat = fiyatText.trim().replace(',', '.').toDoubleOrNull(),
+                                fiyat = validFiyat,
                                 isImportant = isImportant
                             )
                             val finalHealed = ProductDataHealer.autoHealProduct(candidate)
@@ -576,7 +558,7 @@ fun AddEditProductModal(
                                     finalHealed.isImportant
                                 )
                             } else {
-                                Toast.makeText(context, "Lütfen ürün adını giriniz!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Lütfen ürün adını girin", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier
@@ -587,8 +569,8 @@ fun AddEditProductModal(
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Text(
-                            text = if (product != null) "BİLGİLERİ GÜNCELLE" else "ÜRÜNÜ KAYDET",
-                            fontWeight = FontWeight.Black,
+                            text = if (product != null) "Güncelle" else "Kaydet",
+                            fontWeight = FontWeight.Bold,
                             color = Color.White,
                             fontSize = 13.sp
                         )

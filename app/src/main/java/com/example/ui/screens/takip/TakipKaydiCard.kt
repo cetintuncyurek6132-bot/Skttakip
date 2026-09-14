@@ -5,6 +5,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -92,14 +94,17 @@ fun TakipKaydiCard(
         IadeOncelik.NORMAL -> Slate600
     }
 
+    val cardShape = RoundedCornerShape(16.dp)
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(
             1.2.dp,
             if (record.isKritik) ExpiredRed.copy(alpha = 0.4f) else Slate200
         ),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShape)
     ) {
         Column(
             modifier = Modifier.padding(14.dp),
@@ -237,12 +242,16 @@ fun TakipKaydiCard(
                         }
                     }
                     if (bitmap != null) {
+                        val imgShape = RoundedCornerShape(10.dp)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(imgShape)
                                 .background(Slate100)
-                                .clickable { onImageClick(record.irsaliyeGorselPath!!) }
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true)
+                                ) { onImageClick(record.irsaliyeGorselPath!!) }
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -336,7 +345,8 @@ fun TakipKaydiCard(
                     onClick = onShareClick,
                     modifier = Modifier
                         .size(36.dp)
-                        .background(Color(0xFFE8F5E9), RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFE8F5E9))
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
@@ -351,7 +361,8 @@ fun TakipKaydiCard(
                     onClick = onEditClick,
                     modifier = Modifier
                         .size(36.dp)
-                        .background(Slate100, RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Slate100)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
@@ -366,7 +377,8 @@ fun TakipKaydiCard(
                     onClick = onDeleteClick,
                     modifier = Modifier
                         .size(36.dp)
-                        .background(ExpiredRedContainer, RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(ExpiredRedContainer)
                 ) {
                     Icon(
                         imageVector = Icons.Default.DeleteOutline,

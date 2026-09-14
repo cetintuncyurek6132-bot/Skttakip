@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
@@ -219,7 +220,7 @@ fun SktTopAppBar(
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
-                        text = if (searchQuery.isNotEmpty()) searchQuery else "Ad, kod veya barkod ile ara",
+                        text = if (searchQuery.isNotEmpty()) searchQuery else "Ürün adı, barkod veya kod ara",
                         color = if (searchQuery.isNotEmpty()) Slate900 else Slate500.copy(alpha = 0.65f),
                         fontSize = 12.sp,
                         fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,
@@ -324,11 +325,15 @@ fun SktTopAppBar(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .padding(top = 10.dp, start = 10.dp, end = 10.dp)
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(top = 10.dp, start = 10.dp, end = 10.dp, bottom = 10.dp)
                         .clickable(enabled = false) {}
                 ) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false),
                         shape = RoundedCornerShape(16.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
@@ -367,7 +372,7 @@ fun SktTopAppBar(
                                     ) {
                                         if (searchQuery.isEmpty()) {
                                             Text(
-                                                text = "Ad, kod veya barkod ile ara",
+                                                text = "Ürün adı, barkod veya kod ara",
                                                 color = Slate500,
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Normal,
@@ -529,7 +534,8 @@ fun SktTopAppBar(
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 420.dp),
+                                        .heightIn(max = 420.dp)
+                                        .weight(1f, fill = false),
                                     verticalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     items(matchingProducts, key = { it.id }) { product ->
@@ -691,7 +697,7 @@ fun SktBottomNavBar(
                 ) {
                     // 1. ANA SAYFA (Modern Dashboard)
                     BottomNavItem(
-                        label = "ANA SAYFA",
+                        label = "Ana Sayfa",
                         activeIcon = Icons.Filled.SpaceDashboard,
                         inactiveIcon = Icons.Outlined.SpaceDashboard,
                         selected = currentRoute == "panel",
@@ -701,7 +707,7 @@ fun SktBottomNavBar(
 
                     // 2. ÜRÜNLER (Modern Envanter / Reyon)
                     BottomNavItem(
-                        label = "ÜRÜNLER",
+                        label = "Ürünler",
                         activeIcon = Icons.Filled.Inventory2,
                         inactiveIcon = Icons.Outlined.Inventory2,
                         selected = currentRoute == "products",
@@ -722,7 +728,7 @@ fun SktBottomNavBar(
                         verticalArrangement = Arrangement.Bottom
                     ) {
                         Text(
-                            text = "TARA",
+                            text = "Tara",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoisePrimary,
@@ -734,7 +740,7 @@ fun SktBottomNavBar(
                     // 4. TAKİP (İade & Depo Süreç Takibi)
                     val isReportsRestricted = userRoleCode !in listOf("MS", "MSY")
                     BottomNavItem(
-                        label = "TAKİP",
+                        label = "İade Takip",
                         activeIcon = Icons.Filled.AssignmentTurnedIn,
                         inactiveIcon = Icons.Outlined.AssignmentTurnedIn,
                         selected = currentRoute == "takip" || currentRoute == "reports",
@@ -745,7 +751,7 @@ fun SktBottomNavBar(
 
                     // 5. ADETSEL SAYIM (Doğrulama & Liste Kontrolü)
                     BottomNavItem(
-                        label = "ADETSEL",
+                        label = "Sayım",
                         activeIcon = Icons.Filled.Checklist,
                         inactiveIcon = Icons.Outlined.Checklist,
                         selected = currentRoute == "adetsel",

@@ -322,7 +322,7 @@ object ProductDataHealer {
 
         // Fallbacks
         val finalProductName = (foundProductName ?: "İSİMSİZ ÜRÜN").uppercase(trLocale)
-        val finalBarcode = foundBarcode ?: (foundProductCode ?: "869${(1000000000..9999999999).random()}")
+        val finalBarcode = foundBarcode ?: (foundProductCode ?: "NO_BARCODE_${System.currentTimeMillis()}")
         val finalProductCode = foundProductCode ?: (if (foundBarcode != null && foundBarcode.length <= 9) foundBarcode else "2500${(1000..9999).random()}")
         val finalCategory = detectCategory(finalProductName, foundCategory ?: "Gıda Ürünleri")
 

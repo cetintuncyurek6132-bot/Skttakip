@@ -1,6 +1,7 @@
 package com.example
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -119,8 +120,12 @@ import com.example.ui.screens.CsvScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.NotificationSheet
 import com.example.ui.screens.ProfileSheet
+import com.example.ui.screens.ProductsScreen
+import com.example.ui.screens.RemindersScreen
+import com.example.ui.screens.TakipScreen
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.NormalGreen
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
@@ -129,21 +134,20 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoisePrimary
+import com.example.ui.viewmodel.AdetselViewModel
+import com.example.ui.viewmodel.InventoryViewModel
+import com.example.ui.viewmodel.SettingsViewModel
 import com.example.worker.MorningCheckWorker
 import java.util.Locale
-import com.example.ui.screens.ProductsScreen
-import com.example.ui.screens.RemindersScreen
-import com.example.ui.screens.TakipScreen
-import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.Slate50
-import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate900
-import com.example.ui.theme.TurquoisePrimary
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var viewModel: MainViewModel
+    private lateinit var mainViewModel: MainViewModel
+    private lateinit var inventoryViewModel: InventoryViewModel
+    private lateinit var adetselViewModel: AdetselViewModel
+    private lateinit var settingsViewModel: SettingsViewModel
+
+    private var pendingNavigationRoute = mutableStateOf<String?>(null)
 
     override fun attachBaseContext(newBase: android.content.Context) {
         try {
@@ -161,6 +165,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val deepLinkRoute = intent?.getStringExtra("navigate_to")
+        if (!deepLinkRoute.isNullOrBlank()) {
+            pendingNavigationRoute.value = deepLinkRoute
+        }
+
         try {
             val trLocale = java.util.Locale.forLanguageTag("tr-TR")
             java.util.Locale.setDefault(trLocale)
@@ -176,13 +185,16 @@ class MainActivity : ComponentActivity() {
         }
 
         try {
-            com.example.sync.CloudSyncManager.initialize(applicationContext, db.productDao(), db.turDao())
+            com.example.sync.CloudSyncManager.initialize(applicationContext, db.productDao())
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "CloudSyncManager init error", e)
         }
 
-        val repository = ProductRepository(db.productDao(), db.reportDao(), db.turDao(), db.adetselDao())
-        viewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
+        val repository = ProductRepository(db.productDao(), db.reportDao(), db.adetselDao())
+        mainViewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
+        inventoryViewModel = ViewModelProvider(this, InventoryViewModel.Factory(repository))[InventoryViewModel::class.java]
+        adetselViewModel = ViewModelProvider(this, AdetselViewModel.Factory(repository))[AdetselViewModel::class.java]
+        settingsViewModel = ViewModelProvider(this, SettingsViewModel.Factory(repository))[SettingsViewModel::class.java]
 
         try {
             MorningCheckWorker.scheduleDailyMorningCheck(applicationContext)
@@ -190,15 +202,25 @@ class MainActivity : ComponentActivity() {
             android.util.Log.e("MainActivity", "Worker schedule error", e)
         }
 
-        viewModel.runStartupDataProtection(applicationContext)
+        settingsViewModel.runStartupDataProtection(applicationContext)
 
         setContent {
-            val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+            val isDarkMode by settingsViewModel.isDarkMode.collectAsStateWithLifecycle()
             var isSplashVisible by remember { mutableStateOf(true) }
+            val pendingRoute by pendingNavigationRoute
 
             MyApplicationTheme(darkTheme = isDarkMode) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    SktMainApp(viewModel = viewModel)
+                    SktMainApp(
+                        mainViewModel = mainViewModel,
+                        inventoryViewModel = inventoryViewModel,
+                        adetselViewModel = adetselViewModel,
+                        settingsViewModel = settingsViewModel,
+                        pendingNavigationRoute = pendingRoute,
+                        onPendingNavigationConsumed = {
+                            pendingNavigationRoute.value = null
+                        }
+                    )
 
                     if (isSplashVisible) {
                         AppSplashScreen(
@@ -210,6 +232,25 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val deepLinkRoute = intent.getStringExtra("navigate_to")
+        if (!deepLinkRoute.isNullOrBlank()) {
+            pendingNavigationRoute.value = deepLinkRoute
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        com.example.sync.CloudSyncManager.startRealtimeListeners()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        com.example.sync.CloudSyncManager.stopRealtimeListeners()
     }
 
     override fun onStart() {
@@ -224,7 +265,14 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun SktMainApp(viewModel: MainViewModel) {
+fun SktMainApp(
+    mainViewModel: MainViewModel,
+    inventoryViewModel: InventoryViewModel,
+    adetselViewModel: AdetselViewModel,
+    settingsViewModel: SettingsViewModel,
+    pendingNavigationRoute: String? = null,
+    onPendingNavigationConsumed: () -> Unit = {}
+) {
     val context = LocalContext.current
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -234,7 +282,7 @@ fun SktMainApp(viewModel: MainViewModel) {
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) {
-            MorningCheckWorker.scheduleDailyMorningCheck(context)
+            android.util.Log.d("MainActivity", "Notification permission granted")
         }
     }
 
@@ -248,51 +296,50 @@ fun SktMainApp(viewModel: MainViewModel) {
 
     val currentUser by com.example.auth.UserManager.currentUser.collectAsStateWithLifecycle()
 
-    val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
-    val loadingMessage by viewModel.loadingMessage.collectAsStateWithLifecycle()
+    val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
+    val loadingMessage by mainViewModel.loadingMessage.collectAsStateWithLifecycle()
     val syncState by com.example.sync.CloudSyncManager.syncState.collectAsStateWithLifecycle()
     val isSyncingOrLoading = isLoading || syncState == com.example.sync.SyncState.SYNCING
 
-    val dashboardState by viewModel.dashboardState.collectAsStateWithLifecycle()
-    val filteredProducts by viewModel.filteredProducts.collectAsStateWithLifecycle()
-    val allProducts by viewModel.allProducts.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val selectedFilter by viewModel.selectedFilter.collectAsStateWithLifecycle()
-    val selectedGroupFilter by viewModel.selectedGroupFilter.collectAsStateWithLifecycle()
-    val startDateFilter by viewModel.startDateFilter.collectAsStateWithLifecycle()
-    val endDateFilter by viewModel.endDateFilter.collectAsStateWithLifecycle()
+    val dashboardState by mainViewModel.dashboardState.collectAsStateWithLifecycle()
+    val filteredProducts by inventoryViewModel.filteredProducts.collectAsStateWithLifecycle()
+    val allProducts by inventoryViewModel.allProducts.collectAsStateWithLifecycle()
+    val searchQuery by inventoryViewModel.searchQuery.collectAsStateWithLifecycle()
+    val selectedFilter by inventoryViewModel.selectedFilter.collectAsStateWithLifecycle()
+    val selectedGroupFilter by inventoryViewModel.selectedGroupFilter.collectAsStateWithLifecycle()
+    val startDateFilter by inventoryViewModel.startDateFilter.collectAsStateWithLifecycle()
+    val endDateFilter by inventoryViewModel.endDateFilter.collectAsStateWithLifecycle()
 
-    val isAddEditModalOpen by viewModel.isAddEditModalOpen.collectAsStateWithLifecycle()
-    val editingProduct by viewModel.editingProduct.collectAsStateWithLifecycle()
-    val detailProduct by viewModel.detailProduct.collectAsStateWithLifecycle()
-    val addSktProduct by viewModel.addSktProduct.collectAsStateWithLifecycle()
-    val prefilledBarcode by viewModel.prefilledBarcode.collectAsStateWithLifecycle()
+    val isAddEditModalOpen by inventoryViewModel.isAddEditModalOpen.collectAsStateWithLifecycle()
+    val editingProduct by inventoryViewModel.editingProduct.collectAsStateWithLifecycle()
+    val detailProduct by inventoryViewModel.detailProduct.collectAsStateWithLifecycle()
+    val addSktProduct by inventoryViewModel.addSktProduct.collectAsStateWithLifecycle()
+    val prefilledBarcode by inventoryViewModel.prefilledBarcode.collectAsStateWithLifecycle()
 
-    val allReports by viewModel.allReports.collectAsStateWithLifecycle()
-    val migrationStatus by viewModel.migrationStatus.collectAsStateWithLifecycle()
-    val yapilacakAdetsel by viewModel.yapilacakAdetselKayitlari.collectAsStateWithLifecycle()
-    val yapildiAdetsel by viewModel.yapildiAdetselKayitlari.collectAsStateWithLifecycle()
+    val migrationStatus by settingsViewModel.migrationStatus.collectAsStateWithLifecycle()
+    val yapilacakAdetsel by adetselViewModel.yapilacakAdetselKayitlari.collectAsStateWithLifecycle()
+    val yapildiAdetsel by adetselViewModel.yapildiAdetselKayitlari.collectAsStateWithLifecycle()
 
     // Bilgilendirme çubuğunu 3 saniye sonra otomatik olarak kaybet
     LaunchedEffect(migrationStatus) {
         if (migrationStatus != null && migrationStatus?.isVisible == true) {
             kotlinx.coroutines.delay(3000L)
-            viewModel.dismissMigrationStatus()
+            settingsViewModel.dismissMigrationStatus()
         }
     }
 
-    val userName by viewModel.userName.collectAsStateWithLifecycle()
-    val userBranch by viewModel.userBranch.collectAsStateWithLifecycle()
-    val userRole by viewModel.userRole.collectAsStateWithLifecycle()
-    val userDepartment by viewModel.userDepartment.collectAsStateWithLifecycle()
-    val userDutyStatus by viewModel.userDutyStatus.collectAsStateWithLifecycle()
-    val morningReminderEnabled by viewModel.morningCheckReminderEnabled.collectAsStateWithLifecycle()
-    val criticalAlertEnabled by viewModel.criticalSktAlertEnabled.collectAsStateWithLifecycle()
-    val highStockAlertEnabled by viewModel.highStockAlertEnabled.collectAsStateWithLifecycle()
-    val soundEffectsEnabled by viewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
-    val vibrationEnabled by viewModel.vibrationEnabled.collectAsStateWithLifecycle()
-    val isBatterySaverMode by viewModel.isBatterySaverMode.collectAsStateWithLifecycle()
-    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val userName by settingsViewModel.userName.collectAsStateWithLifecycle()
+    val userBranch by settingsViewModel.userBranch.collectAsStateWithLifecycle()
+    val userRole by settingsViewModel.userRole.collectAsStateWithLifecycle()
+    val userDepartment by settingsViewModel.userDepartment.collectAsStateWithLifecycle()
+    val userDutyStatus by settingsViewModel.userDutyStatus.collectAsStateWithLifecycle()
+    val morningReminderEnabled by settingsViewModel.morningCheckReminderEnabled.collectAsStateWithLifecycle()
+    val criticalAlertEnabled by settingsViewModel.criticalSktAlertEnabled.collectAsStateWithLifecycle()
+    val highStockAlertEnabled by settingsViewModel.highStockAlertEnabled.collectAsStateWithLifecycle()
+    val soundEffectsEnabled by settingsViewModel.soundEffectsEnabled.collectAsStateWithLifecycle()
+    val vibrationEnabled by settingsViewModel.vibrationEnabled.collectAsStateWithLifecycle()
+    val isBatterySaverMode by settingsViewModel.isBatterySaverMode.collectAsStateWithLifecycle()
+    val isDarkMode by settingsViewModel.isDarkMode.collectAsStateWithLifecycle()
 
     // Dialog & Scanner control states
     var isBarcodeScannerOpen by remember { mutableStateOf(false) }
@@ -350,16 +397,24 @@ fun SktMainApp(viewModel: MainViewModel) {
             criticalAlertEnabled = criticalAlertEnabled,
             highStockAlertEnabled = highStockAlertEnabled,
             onDismiss = { isNotificationDialogOpen = false },
-            onFilterSelected = { filter -> viewModel.onFilterSelected(filter) },
+            onFilterSelected = { filter -> inventoryViewModel.onFilterSelected(filter) },
             onNavigate = { route -> navController.navigate(route) },
-            onMarkAllAsRead = { viewModel.markNotificationsAsRead() },
-            onToggleMorningReminder = { viewModel.toggleMorningCheckReminder() },
-            onToggleCriticalAlert = { viewModel.toggleCriticalSktAlert() },
-            onToggleHighStockAlert = { viewModel.toggleHighStockAlert() },
-            onRemoveFromShelf = { prod -> viewModel.removeProductFromShelf(prod) },
-            onRemoveMultipleFromShelf = { list -> viewModel.removeMultipleProductsFromShelf(list) },
-            onAddToAdetsel = { prod -> viewModel.addToAdetsel(prod) },
-            onOpenProductDetail = { prod -> viewModel.openProductDetailModal(prod) }
+            onMarkAllAsRead = { mainViewModel.markNotificationsAsRead() },
+            onToggleMorningReminder = { settingsViewModel.toggleMorningCheckReminder() },
+            onToggleCriticalAlert = { settingsViewModel.toggleCriticalSktAlert() },
+            onToggleHighStockAlert = { settingsViewModel.toggleHighStockAlert() },
+            onRemoveFromShelf = { prod -> inventoryViewModel.removeProductFromShelf(prod) },
+            onRemoveMultipleFromShelf = { list -> inventoryViewModel.removeMultipleProductsFromShelf(list) },
+            onAddToAdetsel = { prod ->
+                adetselViewModel.addToAdetsel(prod) { isSuccess ->
+                    if (isSuccess) {
+                        Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "⚠️ Bu ürün zaten Adetsel Yapılacak listesinde mevcut!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onOpenProductDetail = { prod -> inventoryViewModel.openProductDetailModal(prod) }
         )
     }
 
@@ -377,12 +432,12 @@ fun SktMainApp(viewModel: MainViewModel) {
             dashboardState = dashboardState,
             onDismiss = { isProfileDialogOpen = false },
             onUpdateProfile = { name, branch, role, dept ->
-                viewModel.updateUserProfile(name, branch, role, dept)
+                settingsViewModel.updateUserProfile(name, branch, role, dept)
             },
-            onUpdateDutyStatus = { status -> viewModel.updateDutyStatus(status) },
-            onToggleSoundEffects = { viewModel.toggleSoundEffects() },
-            onToggleVibration = { viewModel.toggleVibration() },
-            onToggleBatterySaverMode = { viewModel.toggleBatterySaverMode() },
+            onUpdateDutyStatus = { status -> settingsViewModel.updateDutyStatus(status) },
+            onToggleSoundEffects = { settingsViewModel.toggleSoundEffects() },
+            onToggleVibration = { settingsViewModel.toggleVibration() },
+            onToggleBatterySaverMode = { settingsViewModel.toggleBatterySaverMode() },
             onNavigateToCsv = { navController.navigate("csv") }
         )
     }
@@ -392,18 +447,18 @@ fun SktMainApp(viewModel: MainViewModel) {
         AddEditProductModal(
             product = editingProduct,
             prefilledBarcode = prefilledBarcode,
-            onDismiss = { viewModel.closeAddEditModal() },
+            onDismiss = { inventoryViewModel.closeAddEditModal() },
             onSave = { barkod, urunKodu, urunAdi, kategori, sktTarihi, stokAdedi, isNewSkt, fiyat, isImportant ->
                 if (isNewSkt && editingProduct != null) {
-                    viewModel.addSktToExistingProduct(editingProduct!!, sktTarihi, stokAdedi) {
-                        viewModel.closeAddEditModal()
+                    inventoryViewModel.addSktToExistingProduct(editingProduct!!, sktTarihi, stokAdedi) {
+                        inventoryViewModel.closeAddEditModal()
                     }
                 } else {
-                    viewModel.saveProduct(barkod, urunKodu, urunAdi, kategori, sktTarihi, stokAdedi, fiyat, isImportant)
+                    inventoryViewModel.saveProduct(barkod, urunKodu, urunAdi, kategori, sktTarihi, stokAdedi, fiyat, isImportant)
                 }
             },
             onDelete = if (editingProduct != null) {
-                { prod -> viewModel.deleteProductWithAllBatches(prod) }
+                { prod -> inventoryViewModel.deleteProductWithAllBatches(prod) }
             } else null
         )
     }
@@ -418,24 +473,24 @@ fun SktMainApp(viewModel: MainViewModel) {
         ProductDetailModal(
             product = detailProduct,
             matchingProducts = allMatchingProducts.ifEmpty { listOf(detailProduct!!) },
-            onDismiss = { viewModel.closeProductDetailModal() },
+            onDismiss = { inventoryViewModel.closeProductDetailModal() },
             onEditClick = { prod ->
-                viewModel.openEditProductModal(prod)
+                inventoryViewModel.openEditProductModal(prod)
             },
             onAddNewSktClick = { prod ->
-                viewModel.openAddSktModal(prod)
+                inventoryViewModel.openAddSktModal(prod)
             },
             onEditSktItem = { item, newSkt, newCount ->
-                viewModel.updateSktItem(item, newSkt, newCount)
+                inventoryViewModel.updateSktItem(item, newSkt, newCount)
             },
             onDeleteSkt = { prod ->
-                viewModel.deleteProduct(prod)
+                inventoryViewModel.deleteProduct(prod)
             },
             onUpdatePrice = { prod, newPrice ->
-                viewModel.updateProductPrice(prod, newPrice)
+                inventoryViewModel.updateProductPrice(prod, newPrice)
             },
             onAddToAdetsel = { prod ->
-                viewModel.addToAdetsel(prod) { isSuccess ->
+                adetselViewModel.addToAdetsel(prod) { isSuccess ->
                     if (isSuccess) {
                         Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
                     } else {
@@ -444,7 +499,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                 }
             },
             onDeductStock = { prod, amount, reason ->
-                viewModel.deductProductStock(prod, amount, reason)
+                inventoryViewModel.deductProductStock(prod, amount, reason)
             }
         )
     }
@@ -453,9 +508,9 @@ fun SktMainApp(viewModel: MainViewModel) {
     if (addSktProduct != null) {
         AddSktModal(
             product = addSktProduct!!,
-            onDismiss = { viewModel.closeAddSktModal() },
+            onDismiss = { inventoryViewModel.closeAddSktModal() },
             onSaveSkt = { prod, sktTarihi, stokAdedi ->
-                viewModel.addSktToExistingProduct(prod, sktTarihi, stokAdedi)
+                inventoryViewModel.addSktToExistingProduct(prod, sktTarihi, stokAdedi)
             }
         )
     }
@@ -471,27 +526,27 @@ fun SktMainApp(viewModel: MainViewModel) {
                 startScannerInFixMode = false
             },
             onFixQrScanned = { rawQr, onResult ->
-                viewModel.fixProductBarcodeAndPriceFromQr(rawQr, onResult)
+                inventoryViewModel.fixProductBarcodeAndPriceFromQr(rawQr, onResult)
             },
             onBarcodeDetected = { scannedRaw ->
-                viewModel.handleBarcodeScanned(
+                inventoryViewModel.handleBarcodeScanned(
                     barkod = scannedRaw,
                     onFound = { productFound ->
                         isBarcodeScannerOpen = false
-                        viewModel.openEditProductModal(productFound)
+                        inventoryViewModel.openEditProductModal(productFound)
                     },
                     onNotFound = { barcodeNotFound ->
                         val notFoundClean = com.example.data.parseShelfQrPayload(barcodeNotFound).barcode.ifBlank { barcodeNotFound }
                         isBarcodeScannerOpen = false
-                        viewModel.openAddProductModal(prefilledBarcode = notFoundClean)
+                        inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
                     }
                 )
             },
             onAddSkt = { product, sktMillis, count ->
-                viewModel.addSktToExistingProduct(product, sktMillis, count)
+                inventoryViewModel.addSktToExistingProduct(product, sktMillis, count)
             },
             onDeductStock = { product, amount, reason ->
-                viewModel.deductProductStock(product, amount, reason)
+                inventoryViewModel.deductProductStock(product, amount, reason)
             }
         )
     }
@@ -502,28 +557,23 @@ fun SktMainApp(viewModel: MainViewModel) {
         if (target == currentRoute) {
             // Zaten mevcut sayfadayız, gereksiz recomposition ve navigasyon yapma
         } else {
-            val user = currentUser
-            if (target == "reports" && user?.canAccessReports == false) {
-                Toast.makeText(context, "Raporlar sayfasına sadece MS ve MSY yetkilileri erişebilir.", Toast.LENGTH_SHORT).show()
-            } else {
-                if (target == "panel") {
-                    val popped = navController.popBackStack("panel", inclusive = false)
-                    if (!popped) {
-                        navController.navigate("panel") {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = false
-                            }
-                            launchSingleTop = true
-                        }
-                    }
-                } else {
-                    navController.navigate(target) {
+            if (target == "panel") {
+                val popped = navController.popBackStack("panel", inclusive = false)
+                if (!popped) {
+                    navController.navigate("panel") {
                         popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                            inclusive = false
                         }
                         launchSingleTop = true
-                        restoreState = true
                     }
+                }
+            } else {
+                navController.navigate(target) {
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
+                    launchSingleTop = true
+                    restoreState = true
                 }
             }
         }
@@ -532,6 +582,24 @@ fun SktMainApp(viewModel: MainViewModel) {
     // Android sistem geri tuşunda her zaman ana sayfaya dön
     BackHandler(enabled = currentRoute != "panel") {
         navigateToTab("panel")
+    }
+
+    // Bildirim veya harici intent ile gelen sekmeye yönlendir
+    LaunchedEffect(pendingNavigationRoute) {
+        val target = pendingNavigationRoute
+        if (!target.isNullOrBlank()) {
+            val resolvedTarget = when (target) {
+                "reports", "takip" -> "takip"
+                "products" -> "products"
+                "adetsel" -> "adetsel"
+                "csv" -> "csv"
+                "reminders" -> "reminders"
+                "panel" -> "panel"
+                else -> target
+            }
+            navigateToTab(resolvedTarget)
+            onPendingNavigationConsumed()
+        }
     }
 
     Box(
@@ -551,19 +619,19 @@ fun SktMainApp(viewModel: MainViewModel) {
                 )
             },
             topBar = {
-                if (currentRoute in listOf("panel", "products", "takip", "adetsel", "reports", "csv")) {
+                if (currentRoute in listOf("panel", "products", "takip", "adetsel", "csv")) {
                     Column {
                         SktTopAppBar(
                             searchQuery = searchQuery,
                             onSearchQueryChange = { query ->
-                                viewModel.onSearchQueryChanged(query)
+                                inventoryViewModel.onSearchQueryChanged(query)
                             },
                             allProducts = allProducts,
                             onProductClick = { prod ->
-                                viewModel.openProductDetailModal(prod)
+                                inventoryViewModel.openProductDetailModal(prod)
                             },
                             onAddNewProductClick = {
-                                viewModel.openAddProductModal()
+                                inventoryViewModel.openAddProductModal()
                             },
                             onOpenScanner = { isBarcodeScannerOpen = true },
                             onBellClick = { isNotificationDialogOpen = true },
@@ -590,7 +658,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = if (status.isSuccess) Icons.Default.Check else Icons.Default.Info,
@@ -607,7 +675,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                                             modifier = Modifier.weight(1f)
                                         )
                                         IconButton(
-                                            onClick = { viewModel.dismissMigrationStatus() },
+                                            onClick = { settingsViewModel.dismissMigrationStatus() },
                                             modifier = Modifier.size(24.dp)
                                         ) {
                                             Icon(
@@ -631,10 +699,10 @@ fun SktMainApp(viewModel: MainViewModel) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None }
+            enterTransition = { fadeIn(animationSpec = tween(120)) },
+            exitTransition = { fadeOut(animationSpec = tween(120)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+            popExitTransition = { fadeOut(animationSpec = tween(120)) }
         ) {
             // 1. PANEL (DASHBOARD)
             composable("panel") {
@@ -643,7 +711,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                     products = allProducts,
                     onQuickActionClick = { action ->
                         when (action) {
-                            "add_product" -> viewModel.openAddProductModal()
+                            "add_product" -> inventoryViewModel.openAddProductModal()
                             "scan" -> isBarcodeScannerOpen = true
                             "reminders" -> navigateToTab("reminders")
                             "csv" -> navigateToTab("csv")
@@ -653,14 +721,14 @@ fun SktMainApp(viewModel: MainViewModel) {
                         }
                     },
                     onFilterSelectAndNavigate = { filter ->
-                        viewModel.onFilterSelected(filter)
+                        inventoryViewModel.onFilterSelected(filter)
                         navigateToTab("products")
                     },
                     onProductClick = { prod ->
-                        viewModel.openProductDetailModal(prod)
+                        inventoryViewModel.openProductDetailModal(prod)
                     },
                     onViewAllProductsClick = {
-                        viewModel.onFilterSelected(ProductFilter.ALL)
+                        inventoryViewModel.onFilterSelected(ProductFilter.ALL)
                         navigateToTab("products")
                     },
                     onAvatarClick = {
@@ -681,15 +749,15 @@ fun SktMainApp(viewModel: MainViewModel) {
                     selectedGroupFilter = selectedGroupFilter,
                     startDateFilter = startDateFilter,
                     endDateFilter = endDateFilter,
-                    onSearchQueryChange = { q -> viewModel.onSearchQueryChanged(q) },
-                    onFilterSelect = { f -> viewModel.onFilterSelected(f) },
-                    onGroupFilterSelect = { group -> viewModel.onGroupFilterSelected(group) },
-                    onDateRangeSelect = { start, end -> viewModel.setDateRangeFilter(start, end) },
-                    onClearDateRange = { viewModel.clearDateRangeFilter() },
-                    onProductClick = { prod -> viewModel.openProductDetailModal(prod) },
-                    onDeleteProduct = { prod -> viewModel.deleteProduct(prod) },
-                    onAddProductClick = { viewModel.openAddProductModal() },
-                    onQuickAddSkt = { prod -> viewModel.openAddSktModal(prod) },
+                    onSearchQueryChange = { q -> inventoryViewModel.onSearchQueryChanged(q) },
+                    onFilterSelect = { f -> inventoryViewModel.onFilterSelected(f) },
+                    onGroupFilterSelect = { group -> inventoryViewModel.onGroupFilterSelected(group) },
+                    onDateRangeSelect = { start, end -> inventoryViewModel.setDateRangeFilter(start, end) },
+                    onClearDateRange = { inventoryViewModel.clearDateRangeFilter() },
+                    onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
+                    onDeleteProduct = { prod -> inventoryViewModel.deleteProduct(prod) },
+                    onAddProductClick = { inventoryViewModel.openAddProductModal() },
+                    onQuickAddSkt = { prod -> inventoryViewModel.openAddSktModal(prod) },
                     onOpenQrFixMode = {
                         startScannerInFixMode = true
                         isBarcodeScannerOpen = true
@@ -710,19 +778,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                 )
             }
 
-            composable("reports") {
-                TakipScreen(
-                    products = allProducts,
-                    onBackClick = {
-                        navigateToTab("panel")
-                    },
-                    onOpenScanner = {
-                        isBarcodeScannerOpen = true
-                    }
-                )
-            }
-
-            // 5. CSV VERİ AKTARIMI
+            // 5. CSV VERİ AKTARIMI & AYARLAR
             composable("csv") {
                 CsvScreen(
                     isDarkMode = isDarkMode,
@@ -730,22 +786,35 @@ fun SktMainApp(viewModel: MainViewModel) {
                     soundEffectsEnabled = soundEffectsEnabled,
                     vibrationEnabled = vibrationEnabled,
                     products = allProducts,
-                    onToggleDarkMode = { viewModel.toggleDarkMode() },
-                    onToggleBatterySaverMode = { viewModel.toggleBatterySaverMode() },
-                    onToggleSoundEffects = { viewModel.toggleSoundEffects() },
-                    onToggleVibration = { viewModel.toggleVibration() },
-                    onFixAndRepairDatabase = { callback -> viewModel.fixAndRepairDatabase(callback) },
-                    onImportLines = { lines -> viewModel.importCsvLines(lines) },
-                    onResetDatabase = { viewModel.resetAllData() },
-                    onRestoreSeedData = { viewModel.restoreDefaultSeedData() },
+                    onToggleDarkMode = { settingsViewModel.toggleDarkMode() },
+                    onToggleBatterySaverMode = { settingsViewModel.toggleBatterySaverMode() },
+                    onToggleSoundEffects = { settingsViewModel.toggleSoundEffects() },
+                    onToggleVibration = { settingsViewModel.toggleVibration() },
+                    onFixAndRepairDatabase = { callback -> settingsViewModel.fixAndRepairDatabase(callback) },
+                    onImportLines = { lines ->
+                        inventoryViewModel.importCsvLines(lines) { isLoading, msg ->
+                            if (isLoading) mainViewModel.showLoading(msg) else mainViewModel.hideLoading()
+                        }
+                    },
+                    onResetDatabase = {
+                        settingsViewModel.resetAllData { isLoading, msg ->
+                            if (isLoading) mainViewModel.showLoading(msg) else mainViewModel.hideLoading()
+                        }
+                        com.example.data.DepoIadeManager.clearAllRecords(context)
+                    },
+                    onRestoreSeedData = {
+                        settingsViewModel.restoreDefaultSeedData { isLoading, msg ->
+                            if (isLoading) mainViewModel.showLoading(msg) else mainViewModel.hideLoading()
+                        }
+                    },
                     onOpenQrFixMode = {
                         startScannerInFixMode = true
                         isBarcodeScannerOpen = true
                     },
-                    onExportJsonBackup = { cb -> viewModel.createUnifiedBackupJson(context, cb) },
-                    onSaveLocalBackup = { tag, cb -> viewModel.saveLocalBackup(context, tag, cb) },
-                    onGetLocalBackups = { viewModel.getLocalBackups(context) },
-                    onRestoreFromJson = { json, merge, cb -> viewModel.restoreFromJson(context, json, merge, cb) },
+                    onExportJsonBackup = { cb -> settingsViewModel.createUnifiedBackupJson(context, cb) },
+                    onSaveLocalBackup = { tag, cb -> settingsViewModel.saveLocalBackup(context, tag, cb) },
+                    onGetLocalBackups = { settingsViewModel.getLocalBackups(context) },
+                    onRestoreFromJson = { json, merge, cb -> settingsViewModel.restoreFromJson(context, json, merge, cb) },
                     onBackClick = { navigateToTab("panel") }
                 )
             }
@@ -765,7 +834,7 @@ fun SktMainApp(viewModel: MainViewModel) {
                     yapilacakList = yapilacakAdetsel,
                     yapildiList = yapildiAdetsel,
                     onSaveSayim = { kayit, sonuc, fark, notlar ->
-                        viewModel.saveAdetselSayim(kayit, sonuc, fark, notlar = notlar) {
+                        adetselViewModel.saveAdetselSayim(kayit, sonuc, fark, notlar = notlar) {
                             val msg = when (sonuc) {
                                 "EKSIK" -> "${kayit.urunAdi} ($fark Eksik) kaydedildi"
                                 "FAZLA" -> "${kayit.urunAdi} (+$fark Fazla) kaydedildi"
@@ -775,14 +844,14 @@ fun SktMainApp(viewModel: MainViewModel) {
                         }
                     },
                     onUndoSayim = { kayit ->
-                        viewModel.undoAdetselKayit(kayit)
+                        adetselViewModel.undoAdetselKayit(kayit)
                         Toast.makeText(context, "${kayit.urunAdi} tekrar yapılacaklar listesine alındı", Toast.LENGTH_SHORT).show()
                     },
                     onDeleteKayit = { id ->
-                        viewModel.deleteAdetselKayit(id)
+                        adetselViewModel.deleteAdetselKayit(id)
                     },
                     onClearCompleted = {
-                        viewModel.clearCompletedAdetselKayitlar()
+                        adetselViewModel.clearCompletedAdetselKayitlar()
                         Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
                     },
                     onNavigateToProducts = {
@@ -801,5 +870,5 @@ fun SktMainApp(viewModel: MainViewModel) {
         title = "İşlem Yapılıyor",
         message = loadingMessage
     )
-}
+    }
 }

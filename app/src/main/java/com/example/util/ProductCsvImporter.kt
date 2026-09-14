@@ -3,6 +3,12 @@ package com.example.util
 import com.example.data.Product
 import java.util.Calendar
 
+data class CsvParseResult(
+    val productsToInsert: List<Product>,
+    val skippedLineCount: Int,
+    val duplicateCount: Int = 0
+)
+
 object ProductCsvImporter {
 
     fun isGarbageText(text: String): Boolean {
@@ -69,58 +75,82 @@ object ProductCsvImporter {
         }
     }
 
-    fun parseLinesToProducts(lines: List<String>, existingKeys: Set<String>): List<Product> {
+    fun parseLinesWithStats(lines: List<String>, existingKeys: Set<String>): CsvParseResult {
         val batchKeys = mutableSetOf<String>()
         val productsToInsert = mutableListOf<Product>()
+        var skippedCount = 0
+        var duplicateCount = 0
 
         for (rawLine in lines) {
             val line = rawLine.trim()
             val lowerLine = line.lowercase()
-            if (line.isEmpty() || line.startsWith("#") || lowerLine.startsWith("barkod") ||
+            if (line.isEmpty() || line.startsWith("#")) continue
+            if (lowerLine.startsWith("barkod") ||
                 lowerLine.contains("ürün kodu") || lowerLine.contains("urun kodu") ||
-                lowerLine.contains("ürün adı") || lowerLine.contains("urun adi") ||
-                isGarbageText(line)
-            ) continue
+                lowerLine.contains("ürün adı") || lowerLine.contains("urun adi")
+            ) {
+                // Header row
+                continue
+            }
+            if (isGarbageText(line)) {
+                skippedCount++
+                continue
+            }
 
             val parts = line.split(",", ";", "\t").map { cleanField(it) }.filter { it.isNotBlank() }
-            if (parts.size >= 2) {
-                // 1. Try smart parsing (immune to shifted columns and extra reyon IDs)
-                val smartProduct = ProductDataHealer.smartParseProductRow(parts)
-                val resolvedProduct = if (smartProduct != null) {
-                    smartProduct
-                } else if (parts.size >= 3) {
-                    val rawBarkod = parts[0]
-                    val urunKodu = parts[1]
-                    val urunAdi = parts[2]
-                    val kategori = if (parts.size >= 4 && parts[3].isNotBlank()) parts[3] else "Genel"
-                    val sktTarihi = if (parts.size >= 5 && parts[4].isNotBlank()) parseDateOrOffset(parts[4]) else 0L
-                    val stokAdedi = if (sktTarihi > 0L) (if (parts.size >= 6) parts[5].toIntOrNull() ?: 1 else 1) else 0
+            if (parts.size < 2) {
+                skippedCount++
+                continue
+            }
 
-                    val rawProd = Product(
-                        barkod = rawBarkod.ifEmpty { urunKodu },
-                        urunKodu = urunKodu.ifEmpty { "0000" },
-                        urunAdi = urunAdi.uppercase(),
-                        kategori = kategori,
-                        sktTarihi = sktTarihi,
-                        stokAdedi = stokAdedi
-                    )
-                    ProductDataHealer.autoHealProduct(rawProd)
-                } else null
+            // 1. Try smart parsing (immune to shifted columns and extra reyon IDs)
+            val smartProduct = ProductDataHealer.smartParseProductRow(parts)
+            val resolvedProduct = if (smartProduct != null) {
+                smartProduct
+            } else if (parts.size >= 3) {
+                val rawBarkod = parts[0]
+                val urunKodu = parts[1]
+                val urunAdi = parts[2]
+                val kategori = if (parts.size >= 4 && parts[3].isNotBlank()) parts[3] else "Genel"
+                val sktTarihi = if (parts.size >= 5 && parts[4].isNotBlank()) parseDateOrOffset(parts[4]) else 0L
+                val stokAdedi = if (sktTarihi > 0L) (if (parts.size >= 6) parts[5].toIntOrNull() ?: 1 else 1) else 0
 
-                if (resolvedProduct != null &&
-                    resolvedProduct.barkod.isNotEmpty() &&
-                    resolvedProduct.urunAdi.isNotEmpty() &&
-                    !isGarbageText(resolvedProduct.barkod) &&
-                    !isGarbageText(resolvedProduct.urunAdi)
-                ) {
-                    val itemKey = "${resolvedProduct.barkod.trim().lowercase()}_${resolvedProduct.urunKodu.trim().lowercase()}_${resolvedProduct.urunAdi.trim().lowercase()}"
-                    if (!existingKeys.contains(itemKey) && !batchKeys.contains(itemKey)) {
-                        batchKeys.add(itemKey)
-                        productsToInsert.add(resolvedProduct)
-                    }
+                val rawProd = Product(
+                    barkod = rawBarkod.ifEmpty { urunKodu },
+                    urunKodu = urunKodu.ifEmpty { "0000" },
+                    urunAdi = urunAdi.uppercase(),
+                    kategori = kategori,
+                    sktTarihi = sktTarihi,
+                    stokAdedi = stokAdedi
+                )
+                ProductDataHealer.autoHealProduct(rawProd)
+            } else null
+
+            if (resolvedProduct != null &&
+                resolvedProduct.barkod.isNotEmpty() &&
+                resolvedProduct.urunAdi.isNotEmpty() &&
+                !isGarbageText(resolvedProduct.barkod) &&
+                !isGarbageText(resolvedProduct.urunAdi)
+            ) {
+                val itemKey = "${resolvedProduct.barkod.trim().lowercase()}_${resolvedProduct.urunKodu.trim().lowercase()}_${resolvedProduct.urunAdi.trim().lowercase()}"
+                if (!existingKeys.contains(itemKey) && !batchKeys.contains(itemKey)) {
+                    batchKeys.add(itemKey)
+                    productsToInsert.add(resolvedProduct)
+                } else {
+                    duplicateCount++
                 }
+            } else {
+                skippedCount++
             }
         }
-        return productsToInsert
+        return CsvParseResult(
+            productsToInsert = productsToInsert,
+            skippedLineCount = skippedCount,
+            duplicateCount = duplicateCount
+        )
+    }
+
+    fun parseLinesToProducts(lines: List<String>, existingKeys: Set<String>): List<Product> {
+        return parseLinesWithStats(lines, existingKeys).productsToInsert
     }
 }

@@ -21,6 +21,7 @@ object BarcodeScanProcessor {
 
         val all = repository.getProductListDirect()
         var targetProducts = all.filter { p ->
+            (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
             (productCode != null && productCode.isNotBlank() && p.urunKodu.equals(productCode, ignoreCase = true)) ||
             (productCode != null && productCode.isNotBlank() && p.barkod.equals(productCode, ignoreCase = true)) ||
             p.urunKodu.equals(realBarcode, ignoreCase = true) ||
@@ -32,8 +33,9 @@ object BarcodeScanProcessor {
         }
 
         if (targetProducts.isEmpty()) {
+            val identifier = if (realBarcode.isNotBlank()) realBarcode else (productCode ?: rawInput.take(15))
             withContext(Dispatchers.Main) {
-                onResult("⚠️ Ürün kodu '${productCode ?: realBarcode}' ile eşleşen ürün bulunamadı.", false)
+                onResult("⚠️ Barkod / Kod '$identifier' ile eşleşen ürün bulunamadı.", false)
             }
             return
         }
@@ -52,15 +54,21 @@ object BarcodeScanProcessor {
                 repository.insertOrUpdateProduct(updated)
                 updatedCount++
                 if (sampleName.isBlank()) sampleName = prod.urunAdi
+            } else {
+                if (sampleName.isBlank()) sampleName = prod.urunAdi
             }
         }
 
         withContext(Dispatchers.Main) {
+            val priceStr = if (newPrice != null) {
+                val formatted = if (newPrice % 1.0 == 0.0) newPrice.toInt().toString() else String.format(java.util.Locale.US, "%.2f", newPrice)
+                " -> $formatted TL"
+            } else ""
+
             if (updatedCount > 0) {
-                val priceInfo = if (newPrice != null) " • Fiyat: $newPrice TL" else ""
-                onResult("✅ '$sampleName' ($updatedCount kayıt) barkodu: $realBarcode$priceInfo olarak güncellendi!", true)
+                onResult("Son İşlem: $sampleName$priceStr kaydedildi", true)
             } else {
-                onResult("ℹ️ '$sampleName' ürünü zaten güncel barkoda ($realBarcode) sahip.", true)
+                onResult("Son İşlem: $sampleName zaten güncel ($realBarcode$priceStr)", true)
             }
         }
     }

@@ -571,10 +571,11 @@ fun TakipScreen(
                 Button(
                     onClick = {
                         val toRemove = recordToDelete!!
+                        DepoIadeManager.deleteImageFile(toRemove.irsaliyeGorselPath)
                         val updated = records.filter { it.id != toRemove.id }
                         saveAndRefresh(updated)
                         recordToDelete = null
-                        Toast.makeText(context, "Kayıt silindi.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Kayıt ve görseli silindi.", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed)
                 ) {

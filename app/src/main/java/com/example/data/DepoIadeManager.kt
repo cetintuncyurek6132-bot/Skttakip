@@ -18,6 +18,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 
 enum class IadeRedNedeni(val displayName: String) {
     DEPO_KABUL_ETMEDI("Depo kabul etmedi"),
@@ -41,7 +42,7 @@ enum class IadeDurumu(val displayName: String) {
 }
 
 data class DepoIadeKaydi(
-    val id: String = System.currentTimeMillis().toString(),
+    val id: String = UUID.randomUUID().toString(),
     val urunAdi: String,
     val irsaliyeGorselPath: String? = null,
     val iadeTarihi: String,
@@ -108,6 +109,55 @@ object DepoIadeManager {
             e.printStackTrace()
             null
         }
+    }
+
+    /**
+     * Physically deletes an invoice image from internal storage to prevent disk bloating.
+     */
+    fun deleteImageFile(imagePath: String?) {
+        if (!imagePath.isNullOrBlank()) {
+            try {
+                val file = File(imagePath)
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Deletes a record and removes its physical image file from storage.
+     */
+    fun deleteRecord(context: Context, recordId: String): List<DepoIadeKaydi> {
+        val current = loadRecords(context).toMutableList()
+        val toDelete = current.find { it.id == recordId }
+        if (toDelete != null) {
+            deleteImageFile(toDelete.irsaliyeGorselPath)
+            current.remove(toDelete)
+            saveRecords(context, current)
+        }
+        return current
+    }
+
+    /**
+     * Clears all records and deletes all invoice images in storage.
+     */
+    fun clearAllRecords(context: Context) {
+        val current = loadRecords(context)
+        for (item in current) {
+            deleteImageFile(item.irsaliyeGorselPath)
+        }
+        try {
+            val dir = File(context.filesDir, "irsaliyeler")
+            if (dir.exists() && dir.isDirectory) {
+                dir.listFiles()?.forEach { it.delete() }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        saveRecords(context, emptyList())
     }
 
     private fun getDefaultSeedRecords(): List<DepoIadeKaydi> {
@@ -183,7 +233,7 @@ object DepoIadeManager {
                         }
                         list.add(
                             DepoIadeKaydi(
-                                id = obj.optString("id", System.currentTimeMillis().toString()),
+                                id = obj.optString("id", "").ifBlank { UUID.randomUUID().toString() },
                                 urunAdi = obj.optString("urunAdi", ""),
                                 irsaliyeGorselPath = obj.optString("irsaliyeGorselPath", "").takeIf { it.isNotBlank() },
                                 iadeTarihi = obj.optString("iadeTarihi", getTodayDateString()),
@@ -234,7 +284,7 @@ object DepoIadeManager {
 
                 list.add(
                     DepoIadeKaydi(
-                        id = obj.optString("id", System.currentTimeMillis().toString()),
+                        id = obj.optString("id", "").ifBlank { UUID.randomUUID().toString() },
                         urunAdi = obj.optString("urunAdi", ""),
                         irsaliyeGorselPath = obj.optString("irsaliyeGorselPath", "").takeIf { it.isNotBlank() },
                         iadeTarihi = obj.optString("iadeTarihi", getTodayDateString()),
@@ -322,7 +372,7 @@ object DepoIadeManager {
 
             val intent = Intent(context, MainActivity::class.java).apply {
                 flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                putExtra("navigate_to", "reports")
+                putExtra("navigate_to", "takip")
             }
 
             val pendingIntent = PendingIntent.getActivity(

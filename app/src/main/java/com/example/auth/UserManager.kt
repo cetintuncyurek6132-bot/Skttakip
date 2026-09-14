@@ -44,20 +44,6 @@ object UserManager {
 
     fun initialize(context: Context) {
         prefs = context.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        val oldPrefs = context.getSharedPreferences("a101_user_prefs", Context.MODE_PRIVATE)
-        if (prefs?.all.isNullOrEmpty() && oldPrefs.all.isNotEmpty()) {
-            val editor = prefs?.edit()
-            oldPrefs.all.forEach { (key, value) ->
-                when (value) {
-                    is String -> editor?.putString(key, value)
-                    is Boolean -> editor?.putBoolean(key, value)
-                    is Int -> editor?.putInt(key, value)
-                    is Long -> editor?.putLong(key, value)
-                    is Float -> editor?.putFloat(key, value)
-                }
-            }
-            editor?.apply()
-        }
         loadUsers()
 
         val savedUsername = prefs?.getString(KEY_LOGGED_IN_USER, null)

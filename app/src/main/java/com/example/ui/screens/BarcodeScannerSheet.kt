@@ -12,6 +12,7 @@ import com.example.ui.screens.scanner.ScannerFilterMode
 import com.example.ui.screens.scanner.TestBarcodeChip
 import com.example.ui.screens.scanner.ScannerTopControls
 import com.example.ui.screens.scanner.QrFixFloatingHudBanner
+import com.example.ui.screens.scanner.QrFixSummaryPanel
 import com.example.ui.screens.scanner.ScannerManualSearchBar
 import com.example.ui.screens.scanner.ScannerProductDetailsSection
 import com.example.ui.screens.scanner.ScannerFeedbackHelper
@@ -199,6 +200,11 @@ fun BarcodeScannerSheet(
     var isBarcodeTooFar by remember { mutableStateOf(false) }
     var serialScanCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixResultMsg by remember { mutableStateOf("") }
+    var qrFixSuccessCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var qrFixErrorCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var qrFixLastTime by remember { mutableStateOf("") }
+    var qrFixLastInfo by remember { mutableStateOf<String?>(null) }
+    var qrFixStoreCode by remember { mutableStateOf("M101") }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     var lastScannedCode by remember { mutableStateOf<String?>(null) }
@@ -248,6 +254,7 @@ fun BarcodeScannerSheet(
 
     DisposableEffect(Unit) {
         onDispose {
+            isFlashOn = false
             try {
                 toneGenerator?.release()
             } catch (e: Exception) {
@@ -259,6 +266,13 @@ fun BarcodeScannerSheet(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    val safeDismiss = {
+        isFlashOn = false
+        focusManager.clearFocus()
+        keyboardController?.hide()
+        onDismiss()
+    }
 
     val isKeyboardVisible = WindowInsets.isImeVisible
 
@@ -282,11 +296,7 @@ fun BarcodeScannerSheet(
 
     // FULL SCREEN DIALOG (Tam Sayfa)
     Dialog(
-        onDismissRequest = {
-            focusManager.clearFocus()
-            keyboardController?.hide()
-            onDismiss()
-        },
+        onDismissRequest = safeDismiss,
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false
@@ -360,8 +370,21 @@ fun BarcodeScannerSheet(
                                         resumeCooldownUntil = now + 1200L
 
                                         if (isFixQrMode && onFixQrScanned != null) {
-                                            onFixQrScanned(trimmedBar) { msg, _ ->
+                                            val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                                            qrFixLastTime = timeFormat.format(Date(now))
+                                            val shelfData = parseShelfQrPayload(trimmedBar)
+                                            val sc = shelfData.storeCode
+                                            if (!sc.isNullOrBlank()) {
+                                                qrFixStoreCode = sc
+                                            }
+                                            onFixQrScanned(trimmedBar) { msg, isSuccess ->
                                                 qrFixResultMsg = msg
+                                                qrFixLastInfo = msg
+                                                if (isSuccess) {
+                                                    qrFixSuccessCount++
+                                                } else {
+                                                    qrFixErrorCount++
+                                                }
                                             }
                                         }
                                     }
@@ -553,11 +576,7 @@ fun BarcodeScannerSheet(
                     ScannerTopControls(
                         isFixQrMode = isFixQrMode,
                         isFlashOn = isFlashOn,
-                        onCloseClick = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            onDismiss()
-                        },
+                        onCloseClick = safeDismiss,
                         onModeChange = { isFixMode ->
                             isFixQrMode = isFixMode
                             qrFixResultMsg = ""
@@ -585,134 +604,149 @@ fun BarcodeScannerSheet(
                     color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 8.dp
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .navigationBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        // Top Grip Bar Indicator
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .padding(bottom = 6.dp)
-                                .width(32.dp)
-                                .height(3.dp)
-                                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
+                    if (isFixQrMode) {
+                        QrFixSummaryPanel(
+                            storeCode = qrFixStoreCode,
+                            userName = "Kullanıcı",
+                            lastProcessTime = qrFixLastTime,
+                            totalScannedCount = qrFixSuccessCount + qrFixErrorCount,
+                            successCount = qrFixSuccessCount,
+                            errorCount = qrFixErrorCount,
+                            lastProcessedInfo = qrFixLastInfo,
+                            onCloseClick = safeDismiss
                         )
-
-                        // HEADER: TITLE & SUBTITLE
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .navigationBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
+                            // Top Grip Bar Indicator
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.CenterHorizontally)
+                                    .padding(bottom = 6.dp)
+                                    .width(32.dp)
+                                    .height(3.dp)
+                                    .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
+                            )
+
+                            // HEADER: TITLE & SUBTITLE
                             Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isSerialScanMode) TurquoisePrimary.copy(alpha = 0.20f) else TurquoisePrimary.copy(alpha = 0.15f),
-                                    modifier = Modifier.size(28.dp)
+                                Row(
+                                    modifier = Modifier.weight(1f),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Search,
-                                            contentDescription = null,
-                                            tint = TurquoisePrimary,
-                                            modifier = Modifier.size(16.dp)
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (isSerialScanMode) TurquoisePrimary.copy(alpha = 0.20f) else TurquoisePrimary.copy(alpha = 0.15f),
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Default.Search,
+                                                contentDescription = null,
+                                                tint = TurquoisePrimary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Column {
+                                        Text(
+                                            text = "⚡ Seri Barkod Okuma Modu",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Telefonu barkoda yaklaştırarak sırayla okutabilirsiniz",
+                                            fontSize = 10.5.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = "⚡ Seri Barkod Okuma Modu",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Telefonu barkoda yaklaştırarak sırayla okutabilirsiniz",
-                                        fontSize = 10.5.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+
+                                if (isSerialScanMode && serialScanCount > 0) {
+                                    Surface(
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = TurquoisePrimary.copy(alpha = 0.18f),
+                                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f))
+                                    ) {
+                                        Text(
+                                            text = "$serialScanCount Ürün Okundu",
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TurquoisePrimary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                             }
 
-                            if (isSerialScanMode && serialScanCount > 0) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = TurquoisePrimary.copy(alpha = 0.18f),
-                                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f))
-                                ) {
-                                    Text(
-                                        text = "$serialScanCount Okuma",
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TurquoisePrimary
-                                    )
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // MANUAL ENTRY SEARCH BAR (ALWAYS VISIBLE & EDITABLE - NEVER VANISHES)
+                            ScannerManualSearchBar(
+                                manualBarcode = manualBarcode,
+                                onValueChange = {
+                                    manualBarcode = it
+                                    selectedProductOverride = null
+                                },
+                                onClear = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    manualBarcode = ""
+                                    activeBarcode = ""
+                                    selectedProductOverride = null
+                                    lastScannedCode = null
+                                    lastScannedTime = 0L
+                                    lastScannedRisk = null
+                                    qrFixResultMsg = ""
+                                    resumeCooldownUntil = System.currentTimeMillis() + 600L
+                                },
+                                onSearch = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    if (manualBarcode.isNotBlank()) {
+                                        activeBarcode = manualBarcode.trim()
+                                    }
                                 }
-                            }
+                            )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // PRODUCT DETAILS AREA ("ÜRÜN AYRINTI YERİ")
+                            ScannerProductDetailsSection(
+                                activeBarcode = activeBarcode,
+                                products = products,
+                                selectedProductOverride = selectedProductOverride,
+                                todayMidnight = todayMidnight,
+                                onSelectOverride = { selectedProductOverride = it },
+                                onAddSkt = onAddSkt,
+                                onDeductStock = onDeductStock,
+                                onBarcodeDetected = onBarcodeDetected,
+                                onClearDetail = {
+                                    activeBarcode = ""
+                                    manualBarcode = ""
+                                    selectedProductOverride = null
+                                    lastScannedCode = null
+                                    lastScannedTime = 0L
+                                    lastScannedRisk = null
+                                    resumeCooldownUntil = 0L
+                                    isCooldownActive = false
+                                    cooldownRemainingSeconds = 0
+                                }
+                            )
                         }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // MANUAL ENTRY SEARCH BAR (ALWAYS VISIBLE & EDITABLE - NEVER VANISHES)
-                        ScannerManualSearchBar(
-                            manualBarcode = manualBarcode,
-                            onValueChange = {
-                                manualBarcode = it
-                                selectedProductOverride = null
-                            },
-                            onClear = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                manualBarcode = ""
-                                activeBarcode = ""
-                                selectedProductOverride = null
-                                lastScannedCode = null
-                                lastScannedTime = 0L
-                                lastScannedRisk = null
-                                qrFixResultMsg = ""
-                                resumeCooldownUntil = System.currentTimeMillis() + 600L
-                            },
-                            onSearch = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                if (manualBarcode.isNotBlank()) {
-                                    activeBarcode = manualBarcode.trim()
-                                }
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        // PRODUCT DETAILS AREA ("ÜRÜN AYRINTI YERİ")
-                        ScannerProductDetailsSection(
-                            activeBarcode = activeBarcode,
-                            products = products,
-                            selectedProductOverride = selectedProductOverride,
-                            todayMidnight = todayMidnight,
-                            onSelectOverride = { selectedProductOverride = it },
-                            onAddSkt = onAddSkt,
-                            onDeductStock = onDeductStock,
-                            onBarcodeDetected = onBarcodeDetected,
-                            onClearDetail = {
-                                activeBarcode = ""
-                                manualBarcode = ""
-                                selectedProductOverride = null
-                                lastScannedCode = null
-                                lastScannedTime = 0L
-                                lastScannedRisk = null
-                                resumeCooldownUntil = 0L
-                                isCooldownActive = false
-                                cooldownRemainingSeconds = 0
-                            }
-                        )
                     }
                 }
             }

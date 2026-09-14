@@ -3,7 +3,10 @@ package com.example.ui.screens
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -378,14 +381,19 @@ fun DashboardScreen(
                     )
                 }
 
+                val seeAllShape = RoundedCornerShape(6.dp)
                 Text(
                     text = "Tümünü Gör (${displayedProducts.size})",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TurquoiseDark,
                     modifier = Modifier
-                        .clickable { onFilterSelectAndNavigate(targetFilter) }
-                        .padding(vertical = 4.dp, horizontal = 2.dp)
+                        .clip(seeAllShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = ripple(bounded = true, color = TurquoiseDark)
+                        ) { onFilterSelectAndNavigate(targetFilter) }
+                        .padding(vertical = 4.dp, horizontal = 4.dp)
                 )
             }
 
@@ -404,32 +412,44 @@ fun DashboardScreen(
                     }
 
                     if (displayedProducts.size > 30) {
-                        Surface(
-                            onClick = { onFilterSelectAndNavigate(targetFilter) },
-                            shape = RoundedCornerShape(10.dp),
-                            color = Slate100,
-                            modifier = Modifier.fillMaxWidth()
+                        val moreShape = RoundedCornerShape(10.dp)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(moreShape)
+                                .background(Slate100)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true)
+                                ) { onFilterSelectAndNavigate(targetFilter) }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "+${displayedProducts.size - 30} ürünü daha görüntülemek için tıklayın",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Slate700,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(vertical = 10.dp)
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
 
                     // WhatsApp Liste Paylaşım Butonu
-                    Surface(
-                        onClick = { shareListOnWhatsApp() },
-                        shape = RoundedCornerShape(12.dp),
-                        color = Color(0xFFF0FDF4),
-                        border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                    val waShape = RoundedCornerShape(12.dp)
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(top = 4.dp)
+                            .clip(waShape)
+                            .background(Color(0xFFF0FDF4))
+                            .border(1.dp, Color(0xFFBBF7D0), waShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = Color(0xFF16A34A))
+                            ) { shareListOnWhatsApp() }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        contentAlignment = Alignment.Center
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -480,18 +500,23 @@ private fun StatSummaryCard(
     testTag: String,
     onClick: () -> Unit
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = if (isSelected) selectedBgColor else Color.White,
-        border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) selectedBorderColor else Slate200
-        ),
-        shadowElevation = if (isSelected) 3.dp else 1.dp,
+    val cardShape = RoundedCornerShape(14.dp)
+    Box(
         modifier = modifier
             .height(84.dp)
-            .testTag(testTag)
+            .clip(cardShape)
+            .background(if (isSelected) selectedBgColor else Color.White)
+            .border(
+                width = if (isSelected) 2.dp else 1.dp,
+                color = if (isSelected) selectedBorderColor else Slate200,
+                shape = cardShape
+            )
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = numberColor)
+            ) { onClick() }
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
@@ -551,15 +576,19 @@ private fun QuickActionCard(
     testTag: String,
     onClick: () -> Unit
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Slate200),
-        shadowElevation = 1.dp,
+    val cardShape = RoundedCornerShape(14.dp)
+    Box(
         modifier = modifier
             .height(76.dp)
-            .testTag(testTag)
+            .clip(cardShape)
+            .background(Color.White)
+            .border(1.dp, Slate200, cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = iconTint)
+            ) { onClick() }
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
@@ -638,13 +667,18 @@ private fun UrgentProductCard(
         }
     }
 
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Slate200),
-        shadowElevation = 0.5.dp,
-        modifier = Modifier.fillMaxWidth()
+    val cardShape = RoundedCornerShape(12.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .background(Color.White)
+            .border(1.dp, Slate200, cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = badgeTextColor)
+            ) { onClick() },
+        contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
@@ -715,13 +749,18 @@ private fun SafeStateCard(
     subtitle: String = "Bugün acil müdahale gerektiren kritik ürün yok.",
     onViewAll: () -> Unit
 ) {
-    Surface(
-        onClick = onViewAll,
-        shape = RoundedCornerShape(14.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, Slate200),
-        shadowElevation = 0.5.dp,
-        modifier = Modifier.fillMaxWidth()
+    val cardShape = RoundedCornerShape(14.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .background(Color.White)
+            .border(1.dp, Slate200, cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true, color = EmeraldSuccess)
+            ) { onViewAll() },
+        contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
