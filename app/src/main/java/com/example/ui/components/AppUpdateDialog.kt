@@ -54,7 +54,7 @@ fun AppUpdateDialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             dismissOnBackPress = true,
-            dismissOnClickOutside = !isDownloading
+            dismissOnClickOutside = true
         ),
         shape = RoundedCornerShape(20.dp),
         title = {

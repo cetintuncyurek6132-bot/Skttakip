@@ -68,7 +68,7 @@ fun QrFixSummaryPanel(
                 .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
         )
 
-        // 1. ÜST BAŞLIK SATIRI (Mağaza Kodu, Personel, Saat + Toplam Sayaç Rozeti)
+        // 1. ÜST BAŞLIK SATIRI (Mağaza Kodu, Personel, Saat)
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -84,14 +84,17 @@ fun QrFixSummaryPanel(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Mağaza: $storeCode",
+                        text = "Mağaza Kodu: $storeCode",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = " | ",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.outline
+                    )
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = null,
@@ -101,17 +104,18 @@ fun QrFixSummaryPanel(
                     Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = "Personel: $userName",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = FontWeight.Medium
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    if (lastProcessTime.isNotBlank()) {
-                        Text(
-                            text = " • $lastProcessTime",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
-                        )
-                    }
+                }
+                if (lastProcessTime.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Son İşlem: $lastProcessTime",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
             }
 
@@ -122,19 +126,19 @@ fun QrFixSummaryPanel(
                 border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.4f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.QrCodeScanner,
                         contentDescription = null,
                         tint = TurquoisePrimary,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Toplam: $totalScannedCount",
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = TurquoisePrimary
                     )
@@ -144,7 +148,7 @@ fun QrFixSummaryPanel(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 2. SON İŞLEM BİLGİ ŞERİDİ (Varsa anlık yeşil/açık onay şeridi)
+        // 2. SON İŞLEM BİLGİ ŞERİDİ (Varsa anlık onay şeridi)
         if (!lastProcessedInfo.isNullOrBlank()) {
             val isSuccess = !lastProcessedInfo.startsWith("⚠️") && !lastProcessedInfo.startsWith("❌")
             Surface(
@@ -182,11 +186,59 @@ fun QrFixSummaryPanel(
             Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // 3. DURUM KARTLARI (Yan yana 2 özet kartı)
+        // 3. DURUM KARTLARI (3 Özet Kartı: Doğru / Güncellenen / Hatalı)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Mavi/Turkuaz Kart: Doğru Eşleşen
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = TurquoisePrimary.copy(alpha = 0.10f)
+                ),
+                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 6.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = TurquoisePrimary.copy(alpha = 0.20f),
+                            modifier = Modifier.size(18.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = null,
+                                    tint = TurquoisePrimary,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "$successCount",
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TurquoisePrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "Doğru",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+
             // Yeşil Kart: Güncellenen / Fiyatı Eklenen
             Card(
                 modifier = Modifier.weight(1f),
@@ -199,43 +251,43 @@ fun QrFixSummaryPanel(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 6.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = CircleShape,
                             color = NormalGreen.copy(alpha = 0.25f),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
                                     tint = NormalGreen,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(11.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "$successCount",
-                            fontSize = 20.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Black,
                             color = NormalGreen
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Fiyat Güncellendi",
-                        fontSize = 11.sp,
+                        text = "Güncellenen",
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
 
-            // Kırmızı / Mavi Kart: Hatalı veya Okunamayan Sayacı
+            // Kırmızı Kart: Hatalı veya Okunamayan Sayacı
             Card(
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(12.dp),
@@ -250,38 +302,38 @@ fun QrFixSummaryPanel(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(horizontal = 6.dp, vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
                             shape = CircleShape,
                             color = if (errorCount > 0) ExpiredRed.copy(alpha = 0.25f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = Icons.Default.Warning,
                                     contentDescription = null,
                                     tint = if (errorCount > 0) ExpiredRed else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(12.dp)
+                                    modifier = Modifier.size(11.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "$errorCount",
-                            fontSize = 20.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Black,
                             color = if (errorCount > 0) ExpiredRed else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Eşleşmeyen / Hatalı",
-                        fontSize = 11.sp,
+                        text = "Hatalı",
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = if (errorCount > 0) ExpiredRed else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

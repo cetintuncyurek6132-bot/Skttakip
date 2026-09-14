@@ -383,6 +383,7 @@ fun SktMainApp(
                 }
             },
             onDismiss = {
+                isDownloadingApk = false
                 showUpdateDialog = false
             }
         )
@@ -519,6 +520,7 @@ fun SktMainApp(
     if (isBarcodeScannerOpen) {
         BarcodeScannerSheet(
             products = allProducts,
+            userName = currentUser?.fullName ?: userName,
             startInFixQrMode = startScannerInFixMode,
             isBatterySaverMode = isBatterySaverMode,
             onDismiss = {

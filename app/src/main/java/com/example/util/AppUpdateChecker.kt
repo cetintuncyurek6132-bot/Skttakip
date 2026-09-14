@@ -121,53 +121,69 @@ object AppUpdateChecker {
 
     /**
      * APK dosyasını indirir ve progress bildiriminde bulunur.
+     * GitHub Releases yönlendirmelerini (301/302 S3 redirects) ve zaman aşımlarını güvenli şekilde yönetir.
      */
     suspend fun downloadApk(
         context: Context,
         downloadUrl: String,
         onProgress: (progressPercent: Int) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
+        var currentUrl = downloadUrl
+        var connection: HttpURLConnection? = null
         try {
-            val url = URL(downloadUrl)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("User-Agent", "SKT-Takip-App")
-                instanceFollowRedirects = true
-                connectTimeout = 15000
-                readTimeout = 20000
-            }
-
-            // GitHub releases redirectleri takip et
-            var responseCode = connection.responseCode
-            var redirectConn = connection
             var redirects = 0
-            while ((responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
-                        responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
-                        responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
-                        responseCode == 307 || responseCode == 308) && redirects < 5
-            ) {
-                val newUrl = redirectConn.getHeaderField("Location")
-                redirectConn = (URL(newUrl).openConnection() as HttpURLConnection).apply {
+            val maxRedirects = 8
+            var responseCode: Int
+
+            while (true) {
+                val url = URL(currentUrl)
+                connection = (url.openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
-                    setRequestProperty("User-Agent", "SKT-Takip-App")
-                    connectTimeout = 15000
-                    readTimeout = 20000
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)")
+                    setRequestProperty("Accept", "*/*")
+                    instanceFollowRedirects = true
+                    connectTimeout = 30000
+                    readTimeout = 60000
                 }
-                responseCode = redirectConn.responseCode
-                redirects++
+
+                responseCode = connection.responseCode
+
+                // 301, 302, 303, 307, 308 yönlendirmelerini takip et
+                if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
+                    responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
+                    responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
+                    responseCode == 307 ||
+                    responseCode == 308
+                ) {
+                    val location = connection.getHeaderField("Location")
+                    connection.disconnect()
+                    if (!location.isNullOrBlank() && redirects < maxRedirects) {
+                        currentUrl = if (location.startsWith("http://") || location.startsWith("https://")) {
+                            location
+                        } else {
+                            URL(url, location).toString()
+                        }
+                        redirects++
+                        continue
+                    } else {
+                        return@withContext Result.failure(Exception("Yönlendirme hatası (HTTP $responseCode)"))
+                    }
+                }
+                break
             }
 
             if (responseCode != HttpURLConnection.HTTP_OK) {
                 return@withContext Result.failure(Exception("İndirme başarısız (HTTP $responseCode)"))
             }
 
-            val fileLength = redirectConn.contentLength
+            val finalConn = connection ?: return@withContext Result.failure(Exception("Bağlantı kurulamadı"))
+            val fileLength = finalConn.contentLength
             val apkFile = File(context.cacheDir, "update.apk")
             if (apkFile.exists()) {
                 apkFile.delete()
             }
 
-            redirectConn.inputStream.use { input ->
+            finalConn.inputStream.use { input ->
                 FileOutputStream(apkFile).use { output ->
                     val data = ByteArray(8192)
                     var total: Long = 0
@@ -188,6 +204,10 @@ object AppUpdateChecker {
         } catch (e: Exception) {
             Log.e(TAG, "APK indirme hatası: ${e.message}", e)
             Result.failure(e)
+        } finally {
+            try {
+                connection?.disconnect()
+            } catch (_: Exception) {}
         }
     }
 

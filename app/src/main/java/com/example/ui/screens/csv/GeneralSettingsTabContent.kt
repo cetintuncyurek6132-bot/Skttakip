@@ -542,6 +542,7 @@ fun GeneralSettingsTabContent(
                     }
                 },
                 onDismiss = {
+                    isManualDownloading = false
                     updateInfoDialog = null
                 }
             )

@@ -1,5 +1,3 @@
-import java.util.Base64
-
 plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.kotlin.compose)
@@ -27,24 +25,6 @@ android {
       storePassword = System.getenv("STORE_PASSWORD")
       keyAlias = "upload"
       keyPassword = System.getenv("KEY_PASSWORD")
-    }
-    getByName("debug") {
-      val ksFile = file("${rootDir}/debug.keystore")
-      if (!ksFile.exists()) {
-        val b64File = file("${rootDir}/debug.keystore.base64")
-        if (b64File.exists()) {
-          runCatching {
-            val bytes = Base64.getDecoder().decode(b64File.readText().trim())
-            ksFile.writeBytes(bytes)
-          }
-        }
-      }
-      if (ksFile.exists()) {
-        storeFile = ksFile
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
-      }
     }
   }
 

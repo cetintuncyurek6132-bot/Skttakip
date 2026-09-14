@@ -498,6 +498,7 @@ fun ProfileSheet(
                                     }
                                 },
                                 onDismiss = {
+                                    isProfileDownloading = false
                                     profileUpdateInfoDialog = null
                                 }
                             )

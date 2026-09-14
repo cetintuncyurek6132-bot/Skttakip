@@ -787,9 +787,10 @@ fun ProductDetailModal(
             expectedProductName = localProduct.urunAdi,
             onDismiss = { showDetailPriceQrScanner = false },
             onPriceScanned = { scannedPrice, _ ->
+                val updatedProduct = localProduct.copy(fiyat = scannedPrice)
+                localProduct = updatedProduct
                 localMatchingProducts = localMatchingProducts.map { it.copy(fiyat = scannedPrice) }
-                localProduct = localProduct.copy(fiyat = scannedPrice)
-                onUpdatePrice(localProduct, scannedPrice)
+                onUpdatePrice(updatedProduct, scannedPrice)
             }
         )
     }

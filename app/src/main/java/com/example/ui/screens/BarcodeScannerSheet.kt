@@ -185,6 +185,7 @@ import kotlin.math.abs
 @Composable
 fun BarcodeScannerSheet(
     products: List<Product> = emptyList(),
+    userName: String = "Kullanıcı",
     startInFixQrMode: Boolean = false,
     isBatterySaverMode: Boolean = false,
     onDismiss: () -> Unit,
@@ -204,7 +205,7 @@ fun BarcodeScannerSheet(
     var qrFixErrorCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixLastTime by remember { mutableStateOf("") }
     var qrFixLastInfo by remember { mutableStateOf<String?>(null) }
-    var qrFixStoreCode by remember { mutableStateOf("M101") }
+    var qrFixStoreCode by remember { mutableStateOf("D724") }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     var lastScannedCode by remember { mutableStateOf<String?>(null) }
@@ -458,24 +459,13 @@ fun BarcodeScannerSheet(
                     val isViewfinderGlowing = isBarcodeTooFar || lastScannedRisk != null || isScannerPaused
 
                     Box(modifier = Modifier.fillMaxSize()) {
-                        // Prominent Corner Brackets Target Box
+                        // Prominent Corner Brackets Target Box with Top Guidance Badge
                         if (!isKeyboardVisible) {
-                            Box(
-                                modifier = Modifier
-                                    .width(animatedFrameWidth)
-                                    .height(animatedFrameHeight)
-                                    .align(Alignment.Center)
+                            Column(
+                                modifier = Modifier.align(Alignment.Center),
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                CornerBracketsViewfinder(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = viewfinderColor,
-                                    strokeWidth = 5.dp,
-                                    cornerLength = 32.dp,
-                                    cornerRadius = 16.dp,
-                                    isGlowing = isViewfinderGlowing
-                                )
-
-                                // Viewfinder Status / Proximity Guidance Badge
+                                // Status / Proximity Guidance Badge (Positioned ABOVE the viewfinder box)
                                 if (isCooldownActive && cooldownRemainingSeconds > 0) {
                                     Surface(
                                         onClick = {
@@ -483,9 +473,6 @@ fun BarcodeScannerSheet(
                                             isCooldownActive = false
                                             cooldownRemainingSeconds = 0
                                         },
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .padding(top = 6.dp),
                                         shape = RoundedCornerShape(12.dp),
                                         color = Color(0xFF0F172A).copy(alpha = 0.90f),
                                         border = BorderStroke(1.dp, TurquoisePrimary),
@@ -506,9 +493,6 @@ fun BarcodeScannerSheet(
                                     }
                                 } else if (isBarcodeTooFar) {
                                     Surface(
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .padding(top = 6.dp),
                                         shape = RoundedCornerShape(12.dp),
                                         color = SoonYellow.copy(alpha = 0.95f),
                                         shadowElevation = 6.dp
@@ -527,9 +511,6 @@ fun BarcodeScannerSheet(
                                     }
                                 } else if (lastScannedRisk != null) {
                                     Surface(
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .padding(top = 6.dp),
                                         shape = RoundedCornerShape(12.dp),
                                         color = lastScannedRisk!!.color,
                                         shadowElevation = 6.dp
@@ -548,11 +529,8 @@ fun BarcodeScannerSheet(
                                     }
                                 } else {
                                     Surface(
-                                        modifier = Modifier
-                                            .align(Alignment.TopCenter)
-                                            .padding(top = 6.dp),
                                         shape = RoundedCornerShape(12.dp),
-                                        color = TurquoisePrimary.copy(alpha = 0.85f),
+                                        color = TurquoisePrimary.copy(alpha = 0.90f),
                                         shadowElevation = 4.dp
                                     ) {
                                         Row(
@@ -560,13 +538,31 @@ fun BarcodeScannerSheet(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "⚡ Seri Okuma • Yaklaştırınca Okur",
+                                                text = if (isFixQrMode) "⚡ Raf QR Kodu Okuma Modu" else "⚡ Seri Okuma • Yaklaştırınca Okur",
                                                 color = Color.White,
-                                                fontSize = 10.5.sp,
+                                                fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         }
                                     }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+
+                                // Unobstructed Clean Viewfinder Frame
+                                Box(
+                                    modifier = Modifier
+                                        .width(animatedFrameWidth)
+                                        .height(animatedFrameHeight)
+                                ) {
+                                    CornerBracketsViewfinder(
+                                        modifier = Modifier.fillMaxSize(),
+                                        color = viewfinderColor,
+                                        strokeWidth = 5.dp,
+                                        cornerLength = 32.dp,
+                                        cornerRadius = 16.dp,
+                                        isGlowing = isViewfinderGlowing
+                                    )
                                 }
                             }
                         }
@@ -583,14 +579,6 @@ fun BarcodeScannerSheet(
                         },
                         onFlashToggle = { isFlashOn = !isFlashOn }
                     )
-
-                    // QR FIX FEEDBACK BANNER (FLOATING HUD CARD OVER CAMERA VIEW)
-                    if (isFixQrMode) {
-                        QrFixFloatingHudBanner(
-                            qrFixResultMsg = qrFixResultMsg,
-                            modifier = Modifier.align(Alignment.BottomCenter)
-                        )
-                    }
                 }
 
                 // =========================================================================
@@ -607,7 +595,7 @@ fun BarcodeScannerSheet(
                     if (isFixQrMode) {
                         QrFixSummaryPanel(
                             storeCode = qrFixStoreCode,
-                            userName = "Kullanıcı",
+                            userName = userName,
                             lastProcessTime = qrFixLastTime,
                             totalScannedCount = qrFixSuccessCount + qrFixErrorCount,
                             successCount = qrFixSuccessCount,
