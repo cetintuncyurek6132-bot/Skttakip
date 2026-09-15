@@ -111,7 +111,7 @@ fun LazyListScope.notificationCardsList(
                         overdue2DaysProducts.take(4).forEach { prod ->
                             ActionableProductNotificationRow(
                                 product = prod,
-                                subtitle = "${-prod.getRemainingDays()} gün geçti",
+                                subtitle = "${prod.getRemainingDays()} gün",
                                 subtitleColor = ExpiredRedDark,
                                 onRemove = {
                                     onRemoveFromShelf(prod)

@@ -59,6 +59,7 @@ fun ProductsFilterBar(
     selectedFilter: ProductFilter,
     selectedGroupFilter: ProductGroupFilter,
     dateFormat: SimpleDateFormat,
+    totalProductCount: Int = 0,
     onOpenDateRange: () -> Unit,
     onClearDateRange: () -> Unit,
     onOpenQrFixMode: () -> Unit,
@@ -155,8 +156,13 @@ fun ProductsFilterBar(
 
                 // Kategori/Durum Filtre Chip'leri
                 ProductFilter.values().forEach { filter ->
+                    val chipLabel = if (filter == ProductFilter.ALL && totalProductCount > 0) {
+                        "TÜMÜ ($totalProductCount)"
+                    } else {
+                        filter.label
+                    }
                     FilterChipItem(
-                        label = filter.label,
+                        label = chipLabel,
                         isSelected = selectedFilter == filter,
                         onClick = { onFilterSelect(filter) }
                     )

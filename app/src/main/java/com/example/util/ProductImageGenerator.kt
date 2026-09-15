@@ -26,12 +26,11 @@ object ProductImageGenerator {
     fun getExpiryReportInfo(days: Long): ExpiryReportInfo {
         return when {
             days < 0L -> {
-                val passedDays = -days
                 ExpiryReportInfo(
                     statusText = "SÜRESİ GEÇTİ",
-                    subDetailText = "$passedDays GÜN ÖNCE",
-                    badgeTopText = "GEÇTİ",
-                    badgeBottomText = "$passedDays GÜN ÖNCE",
+                    subDetailText = "$days GÜN",
+                    badgeTopText = "$days",
+                    badgeBottomText = "GÜN",
                     colorHex = "#DC2626", // Kırmızı
                     bgHex = "#FEF2F2",
                     borderHex = "#FECACA"

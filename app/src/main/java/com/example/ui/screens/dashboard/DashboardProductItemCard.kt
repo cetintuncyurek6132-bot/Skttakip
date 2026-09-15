@@ -58,7 +58,7 @@ fun DashboardProductItemCard(
     val daysLeft = product.getRemainingDays()
 
     val (badgeBg, badgeText, badgeLabel) = when {
-        daysLeft < 0 -> Triple(ExpiredRed, Color.White, "SÜRESİ GEÇTİ (${-daysLeft}g)")
+        daysLeft < 0 -> Triple(ExpiredRed, Color.White, "$daysLeft GÜN")
         daysLeft == 0L -> Triple(ExpiredRed, Color.White, "BUGÜN SON GÜN")
         daysLeft == 1L -> Triple(CriticalOrangeDark, Color.White, "1 GÜN KALDI")
         daysLeft in 2L..3L -> Triple(CriticalOrange, Color.White, "$daysLeft GÜN KALDI")

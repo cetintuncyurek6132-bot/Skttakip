@@ -5,13 +5,11 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,17 +19,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.ripple
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -75,15 +65,6 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
-private data class SktChipStyle(
-    val sktBgColor: Color,
-    val sktBorderColor: Color,
-    val sktTextColor: Color,
-    val badgeBgColor: Color,
-    val badgeTextColor: Color,
-    val statusLabel: String
-)
-
 @Composable
 fun ProductListItemCard(
     product: Product,
@@ -124,17 +105,17 @@ fun ProductListItemCard(
         }
     }
 
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
-    val sktString = if (hasSkt) dateFormat.format(Date(product.sktTarihi)) else "SKT Girilmedi"
+    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
+    val sktSummaryText = if (hasSkt) "SKT: ${dateFormat.format(Date(product.sktTarihi))}" else "SKT: Belirtilmedi"
 
-    val (sktContainerBg, sktContainerBorder, sktContainerText) = if (!hasSkt) {
-        Triple(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), MaterialTheme.colorScheme.onSurfaceVariant)
+    val sktTextColor = if (!hasSkt) {
+        Slate500
     } else when (status) {
-        ExpiryStatus.EXPIRED -> Triple(ExpiredRedContainer, ExpiredRedBorder, ExpiredRedDark)
-        ExpiryStatus.CRITICAL -> Triple(CriticalOrangeContainer, CriticalOrangeBorder, CriticalOrangeDark)
-        ExpiryStatus.SOON -> Triple(SoonYellowContainer, SoonYellowBorder, SoonYellowDark)
-        ExpiryStatus.WARNING -> Triple(WarningBlueContainer, WarningBlueBorder, WarningBlueDark)
-        ExpiryStatus.NORMAL -> Triple(NormalGreenContainer, NormalGreenBorder, NormalGreenDark)
+        ExpiryStatus.EXPIRED -> ExpiredRedDark
+        ExpiryStatus.CRITICAL -> CriticalOrangeDark
+        ExpiryStatus.SOON -> SoonYellowDark
+        ExpiryStatus.WARNING -> WarningBlueDark
+        ExpiryStatus.NORMAL -> NormalGreenDark
     }
 
     val cardShape = RoundedCornerShape(12.dp)
@@ -150,7 +131,7 @@ fun ProductListItemCard(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Row(
             modifier = Modifier
@@ -158,7 +139,7 @@ fun ProductListItemCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left: Square badge
+            // SOL ALAN: 56x56 dp Durum Rozeti
             Box(
                 modifier = Modifier
                     .size(56.dp)
@@ -185,13 +166,13 @@ fun ProductListItemCard(
                     daysLeft < 0 -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = kotlin.math.abs(daysLeft).toString(),
+                                text = daysLeft.toString(),
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 17.sp
+                                fontSize = 16.sp
                             )
                             Text(
-                                text = "GEÇTİ",
+                                text = "GÜN",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 8.5.sp
@@ -235,9 +216,9 @@ fun ProductListItemCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Center info
+            // ORTA ALAN: 3 Satırlı Bilgi (Ürün Adı, Kod, SKT)
             Column(modifier = Modifier.weight(1f)) {
-                // 1. Ürün Adı
+                // 1. Satır: Ürün Adı
                 Text(
                     text = product.getDisplayName().uppercase(),
                     fontWeight = FontWeight.Bold,
@@ -247,73 +228,11 @@ fun ProductListItemCard(
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(modifier = Modifier.height(4.dp))
 
-                // 2. Üst Satır: Adet (BÜYÜK) ve varsa Fiyat / Önemli etiketleri
-                @OptIn(ExperimentalLayoutApi::class)
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    // Adet Kutusu (Büyük ve belirgin)
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(TurquoisePrimary.copy(alpha = 0.16f))
-                            .border(1.5.dp, TurquoisePrimary.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = "${product.stokAdedi} Adet",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TurquoiseDark,
-                            maxLines = 1
-                        )
-                    }
-
-                    product.getFormattedPrice()?.let { formattedPrice ->
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFFE0F2FE))
-                                .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.5.dp)
-                        ) {
-                            Text(
-                                text = formattedPrice,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFF0369A1),
-                                maxLines = 1
-                            )
-                        }
-                    }
-
-                    if ((hasSkt && daysLeft in 1..30 && product.stokAdedi >= 10) || product.isImportant) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(CriticalOrangeContainer)
-                                .border(0.5.dp, CriticalOrange, RoundedCornerShape(4.dp))
-                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "🔥 ÖNEMLİ",
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Black,
-                                color = CriticalOrange,
-                                maxLines = 1
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // 3. Ürün Kodu / Barkod (Kategori komple kaldırıldı)
+                // 2. Satır: Kod / Barkod bilgisi
                 val code = if (product.urunKodu.isNotBlank()) product.urunKodu else product.barkod
                 if (code.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Kod: $code",
                         fontSize = 11.5.sp,
@@ -322,92 +241,70 @@ fun ProductListItemCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(3.dp))
                 }
 
-                // 4. Alt Satır: SKT Yazısı Altta (Göze net çarpan, kontrastlı)
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(sktContainerBg)
-                        .border(1.2.dp, sktContainerBorder, RoundedCornerShape(7.dp))
-                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                // 3. Satır: SKT Bilgisi
+                Spacer(modifier = Modifier.height(3.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    Text(
+                        text = "📅",
+                        fontSize = 11.sp
+                    )
+                    Text(
+                        text = sktSummaryText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = sktTextColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // SAĞ ALAN: Fiyat ve Büyük Ferah Adet Rozeti
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center
+            ) {
+                product.getFormattedPrice()?.let { formattedPrice ->
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0xFFE0F2FE))
+                            .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = "📅",
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = "SKT: $sktString",
-                            fontSize = 12.5.sp,
+                            text = formattedPrice,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
-                            color = sktContainerText,
+                            color = Color(0xFF0369A1),
                             maxLines = 1
                         )
                     }
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
-            }
 
-            Spacer(modifier = Modifier.width(6.dp))
-
-            // Hızlı SKT Ekle Butonu (Modal içinde modal döngüsünü bitiren 1 tık aksiyonu)
-            if (onQuickAddSkt != null) {
-                val quickAddShape = RoundedCornerShape(8.dp)
                 Box(
                     modifier = Modifier
-                        .height(34.dp)
-                        .clip(quickAddShape)
-                        .background(TurquoisePrimary.copy(alpha = 0.12f))
-                        .border(BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.55f)), quickAddShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = ripple(bounded = true, color = TurquoiseDark)
-                        ) { onQuickAddSkt() }
-                        .padding(horizontal = 7.dp)
-                        .testTag("quick_add_skt_button_${product.id}"),
-                    contentAlignment = Alignment.Center
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(TurquoisePrimary.copy(alpha = 0.15f))
+                        .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Hızlı SKT Ekle",
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "Tarih Ekle",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TurquoiseDark
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
-            // Right arrow or delete
-            if (onDelete != null) {
-                IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Sil",
-                        tint = ExpiredRed
+                    Text(
+                        text = "${product.stokAdedi} Adet",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TurquoiseDark,
+                        maxLines = 1
                     )
                 }
-            } else {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Detay",
-                    tint = Color.Gray,
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }
@@ -433,10 +330,37 @@ fun GroupedProductListItemCard(
     val sortedList = remember(productList) {
         productList.sortedBy { if (it.sktTarihi > 0L) it.sktTarihi else Long.MAX_VALUE }
     }
+    val nearestWithSkt = sortedList.firstOrNull { it.sktTarihi > 0L } ?: sortedList.first()
+    val hasSkt = nearestWithSkt.sktTarihi > 0L
+    val daysLeft = if (hasSkt) nearestWithSkt.getRemainingDays(todayMidnight) else 9999L
+    val status = if (hasSkt) nearestWithSkt.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
     val totalStock = productList.sumOf { it.stokAdedi }
+    val partyCount = productList.size
+
+    val squareBg: Color = if (!hasSkt) {
+        Slate500
+    } else {
+        when (status) {
+            ExpiryStatus.EXPIRED -> ExpiredRed
+            ExpiryStatus.CRITICAL -> CriticalOrange
+            ExpiryStatus.SOON -> SoonYellow
+            ExpiryStatus.WARNING -> WarningBlue
+            ExpiryStatus.NORMAL -> NormalGreen
+        }
+    }
+
+    val squareTextColor: Color = if (!hasSkt) {
+        Color.White
+    } else {
+        when (status) {
+            ExpiryStatus.SOON -> Color.Black
+            else -> Color.White
+        }
+    }
+
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
-    val cardShape = RoundedCornerShape(14.dp)
+    val cardShape = RoundedCornerShape(12.dp)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -444,43 +368,101 @@ fun GroupedProductListItemCard(
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true)
-            ) { onClick(sortedList.first()) }
+            ) { onClick(nearestWithSkt) }
             .testTag("grouped_product_item_card"),
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // Header Row
+            // ÜST KISIM: Sol rozet + Orta İsim & Kod + Sağ Toplam Adet ve Parti Sayısı
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Left Icon
+                // SOL ALAN: 56x56 dp Durum Rozeti (En Yakın/En Kritik SKT'ye göre)
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(56.dp)
                         .clip(RoundedCornerShape(10.dp))
-                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                        .background(squareBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.List,
-                        contentDescription = "Çoklu SKT",
-                        tint = TurquoiseDark,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    if (!hasSkt) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "SKT",
+                                color = squareTextColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp
+                            )
+                            Text(
+                                text = "YOK",
+                                color = squareTextColor.copy(alpha = 0.9f),
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp
+                            )
+                        }
+                    } else when {
+                        daysLeft < 0 -> {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = daysLeft.toString(),
+                                    color = squareTextColor,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 16.sp
+                                )
+                                Text(
+                                    text = "GÜN",
+                                    color = squareTextColor.copy(alpha = 0.95f),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 8.5.sp
+                                )
+                            }
+                        }
+                        daysLeft == 0L -> {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "BUGÜN",
+                                    color = squareTextColor,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.5.sp
+                                )
+                                Text(
+                                    text = "SON GÜN",
+                                    color = squareTextColor.copy(alpha = 0.95f),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 8.sp
+                                )
+                            }
+                        }
+                        else -> {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = daysLeft.toString(),
+                                    color = squareTextColor,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 18.sp
+                                )
+                                Text(
+                                    text = "GÜN",
+                                    color = squareTextColor.copy(alpha = 0.9f),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
+                // ORTA ALAN: Ürün Adı ve Kod
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = mainProduct.getDisplayName().uppercase(),
@@ -491,9 +473,10 @@ fun GroupedProductListItemCard(
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+
                     val groupCode = if (mainProduct.urunKodu.isNotBlank()) mainProduct.urunKodu else mainProduct.barkod
                     if (groupCode.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Kod: $groupCode",
                             fontSize = 11.5.sp,
@@ -507,6 +490,7 @@ fun GroupedProductListItemCard(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
+                // SAĞ ALAN: Fiyat ve Toplam Stok & Parti Rozeti
                 Column(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.Center
@@ -517,220 +501,153 @@ fun GroupedProductListItemCard(
                                 .clip(RoundedCornerShape(6.dp))
                                 .background(Color(0xFFE0F2FE))
                                 .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
-                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
                                 text = formattedPrice,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Black,
-                                color = Color(0xFF0369A1)
+                                color = Color(0xFF0369A1),
+                                maxLines = 1
                             )
                         }
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
+
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
-                            .background(TurquoisePrimary.copy(alpha = 0.16f))
-                            .border(1.5.dp, TurquoisePrimary.copy(alpha = 0.7f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                            .background(TurquoisePrimary.copy(alpha = 0.15f))
+                            .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
-                        Text(
-                            text = "$totalStock Adet",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TurquoiseDark,
-                            maxLines = 1
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${sortedList.size} SKT Tarihi",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate500,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Sub-header text & Quick SKT Action
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Partiler:",
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate500
-                    )
-
-                    if (onQuickAddSkt != null) {
-                        val quickAddShape = RoundedCornerShape(6.dp)
-                        Box(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .clip(quickAddShape)
-                                .background(TurquoisePrimary.copy(alpha = 0.12f))
-                                .border(BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f)), quickAddShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true, color = TurquoiseDark)
-                                ) { onQuickAddSkt(sortedList.first()) }
-                                .padding(horizontal = 6.dp)
-                                .testTag("group_quick_add_skt_button_${mainProduct.id}"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Add,
-                                    contentDescription = "Hızlı SKT Ekle",
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Text(
-                                    text = "Tarih Ekle",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = TurquoiseDark
-                                )
-                            }
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text(
+                                text = "$totalStock Adet",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = "$partyCount Parti",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate500,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Horizontal Scrollable Cards/Chips for SKT
+            // ALT KISIM (Kaydırmalı Partiler): Kompakt, şık yatay kayan çipler
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 sortedList.forEach { item ->
-                    val hasSkt = item.sktTarihi > 0L
-                    val daysLeft = if (hasSkt) item.getRemainingDays(todayMidnight) else 9999L
-                    val status = if (hasSkt) item.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
+                    val itemHasSkt = item.sktTarihi > 0L
+                    val itemDaysLeft = if (itemHasSkt) item.getRemainingDays(todayMidnight) else 9999L
+                    val itemStatus = if (itemHasSkt) item.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
 
-                    val (sktBgColor, sktBorderColor, sktTextColor, badgeBgColor, badgeTextColor, statusLabel) = when {
-                        !hasSkt -> SktChipStyle(
+                    val (chipBgColor, chipBorderColor, badgeBg, badgeTextColor, badgeLabel) = when {
+                        !itemHasSkt -> arrayOf(
                             MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
                             Slate500,
                             Color.White,
                             "SKT YOK"
                         )
-                        status == ExpiryStatus.EXPIRED -> SktChipStyle(
+                        itemStatus == ExpiryStatus.EXPIRED -> arrayOf(
                             ExpiredRedContainer,
                             ExpiredRedBorder,
-                            ExpiredRedDark,
                             ExpiredRed,
                             Color.White,
-                            when {
-                                daysLeft < 0 -> "${kotlin.math.abs(daysLeft)} GÜN GEÇTİ"
-                                daysLeft == 0L -> "BUGÜN SON GÜN"
-                                else -> "SÜRESİ GEÇTİ"
-                            }
+                            if (itemDaysLeft < 0) "$itemDaysLeft GÜN" else "BUGÜN"
                         )
-                        status == ExpiryStatus.CRITICAL -> SktChipStyle(
+                        itemStatus == ExpiryStatus.CRITICAL -> arrayOf(
                             CriticalOrangeContainer,
                             CriticalOrangeBorder,
-                            CriticalOrangeDark,
                             CriticalOrange,
                             Color.White,
-                            if (daysLeft == 1L) "1 GÜN KALDI" else "$daysLeft GÜN"
+                            "$itemDaysLeft GÜN"
                         )
-                        status == ExpiryStatus.SOON -> SktChipStyle(
+                        itemStatus == ExpiryStatus.SOON -> arrayOf(
                             SoonYellowContainer,
                             SoonYellowBorder,
-                            SoonYellowDark,
                             SoonYellow,
                             Color.Black,
-                            "$daysLeft GÜN"
+                            "$itemDaysLeft GÜN"
                         )
-                        status == ExpiryStatus.WARNING -> SktChipStyle(
+                        itemStatus == ExpiryStatus.WARNING -> arrayOf(
                             WarningBlueContainer,
                             WarningBlueBorder,
-                            WarningBlueDark,
                             WarningBlue,
                             Color.White,
-                            "$daysLeft GÜN"
+                            "$itemDaysLeft GÜN"
                         )
-                        else -> SktChipStyle(
+                        else -> arrayOf(
                             NormalGreenContainer,
                             NormalGreenBorder,
-                            NormalGreenDark,
                             NormalGreen,
                             Color.White,
-                            "$daysLeft GÜN"
+                            "$itemDaysLeft GÜN"
                         )
                     }
 
-                    val chipShape = RoundedCornerShape(10.dp)
+                    val chipShape = RoundedCornerShape(8.dp)
                     Box(
                         modifier = Modifier
+                            .height(36.dp)
                             .clip(chipShape)
-                            .background(sktBgColor)
-                            .border(BorderStroke(1.dp, sktBorderColor), chipShape)
+                            .background(chipBgColor as Color)
+                            .border(BorderStroke(1.dp, chipBorderColor as Color), chipShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, color = sktTextColor)
+                                indication = ripple(bounded = true)
                             ) { onClick(item) }
-                            .padding(horizontal = 10.dp, vertical = 8.dp)
+                            .padding(horizontal = 8.dp)
                             .testTag("skt_chip_${item.id}"),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(badgeBgColor)
-                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(badgeBg as Color)
+                                    .padding(horizontal = 5.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = statusLabel,
-                                    fontSize = 10.sp,
+                                    text = badgeLabel as String,
+                                    fontSize = 9.5.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = badgeTextColor
+                                    color = badgeTextColor as Color
                                 )
                             }
 
-                            Spacer(modifier = Modifier.width(8.dp))
+                            val sktStr = if (itemHasSkt) dateFormat.format(Date(item.sktTarihi)) else "Tarihsiz"
+                            Text(
+                                text = "📅 $sktStr",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
 
-                            Column {
-                                val sktStr = if (hasSkt) dateFormat.format(Date(item.sktTarihi)) else "Tarihsiz"
-                                Text(
-                                    text = "📅 SKT: $sktStr",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "${item.stokAdedi} Adet",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = sktTextColor
-                                )
-                            }
+                            Text(
+                                text = "${item.stokAdedi} Adet",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark
+                            )
                         }
                     }
                 }

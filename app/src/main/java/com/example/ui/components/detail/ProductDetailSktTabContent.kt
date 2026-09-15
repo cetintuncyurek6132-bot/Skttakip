@@ -312,7 +312,7 @@ fun ProductDetailSktTabContent(
                     val dateStr = dateFormat.format(Date(item.sktTarihi))
 
                     val (badgeText, badgeBg, badgeTextColor) = when {
-                        daysRemaining < 0 -> Triple("${kotlin.math.abs(daysRemaining)} gün geçti", ExpiredRedContainer, ExpiredRedDark)
+                        daysRemaining < 0 -> Triple("$daysRemaining gün", ExpiredRedContainer, ExpiredRedDark)
                         daysRemaining == 0L -> Triple("Son gün", ExpiredRedContainer, ExpiredRedDark)
                         daysRemaining in 1..3 -> Triple("$daysRemaining gün kaldı", ExpiredRedContainer, ExpiredRedDark)
                         daysRemaining in 4..15 -> Triple("$daysRemaining gün kaldı", CriticalOrangeContainer, CriticalOrangeDark)

@@ -166,7 +166,7 @@ fun ProductDetailPreviewCard(
             MaterialTheme.colorScheme.onSurfaceVariant
         )
         daysRemaining < 0 -> Triple(
-            "🚨 SÜRESİ GEÇTİ (${abs(daysRemaining)} gün)",
+            "🚨 SÜRESİ GEÇTİ ($daysRemaining gün)",
             ExpiredRedContainer,
             ExpiredRed
         )

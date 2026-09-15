@@ -22,8 +22,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -65,8 +65,8 @@ fun ProductsScreen(
     searchQuery: String,
     selectedFilter: ProductFilter,
     selectedGroupFilter: ProductGroupFilter = ProductGroupFilter.ALL,
-    startDateFilter: Long? = null,
-    endDateFilter: Long? = null,
+    startDateFilter: Long?,
+    endDateFilter: Long?,
     onSearchQueryChange: (String) -> Unit,
     onFilterSelect: (ProductFilter) -> Unit,
     onGroupFilterSelect: (ProductGroupFilter) -> Unit = {},
@@ -113,6 +113,7 @@ fun ProductsScreen(
             selectedFilter = selectedFilter,
             selectedGroupFilter = selectedGroupFilter,
             dateFormat = dateFormat,
+            totalProductCount = products.size,
             onOpenDateRange = { isDateRangeModalOpen = true },
             onClearDateRange = onClearDateRange,
             onOpenQrFixMode = onOpenQrFixMode,
@@ -173,84 +174,58 @@ fun ProductsScreen(
                 onAddProductClick = onAddProductClick
             )
         } else {
-            // WhatsApp Görsel Liste Paylaşım Şeridi
-            Surface(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                border = BorderStroke(1.dp, Color(0xFF25D366).copy(alpha = 0.35f))
+                    .weight(1f)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "${products.size} Ürün Listeleniyor",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Ekiple görsel rapor olarak paylaşın",
-                            fontSize = 10.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                ProductsGroupedList(
+                    products = products,
+                    selectedFilter = selectedFilter,
+                    onProductClick = onProductClick,
+                    onDeleteProduct = onDeleteProduct,
+                    onQuickAddSkt = onQuickAddSkt
+                )
 
-                    Button(
-                        onClick = {
-                            if (products.isEmpty()) {
-                                Toast.makeText(context, "Paylaşılacak ürün bulunamadı", Toast.LENGTH_SHORT).show()
-                            } else {
-                                ProductImageGenerator.shareProductsAsImage(
-                                    context = context,
-                                    filterLabel = selectedFilter.label,
-                                    searchQuery = searchQuery,
-                                    productList = products
-                                )
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .height(34.dp)
-                            .testTag("whatsapp_share_list_image_button"),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_whatsapp),
-                                contentDescription = "WhatsApp Görsel Paylaş",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Text(
-                                text = "Görsel Paylaş",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                ExtendedFloatingActionButton(
+                    onClick = {
+                        if (products.isEmpty()) {
+                            Toast.makeText(context, "Paylaşılacak ürün bulunamadı", Toast.LENGTH_SHORT).show()
+                        } else {
+                            ProductImageGenerator.shareProductsAsImage(
+                                context = context,
+                                filterLabel = selectedFilter.label,
+                                searchQuery = searchQuery,
+                                productList = products
                             )
                         }
-                    }
-                }
+                    },
+                    icon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_whatsapp),
+                            contentDescription = "WhatsApp Görsel Paylaş",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    text = {
+                        Text(
+                            text = "Görsel Paylaş",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    },
+                    containerColor = Color(0xFF25D366),
+                    contentColor = Color.White,
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 16.dp, end = 16.dp)
+                        .testTag("whatsapp_share_list_image_button")
+                )
             }
-
-            ProductsGroupedList(
-                products = products,
-                selectedFilter = selectedFilter,
-                onProductClick = onProductClick,
-                onDeleteProduct = onDeleteProduct,
-                onQuickAddSkt = onQuickAddSkt
-            )
         }
     }
 }

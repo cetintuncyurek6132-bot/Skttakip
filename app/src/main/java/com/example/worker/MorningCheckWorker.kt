@@ -85,7 +85,7 @@ class MorningCheckWorker(
             val (title, shortText, bigText) = when {
                 overdue2DaysUnremoved.isNotEmpty() -> {
                     val overdueSummary = overdue2DaysUnremoved.take(4).joinToString("\n") { 
-                        "• ${it.urunAdi} (${-it.getRemainingDays()} gün geçti - ${it.stokAdedi} Adet Rafta!)" 
+                        "• ${it.urunAdi} (${it.getRemainingDays()} gün - ${it.stokAdedi} Adet Rafta!)" 
                     }
                     val totalOverdueStock = overdue2DaysUnremoved.sumOf { it.stokAdedi }
                     Triple(

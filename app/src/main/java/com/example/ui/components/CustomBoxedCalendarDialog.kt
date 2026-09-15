@@ -383,7 +383,7 @@ fun CustomBoxedCalendarDialog(
                                         bgCol = ExpiredRedContainer
                                         txtCol = ExpiredRedDark
                                         borderCol = ExpiredRedBorder
-                                        label = "${-daysDiff} gün önce geçti"
+                                        label = "$daysDiff gün"
                                     }
                                     daysDiff == 0 -> {
                                         bgCol = CriticalOrangeContainer

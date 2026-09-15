@@ -6,6 +6,7 @@ import com.example.data.getDisplayName
 import com.example.data.matchesSearchQuery
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -172,21 +173,22 @@ fun SktTopAppBar(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color.White)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 6.dp, vertical = 3.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_skt_shield_logo),
+                Image(
+                    painter = painterResource(id = R.drawable.ic_app_brand_logo),
                     contentDescription = "SKT Logo",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(RoundedCornerShape(8.dp))
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = "SKT",
                     color = TurquoiseDark,
                     fontWeight = FontWeight.Black,
-                    fontSize = 17.sp,
+                    fontSize = 16.sp,
                     letterSpacing = 0.5.sp
                 )
             }

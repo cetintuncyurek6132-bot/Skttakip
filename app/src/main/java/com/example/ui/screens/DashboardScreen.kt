@@ -652,7 +652,7 @@ private fun UrgentProductCard(
 
     val (badgeBg, badgeTextColor, badgeText) = when (status) {
         ExpiryStatus.EXPIRED -> {
-            val text = if (remainingDays < 0) "${-remainingDays}g geçti" else "Bugün son!"
+            val text = if (remainingDays < 0) "${remainingDays}g" else "Bugün son!"
             Triple(ExpiredRedContainer, ExpiredRed, text)
         }
         ExpiryStatus.CRITICAL -> {
