@@ -228,11 +228,9 @@ fun PriceQrScannerDialog(
 
                                     // If QR has identifying barcode/productCode and it DOES NOT match the expected product
                                     if (!isMatched && (scBarcode.isNotBlank() || scProductCode.isNotBlank())) {
-                                        val scannedIdentifier = if (scBarcode.isNotBlank()) scBarcode else scProductCode
-                                        val currentIdentifier = if (expBar.isNotBlank()) expBar else expCode
                                         Toast.makeText(
                                             context,
-                                            "❌ ÜRÜN UYUŞMAZLIĞI!\nOkutulan Etiket ($scannedIdentifier), hedef ürünle ($currentIdentifier) eşleşmiyor! Fiyat alınmadı.",
+                                            "Okutulan raf etiketi seçilen ürünle eşleşmediği için fiyat güncellenmedi.",
                                             Toast.LENGTH_LONG
                                         ).show()
                                         return@CameraXBarcodeView
@@ -246,7 +244,7 @@ fun PriceQrScannerDialog(
                                 onPriceScanned(parsedPrice, raw)
                                 onDismiss()
                             } else {
-                                Toast.makeText(context, "⚠️ Geçerli etiket/fiyat QR kodu okunamadı", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Geçerli bir raf etiketi veya fiyat QR kodu tespit edilemedi.", Toast.LENGTH_SHORT).show()
                             }
                         }
                     )
@@ -261,7 +259,7 @@ fun PriceQrScannerDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "💡 Yalnızca mağaza raf etiketindeki 2D QR kodlarını okur. Barkod ve ürün kodu eşleşmesi doğrulanır.",
+                    text = "Doğrulama için lütfen ürünün altındaki raf etiketini taratın.",
                     fontSize = 11.sp,
                     color = Color.Gray,
                     textAlign = TextAlign.Center

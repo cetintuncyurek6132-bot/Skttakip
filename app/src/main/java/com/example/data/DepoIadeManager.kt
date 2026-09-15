@@ -384,11 +384,11 @@ object DepoIadeManager {
 
             val notification = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_launcher_foreground)
-                .setContentTitle("Takip Kaydı: ${kayit.urunAdi}")
+                .setContentTitle("${kayit.urunAdi} için kontrol zamanı geldi (${kayit.durum.displayName}).")
                 .setContentText("Durum: ${kayit.durum.displayName} (${kayit.redNedeni}) kontrol zamanı.")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("Ürün: ${kayit.urunAdi}\nDurum: ${kayit.durum.displayName} | Neden: ${kayit.redNedeni}\nNot: ${kayit.aciklama.ifBlank { "Takip kontrolü gerekiyor." }}")
+                        .bigText("Ürün: ${kayit.urunAdi}\nDurum: ${kayit.durum.displayName} | Neden: ${kayit.redNedeni}\nNot: ${kayit.aciklama.ifBlank { "İade durumunu kontrol ediniz." }}")
                 )
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)

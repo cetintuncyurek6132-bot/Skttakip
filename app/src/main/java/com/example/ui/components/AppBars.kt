@@ -384,7 +384,7 @@ fun SktTopAppBar(
                                         }
                                         BasicTextField(
                                             value = searchQuery,
-                                            onValueChange = { onSearchQueryChange(it.uppercase(java.util.Locale.forLanguageTag("tr-TR"))) },
+                                            onValueChange = { onSearchQueryChange(it) },
                                             singleLine = true,
                                             textStyle = androidx.compose.ui.text.TextStyle(
                                                 color = Slate900,
@@ -434,11 +434,11 @@ fun SktTopAppBar(
                             val queryTrim = searchQuery.trim()
                             val matchingProducts = remember(allProducts, queryTrim) {
                                 if (queryTrim.isEmpty()) {
-                                    allProducts
+                                    allProducts.take(50)
                                 } else {
                                     allProducts.filter { prod ->
                                         prod.matchesSearchQuery(queryTrim)
-                                    }
+                                    }.take(50)
                                 }
                             }
 
@@ -464,13 +464,6 @@ fun SktTopAppBar(
                                         color = TurquoiseDark
                                     )
                                 }
-
-                                Text(
-                                    text = "Yazdıkça filtrelenir",
-                                    fontSize = 10.sp,
-                                    color = Slate500,
-                                    fontWeight = FontWeight.Medium
-                                )
                             }
 
                             Spacer(modifier = Modifier.height(8.dp))
@@ -498,19 +491,12 @@ fun SktTopAppBar(
                                     }
                                     Spacer(modifier = Modifier.height(12.dp))
                                     Text(
-                                        text = "Aramanızla eşleşen ürün bulunamadı",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Slate900,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = "\"$searchQuery\" araması için kayıtlı ürün bulunmuyor. Dilerseniz yeni ürün ekleyebilirsiniz.",
-                                        fontSize = 12.sp,
-                                        color = Slate500,
+                                        text = "Aradığınız ürün bulunamadı. Yeni ürün olarak eklemek ister misiniz?",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Slate700,
                                         textAlign = TextAlign.Center,
-                                        lineHeight = 16.sp
+                                        lineHeight = 18.sp
                                     )
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(
@@ -672,6 +658,14 @@ fun SktBottomNavBar(
     onScanClick: () -> Unit,
     userRoleCode: String = "MS"
 ) {
+    // Optimistic instant route selection for 0ms visual feedback on tap
+    var optimisticRoute by remember(currentRoute) { mutableStateOf(currentRoute) }
+
+    val handleNavigate: (String) -> Unit = { target ->
+        optimisticRoute = target
+        onNavigate(target)
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -702,8 +696,8 @@ fun SktBottomNavBar(
                         label = "Ana Sayfa",
                         activeIcon = Icons.Filled.SpaceDashboard,
                         inactiveIcon = Icons.Outlined.SpaceDashboard,
-                        selected = currentRoute == "panel",
-                        onClick = { onNavigate("panel") },
+                        selected = optimisticRoute == "panel",
+                        onClick = { handleNavigate("panel") },
                         modifier = Modifier.weight(1f)
                     )
 
@@ -712,8 +706,8 @@ fun SktBottomNavBar(
                         label = "Ürünler",
                         activeIcon = Icons.Filled.Inventory2,
                         inactiveIcon = Icons.Outlined.Inventory2,
-                        selected = currentRoute == "products",
-                        onClick = { onNavigate("products") },
+                        selected = optimisticRoute == "products",
+                        onClick = { handleNavigate("products") },
                         modifier = Modifier.weight(1f)
                     )
 
@@ -745,8 +739,8 @@ fun SktBottomNavBar(
                         label = "İade Takip",
                         activeIcon = Icons.Filled.AssignmentTurnedIn,
                         inactiveIcon = Icons.Outlined.AssignmentTurnedIn,
-                        selected = currentRoute == "takip" || currentRoute == "reports",
-                        onClick = { onNavigate("takip") },
+                        selected = optimisticRoute == "takip" || optimisticRoute == "reports",
+                        onClick = { handleNavigate("takip") },
                         isRestricted = isReportsRestricted,
                         modifier = Modifier.weight(1f)
                     )
@@ -756,8 +750,8 @@ fun SktBottomNavBar(
                         label = "Sayım",
                         activeIcon = Icons.Filled.Checklist,
                         inactiveIcon = Icons.Outlined.Checklist,
-                        selected = currentRoute == "adetsel",
-                        onClick = { onNavigate("adetsel") },
+                        selected = optimisticRoute == "adetsel",
+                        onClick = { handleNavigate("adetsel") },
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -821,10 +815,12 @@ fun BottomNavItem(
     val alpha = if (isRestricted) 0.45f else 1.0f
     val iconColor by animateColorAsState(
         targetValue = if (selected) TurquoisePrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f * alpha),
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 60),
         label = "bottom_nav_icon_color"
     )
     val pillBgColor by animateColorAsState(
         targetValue = if (selected) TurquoisePrimary.copy(alpha = 0.14f) else Color.Transparent,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 60),
         label = "bottom_nav_pill_bg"
     )
 

@@ -32,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -106,7 +107,7 @@ fun ProductListItemCard(
     }
 
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
-    val sktSummaryText = if (hasSkt) "SKT: ${dateFormat.format(Date(product.sktTarihi))}" else "SKT: Belirtilmedi"
+    val sktSummaryText = if (hasSkt) "SKT: ${dateFormat.format(Date(product.sktTarihi))}" else "SKT: Girilmedi"
 
     val sktTextColor = if (!hasSkt) {
         Slate500
@@ -166,32 +167,28 @@ fun ProductListItemCard(
                     daysLeft < 0 -> {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = daysLeft.toString(),
+                                text = kotlin.math.abs(daysLeft).toString(),
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 16.sp
+                                fontSize = 15.5.sp
                             )
                             Text(
-                                text = "GÜN",
+                                text = "GÜN GEÇTİ",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 8.5.sp
+                                fontSize = 7.5.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
                     daysLeft == 0L -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "BUGÜN",
-                                color = squareTextColor,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 11.5.sp
-                            )
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = "SON GÜN",
-                                color = squareTextColor.copy(alpha = 0.95f),
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 8.sp
+                                color = squareTextColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 10.5.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
@@ -412,32 +409,28 @@ fun GroupedProductListItemCard(
                         daysLeft < 0 -> {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text(
-                                    text = daysLeft.toString(),
+                                    text = kotlin.math.abs(daysLeft).toString(),
                                     color = squareTextColor,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 16.sp
+                                    fontSize = 15.5.sp
                                 )
                                 Text(
-                                    text = "GÜN",
+                                    text = "GÜN GEÇTİ",
                                     color = squareTextColor.copy(alpha = 0.95f),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 8.5.sp
+                                    fontSize = 7.5.sp,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                         daysLeft == 0L -> {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "BUGÜN",
-                                    color = squareTextColor,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 11.5.sp
-                                )
+                            Box(contentAlignment = Alignment.Center) {
                                 Text(
                                     text = "SON GÜN",
-                                    color = squareTextColor.copy(alpha = 0.95f),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 8.sp
+                                    color = squareTextColor,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 10.5.sp,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
@@ -568,14 +561,14 @@ fun GroupedProductListItemCard(
                             ExpiredRedBorder,
                             ExpiredRed,
                             Color.White,
-                            if (itemDaysLeft < 0) "$itemDaysLeft GÜN" else "BUGÜN"
+                            if (itemDaysLeft < 0) "${kotlin.math.abs(itemDaysLeft)} GÜN GEÇTİ" else "SON GÜN"
                         )
                         itemStatus == ExpiryStatus.CRITICAL -> arrayOf(
                             CriticalOrangeContainer,
                             CriticalOrangeBorder,
                             CriticalOrange,
                             Color.White,
-                            "$itemDaysLeft GÜN"
+                            if (itemDaysLeft == 0L) "SON GÜN" else "$itemDaysLeft GÜN"
                         )
                         itemStatus == ExpiryStatus.SOON -> arrayOf(
                             SoonYellowContainer,
@@ -634,7 +627,7 @@ fun GroupedProductListItemCard(
                                 )
                             }
 
-                            val sktStr = if (itemHasSkt) dateFormat.format(Date(item.sktTarihi)) else "Tarihsiz"
+                            val sktStr = if (itemHasSkt) dateFormat.format(Date(item.sktTarihi)) else "SKT Girilmedi"
                             Text(
                                 text = "📅 $sktStr",
                                 fontSize = 11.5.sp,

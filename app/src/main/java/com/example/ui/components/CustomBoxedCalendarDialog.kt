@@ -383,7 +383,7 @@ fun CustomBoxedCalendarDialog(
                                         bgCol = ExpiredRedContainer
                                         txtCol = ExpiredRedDark
                                         borderCol = ExpiredRedBorder
-                                        label = "$daysDiff gün"
+                                        label = "${kotlin.math.abs(daysDiff)} gün geçti"
                                     }
                                     daysDiff == 0 -> {
                                         bgCol = CriticalOrangeContainer

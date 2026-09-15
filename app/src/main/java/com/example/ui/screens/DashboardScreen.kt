@@ -132,23 +132,27 @@ fun DashboardScreen(
         cal.timeInMillis
     }
 
-    val displayedProducts = remember(products, state, selectedTab) {
+    val displayedProducts = remember(products, selectedTab) {
         when (selectedTab) {
             DashboardStatTab.TOTAL -> {
                 products.filter { it.sktTarihi > 0L }
                     .sortedBy { it.sktTarihi }
+                    .take(20)
             }
             DashboardStatTab.SOON -> {
                 products.filter { it.sktTarihi > 0L && it.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON }
                     .sortedBy { it.sktTarihi }
+                    .take(20)
             }
             DashboardStatTab.CRITICAL -> {
                 products.filter { it.sktTarihi > 0L && (it.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL || it.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED) }
                     .sortedBy { it.sktTarihi }
+                    .take(20)
             }
             DashboardStatTab.RETURNS -> {
                 products.filter { (it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 1..30 && it.stokAdedi >= 10) || it.isImportant }
                     .sortedBy { it.sktTarihi }
+                    .take(20)
             }
         }
     }

@@ -411,7 +411,7 @@ fun SktMainApp(
                     if (isSuccess) {
                         Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "⚠️ Bu ürün zaten Adetsel Yapılacak listesinde mevcut!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -495,7 +495,7 @@ fun SktMainApp(
                     if (isSuccess) {
                         Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
                     } else {
-                        Toast.makeText(context, "⚠️ Bu ürün zaten Adetsel Yapılacak listesinde mevcut!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
                     }
                 }
             },
@@ -556,27 +556,13 @@ fun SktMainApp(
     val focusManager = LocalFocusManager.current
 
     val navigateToTab: (String) -> Unit = { target ->
-        if (target == currentRoute) {
-            // Zaten mevcut sayfadayız, gereksiz recomposition ve navigasyon yapma
-        } else {
-            if (target == "panel") {
-                val popped = navController.popBackStack("panel", inclusive = false)
-                if (!popped) {
-                    navController.navigate("panel") {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            inclusive = false
-                        }
-                        launchSingleTop = true
-                    }
+        if (target != currentRoute) {
+            navController.navigate(target) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
                 }
-            } else {
-                navController.navigate(target) {
-                    popUpTo(navController.graph.findStartDestination().id) {
-                        saveState = true
-                    }
-                    launchSingleTop = true
-                    restoreState = true
-                }
+                launchSingleTop = true
+                restoreState = true
             }
         }
     }
@@ -701,10 +687,10 @@ fun SktMainApp(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            enterTransition = { fadeIn(animationSpec = tween(120)) },
-            exitTransition = { fadeOut(animationSpec = tween(120)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(120)) },
-            popExitTransition = { fadeOut(animationSpec = tween(120)) }
+            enterTransition = { fadeIn(animationSpec = tween(50)) },
+            exitTransition = { fadeOut(animationSpec = tween(50)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(50)) },
+            popExitTransition = { fadeOut(animationSpec = tween(50)) }
         ) {
             // 1. PANEL (DASHBOARD)
             composable("panel") {
@@ -838,7 +824,7 @@ fun SktMainApp(
                     onSaveSayim = { kayit, sonuc, fark, notlar ->
                         adetselViewModel.saveAdetselSayim(kayit, sonuc, fark, notlar = notlar) {
                             val msg = when (sonuc) {
-                                "EKSIK" -> "${kayit.urunAdi} ($fark Eksik) kaydedildi"
+                                "EKSIK" -> "${kayit.urunAdi} ($fark Adet Eksik) kaydedildi"
                                 "FAZLA" -> "${kayit.urunAdi} (+$fark Fazla) kaydedildi"
                                 else -> "${kayit.urunAdi} (Tam) kaydedildi"
                             }
@@ -847,7 +833,7 @@ fun SktMainApp(
                     },
                     onUndoSayim = { kayit ->
                         adetselViewModel.undoAdetselKayit(kayit)
-                        Toast.makeText(context, "${kayit.urunAdi} tekrar yapılacaklar listesine alındı", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "${kayit.urunAdi} sayım listesine geri alındı.", Toast.LENGTH_SHORT).show()
                     },
                     onDeleteKayit = { id ->
                         adetselViewModel.deleteAdetselKayit(id)

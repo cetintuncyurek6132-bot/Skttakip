@@ -75,7 +75,7 @@ fun DeductStockDialog(
 ) {
     val context = LocalContext.current
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
-    val dateStr = if (batch.sktTarihi > 0L) dateFormat.format(Date(batch.sktTarihi)) else "Tarihsiz"
+    val dateStr = if (batch.sktTarihi > 0L) dateFormat.format(Date(batch.sktTarihi)) else "SKT Girilmedi"
 
     var deductAmountText by remember {
         mutableStateOf(if (batch.stokAdedi > 0) "1" else "0")

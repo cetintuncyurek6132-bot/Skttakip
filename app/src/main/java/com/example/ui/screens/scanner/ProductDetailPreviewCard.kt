@@ -161,7 +161,7 @@ fun ProductDetailPreviewCard(
 
     val (badgeText, badgeBg, badgeTextColor) = when {
         !hasSkt -> Triple(
-            "Tarihsiz",
+            "SKT Girilmedi",
             MaterialTheme.colorScheme.surfaceVariant,
             MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -416,7 +416,7 @@ fun ProductDetailPreviewCard(
             if (validSktProducts.isNotEmpty()) {
                 val targetBatch = effectiveProduct
                 val canDeduct = targetBatch.stokAdedi > 0
-                val batchDateStr = if (targetBatch.sktTarihi > 0L) dateFormat.format(Date(targetBatch.sktTarihi)) else "Tarihsiz"
+                val batchDateStr = if (targetBatch.sktTarihi > 0L) dateFormat.format(Date(targetBatch.sktTarihi)) else "SKT Girilmedi"
 
                 Surface(
                     shape = RoundedCornerShape(10.dp),

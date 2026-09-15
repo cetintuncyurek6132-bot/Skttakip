@@ -87,7 +87,7 @@ data class Product(
         return "₺${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", f)}"
     }
     fun getFormattedSkt(): String {
-        if (sktTarihi <= 0L) return "Belirtilmedi"
+        if (sktTarihi <= 0L) return "SKT Girilmedi"
         val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
         return sdf.format(java.util.Date(sktTarihi))
     }

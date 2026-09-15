@@ -135,7 +135,7 @@ fun ProductDetailSktTabContent(
             // RED: EXPIRED / NEAR (0-3 GÜN)
             ClickableRiskCard(
                 modifier = Modifier.weight(1f),
-                title = "Geçmiş / 0-3g",
+                title = "0-3 Gün",
                 count = expiredOrNearCount,
                 accentColor = ExpiredRed,
                 containerColor = ExpiredRedContainer,
@@ -149,7 +149,7 @@ fun ProductDetailSktTabContent(
             // ORANGE: CRITICAL (4-15 GÜN)
             ClickableRiskCard(
                 modifier = Modifier.weight(1f),
-                title = "Kritik 4-15g",
+                title = "4-15 Gün",
                 count = criticalCount,
                 accentColor = CriticalOrange,
                 containerColor = CriticalOrangeContainer,
@@ -163,7 +163,7 @@ fun ProductDetailSktTabContent(
             // GREEN: SAFE (16+ GÜN)
             ClickableRiskCard(
                 modifier = Modifier.weight(1f),
-                title = "Güvenli 16+g",
+                title = "16+ Gün",
                 count = safeCount,
                 accentColor = NormalGreen,
                 containerColor = NormalGreenContainer,
@@ -292,7 +292,7 @@ fun ProductDetailSktTabContent(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = if (selectedRiskFilter != SktRiskFilter.ALL) {
-                            "Filtreyi sıfırlamak için yukarıdaki kutucuğa tekrar dokunun."
+                            "Tüm partileri listelemek için filtreyi kaldırın."
                         } else {
                             "Yeni SKT eklemek için butona dokunun."
                         },
@@ -312,7 +312,7 @@ fun ProductDetailSktTabContent(
                     val dateStr = dateFormat.format(Date(item.sktTarihi))
 
                     val (badgeText, badgeBg, badgeTextColor) = when {
-                        daysRemaining < 0 -> Triple("$daysRemaining gün", ExpiredRedContainer, ExpiredRedDark)
+                        daysRemaining < 0 -> Triple("${kotlin.math.abs(daysRemaining)} gün geçti", ExpiredRedContainer, ExpiredRedDark)
                         daysRemaining == 0L -> Triple("Son gün", ExpiredRedContainer, ExpiredRedDark)
                         daysRemaining in 1..3 -> Triple("$daysRemaining gün kaldı", ExpiredRedContainer, ExpiredRedDark)
                         daysRemaining in 4..15 -> Triple("$daysRemaining gün kaldı", CriticalOrangeContainer, CriticalOrangeDark)
