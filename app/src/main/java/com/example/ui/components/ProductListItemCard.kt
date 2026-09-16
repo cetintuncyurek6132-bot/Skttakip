@@ -137,46 +137,59 @@ fun ProductListItemCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // SOL ALAN: 56x56 dp Durum Rozeti
+            // SOL ALAN: 50x50 dp Durum Rozeti
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(50.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(squareBg),
                 contentAlignment = Alignment.Center
             ) {
                 if (!hasSkt) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         Text(
                             text = "SKT",
                             color = squareTextColor,
                             fontWeight = FontWeight.Black,
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            lineHeight = 11.sp,
+                            textAlign = TextAlign.Center
                         )
                         Text(
                             text = "YOK",
                             color = squareTextColor.copy(alpha = 0.9f),
                             fontWeight = FontWeight.Bold,
-                            fontSize = 9.sp
+                            fontSize = 8.5.sp,
+                            lineHeight = 9.sp,
+                            textAlign = TextAlign.Center
                         )
                     }
                 } else when {
                     daysLeft < 0 -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Text(
                                 text = kotlin.math.abs(daysLeft).toString(),
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 15.5.sp
+                                fontSize = 16.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Center
                             )
                             Text(
                                 text = "GÜN GEÇTİ",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 7.5.sp,
+                                fontSize = 8.5.sp,
+                                lineHeight = 9.5.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -187,73 +200,90 @@ fun ProductListItemCard(
                                 text = "SON GÜN",
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 10.5.sp,
+                                fontSize = 10.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    daysLeft == 1L -> {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "YARIN",
+                                color = squareTextColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
                     }
                     else -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Text(
                                 text = daysLeft.toString(),
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 18.sp
+                                fontSize = 16.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Center
                             )
                             Text(
                                 text = "GÜN",
                                 color = squareTextColor.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp
+                                fontSize = 8.5.sp,
+                                lineHeight = 9.5.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
-            // ORTA ALAN: 3 Satırlı Bilgi (Ürün Adı, Kod, SKT)
+            // ORTA ALAN: Kompakt 2 Satırlı Bilgi (Ürün Adı ve Kod • SKT)
             Column(modifier = Modifier.weight(1f)) {
                 // 1. Satır: Ürün Adı
                 Text(
                     text = product.getDisplayName().uppercase(),
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     maxLines = 2,
-                    lineHeight = 18.sp,
+                    lineHeight = 16.sp,
                     overflow = TextOverflow.Ellipsis,
                     color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // 2. Satır: Kod / Barkod bilgisi
-                val code = if (product.urunKodu.isNotBlank()) product.urunKodu else product.barkod
-                if (code.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Kod: $code",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Slate500,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                Spacer(modifier = Modifier.height(2.dp))
 
-                // 3. Satır: SKT Bilgisi
-                Spacer(modifier = Modifier.height(3.dp))
+                // 2. Satır: Kod ve SKT yan yana
+                val displayCode = if (product.urunKodu.isNotBlank()) product.urunKodu else product.barkod
+                val sktFormatted = if (hasSkt) dateFormat.format(Date(product.sktTarihi)) else "Girilmedi"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    if (displayCode.isNotBlank()) {
+                        Text(
+                            text = "Kod: $displayCode",
+                            fontSize = 11.sp,
+                            color = Slate500,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "•",
+                            fontSize = 10.sp,
+                            color = Slate500
+                        )
+                    }
                     Text(
-                        text = "📅",
-                        fontSize = 11.sp
-                    )
-                    Text(
-                        text = sktSummaryText,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = "SKT: $sktFormatted",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
                         color = sktTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -263,7 +293,7 @@ fun ProductListItemCard(
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            // SAĞ ALAN: Fiyat ve Büyük Ferah Adet Rozeti
+            // SAĞ ALAN: Fiyat ve Orantılı Adet Rozeti
             Column(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.Center
@@ -274,30 +304,30 @@ fun ProductListItemCard(
                             .clip(RoundedCornerShape(6.dp))
                             .background(Color(0xFFE0F2FE))
                             .border(0.5.dp, Color(0xFF0284C7), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = formattedPrice,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Black,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF0369A1),
                             maxLines = 1
                         )
                     }
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                 }
 
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
                         .background(TurquoisePrimary.copy(alpha = 0.15f))
-                        .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                        .border(1.dp, TurquoisePrimary.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = "${product.stokAdedi} Adet",
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
                         color = TurquoiseDark,
                         maxLines = 1
                     )
@@ -379,46 +409,59 @@ fun GroupedProductListItemCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(12.dp),
+                    .padding(start = 10.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // SOL ALAN: 56x56 dp Durum Rozeti (En Yakın/En Kritik SKT'ye göre)
+                // SOL ALAN: 50x50 dp Durum Rozeti (En Yakın/En Kritik SKT'ye göre)
                 Box(
                     modifier = Modifier
-                        .size(56.dp)
+                        .size(50.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(squareBg),
                     contentAlignment = Alignment.Center
                 ) {
                     if (!hasSkt) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Text(
                                 text = "SKT",
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 11.sp
+                                fontSize = 11.sp,
+                                lineHeight = 11.sp,
+                                textAlign = TextAlign.Center
                             )
                             Text(
                                 text = "YOK",
                                 color = squareTextColor.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp
+                                fontSize = 8.5.sp,
+                                lineHeight = 9.sp,
+                                textAlign = TextAlign.Center
                             )
                         }
                     } else when {
                         daysLeft < 0 -> {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
                                     text = kotlin.math.abs(daysLeft).toString(),
                                     color = squareTextColor,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 15.5.sp
+                                    fontSize = 16.sp,
+                                    lineHeight = 16.sp,
+                                    textAlign = TextAlign.Center
                                 )
                                 Text(
                                     text = "GÜN GEÇTİ",
                                     color = squareTextColor.copy(alpha = 0.95f),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 7.5.sp,
+                                    fontSize = 8.5.sp,
+                                    lineHeight = 9.5.sp,
                                     textAlign = TextAlign.Center
                                 )
                             }
@@ -429,31 +472,49 @@ fun GroupedProductListItemCard(
                                     text = "SON GÜN",
                                     color = squareTextColor,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 10.5.sp,
+                                    fontSize = 10.sp,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        }
+                        daysLeft == 1L -> {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "YARIN",
+                                    color = squareTextColor,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 11.sp,
                                     textAlign = TextAlign.Center
                                 )
                             }
                         }
                         else -> {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
                                 Text(
                                     text = daysLeft.toString(),
                                     color = squareTextColor,
                                     fontWeight = FontWeight.Black,
-                                    fontSize = 18.sp
+                                    fontSize = 16.sp,
+                                    lineHeight = 16.sp,
+                                    textAlign = TextAlign.Center
                                 )
                                 Text(
                                     text = "GÜN",
                                     color = squareTextColor.copy(alpha = 0.9f),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp
+                                    fontSize = 8.5.sp,
+                                    lineHeight = 9.5.sp,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
                 // ORTA ALAN: Ürün Adı ve Kod
                 Column(modifier = Modifier.weight(1f)) {
@@ -539,7 +600,7 @@ fun GroupedProductListItemCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
-                    .padding(start = 12.dp, end = 12.dp, bottom = 10.dp),
+                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

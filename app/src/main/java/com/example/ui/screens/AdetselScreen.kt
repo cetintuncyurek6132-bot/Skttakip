@@ -538,7 +538,7 @@ fun AdetselScreen(
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = if (searchQuery.isNotEmpty()) "Ürün bulunamadı" else "Adetsel Sayılacak Ürün Yok",
+                                text = if (searchQuery.isNotEmpty()) "Ürün bulunamadı" else "Sayım Listesi Boş",
                                 fontSize = 14.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -546,7 +546,7 @@ fun AdetselScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = if (searchQuery.isNotEmpty()) "Arama terimini kontrol edin." else "Ürün detayından 'Adetsel' butonuna basarak ürünleri buraya ekleyebilirsiniz.",
+                                text = if (searchQuery.isNotEmpty()) "Arama terimini kontrol edin." else "Ürün detayından 'Sayıma Ekle' butonuna dokunarak listeye ürün aktarabilirsiniz.",
                                 fontSize = 12.sp,
                                 color = Slate500,
                                 textAlign = TextAlign.Center,

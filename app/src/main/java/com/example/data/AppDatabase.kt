@@ -36,7 +36,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "skt_takip_database"
                 )
                     .addCallback(AppDatabaseCallback(scope))
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

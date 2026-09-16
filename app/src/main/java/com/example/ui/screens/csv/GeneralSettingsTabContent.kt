@@ -90,7 +90,7 @@ fun GeneralSettingsTabContent(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         Text(
-                            text = "${user?.roleTitle ?: "Mağaza Sorumlusu"} • Mağaza",
+                            text = user?.roleTitle ?: "Mağaza Sorumlusu",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -184,7 +184,7 @@ fun GeneralSettingsTabContent(
             Spacer(modifier = Modifier.height(12.dp))
 
             Text(
-                text = "Ekran görünümünü açık veya geceye uygun karanlık moda geçirin:",
+                text = "Uygulama temasını seçin:",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -39,16 +39,19 @@ jobs:
       - name: Sabit Debug Keystore Hazirla
         run: |
           mkdir -p ~/.android
-          # Sabit ve degismez kurumsal debug imza anahtari olustur
-          keytool -genkey -v \
-            -keystore debug.keystore \
-            -storepass android \
-            -alias androiddebugkey \
-            -keypass android \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -dname "CN=SKTTakip,OU=Retail,O=Store,L=Istanbul,ST=TR,C=TR"
+          if [ -f debug.keystore.base64 ]; then
+            base64 -d debug.keystore.base64 > debug.keystore
+          elif [ ! -f debug.keystore ]; then
+            keytool -genkey -v \
+              -keystore debug.keystore \
+              -storepass android \
+              -alias androiddebugkey \
+              -keypass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=SKTTakip,OU=Retail,O=Store,L=Istanbul,ST=TR,C=TR"
+          fi
           cp debug.keystore ~/.android/debug.keystore
 
       - name: Hizlandirilmis APK Derle

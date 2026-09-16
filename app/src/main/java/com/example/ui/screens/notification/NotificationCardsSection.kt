@@ -97,7 +97,7 @@ fun LazyListScope.notificationCardsList(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Toplam $totalOverdueStock adet ürünün son kullanma tarihi geçmiştir. Raftan alınıp iade veya imha işlemi yapılmalıdır.",
+                        text = "Toplam $totalOverdueStock adet ürünün son kullanma tarihi geçmiştir. Raftan çekilip iade/fire işlemi başlatılmalıdır.",
                         fontSize = 11.sp,
                         color = Slate900,
                         lineHeight = 15.sp
@@ -109,9 +109,10 @@ fun LazyListScope.notificationCardsList(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         overdue2DaysProducts.take(4).forEach { prod ->
+                            val daysPassed = kotlin.math.abs(prod.getRemainingDays())
                             ActionableProductNotificationRow(
                                 product = prod,
-                                subtitle = "${prod.getRemainingDays()} gün",
+                                subtitle = "$daysPassed Gün Geçti",
                                 subtitleColor = ExpiredRedDark,
                                 onRemove = {
                                     onRemoveFromShelf(prod)

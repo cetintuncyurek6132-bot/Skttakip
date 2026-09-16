@@ -32,6 +32,29 @@ enum class ScanResultRisk(
 object ScannerFeedbackHelper {
 
     private var lastFeedbackTime = 0L
+    @Volatile
+    private var cachedVibrator: Vibrator? = null
+    @Volatile
+    private var vibratorChecked = false
+
+    private fun getVibrator(context: Context): Vibrator? {
+        if (!vibratorChecked) {
+            try {
+                val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vm = context.applicationContext.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    context.applicationContext.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                }
+                cachedVibrator = if (v?.hasVibrator() == true) v else null
+            } catch (_: Exception) {
+                cachedVibrator = null
+            }
+            vibratorChecked = true
+        }
+        return cachedVibrator
+    }
 
     fun evaluateProductRisk(
         barcode: String,
@@ -94,15 +117,7 @@ object ScannerFeedbackHelper {
 
     private fun triggerHaptic(context: Context, risk: ScanResultRisk) {
         try {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                val vm = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
-                vm?.defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
-            } ?: return
-
-            if (!vibrator.hasVibrator()) return
+            val vibrator = getVibrator(context) ?: return
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val effect = when (risk) {

@@ -18,8 +18,11 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -165,14 +168,28 @@ fun NotificationSheet(
                                     Box(
                                         modifier = Modifier
                                             .clip(CircleShape)
-                                            .background(ExpiredRed)
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color(0xFFFF3B53),
+                                                        Color(0xFFDC2626)
+                                                    )
+                                                )
+                                            )
+                                            .padding(horizontal = 6.5.dp, vertical = 2.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = "${dashboardState.unreadNotificationCount}",
-                                            fontSize = 9.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            text = if (dashboardState.unreadNotificationCount > 99) "99+" else "${dashboardState.unreadNotificationCount}",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = Color.White,
+                                            style = TextStyle(
+                                                platformStyle = PlatformTextStyle(
+                                                    includeFontPadding = false
+                                                ),
+                                                lineHeight = 10.sp
+                                            )
                                         )
                                     }
                                 }

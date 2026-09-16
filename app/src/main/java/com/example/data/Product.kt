@@ -515,19 +515,22 @@ fun parseShelfQrPayload(rawInput: String): ShelfQrData {
     // 5. Hyphenated & Underscore Formats (e.g. D724-8683130143209-79, D724-8690504005100-28,00-16000491, 16000491-8690504005100-28,00)
     if (trimmed.contains("-") || trimmed.contains("_")) {
         val splitDelim = if (trimmed.contains("-")) "-" else "_"
-        val parts = trimmed.split(splitDelim).map { it.trim() }.filter { it.isNotEmpty() }
+        val rawHyphenParts = trimmed.split(splitDelim).map { it.trim() }.filter { it.isNotEmpty() }
 
-        if (parts.size >= 2) {
-            // Find 12-14 digit EAN/UPC/GTIN barcode part
-            val barcodePart = parts.firstOrNull { it.filter { c -> c.isDigit() }.length in 12..14 }
-                ?: parts.firstOrNull { it.filter { c -> c.isDigit() }.length in 8..14 }
+        if (rawHyphenParts.size >= 2) {
+            val eanIndex = rawHyphenParts.indexOfFirst { part ->
+                val digits = part.filter { it.isDigit() }
+                digits.length in 12..14 && !part.contains(",") && !part.contains(".")
+            }.let { if (it != -1) it else rawHyphenParts.indexOfFirst { p -> p.filter { c -> c.isDigit() }.length in 8..14 && !p.contains(",") && !p.contains(".") } }
+
+            val barcodePart = if (eanIndex != -1) rawHyphenParts[eanIndex] else null
 
             var detectedStoreCode: String? = null
             var detectedProductCode: String? = null
             var detectedPrice: Double? = null
             var detectedName: String? = null
 
-            val otherParts = if (barcodePart != null) parts.filter { it != barcodePart } else parts
+            val otherParts = if (eanIndex != -1) rawHyphenParts.filterIndexed { idx, _ -> idx != eanIndex } else rawHyphenParts
             for (op in otherParts) {
                 val opDigits = op.filter { it.isDigit() }
                 val parsedOpPrice = op.replace("₺", "").replace("TL", "").replace("tl", "").replace(",", ".").trim().toDoubleOrNull()

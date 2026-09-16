@@ -459,12 +459,12 @@ private fun processImageProxy(
                                      (centerY in (rotatedH * 0.08f)..(rotatedH * 0.92f))
 
                     // Proximity criteria:
-                    // 1D Barcode: Length at least 22% of minFrameDim (~160px on 720p)
+                    // 1D Barcode: Length at least 12% of minFrameDim (~85px on 720p)
                     // 2D QR Code: Side length at least 16% of minFrameDim (~115px on 720p)
                     val hasRequiredSize = if (is2D) {
                         minBoxDim >= minFrameDim * 0.16f
                     } else {
-                        maxBoxDim >= minFrameDim * 0.22f
+                        maxBoxDim >= minFrameDim * 0.12f
                     }
 
                     (isCentered || maxBoxDim >= minFrameDim * 0.35f) && hasRequiredSize
@@ -478,8 +478,8 @@ private fun processImageProxy(
                     onDistanceFeedback(true)
                 }
             }
-            .addOnFailureListener { e ->
-                android.util.Log.e("CameraXBarcodeView", "Barcode analysis failure", e)
+            .addOnFailureListener {
+                // Ignore transient frame analysis errors to prevent audit rate limit and logcat flooding
             }
             .addOnCompleteListener {
                 imageProxy.close()

@@ -43,7 +43,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Modern, sade ve profesyonel açılış (Splash) animasyonu.
- * Kurumsal ic_app_brand_logo, yükleme göstergesi ve sürüm etiketi içerir.
+ * Klasik SKT Kalkan logosu (ic_skt_shield_logo), yükleme göstergesi ve sürüm etiketi içerir.
  */
 @Composable
 fun AppSplashScreen(
@@ -185,13 +185,12 @@ fun AppSplashScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                // Yeni Kurumsal Logo
+                // Klasik SKT Kalkan Logosu
                 Image(
-                    painter = painterResource(id = R.drawable.ic_app_brand_logo),
+                    painter = painterResource(id = R.drawable.ic_skt_shield_logo),
                     contentDescription = "SKT Takip Logo",
                     modifier = Modifier
                         .size(160.dp)
-                        .clip(RoundedCornerShape(32.dp))
                         .graphicsLayer {
                             alpha = logoAlpha.value
                             scaleX = logoScale.value

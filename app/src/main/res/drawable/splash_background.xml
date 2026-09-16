@@ -5,5 +5,5 @@
         android:width="120dp"
         android:height="120dp"
         android:gravity="center"
-        android:drawable="@drawable/ic_app_brand_logo" />
+        android:drawable="@drawable/ic_skt_shield_logo" />
 </layer-list>

@@ -122,7 +122,7 @@ fun BackupSettingsTabContent(
                     color = TurquoiseDark
                 )
                 Text(
-                    text = "Tüm ürünler, eklenen SKT ve stok adetleri, Takip sayfası ve Adetsel sayım verilerini cihaz hafızasına anında güvenle yedekler.",
+                    text = "Tüm ürün ve sayım verilerini cihaz hafızasına yedekleyin.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

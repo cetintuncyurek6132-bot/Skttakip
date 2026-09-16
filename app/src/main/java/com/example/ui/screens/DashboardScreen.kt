@@ -121,7 +121,7 @@ fun DashboardScreen(
     val context = LocalContext.current
     val currentUser by UserManager.currentUser.collectAsState()
 
-    var selectedTab by remember { mutableStateOf(DashboardStatTab.CRITICAL) }
+    var selectedTab by remember { mutableStateOf(DashboardStatTab.TOTAL) }
 
     val todayMidnight = remember {
         val cal = Calendar.getInstance()
@@ -226,11 +226,11 @@ fun DashboardScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 1. SKT GİRİLEN TOPLAM ÜRÜN
+            // 1. SKT GİRİLEN TOPLAM ÜRÜN (TÜMÜ)
             StatSummaryCard(
                 modifier = Modifier.weight(1f),
                 count = state.totalCount,
-                label = "SKT Girilen",
+                label = "Tümü",
                 numberColor = Slate900,
                 isSelected = selectedTab == DashboardStatTab.TOTAL,
                 selectedBorderColor = Slate900,

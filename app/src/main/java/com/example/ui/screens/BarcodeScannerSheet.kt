@@ -130,6 +130,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -206,6 +207,7 @@ fun BarcodeScannerSheet(
     var qrFixLastTime by remember { mutableStateOf("") }
     var qrFixLastInfo by remember { mutableStateOf<String?>(null) }
     var qrFixStoreCode by remember { mutableStateOf("D724") }
+    val qrFixHistoryList = remember { mutableStateListOf<com.example.ui.screens.scanner.QrFixHistoryItem>() }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     var lastScannedCode by remember { mutableStateOf<String?>(null) }
@@ -372,12 +374,22 @@ fun BarcodeScannerSheet(
 
                                         if (isFixQrMode && onFixQrScanned != null) {
                                             val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                                            qrFixLastTime = timeFormat.format(Date(now))
+                                            val formattedTime = timeFormat.format(Date(now))
+                                            qrFixLastTime = formattedTime
                                             val shelfData = parseShelfQrPayload(trimmedBar)
                                             val sc = shelfData.storeCode
                                             if (!sc.isNullOrBlank()) {
                                                 qrFixStoreCode = sc
                                             }
+                                            val realBarcode = shelfData.barcode.ifBlank { trimmedBar }
+                                            val pCode = shelfData.productCode
+                                            val matchedProd = products.firstOrNull { p ->
+                                                (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
+                                                (pCode != null && pCode.isNotBlank() && p.urunKodu.equals(pCode, ignoreCase = true)) ||
+                                                p.urunKodu.equals(realBarcode, ignoreCase = true)
+                                            }
+                                            val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
+
                                             onFixQrScanned(trimmedBar) { msg, isSuccess ->
                                                 qrFixResultMsg = msg
                                                 qrFixLastInfo = msg
@@ -386,6 +398,17 @@ fun BarcodeScannerSheet(
                                                 } else {
                                                     qrFixErrorCount++
                                                 }
+                                                qrFixHistoryList.add(
+                                                    0,
+                                                    com.example.ui.screens.scanner.QrFixHistoryItem(
+                                                        time = formattedTime,
+                                                        barcode = realBarcode,
+                                                        productCode = pCode ?: matchedProd?.urunKodu,
+                                                        productName = prodName,
+                                                        message = msg,
+                                                        isSuccess = isSuccess
+                                                    )
+                                                )
                                             }
                                         }
                                     }
@@ -530,7 +553,7 @@ fun BarcodeScannerSheet(
                                 } else {
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = TurquoisePrimary.copy(alpha = 0.90f),
+                                        color = NormalGreen.copy(alpha = 0.90f),
                                         shadowElevation = 4.dp
                                     ) {
                                         Row(
@@ -538,7 +561,7 @@ fun BarcodeScannerSheet(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = if (isFixQrMode) "⚡ Raf QR Kodu Okuma Modu" else "⚡ Seri Okuma • Yaklaştırınca Okur",
+                                                text = if (isFixQrMode) "⚡ Raf QR Kodu Okuma Modu" else "Otomatik Tarama Modu",
                                                 color = Color.White,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
@@ -601,7 +624,8 @@ fun BarcodeScannerSheet(
                             successCount = qrFixSuccessCount,
                             errorCount = qrFixErrorCount,
                             lastProcessedInfo = qrFixLastInfo,
-                            onCloseClick = safeDismiss
+                            historyList = qrFixHistoryList,
+                            onClearHistory = { qrFixHistoryList.clear() }
                         )
                     } else {
                         Column(

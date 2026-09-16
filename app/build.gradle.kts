@@ -27,9 +27,15 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     getByName("debug") {
-      val ksFile = file("${rootDir}/debug.keystore")
-      if (ksFile.exists()) {
-        storeFile = ksFile
+      val projectKs = file("${rootDir}/debug.keystore")
+      val userKs = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      val selectedFile = when {
+        projectKs.exists() -> projectKs
+        userKs.exists() -> userKs
+        else -> null
+      }
+      if (selectedFile != null) {
+        storeFile = selectedFile
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"

@@ -319,7 +319,7 @@ fun EmptyScannerGuidanceCard() {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "Kamerayı barkoda tutun veya yukarıdan ürün arayın.",
+                    text = "Barkodu kameraya gösterin veya kod ile arayın.",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 14.sp
