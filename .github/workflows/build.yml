@@ -54,27 +54,34 @@ jobs:
           fi
           cp debug.keystore ~/.android/debug.keystore
 
+      - name: Surum Numarasi Hesapla
+        id: calc_version
+        run: |
+          RUN_NUM=${{ github.run_number }}
+          # Her 10 derlemede bir major sürüm atlasın (1.0 - 1.9 -> 2.0 - 2.9 -> 3.0...)
+          MAJOR=$(( 1 + RUN_NUM / 10 ))
+          MINOR=$(( RUN_NUM % 10 ))
+          VERSION_NAME="${MAJOR}.${MINOR}"
+          echo "APP_VERSION=${VERSION_NAME}" >> $GITHUB_ENV
+          echo "TAG_NAME=v${VERSION_NAME}" >> $GITHUB_OUTPUT
+
       - name: Hizlandirilmis APK Derle
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
         run: |
           gradle assembleDebug \
             -Pandroid.injected.version.code=${{ github.run_number }} \
-            -Pandroid.injected.version.name="1.0.${{ github.run_number }}" \
+            -Pandroid.injected.version.name="${{ env.APP_VERSION }}" \
             -x lint \
             -x test \
             --build-cache \
             --parallel
 
-      - name: Surum Etiketi Olustur
-        id: tagger
-        run: echo "TAG_NAME=v1.0.${{ github.run_number }}" >> $GITHUB_OUTPUT
-
       - name: GitHub Release Olarak Yayinla
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tagger.outputs.TAG_NAME }}
-          name: "Surum ${{ steps.tagger.outputs.TAG_NAME }}"
+          tag_name: ${{ steps.calc_version.outputs.TAG_NAME }}
+          name: "Sürüm ${{ steps.calc_version.outputs.TAG_NAME }}"
           generate_release_notes: true
           files: app/build/outputs/apk/debug/*.apk
         env:

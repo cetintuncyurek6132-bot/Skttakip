@@ -13,7 +13,7 @@ android {
     minSdk = 24
     targetSdk = 36
     versionCode = (project.findProperty("android.injected.version.code")?.toString()?.toIntOrNull()) ?: 1
-    versionName = (project.findProperty("android.injected.version.name")?.toString()) ?: "1.0.0"
+    versionName = (project.findProperty("android.injected.version.name")?.toString()) ?: "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

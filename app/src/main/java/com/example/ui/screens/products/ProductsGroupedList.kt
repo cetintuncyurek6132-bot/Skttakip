@@ -51,7 +51,7 @@ fun ProductsGroupedList(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),
-        contentPadding = PaddingValues(top = 4.dp, bottom = 110.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 120.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item {
@@ -91,9 +91,10 @@ fun ProductsGroupedList(
 
         items(
             items = groupedProducts,
-            key = { group: List<Product> ->
-                val first = group.first()
-                if (first.barkod.isNotBlank()) "b_${first.barkod.trim().lowercase()}" else "p_${first.id}_${first.urunAdi.trim().lowercase()}"
+            key = { group -> 
+                val first = group.firstOrNull()
+                if (first != null && first.barkod.isNotBlank()) "group_${first.barkod}" 
+                else "group_${first?.id ?: System.identityHashCode(group)}"
             }
         ) { group: List<Product> ->
             if (group.size == 1) {

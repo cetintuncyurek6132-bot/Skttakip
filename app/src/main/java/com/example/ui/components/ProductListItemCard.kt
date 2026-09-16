@@ -66,6 +66,8 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+private val sharedSktDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
+
 @Composable
 fun ProductListItemCard(
     product: Product,
@@ -82,41 +84,56 @@ fun ProductListItemCard(
     }
 ) {
     val hasSkt = product.sktTarihi > 0L
-    val daysLeft = if (hasSkt) product.getRemainingDays(todayMidnight) else 9999L
-    val status = if (hasSkt) product.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
+    val daysLeft = remember(product.sktTarihi, todayMidnight) {
+        if (hasSkt) product.getRemainingDays(todayMidnight) else 9999L
+    }
+    val status = remember(product.sktTarihi, todayMidnight) {
+        if (hasSkt) product.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
+    }
 
-    val squareBg: Color = if (!hasSkt) {
-        Slate500
-    } else {
-        when (status) {
-            ExpiryStatus.EXPIRED -> ExpiredRed
-            ExpiryStatus.CRITICAL -> CriticalOrange
-            ExpiryStatus.SOON -> SoonYellow
-            ExpiryStatus.WARNING -> WarningBlue
-            ExpiryStatus.NORMAL -> NormalGreen
+    val squareBg: Color = remember(hasSkt, status) {
+        if (!hasSkt) {
+            Slate500
+        } else {
+            when (status) {
+                ExpiryStatus.EXPIRED -> ExpiredRed
+                ExpiryStatus.CRITICAL -> CriticalOrange
+                ExpiryStatus.SOON -> SoonYellow
+                ExpiryStatus.WARNING -> WarningBlue
+                ExpiryStatus.NORMAL -> NormalGreen
+            }
         }
     }
 
-    val squareTextColor: Color = if (!hasSkt) {
-        Color.White
-    } else {
-        when (status) {
-            ExpiryStatus.SOON -> Color.Black
-            else -> Color.White
+    val squareTextColor: Color = remember(hasSkt, status) {
+        if (!hasSkt) {
+            Color.White
+        } else {
+            when (status) {
+                ExpiryStatus.SOON -> Color.Black
+                else -> Color.White
+            }
         }
     }
 
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
-    val sktSummaryText = if (hasSkt) "SKT: ${dateFormat.format(Date(product.sktTarihi))}" else "SKT: Girilmedi"
+    val sktSummaryText = remember(product.sktTarihi) {
+        if (hasSkt) {
+            synchronized(sharedSktDateFormat) {
+                "SKT: ${sharedSktDateFormat.format(Date(product.sktTarihi))}"
+            }
+        } else "SKT: Girilmedi"
+    }
 
-    val sktTextColor = if (!hasSkt) {
-        Slate500
-    } else when (status) {
-        ExpiryStatus.EXPIRED -> ExpiredRedDark
-        ExpiryStatus.CRITICAL -> CriticalOrangeDark
-        ExpiryStatus.SOON -> SoonYellowDark
-        ExpiryStatus.WARNING -> WarningBlueDark
-        ExpiryStatus.NORMAL -> NormalGreenDark
+    val sktTextColor = remember(hasSkt, status) {
+        if (!hasSkt) {
+            Slate500
+        } else when (status) {
+            ExpiryStatus.EXPIRED -> ExpiredRedDark
+            ExpiryStatus.CRITICAL -> CriticalOrangeDark
+            ExpiryStatus.SOON -> SoonYellowDark
+            ExpiryStatus.WARNING -> WarningBlueDark
+            ExpiryStatus.NORMAL -> NormalGreenDark
+        }
     }
 
     val cardShape = RoundedCornerShape(12.dp)
@@ -131,7 +148,7 @@ fun ProductListItemCard(
             .testTag("product_item_card"),
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Row(
@@ -261,7 +278,6 @@ fun ProductListItemCard(
 
                 // 2. Satır: Kod ve SKT yan yana
                 val displayCode = if (product.urunKodu.isNotBlank()) product.urunKodu else product.barkod
-                val sktFormatted = if (hasSkt) dateFormat.format(Date(product.sktTarihi)) else "Girilmedi"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -281,7 +297,7 @@ fun ProductListItemCard(
                         )
                     }
                     Text(
-                        text = "SKT: $sktFormatted",
+                        text = sktSummaryText,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = sktTextColor,
@@ -359,33 +375,39 @@ fun GroupedProductListItemCard(
     }
     val nearestWithSkt = sortedList.firstOrNull { it.sktTarihi > 0L } ?: sortedList.first()
     val hasSkt = nearestWithSkt.sktTarihi > 0L
-    val daysLeft = if (hasSkt) nearestWithSkt.getRemainingDays(todayMidnight) else 9999L
-    val status = if (hasSkt) nearestWithSkt.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
-    val totalStock = productList.sumOf { it.stokAdedi }
+    val daysLeft = remember(nearestWithSkt.sktTarihi, todayMidnight) {
+        if (hasSkt) nearestWithSkt.getRemainingDays(todayMidnight) else 9999L
+    }
+    val status = remember(nearestWithSkt.sktTarihi, todayMidnight) {
+        if (hasSkt) nearestWithSkt.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
+    }
+    val totalStock = remember(productList) { productList.sumOf { it.stokAdedi } }
     val partyCount = productList.size
 
-    val squareBg: Color = if (!hasSkt) {
-        Slate500
-    } else {
-        when (status) {
-            ExpiryStatus.EXPIRED -> ExpiredRed
-            ExpiryStatus.CRITICAL -> CriticalOrange
-            ExpiryStatus.SOON -> SoonYellow
-            ExpiryStatus.WARNING -> WarningBlue
-            ExpiryStatus.NORMAL -> NormalGreen
+    val squareBg: Color = remember(hasSkt, status) {
+        if (!hasSkt) {
+            Slate500
+        } else {
+            when (status) {
+                ExpiryStatus.EXPIRED -> ExpiredRed
+                ExpiryStatus.CRITICAL -> CriticalOrange
+                ExpiryStatus.SOON -> SoonYellow
+                ExpiryStatus.WARNING -> WarningBlue
+                ExpiryStatus.NORMAL -> NormalGreen
+            }
         }
     }
 
-    val squareTextColor: Color = if (!hasSkt) {
-        Color.White
-    } else {
-        when (status) {
-            ExpiryStatus.SOON -> Color.Black
-            else -> Color.White
+    val squareTextColor: Color = remember(hasSkt, status) {
+        if (!hasSkt) {
+            Color.White
+        } else {
+            when (status) {
+                ExpiryStatus.SOON -> Color.Black
+                else -> Color.White
+            }
         }
     }
-
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     val cardShape = RoundedCornerShape(12.dp)
     Card(
@@ -399,7 +421,7 @@ fun GroupedProductListItemCard(
             .testTag("grouped_product_item_card"),
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
         Column(
@@ -688,7 +710,11 @@ fun GroupedProductListItemCard(
                                 )
                             }
 
-                            val sktStr = if (itemHasSkt) dateFormat.format(Date(item.sktTarihi)) else "SKT Girilmedi"
+                            val sktStr = if (itemHasSkt) {
+                                synchronized(sharedSktDateFormat) {
+                                    sharedSktDateFormat.format(Date(item.sktTarihi))
+                                }
+                            } else "SKT Girilmedi"
                             Text(
                                 text = "📅 $sktStr",
                                 fontSize = 11.5.sp,

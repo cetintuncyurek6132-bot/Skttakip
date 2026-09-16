@@ -224,7 +224,7 @@ fun AppSplashScreen(
                 }
         ) {
             Text(
-                text = "Versiyon 1.0",
+                text = "Versiyon ${com.example.BuildConfig.VERSION_NAME}",
                 color = Color(0xFF94A3B8),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,

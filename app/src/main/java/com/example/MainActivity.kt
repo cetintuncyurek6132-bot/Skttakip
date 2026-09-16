@@ -16,6 +16,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -687,10 +688,10 @@ fun SktMainApp(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            enterTransition = { fadeIn(animationSpec = tween(50)) },
-            exitTransition = { fadeOut(animationSpec = tween(50)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(50)) },
-            popExitTransition = { fadeOut(animationSpec = tween(50)) }
+            enterTransition = { fadeIn(animationSpec = tween(150, easing = LinearOutSlowInEasing)) },
+            exitTransition = { fadeOut(animationSpec = tween(150, easing = LinearOutSlowInEasing)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(150, easing = LinearOutSlowInEasing)) },
+            popExitTransition = { fadeOut(animationSpec = tween(150, easing = LinearOutSlowInEasing)) }
         ) {
             // 1. PANEL (DASHBOARD)
             composable("panel") {
