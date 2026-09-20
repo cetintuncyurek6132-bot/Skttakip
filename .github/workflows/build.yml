@@ -20,7 +20,8 @@ jobs:
       - name: Kodu Cek
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: JDK 17 Kur
         uses: actions/setup-java@v4
@@ -36,12 +37,14 @@ jobs:
       - name: local.properties Olustur
         run: touch local.properties
 
-      - name: Sabit Debug Keystore Hazirla
+      - name: Sabit Debug Keystore Hazirla (Kendi Kendini Onaran)
         run: |
           mkdir -p ~/.android
           if [ -f debug.keystore.base64 ]; then
+            echo "Mevcut sabit keystore bulundu, o kullanilacak."
             base64 -d debug.keystore.base64 > debug.keystore
-          elif [ ! -f debug.keystore ]; then
+          else
+            echo "Sabit keystore bulunamadi, ILK ve TEK seferlik olusturuluyor..."
             keytool -genkey -v \
               -keystore debug.keystore \
               -storepass android \
@@ -51,14 +54,28 @@ jobs:
               -keysize 2048 \
               -validity 10000 \
               -dname "CN=SKTTakip,OU=Retail,O=Store,L=Istanbul,ST=TR,C=TR"
+            base64 -w 0 debug.keystore > debug.keystore.base64
+            echo "YENI_KEYSTORE_URETILDI=true" >> $GITHUB_ENV
           fi
+          # Hem sisteme hem proje kokune kopyala
           cp debug.keystore ~/.android/debug.keystore
+          cp debug.keystore ./app/debug.keystore || true
+
+      - name: Yeni Keystore Olustuysa Repoya Kaydet
+        if: env.YENI_KEYSTORE_URETILDI == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add debug.keystore.base64
+          # [skip ci] etiketi sonsuz donguye girmesini onler
+          git commit -m "Sabit imzalama anahtari eklendi [skip ci]" || echo "Degisiklik yok"
+          git push origin main || echo "Push atlanildi"
 
       - name: Surum Numarasi Hesapla
         id: calc_version
         run: |
           RUN_NUM=${{ github.run_number }}
-          # Her 10 derlemede bir major sürüm atlasın (1.0 - 1.9 -> 2.0 - 2.9 -> 3.0...)
+          # Her 10 derlemede bir major surum atlasin (1.0 - 1.9 -> 2.0 - 2.9...)
           MAJOR=$(( 1 + RUN_NUM / 10 ))
           MINOR=$(( RUN_NUM % 10 ))
           VERSION_NAME="${MAJOR}.${MINOR}"
