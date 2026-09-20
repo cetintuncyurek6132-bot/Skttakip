@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -14,14 +13,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
@@ -29,6 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,7 +47,6 @@ import com.example.data.Product
 import com.example.ui.ProductFilter
 import com.example.ui.ProductGroupFilter
 import com.example.ui.screens.products.DateRangePickerModal
-import com.example.ui.screens.products.FilterChipItem
 import com.example.ui.screens.products.ProductsEmptyState
 import com.example.ui.screens.products.ProductsFilterBar
 import com.example.ui.screens.products.ProductsGroupedList
@@ -79,10 +77,24 @@ fun ProductsScreen(
     onOpenQrFixMode: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val listState = rememberLazyListState()
     var isDateRangeModalOpen by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     val hasDateFilter = startDateFilter != null || endDateFilter != null
+
+    // Liste aşağıya kaydırıldığında WhatsApp butonunun yuvarlağa dönüşmesi (Extended FAB collapse)
+    val isFabExpanded by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 15
+        }
+    }
+
+    LaunchedEffect(selectedFilter, selectedGroupFilter, searchQuery, startDateFilter, endDateFilter) {
+        if (listState.firstVisibleItemIndex > 0) {
+            listState.scrollToItem(0)
+        }
+    }
 
     if (isDateRangeModalOpen) {
         DateRangePickerModal(
@@ -184,7 +196,8 @@ fun ProductsScreen(
                     selectedFilter = selectedFilter,
                     onProductClick = onProductClick,
                     onDeleteProduct = onDeleteProduct,
-                    onQuickAddSkt = onQuickAddSkt
+                    onQuickAddSkt = onQuickAddSkt,
+                    listState = listState
                 )
 
                 ExtendedFloatingActionButton(
@@ -200,12 +213,13 @@ fun ProductsScreen(
                             )
                         }
                     },
+                    expanded = isFabExpanded,
                     icon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_whatsapp),
                             contentDescription = "WhatsApp Görsel Paylaş",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     },
                     text = {
@@ -219,7 +233,7 @@ fun ProductsScreen(
                     containerColor = Color(0xFF25D366),
                     contentColor = Color.White,
                     elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = CircleShape,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(bottom = 16.dp, end = 16.dp)

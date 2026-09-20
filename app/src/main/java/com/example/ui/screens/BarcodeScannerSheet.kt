@@ -1,131 +1,44 @@
 package com.example.ui.screens
 
-import com.example.data.matchesSearchQuery
-import com.example.data.parseShelfQrPayload
-import com.example.data.findMatchingProducts
-import com.example.ui.screens.scanner.CameraXBarcodeView
-import com.example.ui.screens.scanner.CornerBracketsViewfinder
-import com.example.ui.screens.scanner.EmptyScannerGuidanceCard
-import com.example.ui.screens.scanner.ProductDetailPreviewCard
-import com.example.ui.screens.scanner.ProductNotFoundPreviewCard
-import com.example.ui.screens.scanner.ScannerFilterMode
-import com.example.ui.screens.scanner.TestBarcodeChip
-import com.example.ui.screens.scanner.ScannerTopControls
-import com.example.ui.screens.scanner.QrFixFloatingHudBanner
-import com.example.ui.screens.scanner.QrFixSummaryPanel
-import com.example.ui.screens.scanner.ScannerManualSearchBar
-import com.example.ui.screens.scanner.ScannerProductDetailsSection
-import com.example.ui.screens.scanner.ScannerFeedbackHelper
-import com.example.ui.screens.scanner.ScanResultRisk
-
 import android.Manifest
-import android.annotation.SuppressLint
-import android.widget.Toast
 import android.media.AudioManager
 import android.media.ToneGenerator
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
-import androidx.compose.foundation.layout.defaultMinSize
-import androidx.compose.material3.LocalTextStyle
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDefaults
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.rememberDatePickerState
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageAnalysis
-import androidx.camera.core.ImageProxy
-import androidx.camera.core.Preview
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.CompositingStrategy
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
-import androidx.compose.foundation.layout.offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlashOn
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -133,54 +46,42 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.ContextCompat
 import com.example.data.Product
-import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.CriticalOrange
-import com.example.ui.theme.CriticalOrangeContainer
-import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.ExpiredRedContainer
+import com.example.data.parseShelfQrPayload
+import com.example.ui.screens.scanner.CameraXBarcodeView
+import com.example.ui.screens.scanner.CornerBracketsViewfinder
+import com.example.ui.screens.scanner.QrFixSummaryPanel
+import com.example.ui.screens.scanner.ScanResultRisk
+import com.example.ui.screens.scanner.ScannerFeedbackHelper
+import com.example.ui.screens.scanner.ScannerFilterMode
+import com.example.ui.screens.scanner.ScannerManualSearchBar
+import com.example.ui.screens.scanner.ScannerProductDetailsSection
+import com.example.ui.screens.scanner.ScannerTopControls
 import com.example.ui.theme.NormalGreen
-import com.example.ui.theme.NormalGreenContainer
 import com.example.ui.theme.SoonYellow
-import com.example.ui.theme.SoonYellowContainer
-import com.example.ui.theme.Slate100
-import com.example.ui.theme.Slate300
-import com.example.ui.theme.Slate50
-import com.example.ui.theme.Slate500
-import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate900
-import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
-import com.google.mlkit.vision.barcode.BarcodeScannerOptions
-import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
-import com.google.mlkit.vision.common.InputImage
-import java.util.concurrent.Executors
-import kotlin.math.abs
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalLayoutApi::class)
 @Composable
@@ -198,7 +99,7 @@ fun BarcodeScannerSheet(
     var manualBarcode by remember { mutableStateOf("") }
     var activeBarcode by remember { mutableStateOf("") }
     var isFixQrMode by remember { mutableStateOf(startInFixQrMode) }
-    val isSerialScanMode = true
+    val isSerialScanMode = !isFixQrMode
     var isBarcodeTooFar by remember { mutableStateOf(false) }
     var serialScanCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixResultMsg by remember { mutableStateOf("") }
@@ -320,22 +221,30 @@ fun BarcodeScannerSheet(
                 val hasProductDetail = activeBarcode.isNotBlank()
                 // In serial scan mode, camera remains live and continuously scans close barcodes
                 val isScannerPaused = (isFixQrMode && qrFixResultMsg.isNotBlank())
-                val cameraWeight = if (isKeyboardVisible) 0.16f else if (hasProductDetail) 0.32f else 0.65f
                 val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
+                val cameraWeight = 1.0f - bottomWeight
 
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(cameraWeight)
-                        .heightIn(min = 80.dp)
-                        .background(Color(0xFF0D121F))
+                    modifier = if (isFixQrMode) {
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .heightIn(min = 80.dp)
+                            .background(Color(0xFF0D121F))
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(cameraWeight)
+                            .heightIn(min = 80.dp)
+                            .background(Color(0xFF0D121F))
+                    }
                 ) {
                     // CAMERA PREVIEW (Continuous Scanning with Proximity Requirement)
                     if (cameraPermissionState.status.isGranted) {
                         CameraXBarcodeView(
                             isFlashOn = isFlashOn,
                             zoomRatio = zoomRatio,
-                            filterMode = ScannerFilterMode.ALL,
+                            filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ALL,
                             isBatterySaverMode = isBatterySaverMode,
                             isPaused = isScannerPaused || isCooldownActive,
                             requireCloseDistance = true,
@@ -369,7 +278,9 @@ fun BarcodeScannerSheet(
                                         activeBarcode = trimmedBar
                                         manualBarcode = trimmedBar
                                         selectedProductOverride = null
-                                        serialScanCount++
+                                        if (isSerialScanMode) {
+                                            serialScanCount++
+                                        }
                                         resumeCooldownUntil = now + 1200L
 
                                         if (isFixQrMode && onFixQrScanned != null) {
@@ -561,7 +472,7 @@ fun BarcodeScannerSheet(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = if (isFixQrMode) "⚡ Raf QR Kodu Okuma Modu" else "Otomatik Tarama Modu",
+                                                text = if (isFixQrMode) "🎯 Tekli QR Okuma Modu" else "⚡ Seri Tarama Modu",
                                                 color = Color.White,
                                                 fontSize = 11.sp,
                                                 fontWeight = FontWeight.Bold
@@ -607,15 +518,16 @@ fun BarcodeScannerSheet(
                 // =========================================================================
                 // 2. BOTTOM SECTION: MANUAL SEARCH & PRODUCT DETAILS
                 // =========================================================================
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(bottomWeight),
-                    shape = RectangleShape,
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 8.dp
-                ) {
-                    if (isFixQrMode) {
+                if (isFixQrMode) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .navigationBarsPadding(),
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 8.dp
+                    ) {
                         QrFixSummaryPanel(
                             storeCode = qrFixStoreCode,
                             userName = userName,
@@ -627,7 +539,16 @@ fun BarcodeScannerSheet(
                             historyList = qrFixHistoryList,
                             onClearHistory = { qrFixHistoryList.clear() }
                         )
-                    } else {
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(bottomWeight),
+                        shape = RectangleShape,
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 8.dp
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()

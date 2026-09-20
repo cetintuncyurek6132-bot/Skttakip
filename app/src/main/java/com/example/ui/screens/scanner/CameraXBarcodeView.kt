@@ -1,7 +1,6 @@
 package com.example.ui.screens.scanner
 
 import android.annotation.SuppressLint
-import android.content.Context
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy

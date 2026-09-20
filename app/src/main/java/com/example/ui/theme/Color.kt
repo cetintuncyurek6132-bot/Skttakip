@@ -10,7 +10,6 @@ val TurquoisePrimary = Color(0xFF00C2AB)
 val TurquoiseDark = Color(0xFF0D9488)
 val TurquoiseLight = Color(0xFFCCFBF1)
 val TurquoiseContainer = Color(0xFF134E4A)
-val OnTurquoiseContainer = Color(0xFF99F6E4)
 
 // Status & Risk Colors
 val ExpiredRed = Color(0xFFEF4444)
@@ -38,18 +37,11 @@ val WarningBlueDark = Color(0xFF0369A1)
 val WarningBlueContainer = Color(0xFFE0F2FE)
 val WarningBlueBorder = Color(0xFFBAE6FD)
 
-val AccentIndigo = Color(0xFF818CF8)
 val IndigoAccent = Color(0xFF6366F1)
 val EmeraldSuccess = Color(0xFF10B981)
 val AmberWarning = Color(0xFFF59E0B)
 
-// Navy Backgrounds for Game Mode
-val GameNavyDark = Color(0xFF0A1128)
-val GameNavyCard = Color(0xFF132247)
-val GameNavyCardAccent = Color(0xFF1D356D)
-
 // Standard Surface & Slate Colors
-val Slate950 = Color(0xFF020617)
 val Slate900 = Color(0xFF0F172A) // Arka Plan
 val Slate800 = Color(0xFF1E293B) // Kart Arka Plan
 val Slate700 = Color(0xFF334155) // Kenarlık & Çizgiler

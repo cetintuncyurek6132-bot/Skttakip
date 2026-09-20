@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import com.example.data.Product
 import com.example.util.image.BitmapSharingHelper
 import com.example.util.image.ProductReportImageRenderer
-import com.example.util.image.SharePreviewReportRenderer
 
 data class ExpiryReportInfo(
     val statusText: String,        // "SÜRESİ GEÇTİ", "BUGÜN DOLUYOR", "2 GÜN KALDI", "16 GÜN VAR"
@@ -106,12 +105,6 @@ object ProductImageGenerator {
         searchQuery: String,
         productList: List<Product>
     ) = ProductReportImageRenderer.shareProductsAsImage(context, filterLabel, searchQuery, productList)
-
-    fun createSharePreviewReportBitmap(
-        title: String = "KONTROL EDİLECEK ÜRÜNLER",
-        note: String = "",
-        productList: List<Product>
-    ): Bitmap = SharePreviewReportRenderer.createSharePreviewReportBitmap(title, note, productList)
 
     fun shareBitmap(context: Context, bitmap: Bitmap, fileNamePrefix: String = "skt_rapor") {
         BitmapSharingHelper.shareBitmap(context, bitmap, fileNamePrefix)

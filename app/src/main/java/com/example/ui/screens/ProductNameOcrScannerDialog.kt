@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import com.example.ui.screens.scanner.CameraXProductNameOcrView
+
 import android.Manifest
 import android.annotation.SuppressLint
 import android.media.AudioManager
@@ -13,11 +15,8 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,7 +53,6 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -101,14 +99,6 @@ import java.util.Locale
 import java.util.concurrent.Executors
 import java.util.regex.Pattern
 
-/**
- * Supermarket Shelf Label & Product Name OCR Scanner.
- * Features:
- * 1. Compact bottom control panel for maximum camera visibility.
- * 2. Instant manual freeze/lock ("Dondur / Tekrar Tara") and auto-stabilization (locks on 3 stable matches).
- * 3. Aggressive shelf junk filtering (FİYAT, KDV, D724, vb.).
- * 4. Editable OutlinedTextField for quick manual touches before sending.
- */
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun ProductNameOcrScannerDialog(
@@ -203,7 +193,7 @@ fun ProductNameOcrScannerDialog(
                             onParsedResult = { bestCandidate ->
                                 if (!isLocked && bestCandidate.isNotBlank()) {
                                     // Similarity check with last candidate
-                                    val sim = calculateTextSimilarity(lastCandidateText, bestCandidate)
+                                    val sim = com.example.util.ProductNameOcrParser.calculateTextSimilarity(lastCandidateText, bestCandidate)
                                     if (sim >= 0.75) {
                                         consecutiveMatchCount++
                                         // If 3 consecutive stable reads occur, auto-lock to stop flickering
@@ -540,360 +530,4 @@ fun ProductNameOcrScannerDialog(
             }
         }
     }
-}
-
-@Composable
-private fun CameraXProductNameOcrView(
-    isFlashOn: Boolean,
-    isLocked: Boolean,
-    onParsedResult: (String) -> Unit
-) {
-    val lifecycleOwner = LocalLifecycleOwner.current
-    val context = LocalContext.current
-    val executor = remember { Executors.newSingleThreadExecutor() }
-    val cameraProviderRef = remember { mutableStateOf<ProcessCameraProvider?>(null) }
-    val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
-    val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
-    val previewViewRef = remember { mutableStateOf<PreviewView?>(null) }
-    val previewUseCaseRef = remember { mutableStateOf<Preview?>(null) }
-    val imageAnalysisRef = remember { mutableStateOf<ImageAnalysis?>(null) }
-
-    fun rebindCamera() {
-        val provider = cameraProviderRef.value ?: return
-        val preview = previewUseCaseRef.value ?: return
-        val analysis = imageAnalysisRef.value ?: return
-        try {
-            provider.unbindAll()
-            val camera = provider.bindToLifecycle(
-                lifecycleOwner,
-                CameraSelector.DEFAULT_BACK_CAMERA,
-                preview,
-                analysis
-            )
-            cameraRef.value = camera
-            camera.cameraControl.enableTorch(isFlashOn)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    val recognizer = remember { TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS) }
-
-    LaunchedEffect(isFlashOn) {
-        try {
-            cameraRef.value?.cameraControl?.enableTorch(isFlashOn)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_PAUSE, Lifecycle.Event.ON_STOP -> {
-                    try {
-                        cameraRef.value?.cameraControl?.enableTorch(false)
-                        cameraProviderRef.value?.unbindAll()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    }
-                }
-                Lifecycle.Event.ON_RESUME -> {
-                    rebindCamera()
-                }
-                else -> {}
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            try {
-                cameraRef.value?.cameraControl?.enableTorch(false)
-            } catch (_: Exception) {}
-            try {
-                imageAnalysisRef.value?.clearAnalyzer()
-                cameraProviderRef.value?.unbindAll()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            try {
-                recognizer.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            try {
-                executor.shutdown()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-    }
-
-    AndroidView(
-        factory = { ctx ->
-            val previewView = PreviewView(ctx).apply {
-                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-            }
-            previewViewRef.value = previewView
-            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-
-            cameraProviderFuture.addListener({
-                try {
-                    val cameraProvider = cameraProviderFuture.get()
-                    cameraProviderRef.value = cameraProvider
-                    val preview = Preview.Builder().build().apply {
-                        setSurfaceProvider(previewView.surfaceProvider)
-                    }
-                    previewUseCaseRef.value = preview
-
-                    val resolutionSelector = ResolutionSelector.Builder()
-                        .setResolutionStrategy(
-                            ResolutionStrategy(
-                                Size(1280, 720),
-                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-                            )
-                        )
-                        .build()
-
-                    val imageAnalysis = ImageAnalysis.Builder()
-                        .setResolutionSelector(resolutionSelector)
-                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                        .build()
-                    imageAnalysisRef.value = imageAnalysis
-
-                    val minFrameIntervalMs = 200L
-
-                    imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                        if (isLocked) {
-                            imageProxy.close()
-                            return@setAnalyzer
-                        }
-
-                        val currentTime = System.currentTimeMillis()
-                        val lastAnalyzed = lastAnalyzedTimeRef.get()
-                        if (currentTime - lastAnalyzed < minFrameIntervalMs) {
-                            imageProxy.close()
-                            return@setAnalyzer
-                        }
-                        lastAnalyzedTimeRef.set(currentTime)
-
-                        processImageForProductName(recognizer, imageProxy) { bestCandidate ->
-                            if (bestCandidate.isNotBlank()) {
-                                onParsedResult(bestCandidate)
-                            }
-                        }
-                    }
-
-                    cameraProvider.unbindAll()
-                    val camera = cameraProvider.bindToLifecycle(
-                        lifecycleOwner,
-                        CameraSelector.DEFAULT_BACK_CAMERA,
-                        preview,
-                        imageAnalysis
-                    )
-                    cameraRef.value = camera
-                    camera.cameraControl.enableTorch(isFlashOn)
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }, ContextCompat.getMainExecutor(ctx))
-
-            previewView
-        },
-        modifier = Modifier.fillMaxSize()
-    )
-}
-
-@SuppressLint("UnsafeOptInUsageError")
-private fun processImageForProductName(
-    recognizer: com.google.mlkit.vision.text.TextRecognizer,
-    imageProxy: ImageProxy,
-    onParsedResult: (String) -> Unit
-) {
-    val mediaImage = imageProxy.image
-    if (mediaImage != null) {
-        val inputImage = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-        recognizer.process(inputImage)
-            .addOnSuccessListener { visionText ->
-                val fullText = visionText.text
-                if (fullText.isNotBlank()) {
-                    val (bestCandidate, _) = extractProductNameAndGramaj(visionText)
-                    if (bestCandidate.isNotBlank()) {
-                        onParsedResult(bestCandidate)
-                    }
-                }
-            }
-            .addOnFailureListener {
-                // ignore
-            }
-            .addOnCompleteListener {
-                imageProxy.close()
-            }
-    } else {
-        imageProxy.close()
-    }
-}
-
-/**
- * Filter list of keywords that commonly appear on Turkish supermarket price tags & shelf labels
- * but are NOT part of the product name.
- */
-private val EXCLUDED_LABEL_KEYWORDS = listOf(
-    "FIYAT", "FİYAT", "FIYATI", "FİYATI",
-    "GECERLILIK", "GEÇERLİLİK", "GECERLILIK TARIHI", "GEÇERLİLİK TARİHİ",
-    "TARIHI", "TARİHİ", "TARIH", "TARİH",
-    "KDV", "DAHIL", "DAHİL", "DAHILDIR", "DAHİLDİR", "HARIC", "HARİÇ",
-    "MENSEI", "MENŞEİ", "MENSE", "MENŞE",
-    "TURKIYE", "TÜRKİYE", "TURKİYE", "TURKIYE'DE", "TÜRKİYE'DE",
-    "URETIM", "ÜRETİM", "URETIM YERI", "ÜRETİM YERİ",
-    "YERLI", "YERLİ", "YERLI URETIM", "YERLİ ÜRETİM",
-    "PARTI", "PARTİ", "SERI", "SERİ", "LOT", "NO",
-    "ICINDEKILER", "İÇİNDEKİLER", "ALERJEN",
-    "TAVSIYE", "TAVSİYE", "TETT", "SKT", "SON TUKETIM", "SON TÜKETİM",
-    "URUN KODU", "ÜRÜN KODU", "BARKOD", "BARKOD NO",
-    "ISLETME", "İŞLETME", "KAYIT", "ONAY",
-    "1 KG =", "1 LT =", "1 ADET =", "100 G =", "100 ML =", "BIRIM FIYAT", "BİRİM FİYAT", "BIRIM FIYATI", "BİRİM FİYATI",
-    "TL", "KRŞ", "KRS", "KURUS", "KURUŞ", "₺",
-    "INDIRIM", "İNDİRİM", "KAMPANYA", "ETIKET", "ETİKET",
-    "RAF FIYATI", "RAF FİYATI", "SATIS FIYATI", "SATIŞ FİYATI",
-    "MAGAZA", "MAĞAZA", "SUBE", "ŞUBE", "REYON",
-    "D724", "D-724", "M101", "A101", "BIM", "SOK", "ŞOK", "CARREFOUR", "MIGROS", "MİGROS"
-)
-
-private val GRAMAJ_PATTERN = Pattern.compile(
-    "\\b(\\d+([.,]\\d+)?\\s*(?:KG|GR|GRAM|G|L|LT|LITRE|LİTRE|ML|CL|ADET|PK|PAKET|'L[IUÜİ]|X\\s*\\d+\\s*(?:ML|G|L|GR)?))\\b",
-    Pattern.CASE_INSENSITIVE
-)
-
-/**
- * Extracts the cleanest product name and gramaj from ML Kit VisionText
- */
-fun extractProductNameAndGramaj(visionText: com.google.mlkit.vision.text.Text): Pair<String, List<String>> {
-    val rawLines = mutableListOf<String>()
-    val suggestions = mutableListOf<String>()
-
-    for (block in visionText.textBlocks) {
-        for (line in block.lines) {
-            val lineWords = line.elements.map { it.text.trim() }.filter { it.isNotBlank() }
-            val lineText = if (lineWords.isNotEmpty()) {
-                lineWords.joinToString(" ")
-            } else {
-                line.text.trim()
-            }.replace(Regex("\\s+"), " ")
-
-            if (lineText.isNotBlank() && lineText.length >= 2) {
-                rawLines.add(lineText)
-            }
-        }
-    }
-
-    if (rawLines.isEmpty() && visionText.text.isNotBlank()) {
-        rawLines.addAll(
-            visionText.text
-                .split("\n", "\r")
-                .map { it.trim().replace(Regex("\\s+"), " ") }
-                .filter { it.length >= 2 }
-        )
-    }
-
-    var extractedGramaj: String? = null
-    val filteredProductLines = mutableListOf<String>()
-
-    for (rawLine in rawLines) {
-        val upperTr = rawLine.uppercase(Locale.forLanguageTag("tr-TR"))
-
-        // 1) Filter shelf codes & barcodes (e.g., D724-8690574117291-275,00-)
-        if (upperTr.contains(Regex("\\b[A-Z0-9]{3,8}-[0-9]{8,14}")) ||
-            upperTr.matches(Regex("^[0-9\\-/.]{6,}$"))
-        ) {
-            continue
-        }
-
-        // 2) Filter date stamps like 01.01.2025 or 12/2026
-        if (upperTr.matches(Regex(".*\\b\\d{1,2}[./\\-]\\d{1,2}[./\\-]\\d{2,4}\\b.*")) &&
-            !upperTr.contains(Regex("[A-ZĞÜŞİÖÇ]{4,}"))
-        ) {
-            continue
-        }
-
-        // 3) Filter standalone price stamps like "275,00 TL" or "275.00"
-        if (rawLine.matches(Regex("^[0-9.,\\s]+(TL|₺|kr|krş)?$", RegexOption.IGNORE_CASE))) {
-            continue
-        }
-
-        // 4) Check if line is predominantly junk label keywords
-        val words = upperTr.split(" ").filter { it.isNotBlank() }
-        val junkWordCount = words.count { word ->
-            EXCLUDED_LABEL_KEYWORDS.any { kw -> word == kw || word.startsWith(kw) || kw.startsWith(word) }
-        }
-        if (words.isNotEmpty() && (junkWordCount.toDouble() / words.size.toDouble()) >= 0.5) {
-            continue
-        }
-
-        // 5) Search for gramaj pattern
-        val mat = GRAMAJ_PATTERN.matcher(rawLine)
-        if (mat.find()) {
-            val foundGramaj = mat.group(1)?.trim()
-            if (!foundGramaj.isNullOrBlank() && extractedGramaj == null) {
-                extractedGramaj = foundGramaj.uppercase(Locale.forLanguageTag("tr-TR"))
-            }
-        }
-
-        // 6) Clean isolated junk words from the line itself
-        val cleanedWords = words.filterNot { word ->
-            val w = word.trim(',', '.', ':', ';', '-', '!', '?', '(', ')')
-            EXCLUDED_LABEL_KEYWORDS.contains(w)
-        }
-        val cleanedLine = cleanedWords.joinToString(" ").trim()
-
-        if (cleanedLine.isNotBlank() && cleanedLine.length >= 2 && !cleanedLine.all { it.isDigit() }) {
-            filteredProductLines.add(cleanedLine)
-            suggestions.add(cleanedLine)
-        }
-    }
-
-    // Build best candidate
-    val combinedCandidate = when {
-        filteredProductLines.isEmpty() -> ""
-        filteredProductLines.size == 1 -> filteredProductLines[0]
-        else -> {
-            filteredProductLines.take(3).joinToString(" ").replace(Regex("\\s+"), " ").trim()
-        }
-    }
-
-    // Ensure gramaj is included if found and not yet part of candidate
-    val finalBestCandidate = if (!extractedGramaj.isNullOrBlank() && combinedCandidate.isNotBlank()) {
-        val cleanGramajNorm = extractedGramaj.replace(" ", "")
-        val upperCombinedNorm = combinedCandidate.uppercase(Locale.forLanguageTag("tr-TR")).replace(" ", "")
-
-        if (!upperCombinedNorm.contains(cleanGramajNorm)) {
-            "$combinedCandidate $extractedGramaj"
-        } else {
-            combinedCandidate
-        }
-    } else {
-        combinedCandidate
-    }
-
-    if (finalBestCandidate.isNotBlank() && !suggestions.contains(finalBestCandidate)) {
-        suggestions.add(0, finalBestCandidate)
-    }
-
-    return Pair(finalBestCandidate, suggestions.distinct())
-}
-
-/**
- * Calculates word-based Jaccard similarity between two strings
- */
-private fun calculateTextSimilarity(s1: String, s2: String): Double {
-    if (s1 == s2) return 1.0
-    if (s1.isBlank() || s2.isBlank()) return 0.0
-    val words1 = s1.uppercase(Locale.forLanguageTag("tr-TR")).split(" ").filter { it.isNotBlank() }.toSet()
-    val words2 = s2.uppercase(Locale.forLanguageTag("tr-TR")).split(" ").filter { it.isNotBlank() }.toSet()
-    if (words1.isEmpty() || words2.isEmpty()) return 0.0
-    val intersection = words1.intersect(words2).size
-    val union = words1.union(words2).size
-    return intersection.toDouble() / union.toDouble()
 }

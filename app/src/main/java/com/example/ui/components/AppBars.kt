@@ -4,7 +4,6 @@ import com.example.R
 import com.example.data.getDisplayCode
 import com.example.data.getDisplayName
 import com.example.data.matchesSearchQuery
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -33,7 +32,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -42,13 +40,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -60,14 +55,13 @@ import androidx.compose.material.icons.outlined.AssignmentTurnedIn
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.SpaceDashboard
+import androidx.compose.material3.ripple
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -82,7 +76,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
@@ -255,56 +248,38 @@ fun SktTopAppBar(
             Spacer(modifier = Modifier.width(8.dp))
 
             // Bell icon with modern notification badge
-            IconButton(
-                onClick = onBellClick,
-                modifier = Modifier
-                    .size(40.dp)
-                    .testTag("bell_icon")
+            BadgedBox(
+                badge = {
+                    if (unreadCount > 0) {
+                        val badgeText = if (unreadCount > 99) "99+" else unreadCount.toString()
+                        Badge(
+                            containerColor = Color(0xFFEF4444),
+                            contentColor = Color.White,
+                            modifier = Modifier.offset(x = (-4).dp, y = 4.dp)
+                        ) {
+                            Text(
+                                text = badgeText,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 2.dp)
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.padding(end = 4.dp)
             ) {
-                Box(
-                    modifier = Modifier.size(36.dp),
-                    contentAlignment = Alignment.Center
+                IconButton(
+                    onClick = onBellClick,
+                    modifier = Modifier
+                        .size(38.dp)
+                        .testTag("bell_icon")
                 ) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Bildirimler",
                         tint = Color.White,
-                        modifier = Modifier.size(25.dp)
+                        modifier = Modifier.size(24.dp)
                     )
-
-                    if (unreadCount > 0) {
-                        val badgeText = if (unreadCount > 99) "99+" else unreadCount.toString()
-
-                        Surface(
-                            shape = CircleShape,
-                            color = Color(0xFFEF4444),
-                            border = BorderStroke(1.5.dp, Color.White),
-                            shadowElevation = 2.dp,
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 4.dp, y = (-2).dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .defaultMinSize(minWidth = 18.dp, minHeight = 18.dp)
-                                    .padding(horizontal = 4.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = badgeText,
-                                    color = Color.White,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                    style = TextStyle(
-                                        platformStyle = PlatformTextStyle(
-                                            includeFontPadding = false
-                                        )
-                                    )
-                                )
-                            }
-                        }
-                    }
                 }
             }
 
@@ -679,227 +654,5 @@ fun SktTopAppBar(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun SktBottomNavBar(
-    currentRoute: String,
-    onNavigate: (String) -> Unit,
-    onScanClick: () -> Unit,
-    userRoleCode: String = "MS"
-) {
-    // Optimistic instant route selection for 0ms visual feedback on tap
-    var optimisticRoute by remember(currentRoute) { mutableStateOf(currentRoute) }
-
-    val handleNavigate: (String) -> Unit = { target ->
-        optimisticRoute = target
-        onNavigate(target)
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 8.dp,
-            tonalElevation = 3.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f),
-                    thickness = 0.5.dp
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .padding(horizontal = 4.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 1. ANA SAYFA (Modern Dashboard)
-                    BottomNavItem(
-                        label = "Ana Sayfa",
-                        activeIcon = Icons.Filled.SpaceDashboard,
-                        inactiveIcon = Icons.Outlined.SpaceDashboard,
-                        selected = optimisticRoute == "panel",
-                        onClick = { handleNavigate("panel") },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // 2. ÜRÜNLER (Modern Envanter / Reyon)
-                    BottomNavItem(
-                        label = "Ürünler",
-                        activeIcon = Icons.Filled.Inventory2,
-                        inactiveIcon = Icons.Outlined.Inventory2,
-                        selected = optimisticRoute == "products",
-                        onClick = { handleNavigate("products") },
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // 3. ORTA ALAN: TARA ETİKETİ VE YERLEŞİM (Yükseltilmiş Butonun Altı)
-                    Column(
-                        modifier = Modifier
-                            .weight(1.15f)
-                            .fillMaxHeight()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) { onScanClick() },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        Text(
-                            text = "Tara",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoisePrimary,
-                            letterSpacing = 0.3.sp,
-                            modifier = Modifier.padding(bottom = 6.dp)
-                        )
-                    }
-
-                    // 4. TAKİP (İade & Depo Süreç Takibi)
-                    val isReportsRestricted = userRoleCode !in listOf("MS", "MSY")
-                    BottomNavItem(
-                        label = "İade Takip",
-                        activeIcon = Icons.Filled.AssignmentTurnedIn,
-                        inactiveIcon = Icons.Outlined.AssignmentTurnedIn,
-                        selected = optimisticRoute == "takip" || optimisticRoute == "reports",
-                        onClick = { handleNavigate("takip") },
-                        isRestricted = isReportsRestricted,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    // 5. ADETSEL SAYIM (Doğrulama & Liste Kontrolü)
-                    BottomNavItem(
-                        label = "Sayım",
-                        activeIcon = Icons.Filled.Checklist,
-                        inactiveIcon = Icons.Outlined.Checklist,
-                        selected = optimisticRoute == "adetsel",
-                        onClick = { handleNavigate("adetsel") },
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-        // YÜKSELTİLMİŞ (ELEVATED / FLOATING DOCK) BARKOD & KAMERA LOGOSU
-        Surface(
-            onClick = onScanClick,
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 10.dp,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .offset(y = (-14).dp)
-                .size(56.dp)
-                .testTag("scan_floating_button")
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(3.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                TurquoiseLight,
-                                TurquoisePrimary,
-                                TurquoiseDark
-                            )
-                        )
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        color = Color.White.copy(alpha = 0.45f),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.QrCodeScanner,
-                    contentDescription = "Kamera Barkod Tara",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun BottomNavItem(
-    label: String,
-    activeIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isRestricted: Boolean = false
-) {
-    val alpha = if (isRestricted) 0.45f else 1.0f
-    val iconColor by animateColorAsState(
-        targetValue = if (selected) TurquoisePrimary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f * alpha),
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 60),
-        label = "bottom_nav_icon_color"
-    )
-    val pillBgColor by animateColorAsState(
-        targetValue = if (selected) TurquoisePrimary.copy(alpha = 0.14f) else Color.Transparent,
-        animationSpec = androidx.compose.animation.core.tween(durationMillis = 60),
-        label = "bottom_nav_pill_bg"
-    )
-
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = !isRestricted) { onClick() }
-            .padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        // Modern Pill Container
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(pillBgColor)
-                .padding(horizontal = 14.dp, vertical = 3.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (selected) activeIcon else inactiveIcon,
-                contentDescription = label,
-                tint = iconColor,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
-            color = iconColor,
-            letterSpacing = 0.2.sp
-        )
-
-        Spacer(modifier = Modifier.height(2.dp))
-
-        // Active Glowing Line Indicator
-        Box(
-            modifier = Modifier
-                .width(if (selected) 16.dp else 0.dp)
-                .height(2.5.dp)
-                .background(
-                    if (selected) TurquoisePrimary else Color.Transparent,
-                    RoundedCornerShape(1.5.dp)
-                )
-        )
     }
 }

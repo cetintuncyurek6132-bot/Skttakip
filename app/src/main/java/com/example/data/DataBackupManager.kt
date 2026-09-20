@@ -2,12 +2,9 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.net.Uri
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale

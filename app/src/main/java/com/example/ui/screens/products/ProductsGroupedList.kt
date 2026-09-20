@@ -3,7 +3,9 @@ package com.example.ui.screens.products
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,7 +32,8 @@ fun ProductsGroupedList(
     onProductClick: (Product) -> Unit,
     onDeleteProduct: (Product) -> Unit,
     onQuickAddSkt: (Product) -> Unit = {},
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val todayMidnight = remember {
         val cal = Calendar.getInstance()
@@ -48,6 +51,7 @@ fun ProductsGroupedList(
     }
 
     LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),

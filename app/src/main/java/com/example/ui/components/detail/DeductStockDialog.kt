@@ -56,7 +56,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
 import com.example.data.getDisplayName
-import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
