@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -39,6 +40,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
+import com.example.ui.theme.CriticalOrange
+import com.example.ui.theme.CriticalOrangeContainer
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.example.util.AppUpdateInfo
@@ -135,6 +138,34 @@ fun AppUpdateDialog(
                                 lineHeight = 17.sp
                             )
                         }
+                    }
+                }
+
+                // Paket çakışması (İmza/Sertifika Uyarısı)
+                Spacer(modifier = Modifier.height(10.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = CriticalOrangeContainer.copy(alpha = 0.5f),
+                    border = BorderStroke(1.dp, CriticalOrange.copy(alpha = 0.4f)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(10.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Info,
+                            contentDescription = null,
+                            tint = CriticalOrange,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Eski sürümden yükseltirken 'Paket mevcut paketle çakışıyor' hatası alırsanız: Mevcut sürüm farklı bir anahtarla imzalandığı içindir. Cihazdaki eski uygulamayı bir kez silip yeni APK'yı yüklediğinizde bundan sonraki tüm güncellemeler otomatik sorunsuz yüklenecektir.",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            lineHeight = 15.sp
+                        )
                     }
                 }
 

@@ -225,19 +225,11 @@ fun BarcodeScannerSheet(
                 val cameraWeight = 1.0f - bottomWeight
 
                 Box(
-                    modifier = if (isFixQrMode) {
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .heightIn(min = 80.dp)
-                            .background(Color(0xFF0D121F))
-                    } else {
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(cameraWeight)
-                            .heightIn(min = 80.dp)
-                            .background(Color(0xFF0D121F))
-                    }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .let { if (isFixQrMode) it.weight(1f) else it.weight(cameraWeight) }
+                        .heightIn(min = 80.dp)
+                        .background(Color(0xFF0D121F))
                 ) {
                     // CAMERA PREVIEW (Continuous Scanning with Proximity Requirement)
                     if (cameraPermissionState.status.isGranted) {
@@ -522,11 +514,11 @@ fun BarcodeScannerSheet(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(150.dp)
+                            .wrapContentHeight()
                             .navigationBarsPadding(),
-                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 8.dp
+                        shadowElevation = 12.dp
                     ) {
                         QrFixSummaryPanel(
                             storeCode = qrFixStoreCode,
@@ -537,7 +529,10 @@ fun BarcodeScannerSheet(
                             errorCount = qrFixErrorCount,
                             lastProcessedInfo = qrFixLastInfo,
                             historyList = qrFixHistoryList,
-                            onClearHistory = { qrFixHistoryList.clear() }
+                            onClearHistory = { qrFixHistoryList.clear() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .wrapContentHeight()
                         )
                     }
                 } else {

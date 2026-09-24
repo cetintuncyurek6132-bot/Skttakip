@@ -86,9 +86,10 @@ fun QrFixSummaryPanel(
 
     Column(
         modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Top Grip Bar
         Box(
@@ -110,12 +111,12 @@ fun QrFixSummaryPanel(
                     imageVector = Icons.Default.AutoFixHigh,
                     contentDescription = null,
                     tint = TurquoisePrimary,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(5.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = "Etiket Düzeltme İşlemleri",
-                    fontSize = 13.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -128,7 +129,7 @@ fun QrFixSummaryPanel(
                 border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f))
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -185,112 +186,99 @@ fun QrFixSummaryPanel(
             }
         }
 
-        // 3. SADECE 2 KART: KOMPLE YEŞİL (BAŞARILI) VE KOMPLE KIRMIZI (HATALI)
-        // İkonlar başta, ortalı ve büyük; rakam ve metinler ortalı, büyük ve hizalı
+        // 3. BAŞARILI VE HATALI KARTLARI (Ezilmeden, Ferah Görünüm)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 1. Kart - Başarılı (Komple Yeşil)
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = NormalGreen,
-                shadowElevation = 2.dp
+            // Başarılı Kartı (Yeşil):
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = NormalGreen.copy(alpha = 0.12f)),
+                border = BorderStroke(1.dp, NormalGreen.copy(alpha = 0.4f))
             ) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = NormalGreen,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "$successCount",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            lineHeight = 16.sp
-                        )
-                        Text(
-                            text = "Başarılı",
-                            fontSize = 9.5.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.95f),
-                            lineHeight = 10.sp
+                            color = NormalGreen
                         )
                     }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Başarılı",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
-            // 2. Kart - Hatalı (Komple Kırmızı)
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = ExpiredRed,
-                shadowElevation = 2.dp
+            // Hatalı Kartı (Kırmızı):
+            Card(
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ExpiredRed.copy(alpha = 0.12f)),
+                border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.4f))
             ) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = ExpiredRed,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "$errorCount",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            lineHeight = 16.sp
-                        )
-                        Text(
-                            text = "Hatalı",
-                            fontSize = 9.5.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White.copy(alpha = 0.95f),
-                            lineHeight = 10.sp
+                            color = ExpiredRed
                         )
                     }
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = "Hatalı",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
         }
 
-        // 4. ALT BUTON: Tarananları Gör (Geçmiş) - Kesilmeden %100 görünür
+        Spacer(modifier = Modifier.height(2.dp))
+
+        // 4. ALT BUTON: Tarananları Gör (Geçmiş)
         Button(
             onClick = { isListOpen = true },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(36.dp),
+                .height(44.dp),
             colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -300,12 +288,12 @@ fun QrFixSummaryPanel(
                     imageVector = Icons.Default.FormatListBulleted,
                     contentDescription = null,
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Tarananları Gör (Geçmiş)",
-                    fontSize = 12.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
