@@ -21,6 +21,7 @@ import com.example.ui.MainViewModel
 import com.example.ui.ProductFilter
 import com.example.ui.ProductGroupFilter
 import com.example.ui.screens.AdetselScreen
+import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.CsvScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.ProductsScreen
@@ -80,6 +81,7 @@ fun AppNavHost(
                         "add_product" -> inventoryViewModel.openAddProductModal()
                         "scan" -> onOpenScanner(false)
                         "reminders" -> navigateToTab("reminders")
+                        "analytics" -> navigateToTab("analytics")
                         "csv" -> navigateToTab("csv")
                         "adetsel" -> navigateToTab("adetsel")
                         "reports", "takip" -> navigateToTab("takip")
@@ -106,6 +108,8 @@ fun AppNavHost(
         composable("products") {
             ProductsScreen(
                 products = filteredProducts,
+                allProducts = allProducts,
+                totalRegisteredCount = allProducts.size,
                 searchQuery = searchQuery,
                 selectedFilter = selectedFilter,
                 selectedGroupFilter = selectedGroupFilter,
@@ -156,6 +160,15 @@ fun AppNavHost(
                         if (isLoading) mainViewModel.showLoading(msg) else mainViewModel.hideLoading()
                     }
                     com.example.data.DepoIadeManager.clearAllRecords(context)
+                    // Clear all temporary calendar and search caches from SharedPreferences
+                    listOf(
+                        "morning_routine_prefs",
+                        "skt_calendar_prefs",
+                        "search_cache_prefs",
+                        "skt_search_prefs"
+                    ).forEach { prefName ->
+                        context.getSharedPreferences(prefName, Context.MODE_PRIVATE).edit().clear().apply()
+                    }
                 },
                 onRestoreSeedData = {
                     settingsViewModel.restoreDefaultSeedData { isLoading: Boolean, msg: String ->
@@ -167,6 +180,7 @@ fun AppNavHost(
                 onSaveLocalBackup = { tag, cb -> settingsViewModel.saveLocalBackup(context, tag, cb) },
                 onGetLocalBackups = { settingsViewModel.getLocalBackups(context) },
                 onRestoreFromJson = { json, merge, cb -> settingsViewModel.restoreFromJson(context, json, merge, cb) },
+                onNavigateToReminders = { navigateToTab("reminders") },
                 onBackClick = { navigateToTab("panel") }
             )
         }
@@ -210,6 +224,15 @@ fun AppNavHost(
                     Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
                 },
                 onNavigateToProducts = { navigateToTab("products") },
+                onBackClick = { navigateToTab("panel") }
+            )
+        }
+
+        // 8. ANALİZ VE İSTATİSTİKLER (ANALYTICS & CHARTS)
+        composable("analytics") {
+            AnalyticsScreen(
+                products = allProducts,
+                onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
                 onBackClick = { navigateToTab("panel") }
             )
         }

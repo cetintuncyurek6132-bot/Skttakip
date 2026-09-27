@@ -50,17 +50,10 @@ fun Product.matchesSearchQuery(rawQuery: String, queryTokens: List<String> = emp
         return true
     }
 
-    val tokens = if (queryTokens.isNotEmpty()) queryTokens else {
-        qNorm.replace(',', '.').split("\\s+".toRegex()).filter { it.isNotBlank() }
-    }
-
+    val tokens = if (queryTokens.isNotEmpty()) queryTokens else qNorm.split("\\s+".toRegex()).filter { it.isNotBlank() }
     if (tokens.isEmpty()) return true
 
-    return tokens.all { token ->
-        targetText.contains(token) ||
-        (token.contains('.') && targetText.contains(token.replace('.', ','))) ||
-        (token.contains(',') && targetText.contains(token.replace(',', '.')))
-    }
+    return tokens.all { targetText.contains(it) }
 }
 
 @Entity(

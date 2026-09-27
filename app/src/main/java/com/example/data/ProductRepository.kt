@@ -109,15 +109,8 @@ class ProductRepository(
     }
 
     suspend fun insertProductsBatch(products: List<Product>) {
-        products.forEach { prod ->
-            val id = if (prod.id != 0) {
-                productDao.updateProduct(prod)
-                prod.id.toLong()
-            } else {
-                productDao.insertProduct(prod)
-            }
-            CloudSyncManager.syncProductToCloud(prod.copy(id = id.toInt()))
-        }
+        if (products.isEmpty()) return
+        productDao.insertAll(products)
     }
 
     suspend fun deleteProduct(product: Product) {

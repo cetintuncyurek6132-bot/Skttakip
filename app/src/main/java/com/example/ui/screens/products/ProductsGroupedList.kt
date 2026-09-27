@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,27 +66,58 @@ fun ProductsGroupedList(
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
                     shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, CriticalOrange)
+                    color = Color(0xFFFEF3C7),
+                    border = BorderStroke(1.dp, Color(0xFFF59E0B))
                 ) {
                     Row(
                         modifier = Modifier.padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("🔥", fontSize = 22.sp)
+                        Text("⭐", fontSize = 20.sp)
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "ÖNEMLİ: YÜKSEK STOK + YAKIN SKT (Kategori)",
-                                fontWeight = FontWeight.Black,
+                                text = "ÖNEMLİ ÜRÜNLER",
+                                fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
-                                color = CriticalOrange
+                                color = Color(0xFF92400E)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Stoğu çok (≥10 adet) ve SKT'sine 1 aydan az kalmış (≤30 gün) ürünler. Son 2-3 güne kalmadan acil satış, indirim veya reyon ön sırasına alma gerektirir.",
+                                text = "Yıldızla işaretlenmiş, öncelikli takip edilen ürünler listeleniyor.",
                                 fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = Color(0xFFB45309)
+                            )
+                        }
+                    }
+                }
+            } else if (selectedFilter == ProductFilter.LAST_2_DAYS) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFFFEF2F2),
+                    border = BorderStroke(1.dp, Color(0xFFF87171))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("⏰", fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "SON 2 GÜN (ACİL SATIŞ / SARI ETİKET)",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp,
+                                color = Color(0xFF991B1B)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "SKT'sine 0, 1 veya 2 gün kalan acil satış ve indirim gerektiren ürünler.",
+                                fontSize = 11.sp,
+                                color = Color(0xFFB91C1C)
                             )
                         }
                     }

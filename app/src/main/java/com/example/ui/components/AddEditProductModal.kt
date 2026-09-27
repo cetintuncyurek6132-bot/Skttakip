@@ -3,7 +3,9 @@ package com.example.ui.components
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +29,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +54,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -146,36 +150,88 @@ fun AddEditProductModal(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
+                    .padding(18.dp)
             ) {
-                // 1. Üst Başlık ("Ürünü Düzenle" / "Yeni Ürün") + Kapatma İkonu
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (product == null) "Yeni Ürün" else "Ürünü Düzenle",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TurquoiseDark
-                    )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Kapat")
+                // 1. ÜST BİLGİ VE BAŞLIK ALANI (HERO HEADER)
+                if (product != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = (if (urunAdi.isNotBlank()) urunAdi else product.urunAdi).ifBlank { "Ürünü Düzenle" },
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Kod: ${(if (urunKodu.isNotBlank()) urunKodu else product.urunKodu).ifBlank { "-" }}  •  Barkod: ${if (barkod.isNotBlank()) barkod else product.barkod.ifBlank { "-" }}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Yeni Ürün Ekle",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark
+                        )
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                    thickness = 1.dp
+                )
 
-                // 2. "Raf Etiketi Oku" Butonu (Tek Ana Tetikleyici)
+                // 2. "RAF ETİKETİ OKU" BUTONU (Daha Kompakt: 40.dp)
                 Button(
                     onClick = { showFullQrScanner = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .height(40.dp)
                         .testTag("scan_qr_label_button"),
                     colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -185,7 +241,7 @@ fun AddEditProductModal(
                             imageVector = Icons.Default.QrCodeScanner,
                             contentDescription = "Raf Etiketi Oku",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
@@ -234,51 +290,55 @@ fun AddEditProductModal(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // 3. Barkod Alanı (Tam Genişlik)
-                OutlinedTextField(
-                    value = barkod,
-                    onValueChange = { barkod = it },
-                    label = { Text("Barkod") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("input_barkod"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = TurquoisePrimary,
-                        focusedLabelColor = TurquoiseDark,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
-
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 4. Ürün Kodu Alanı (Tam Genişlik)
-                OutlinedTextField(
-                    value = urunKodu,
-                    onValueChange = { urunKodu = it },
-                    label = { Text("Ürün Kodu") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = TurquoisePrimary,
-                        focusedLabelColor = TurquoiseDark,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
+                // Yeni ürün ekleme modunda barkod ve kod giriş alanları
+                if (product == null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = barkod,
+                            onValueChange = { barkod = it },
+                            label = { Text("Barkod") },
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .testTag("input_barkod"),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = TurquoisePrimary,
+                                focusedLabelColor = TurquoiseDark,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                        OutlinedTextField(
+                            value = urunKodu,
+                            onValueChange = { urunKodu = it },
+                            label = { Text("Ürün Kodu") },
+                            modifier = Modifier.weight(0.9f),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = TurquoisePrimary,
+                                focusedLabelColor = TurquoiseDark,
+                                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 5. Ürün Adı Alanı (Tam Genişlik + İçinde Kamera Trailing Icon)
+                // 3. ÜRÜN ADI ALANI (Kamera Trailing Icon'u ile)
                 OutlinedTextField(
                     value = urunAdi,
                     onValueChange = { urunAdi = it.uppercase(java.util.Locale.forLanguageTag("tr-TR")) },
@@ -300,6 +360,7 @@ fun AddEditProductModal(
                         .fillMaxWidth()
                         .testTag("input_urun_adi"),
                     singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Characters
                     ),
@@ -326,21 +387,67 @@ fun AddEditProductModal(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 6. Reyon Seçimi (Dropdown - Sadece "Dolap Ürünleri" ve "Gıda Ürünleri")
-                ExposedDropdownMenuBox(
-                    expanded = expandedCategoryMenu,
-                    onExpandedChange = { expandedCategoryMenu = !expandedCategoryMenu },
-                    modifier = Modifier.fillMaxWidth()
+                // 4. REYON VE FİYAT (Derli toplu yan yana hizalama)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Reyon Seçimi
+                    Box(modifier = Modifier.weight(1f)) {
+                        ExposedDropdownMenuBox(
+                            expanded = expandedCategoryMenu,
+                            onExpandedChange = { expandedCategoryMenu = !expandedCategoryMenu },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = kategori,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Reyon") },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryMenu) },
+                                modifier = Modifier
+                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                                    .fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(10.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                    focusedBorderColor = TurquoisePrimary,
+                                    focusedLabelColor = TurquoiseDark,
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                                )
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedCategoryMenu,
+                                onDismissRequest = { expandedCategoryMenu = false }
+                            ) {
+                                categories.forEach { cat ->
+                                    DropdownMenuItem(
+                                        text = { Text(cat, fontSize = 13.sp) },
+                                        onClick = {
+                                            kategori = cat
+                                            expandedCategoryMenu = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Fiyat (₺) Alanı
                     OutlinedTextField(
-                        value = kategori,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Reyon") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryMenu) },
+                        value = fiyatText,
+                        onValueChange = { fiyatText = it },
+                        label = { Text("Fiyat (₺)") },
+                        placeholder = { Text("0.00") },
                         modifier = Modifier
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                            .fillMaxWidth(),
+                            .weight(1f)
+                            .testTag("input_fiyat"),
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
@@ -350,48 +457,11 @@ fun AddEditProductModal(
                             unfocusedContainerColor = MaterialTheme.colorScheme.surface
                         )
                     )
-                    ExposedDropdownMenu(
-                        expanded = expandedCategoryMenu,
-                        onDismissRequest = { expandedCategoryMenu = false }
-                    ) {
-                        categories.forEach { cat ->
-                            DropdownMenuItem(
-                                text = { Text(cat) },
-                                onClick = {
-                                    kategori = cat
-                                    expandedCategoryMenu = false
-                                }
-                            )
-                        }
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 7. Fiyat (₺) Alanı (Tam Genişlik)
-                OutlinedTextField(
-                    value = fiyatText,
-                    onValueChange = { fiyatText = it },
-                    label = { Text("Fiyat (₺)") },
-                    placeholder = { Text("Örn: 45.50") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("input_fiyat"),
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = TurquoisePrimary,
-                        focusedLabelColor = TurquoiseDark,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 8. Önemli Ürün Switch Kutusu
+                // 5. ÖNEMLİ ÜRÜN SWITCH ALANI
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -401,12 +471,12 @@ fun AddEditProductModal(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("⭐", fontSize = 16.sp)
+                            Text("⭐", fontSize = 15.sp)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Önemli Ürün",
@@ -426,22 +496,30 @@ fun AddEditProductModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // 9. Alt Butonlar: "Sil" (kırmızı) ve "Güncelle / Kaydet" (yeşil / tema rengi)
+                // 6. ALT BUTONLAR VE AKSİYONLAR: "Sil" ve "Güncelle / Kaydet"
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (product != null && onDelete != null) {
                         TextButton(
                             onClick = { onDelete(product) },
                             colors = ButtonDefaults.textButtonColors(contentColor = ExpiredRed),
-                            modifier = Modifier.weight(0.8f)
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(0.7f)
+                                .height(44.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.Delete, contentDescription = "Sil")
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Sil",
+                                modifier = Modifier.size(18.dp)
+                            )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sil", fontWeight = FontWeight.Bold)
+                            Text("Sil", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
 
@@ -452,17 +530,12 @@ fun AddEditProductModal(
                             val enteredCode = urunKodu.trim()
                             val enteredCategory = kategori.trim()
 
-                            // Fiyat Güvenliği: Boş bırakılmadıysa hatalı girişlerde eski fiyatı koru
+                            // Fiyat Girişi: Boş bırakıldığında veya silindiğinde null olarak kaydet
                             val trimmedFiyat = fiyatText.trim().replace(',', '.')
                             val validFiyat = if (trimmedFiyat.isNotBlank()) {
-                                val parsed = trimmedFiyat.toDoubleOrNull()
-                                if (parsed != null && parsed > 0.0) {
-                                    parsed
-                                } else {
-                                    product?.fiyat ?: healedProduct?.fiyat
-                                }
+                                trimmedFiyat.toDoubleOrNull()?.takeIf { it > 0.0 }
                             } else {
-                                null // Kullanıcı kutuyu bilerek sildiyse null yap
+                                null // Kullanıcı kutuyu bilerek boş bıraktıysa veya sildiyse null olarak kaydet
                             }
 
                             val candidate = Product(
@@ -495,11 +568,11 @@ fun AddEditProductModal(
                             }
                         },
                         modifier = Modifier
-                            .weight(1.5f)
-                            .height(48.dp)
+                            .weight(1.3f)
+                            .height(44.dp)
                             .testTag("save_product_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ) {
                         Text(
                             text = if (product != null) "Güncelle" else "Kaydet",

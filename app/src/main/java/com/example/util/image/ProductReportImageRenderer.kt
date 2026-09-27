@@ -251,4 +251,159 @@ object ProductReportImageRenderer {
         val bitmap = createProductsBitmap(filterLabel, searchQuery, productList) ?: return
         BitmapSharingHelper.shareBitmap(context, bitmap, "skt_urun_listesi")
     }
+
+    /**
+     * Creates vertical PNG bitmaps formatted specifically for clean WhatsApp sharing
+     * with exact dynamic height calculation (zero bottom white space rule) and clean row design.
+     *
+     * Rules:
+     * - Fixed 1080px width, clean pure white background (#FFFFFF).
+     * - NO top header/title/date/store/app name. NO bottom signature/footer.
+     * - Exact calculated height: (pageProducts.size * itemHeight) + (topBottomPadding * 2)
+     * - Left Badge: Compact Day Badge Capsule (0-2d: #EF4444, 3-4d: #F59E0B, 5-7d: #EAB308, >7d: #10B981)
+     * - Middle: Product name (#0F172A bold 31px) & Sub-info (#64748B 23px "Kod: X • SKT: Y").
+     * - Right Badge: Light green badge (#ECFDF5) with bold #059669 "[Adet] Adet".
+     * - Divider: 1.5px light gray (#E2E8F0) between product rows.
+     * - Pagination: Chunks of 20 products per page.
+     */
+    fun createCleanWhatsAppShareBitmaps(
+        productList: List<Product>,
+        todayMidnight: Long = com.example.data.getTodayMidnightMillis()
+    ): List<Bitmap> {
+        if (productList.isEmpty()) return emptyList()
+
+        val chunks = productList.chunked(20)
+        val width = 1080
+        val itemHeight = 150f
+        val topBottomPadding = 24f
+        val horizontalPadding = 32f
+
+        return chunks.map { chunkProducts ->
+            val totalCardCount = chunkProducts.size
+            val calculatedHeight = ((totalCardCount * itemHeight) + (topBottomPadding * 2)).toInt()
+            val bitmap = Bitmap.createBitmap(width, calculatedHeight, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+
+            // Pure clean white background (#FFFFFF)
+            canvas.drawColor(Color.WHITE)
+
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            val rectF = RectF()
+
+            chunkProducts.forEachIndexed { index, product ->
+                val rowTop = topBottomPadding + (index * itemHeight)
+                val rowBottom = rowTop + itemHeight
+                val rowLeft = horizontalPadding
+                val rowRight = width.toFloat() - horizontalPadding
+
+                val daysLeft = product.getRemainingDays(todayMidnight)
+
+                // 1. SOL: Kompakt Gün Rozeti (Kapsül 104x104px)
+                val badgeSize = 104f
+                val badgeLeft = rowLeft + 8f
+                val badgeTop = rowTop + ((itemHeight - badgeSize) / 2f)
+                val badgeRight = badgeLeft + badgeSize
+                val badgeBottom = badgeTop + badgeSize
+
+                val badgeColorHex = when {
+                    daysLeft < 0L -> "#DC2626"       // Süresi Geçmiş - Koyu Kırmızı
+                    daysLeft in 0L..2L -> "#EF4444"   // 0-2 Gün - Kırmızı
+                    daysLeft in 3L..4L -> "#F59E0B"   // 3-4 Gün - Turuncu
+                    daysLeft in 5L..7L -> "#EAB308"   // 5-7 Gün - Kehribar/Sarı
+                    else -> "#10B981"                 // >7 Gün - Turkuaz / Yeşil
+                }
+
+                rectF.set(badgeLeft, badgeTop, badgeRight, badgeBottom)
+                paint.style = Paint.Style.FILL
+                paint.color = Color.parseColor(badgeColorHex)
+                canvas.drawRoundRect(rectF, 22f, 22f, paint)
+
+                // Rozet İçi Metin
+                paint.color = Color.WHITE
+                paint.textAlign = Paint.Align.CENTER
+                val badgeCenterX = badgeLeft + (badgeSize / 2f)
+
+                if (daysLeft == 0L) {
+                    paint.textSize = 24f
+                    paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    canvas.drawText("BUGÜN", badgeCenterX, badgeTop + 46f, paint)
+                    paint.textSize = 17f
+                    paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    canvas.drawText("DOLUYOR", badgeCenterX, badgeTop + 76f, paint)
+                } else if (daysLeft < 0L) {
+                    paint.textSize = 22f
+                    paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    canvas.drawText("SÜRESİ", badgeCenterX, badgeTop + 46f, paint)
+                    paint.textSize = 19f
+                    paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    canvas.drawText("GEÇTİ", badgeCenterX, badgeTop + 76f, paint)
+                } else {
+                    paint.textSize = 42f
+                    paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    canvas.drawText("$daysLeft", badgeCenterX, badgeTop + 50f, paint)
+                    paint.textSize = 19f
+                    paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    canvas.drawText("GÜN", badgeCenterX, badgeTop + 82f, paint)
+                }
+                paint.textAlign = Paint.Align.LEFT
+
+                // 2. SAĞ: Kompakt Adet Rozeti ([Adet] Adet)
+                val stokText = "${product.stokAdedi} Adet"
+                paint.textSize = 25f
+                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                val stokTextWidth = paint.measureText(stokText)
+                val rightBadgeWidth = stokTextWidth + 34f
+                val rightBadgeHeight = 48f
+                val rightBadgeRight = rowRight - 8f
+                val rightBadgeLeft = rightBadgeRight - rightBadgeWidth
+                val rightBadgeTop = rowTop + ((itemHeight - rightBadgeHeight) / 2f)
+                val rightBadgeBottom = rightBadgeTop + rightBadgeHeight
+
+                rectF.set(rightBadgeLeft, rightBadgeTop, rightBadgeRight, rightBadgeBottom)
+                paint.style = Paint.Style.FILL
+                paint.color = Color.parseColor("#ECFDF5") // Hafif yeşil zemin
+                canvas.drawRoundRect(rectF, 12f, 12f, paint)
+
+                paint.style = Paint.Style.STROKE
+                paint.strokeWidth = 1.5f
+                paint.color = Color.parseColor("#A7F3D0") // İnce yeşil çerçeve
+                canvas.drawRoundRect(rectF, 12f, 12f, paint)
+                paint.style = Paint.Style.FILL
+
+                paint.color = Color.parseColor("#059669")
+                val stokTextY = rightBadgeTop + (rightBadgeHeight / 2f) - ((paint.descent() + paint.ascent()) / 2f)
+                canvas.drawText(stokText, rightBadgeLeft + 17f, stokTextY, paint)
+
+                // 3. ORTA: Ürün Adı & Kod + SKT
+                val contentLeft = badgeRight + 20f
+                val maxNameWidth = rightBadgeLeft - contentLeft - 16f
+
+                // Üst Satır: Koyu lacivert/siyah (#0F172A), Kalın Ürün Adı
+                paint.textSize = 31f
+                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                paint.color = Color.parseColor("#0F172A")
+                val truncatedName = ImageDrawingUtils.truncateText(paint, product.urunAdi, maxNameWidth)
+                canvas.drawText(truncatedName, contentLeft, rowTop + 62f, paint)
+
+                // Alt Satır: Açık gri/füme (#64748B) "Kod: [urunKodu] • SKT: [sktTarihi]"
+                paint.textSize = 23f
+                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
+                paint.color = Color.parseColor("#64748B")
+                val sktFormatted = product.getFormattedSkt()
+                val codePrefix = if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu}  •  " else ""
+                val subInfoText = "${codePrefix}SKT: $sktFormatted"
+                val truncatedSubInfo = ImageDrawingUtils.truncateText(paint, subInfoText, maxNameWidth)
+                canvas.drawText(truncatedSubInfo, contentLeft, rowTop + 106f, paint)
+
+                // 4. AYRAÇ: Satırlar arasına 1.5px inceliğinde açık gri (#E2E8F0) ayırıcı çizgi
+                if (index < chunkProducts.size - 1) {
+                    paint.color = Color.parseColor("#E2E8F0")
+                    paint.strokeWidth = 1.5f
+                    canvas.drawLine(rowLeft, rowBottom, rowRight, rowBottom, paint)
+                }
+            }
+
+            bitmap
+        }
+    }
 }

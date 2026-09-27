@@ -85,9 +85,9 @@ fun ProductDetailSktInputSection(
                 onClick = onDateClick,
                 modifier = Modifier
                     .weight(1f)
-                    .height(38.dp)
+                    .height(42.dp)
                     .testTag("skt_date_picker_button"),
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, TurquoisePrimary),
                 shadowElevation = 1.dp
@@ -95,20 +95,20 @@ fun ProductDetailSktInputSection(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.DateRange,
                         contentDescription = "Tarih",
                         tint = TurquoisePrimary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = dateFormat.format(Date(selectedSktMillis)),
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Black,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -117,24 +117,24 @@ fun ProductDetailSktInputSection(
             Button(
                 onClick = onOcrClick,
                 modifier = Modifier
-                    .height(38.dp)
+                    .height(42.dp)
                     .testTag("open_skt_ocr_button"),
                 colors = ButtonDefaults.buttonColors(containerColor = Slate700),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp)
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = "SKT Tara",
                     tint = Color.White,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = "Tarih Oku",
-                    fontWeight = FontWeight.Black,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    fontSize = 12.sp,
+                    fontSize = 12.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -192,18 +192,18 @@ fun ProductDetailSktInputSection(
                     onClick = {
                         onPresetDateSelected(dateCalc())
                     },
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surface,
                     border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
-                    modifier = Modifier.height(26.dp)
+                    modifier = Modifier.height(28.dp)
                 ) {
                     Box(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = label,
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark
                         )
@@ -212,106 +212,170 @@ fun ProductDetailSktInputSection(
             }
         }
 
-        // Row 2: Adet Arttırma / Azaltma & Manuel Giriş
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Row 2: Adet Arttırma / Azaltma & Manuel Giriş (BÜYÜTÜLMÜŞ, GENİŞ VE ERGONOMİK ALAN)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // Adet Başlığı & Hızlı Miktar Kısayolları
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(8.dp))
-                    .padding(2.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Button(
-                    onClick = {
-                        val current = sktAdediStr.toIntOrNull() ?: 1
-                        if (current > 1) {
-                            onSktAdediChange((current - 1).toString())
-                        }
-                    },
-                    modifier = Modifier.size(34.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text("-", fontSize = 16.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                Text(
+                    text = "📦 Adet / Miktar",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 12.5.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
 
-                Box(
-                    modifier = Modifier
-                        .width(42.dp)
-                        .height(34.dp),
-                    contentAlignment = Alignment.Center
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    androidx.compose.foundation.text.BasicTextField(
-                        value = sktAdediStr,
-                        onValueChange = { newValue ->
-                            if (newValue.all { it.isDigit() } && newValue.length <= 4) {
-                                onSktAdediChange(newValue)
+                    listOf(1, 2, 5, 10, 24).forEach { addCount ->
+                        Surface(
+                            onClick = {
+                                val current = sktAdediStr.toIntOrNull() ?: 0
+                                onSktAdediChange((current + addCount).toString())
+                            },
+                            shape = RoundedCornerShape(6.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
+                            modifier = Modifier.height(24.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.padding(horizontal = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "+$addCount",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark
+                                )
                             }
-                        },
-                        singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(
-                            textAlign = TextAlign.Center,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 15.sp,
-                            color = MaterialTheme.colorScheme.onSurface
-                        ),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(TurquoisePrimary),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
-                    )
-                }
-
-                Button(
-                    onClick = {
-                        val current = sktAdediStr.toIntOrNull() ?: 0
-                        onSktAdediChange((current + 1).toString())
-                    },
-                    modifier = Modifier.size(34.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text("+", fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        }
+                    }
                 }
             }
 
-            OutlinedButton(
-                onClick = {
-                    val count = sktAdediStr.toIntOrNull() ?: 1
-                    onAddSkt(product, selectedSktMillis, count)
-                    Toast.makeText(context, "✓ SKT eklendi ($count adet), yeni SKT girebilirsiniz", Toast.LENGTH_SHORT).show()
-                    onSktAdediChange("1")
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .height(36.dp)
-                    .testTag("save_skt_button"),
-                border = BorderStroke(1.dp, TurquoisePrimary),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 6.dp)
+            // Büyük Stepper [-] [ Sayı ] [+] ve "+ Farklı Tarih" Butonu
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Farklı Tarih Ekle",
-                    tint = TurquoiseDark,
-                    modifier = Modifier.size(14.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = "+ Farklı Tarih",
-                    fontWeight = FontWeight.Bold,
-                    color = TurquoiseDark,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                        .border(1.5.dp, TurquoisePrimary, RoundedCornerShape(12.dp))
+                        .padding(3.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            val current = sktAdediStr.toIntOrNull() ?: 1
+                            if (current > 1) {
+                                onSktAdediChange((current - 1).toString())
+                            }
+                        },
+                        modifier = Modifier
+                            .size(width = 50.dp, height = 46.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("-", fontSize = 24.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .width(76.dp)
+                            .height(46.dp)
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = sktAdediStr,
+                            onValueChange = { newValue ->
+                                if (newValue.all { it.isDigit() } && newValue.length <= 4) {
+                                    onSktAdediChange(newValue)
+                                }
+                            },
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 22.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(TurquoisePrimary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp)
+                                .testTag("skt_quantity_input")
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            val current = sktAdediStr.toIntOrNull() ?: 0
+                            onSktAdediChange((current + 1).toString())
+                        },
+                        modifier = Modifier
+                            .size(width = 50.dp, height = 46.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("+", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
+                    }
+                }
+
+                OutlinedButton(
+                    onClick = {
+                        val count = sktAdediStr.toIntOrNull() ?: 1
+                        onAddSkt(product, selectedSktMillis, count)
+                        Toast.makeText(context, "✓ SKT eklendi ($count adet), yeni SKT girebilirsiniz", Toast.LENGTH_SHORT).show()
+                        onSktAdediChange("1")
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .testTag("save_skt_button"),
+                    border = BorderStroke(1.5.dp, TurquoisePrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp)
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Farklı Tarih Ekle",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text(
+                                text = "+ Tarih Ekle",
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -330,7 +394,7 @@ fun ProductDetailSktInputSection(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp)
+                    .height(46.dp)
                     .testTag("save_finished_skt_button"),
                 colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
                 shape = RoundedCornerShape(10.dp),
@@ -347,7 +411,7 @@ fun ProductDetailSktInputSection(
                     text = "Kaydet ve Devam Et",
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    fontSize = 12.5.sp,
+                    fontSize = 13.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -356,7 +420,7 @@ fun ProductDetailSktInputSection(
             OutlinedButton(
                 onClick = onClearDetail,
                 modifier = Modifier
-                    .height(44.dp)
+                    .height(46.dp)
                     .testTag("close_preview_detail_button"),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
@@ -365,7 +429,7 @@ fun ProductDetailSktInputSection(
                     text = "Kapat",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
+                    fontSize = 12.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

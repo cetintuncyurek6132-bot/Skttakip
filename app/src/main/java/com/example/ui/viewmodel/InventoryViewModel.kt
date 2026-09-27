@@ -128,7 +128,8 @@ class InventoryViewModel(
             // 2. Status Filter
             val matchesFilter = when (filter) {
                 ProductFilter.ALL -> prod.sktTarihi > 0L && prod.stokAdedi > 0
-                ProductFilter.IMPORTANT -> (prod.sktTarihi > 0L && prod.getRemainingDays(todayMidnight) in 1..30 && prod.stokAdedi >= 10) || prod.isImportant
+                ProductFilter.IMPORTANT -> prod.isImportant
+                ProductFilter.LAST_2_DAYS -> prod.sktTarihi > 0L && prod.getRemainingDays(todayMidnight) in 0L..2L
                 ProductFilter.EXPIRED -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED
                 ProductFilter.CRITICAL -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL
                 ProductFilter.SOON -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON

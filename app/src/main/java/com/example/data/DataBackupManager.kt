@@ -2,6 +2,8 @@ package com.example.data
 
 import android.content.Context
 import android.content.SharedPreferences
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -82,7 +84,7 @@ object DataBackupManager {
         productDao: ProductDao,
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null
-    ): String {
+    ): String = withContext(Dispatchers.IO) {
         val root = JSONObject()
         val now = System.currentTimeMillis()
 
@@ -164,7 +166,7 @@ object DataBackupManager {
         val reminderNotes = reminderPrefs.getString("store_reminders_notes", "") ?: ""
         root.put("remindersNotes", reminderNotes)
 
-        return root.toString(2)
+        root.toString(2)
     }
 
     /**
@@ -256,11 +258,11 @@ object DataBackupManager {
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
         mergeWithExisting: Boolean = true
-    ): BackupRestoreResult {
-        return try {
+    ): BackupRestoreResult = withContext(Dispatchers.IO) {
+        try {
             val trimmed = jsonString.trim()
             if (trimmed.isEmpty()) {
-                return BackupRestoreResult(false, "Yedek dosyası boş!")
+                return@withContext BackupRestoreResult(false, "Yedek dosyası boş!")
             }
 
             var productsRestored = 0
@@ -371,7 +373,8 @@ object DataBackupManager {
                         }
                         val match = existingMap[key]
                         if (match != null) {
-                            productDao.updateProduct(prod.copy(id = match.id))
+                            val mergedPrice = prod.fiyat ?: match.fiyat
+                            productDao.updateProduct(prod.copy(id = match.id, fiyat = mergedPrice))
                         } else {
                             productDao.insertProduct(prod.copy(id = 0))
                         }
@@ -512,11 +515,30 @@ object DataBackupManager {
         val eklenmeTarihi = obj.optLong("eklenmeTarihi", System.currentTimeMillis())
         val isImportant = obj.optBoolean("isImportant", false)
         val sonKontrolTarihi = obj.optLong("sonKontrolTarihi", 0L)
-        val fiyat = if (obj.has("fiyat") && !obj.isNull("fiyat")) {
-            obj.optDouble("fiyat")
-        } else if (obj.has("price") && !obj.isNull("price")) {
-            obj.optDouble("price")
-        } else null
+        val fiyat = when {
+            obj.has("fiyat") && !obj.isNull("fiyat") -> {
+                val d = obj.optDouble("fiyat")
+                if (!d.isNaN() && d >= 0.0) d else {
+                    val s = obj.optString("fiyat", "")
+                    s.replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim().toDoubleOrNull()?.takeIf { it >= 0.0 }
+                }
+            }
+            obj.has("price") && !obj.isNull("price") -> {
+                val d = obj.optDouble("price")
+                if (!d.isNaN() && d >= 0.0) d else {
+                    val s = obj.optString("price", "")
+                    s.replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim().toDoubleOrNull()?.takeIf { it >= 0.0 }
+                }
+            }
+            obj.has("fiyati") && !obj.isNull("fiyati") -> {
+                val d = obj.optDouble("fiyati")
+                if (!d.isNaN() && d >= 0.0) d else {
+                    val s = obj.optString("fiyati", "")
+                    s.replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim().toDoubleOrNull()?.takeIf { it >= 0.0 }
+                }
+            }
+            else -> null
+        }
 
         val rawProduct = Product(
             id = 0,

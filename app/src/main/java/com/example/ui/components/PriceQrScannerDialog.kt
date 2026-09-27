@@ -114,7 +114,7 @@ fun PriceQrScannerDialog(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Etiket / Fiyat QR Tara",
+                            text = "Raf Etiketini Doğrula",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = TurquoiseDark
@@ -157,7 +157,7 @@ fun PriceQrScannerDialog(
                     ) {
                         Column(modifier = Modifier.padding(8.dp)) {
                             Text(
-                                text = "🎯 Hedef Ürün:",
+                                text = "Hedef Ürün:",
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TurquoiseDark
@@ -200,6 +200,7 @@ fun PriceQrScannerDialog(
                         isFlashOn = isFlashOn,
                         filterMode = ScannerFilterMode.ONLY_QR_CODE,
                         isPaused = hasHandledScan,
+                        requireCloseDistance = false,
                         onBarcodeScanned = { raw ->
                             if (hasHandledScan) return@CameraXBarcodeView
 

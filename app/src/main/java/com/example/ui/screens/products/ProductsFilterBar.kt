@@ -2,14 +2,22 @@ package com.example.ui.screens.products
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -30,24 +38,47 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 @Composable
-fun FilterChipItem(
+fun FilterChipBadge(
+    selected: Boolean,
+    onClick: () -> Unit,
+    selectedColor: Color,
+    selectedContentColor: Color = Color.White,
+    unselectedBorderColor: Color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+    unselectedContainerColor: Color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+    icon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
     label: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) TurquoisePrimary else MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.testTag("filter_chip_$label")
+        shape = RoundedCornerShape(10.dp),
+        color = if (selected) selectedColor else unselectedContainerColor,
+        border = if (selected) null else BorderStroke(1.dp, unselectedBorderColor),
+        modifier = modifier.height(34.dp)
     ) {
-        Text(
-            text = label,
-            color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-        )
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 10.dp)
+                .fillMaxHeight(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (icon != null) {
+                icon()
+                Spacer(modifier = Modifier.width(5.dp))
+            }
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                color = if (selected) selectedContentColor else MaterialTheme.colorScheme.onSurface
+            )
+            if (trailingIcon != null) {
+                Spacer(modifier = Modifier.width(4.dp))
+                trailingIcon()
+            }
+        }
     }
 }
 
@@ -62,112 +93,128 @@ fun ProductsFilterBar(
     totalProductCount: Int = 0,
     onOpenDateRange: () -> Unit,
     onClearDateRange: () -> Unit,
-    onOpenQrFixMode: () -> Unit,
+    onOpenQrFixMode: () -> Unit = {},
     onFilterSelect: (ProductFilter) -> Unit,
-    onGroupFilterSelect: (ProductGroupFilter) -> Unit
+    onGroupFilterSelect: (ProductGroupFilter) -> Unit = {}
 ) {
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shadowElevation = 2.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 6.dp)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Horizontal filter chips & Date Range button
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 📅 Tarih Aralığı Filtresi Butonu
-                Surface(
+            // 1. "Tarih Aralığı"
+            item {
+                val dateLabel = if (hasDateFilter) {
+                    val startStr = startDateFilter?.let { dateFormat.format(Date(it)) } ?: "..."
+                    val endStr = endDateFilter?.let { dateFormat.format(Date(it)) } ?: "..."
+                    "$startStr - $endStr"
+                } else {
+                    "Tarih Aralığı"
+                }
+
+                FilterChipBadge(
+                    selected = hasDateFilter,
                     onClick = onOpenDateRange,
-                    shape = RoundedCornerShape(12.dp),
-                    color = if (hasDateFilter) TurquoisePrimary else MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, if (hasDateFilter) TurquoiseDark else Color.Transparent),
-                    modifier = Modifier.testTag("date_range_filter_button")
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    selectedColor = TurquoisePrimary,
+                    selectedContentColor = Color.White,
+                    icon = {
                         Icon(
                             imageVector = Icons.Default.DateRange,
-                            contentDescription = "Tarih Filtresi",
+                            contentDescription = "Tarih Aralığı",
                             tint = if (hasDateFilter) Color.White else TurquoisePrimary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = if (hasDateFilter) {
-                                val startStr = startDateFilter?.let { dateFormat.format(Date(it)) } ?: "..."
-                                val endStr = endDateFilter?.let { dateFormat.format(Date(it)) } ?: "..."
-                                "$startStr - $endStr"
-                            } else "SKT Tarih Aralığı",
-                            color = if (hasDateFilter) Color.White else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (hasDateFilter) {
-                            Spacer(modifier = Modifier.width(4.dp))
+                    },
+                    trailingIcon = if (hasDateFilter) {
+                        {
                             Icon(
                                 imageVector = Icons.Default.Clear,
-                                contentDescription = "Filtreyi Temizle",
+                                contentDescription = "Tarih Filtresini Temizle",
                                 tint = Color.White,
                                 modifier = Modifier
-                                    .size(16.dp)
+                                    .size(15.dp)
                                     .clickable { onClearDateRange() }
                             )
                         }
-                    }
-                }
+                    } else null,
+                    label = dateLabel,
+                    modifier = Modifier.testTag("date_range_filter_button")
+                )
+            }
 
-                // 🏷️ QR ile Barkod & Fiyat Düzelt Butonu
-                Surface(
-                    onClick = onOpenQrFixMode,
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, TurquoisePrimary)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+            // 2. "Tümü (X)"
+            item {
+                val isAllSelected = selectedFilter == ProductFilter.ALL && !hasDateFilter
+                val allLabel = if (totalProductCount > 0) "Tümü ($totalProductCount)" else "Tümü"
+
+                FilterChipBadge(
+                    selected = isAllSelected,
+                    onClick = {
+                        onFilterSelect(ProductFilter.ALL)
+                        if (hasDateFilter) onClearDateRange()
+                    },
+                    selectedColor = TurquoisePrimary,
+                    selectedContentColor = Color.White,
+                    label = allLabel,
+                    modifier = Modifier
+                        .testTag("filter_chip_all")
+                        .testTag("filter_chip_TÜMÜ")
+                )
+            }
+
+            // 3. "Önemli"
+            item {
+                val isImportantSelected = selectedFilter == ProductFilter.IMPORTANT
+
+                FilterChipBadge(
+                    selected = isImportantSelected,
+                    onClick = { onFilterSelect(ProductFilter.IMPORTANT) },
+                    selectedColor = Color(0xFFD97706), // Kehribar / Sarı renk tonu
+                    selectedContentColor = Color.White,
+                    icon = {
                         Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "QR Düzelt",
-                            tint = TurquoisePrimary,
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Default.Star,
+                            contentDescription = "Önemli",
+                            tint = if (isImportantSelected) Color.White else Color(0xFFD97706),
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = "🏷️ QR Düzelt",
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
+                    },
+                    label = "Önemli",
+                    modifier = Modifier
+                        .testTag("filter_chip_important")
+                        .testTag("filter_chip_ÖNEMLİ")
+                )
+            }
 
-                // Kategori/Durum Filtre Chip'leri
-                ProductFilter.values().forEach { filter ->
-                    val chipLabel = if (filter == ProductFilter.ALL && totalProductCount > 0) {
-                        "TÜMÜ ($totalProductCount)"
-                    } else {
-                        filter.label
-                    }
-                    FilterChipItem(
-                        label = chipLabel,
-                        isSelected = selectedFilter == filter,
-                        onClick = { onFilterSelect(filter) }
-                    )
-                }
+            // 4. "Son 2 Gün"
+            item {
+                val isLast2DaysSelected = selectedFilter == ProductFilter.LAST_2_DAYS
+
+                FilterChipBadge(
+                    selected = isLast2DaysSelected,
+                    onClick = { onFilterSelect(ProductFilter.LAST_2_DAYS) },
+                    selectedColor = Color(0xFFDC2626), // Kırmızı / Turuncu dikkat çekici container
+                    selectedContentColor = Color.White,
+                    icon = {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = "Son 2 Gün",
+                            tint = if (isLast2DaysSelected) Color.White else Color(0xFFDC2626),
+                            modifier = Modifier.size(15.dp)
+                        )
+                    },
+                    label = "Son 2 Gün",
+                    modifier = Modifier
+                        .testTag("filter_chip_last_2_days")
+                        .testTag("filter_chip_Son 2 Gün")
+                )
             }
         }
     }

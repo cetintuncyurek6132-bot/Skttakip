@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -7,30 +9,100 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.BatterySaver
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.Vibration
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.auth.UserManager
+import androidx.core.content.FileProvider
+import com.example.BuildConfig
 import com.example.data.BackupMetadata
 import com.example.data.BackupRestoreResult
+import com.example.data.DataBackupManager
 import com.example.data.Product
-import com.example.ui.screens.csv.*
-import com.example.ui.theme.*
+import com.example.ui.components.AppUpdateDialog
+import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.Slate100
+import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate500
+import com.example.ui.theme.Slate600
+import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate800
+import com.example.ui.theme.Slate900
+import com.example.ui.theme.TurquoiseDark
+import com.example.ui.theme.TurquoiseLight
+import com.example.ui.theme.TurquoisePrimary
+import com.example.util.AppUpdateChecker
+import com.example.util.AppUpdateInfo
+import com.example.util.CsvParseResult
+import com.example.util.XlsxParser
+import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun CsvScreen(
@@ -44,66 +116,41 @@ fun CsvScreen(
     onToggleSoundEffects: () -> Unit = {},
     onToggleVibration: () -> Unit = {},
     onFixAndRepairDatabase: (onResult: (Int, String) -> Unit) -> Unit = {},
-    onImportLines: (List<String>) -> com.example.util.CsvParseResult = { com.example.util.CsvParseResult(emptyList(), 0, 0) },
+    onImportLines: (List<String>) -> CsvParseResult = { CsvParseResult(emptyList(), 0, 0) },
     onResetDatabase: () -> Unit = {},
     onRestoreSeedData: () -> Unit = {},
     onOpenQrFixMode: () -> Unit = {},
     onExportJsonBackup: ((String) -> Unit) -> Unit = {},
-    onSaveLocalBackup: (String, (java.io.File?) -> Unit) -> Unit = { _, _ -> },
+    onSaveLocalBackup: (String, (File?) -> Unit) -> Unit = { _, _ -> },
     onGetLocalBackups: () -> List<BackupMetadata> = { emptyList() },
     onRestoreFromJson: (String, Boolean, (BackupRestoreResult) -> Unit) -> Unit = { _, _, _ -> },
+    onNavigateToReminders: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val currentUser by UserManager.currentUser.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
-    val isMsUser = currentUser?.role == "MS"
+    // 0: Genel Ayarlar, 1: Veri Ayarları
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    // Dialog & Process states
+    // Dialog States
     var showResetDialog by remember { mutableStateOf(false) }
-    var isEditingProfile by remember { mutableStateOf(false) }
-    var tempProfileName by remember { mutableStateOf("") }
-    var tempProfileRole by remember { mutableStateOf("") }
-    var tempProfileDepartment by remember { mutableStateOf("") }
+    var showRepairResultDialog by remember { mutableStateOf<String?>(null) }
+    var restorePendingJson by remember { mutableStateOf<String?>(null) }
+    var showRestoreChoiceDialog by remember { mutableStateOf(false) }
 
-    var repairResultText by remember { mutableStateOf<String?>(null) }
-    var backupStatusMessage by remember { mutableStateOf<String?>(null) }
-    var restoreConfirmBackupFile by remember { mutableStateOf<BackupMetadata?>(null) }
+    // Update States
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var updateInfoState by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
+    var isDownloadingApk by remember { mutableStateOf(false) }
+    var downloadProgressPercent by remember { mutableIntStateOf(0) }
 
-    // Backup & Restore states
-    var localBackups by remember { mutableStateOf<List<BackupMetadata>>(emptyList()) }
-    var isTakingBackup by remember { mutableStateOf(false) }
-    var isRestoringBackup by remember { mutableStateOf(false) }
+    // Backup & Restore processing states
+    var isExporting by remember { mutableStateOf(false) }
+    var isSavingLocal by remember { mutableStateOf(false) }
 
-    fun refreshLocalBackups() {
-        localBackups = onGetLocalBackups()
-    }
-
-    LaunchedEffect(Unit) {
-        refreshLocalBackups()
-    }
-
-    // JSON FULL EXPORT LAUNCHER
-    val jsonExportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
-    ) { uri: Uri? ->
-        uri?.let { fileUri ->
-            onExportJsonBackup { jsonString ->
-                try {
-                    context.contentResolver.openOutputStream(fileUri)?.use { stream ->
-                        stream.write(jsonString.toByteArray(Charsets.UTF_8))
-                    }
-                    Toast.makeText(context, "✅ Ürünler, SKT/Adetler, Takip ve Adetsel yedeği başarıyla kaydedildi!", Toast.LENGTH_LONG).show()
-                    refreshLocalBackups()
-                } catch (e: Exception) {
-                    Toast.makeText(context, "Kayıt hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    // JSON FULL IMPORT LAUNCHER
+    // JSON Import Launcher (Geri Yükle)
     val jsonImportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -112,60 +159,19 @@ fun CsvScreen(
                 val inputStream = context.contentResolver.openInputStream(fileUri)
                 val jsonContent = inputStream?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
                 if (jsonContent.isNullOrBlank()) {
-                    Toast.makeText(context, "Seçilen JSON dosyası boş!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Seçilen JSON dosyası boş veya geçersiz!", Toast.LENGTH_SHORT).show()
                     return@let
                 }
-                isRestoringBackup = true
-                onRestoreFromJson(jsonContent, true) { result ->
-                    isRestoringBackup = false
-                    backupStatusMessage = result.message
-                    refreshLocalBackups()
-                }
+                restorePendingJson = jsonContent
+                showRestoreChoiceDialog = true
             } catch (e: Exception) {
-                isRestoringBackup = false
                 Toast.makeText(context, "Yedek dosyası okunamadı: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    // CSV Sub-Category states
-    var selectedCsvSubTab by remember { mutableIntStateOf(0) } // 0: İçe Aktar, 1: Dışa Aktar
-
-    val csvExportText = remember(products) {
-        buildString {
-            append("Ürün Barkodu,Ürün Kodu,Ürün Adı\n")
-            products.forEach { p ->
-                val cleanBarkod = p.barkod.trim().replace(",", " ")
-                val cleanKod = p.urunKodu.trim().replace(",", " ")
-                val cleanAd = p.urunAdi.trim().replace(",", " ")
-                append("$cleanBarkod,$cleanKod,$cleanAd\n")
-            }
-        }
-    }
-
-    val exportDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("text/csv")
-    ) { uri: Uri? ->
-        uri?.let { fileUri ->
-            try {
-                context.contentResolver.openOutputStream(fileUri)?.use { stream ->
-                    stream.write(csvExportText.toByteArray(Charsets.UTF_8))
-                }
-                Toast.makeText(context, "✅ CSV dosyası başarıyla kaydedildi!", Toast.LENGTH_LONG).show()
-            } catch (e: Exception) {
-                Toast.makeText(context, "Hata: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    // Restrict MS only tabs safely on initial render
-    LaunchedEffect(isMsUser) {
-        if (!isMsUser && selectedTab != 0) {
-            selectedTab = 0
-        }
-    }
-
-    val filePickerLauncher = rememberLauncherForActivityResult(
+    // CSV / XLSX File Picker Launcher (5 Kolon ve 3 Kolon Desteği)
+    val csvPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let { fileUri ->
@@ -181,51 +187,49 @@ fun CsvScreen(
                 val isOldXls = bytes.size >= 4 && bytes[0] == 0xD0.toByte() && bytes[1] == 0xCF.toByte() && bytes[2] == 0x11.toByte() && bytes[3] == 0xE0.toByte()
 
                 if (isZipOrXlsx) {
-                    val xlsxLines = com.example.util.XlsxParser.parseXlsxToCsvLines(bytes)
+                    val xlsxLines = XlsxParser.parseXlsxToCsvLines(bytes)
                     if (xlsxLines.isNotEmpty()) {
                         val importResult = onImportLines(xlsxLines)
                         val newCount = importResult.productsToInsert.size
                         val skippedCount = importResult.skippedLineCount
                         val message = buildString {
                             if (newCount > 0) {
-                                append("✅ Excel (.xlsx) dosyasından $newCount adet yeni ürün başarıyla eklendi!")
+                                append("Excel (.xlsx) dosyasından $newCount adet ürün başarıyla aktarıldı!")
                             } else {
                                 append("Excel dosyasında eklenecek yeni ürün bulunamadı.")
                             }
                             if (skippedCount > 0) {
-                                append("\n⚠️ $skippedCount adet satır hatalı format nedeniyle atlandı.")
+                                append("\n$skippedCount adet satır format uyuşmazlığı nedeniyle atlandı.")
                             }
                         }
                         Toast.makeText(context, message, Toast.LENGTH_LONG).show()
                         return@let
                     } else {
-                        Toast.makeText(context, "⚠️ Excel dosyası okunamadı veya içerik boş.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Excel dosyası okunamadı veya boş.", Toast.LENGTH_LONG).show()
                         return@let
                     }
                 }
 
                 if (isOldXls) {
-                    Toast.makeText(context, "⚠️ Eski (.xls) formatı desteklenmiyor. Lütfen dosyanızı .xlsx veya .csv olarak kaydedip tekrar yükleyin.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Eski (.xls) formatı desteklenmiyor. Lütfen .xlsx veya .csv formatında yükleyin.", Toast.LENGTH_LONG).show()
                     return@let
                 }
 
-                val nullByteCount = bytes.take(1024).count { it == 0.toByte() }
-                if (nullByteCount > 5) {
-                    Toast.makeText(context, "⚠️ Geçersiz dosya formatı! Lütfen .xlsx veya düz metin CSV dosyası yükleyin.", Toast.LENGTH_LONG).show()
-                    return@let
+                // Text encoding handling (UTF-8, Windows-1254, BOM)
+                val charsetTurkish = try {
+                    java.nio.charset.Charset.forName("windows-1254")
+                } catch (e: Exception) {
+                    java.nio.charset.StandardCharsets.ISO_8859_1
                 }
 
-                val charsetTurkish = try { java.nio.charset.Charset.forName("windows-1254") } catch (e: Exception) { java.nio.charset.StandardCharsets.ISO_8859_1 }
-                var textContent = ""
-
-                if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
-                    textContent = String(bytes, 3, bytes.size - 3, java.nio.charset.StandardCharsets.UTF_8)
+                val textContent = if (bytes.size >= 3 && bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()) {
+                    String(bytes, 3, bytes.size - 3, java.nio.charset.StandardCharsets.UTF_8)
                 } else {
                     val utf8Str = String(bytes, java.nio.charset.StandardCharsets.UTF_8)
                     if (utf8Str.contains("\uFFFD")) {
-                        textContent = String(bytes, charsetTurkish)
+                        String(bytes, charsetTurkish)
                     } else {
-                        textContent = utf8Str
+                        utf8Str
                     }
                 }
 
@@ -235,67 +239,249 @@ fun CsvScreen(
                 val skippedCount = importResult.skippedLineCount
                 val message = buildString {
                     if (newCount > 0) {
-                        append("✅ $newCount adet yeni ürün başarıyla eklendi!")
+                        append("$newCount adet ürün başarıyla aktarıldı!")
                     } else {
                         append("Seçilen dosyada eklenecek yeni ürün bulunamadı.")
                     }
                     if (skippedCount > 0) {
-                        append("\n⚠️ $skippedCount adet satır hatalı format nedeniyle atlandı.")
+                        append("\n$skippedCount adet satır hatalı format nedeniyle atlandı.")
                     }
                 }
                 Toast.makeText(context, message, Toast.LENGTH_LONG).show()
             } catch (e: Exception) {
-                Toast.makeText(
-                    context,
-                    "Dosya okunamadı: ${e.localizedMessage}",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(context, "Dosya okunamadı: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    // DIALOGS
-    CsvScreenResetDatabaseDialog(
-        show = showResetDialog,
-        onDismiss = { showResetDialog = false },
-        onConfirm = onResetDatabase,
-        context = context
-    )
+    // JSON Dışa Aktarma Paylaşım Fonksiyonu
+    fun executeJsonShareExport() {
+        isExporting = true
+        onExportJsonBackup { jsonString ->
+            isExporting = false
+            try {
+                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
+                val fileName = "skt_takip_yedek_$timeStamp.json"
+                val cacheFile = File(context.cacheDir, fileName)
+                cacheFile.writeText(jsonString, Charsets.UTF_8)
 
-    CsvScreenProfileEditDialog(
-        show = isEditingProfile,
-        name = tempProfileName,
-        role = tempProfileRole,
-        department = tempProfileDepartment,
-        onNameChange = { tempProfileName = it },
-        onRoleChange = { tempProfileRole = it },
-        onDepartmentChange = { tempProfileDepartment = it },
-        currentUser = currentUser,
-        onDismiss = { isEditingProfile = false },
-        context = context
-    )
+                val contentUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    cacheFile
+                )
 
-    CsvScreenRepairResultDialog(
-        repairResultText = repairResultText,
-        onDismiss = { repairResultText = null }
-    )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_STREAM, contentUri)
+                    putExtra(Intent.EXTRA_SUBJECT, "SKT Takip Tam Sistem Yedeği ($timeStamp)")
+                    putExtra(Intent.EXTRA_TEXT, "SKT Takip uygulaması tam veri yedeği (Ürünler, SKT'ler, Fiyatlar, Takip ve Sayımlar).")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
 
-    CsvScreenBackupStatusMessageDialog(
-        message = backupStatusMessage,
-        onDismiss = { backupStatusMessage = null }
-    )
+                context.startActivity(Intent.createChooser(shareIntent, "Yedeği Paylaş / Dışa Aktar"))
+            } catch (e: Exception) {
+                Toast.makeText(context, "Dışa aktarma hatası: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
-    CsvScreenRestoreConfirmationDialog(
-        backupMetadata = restoreConfirmBackupFile,
-        onDismiss = { restoreConfirmBackupFile = null },
-        onRestoreFromJson = onRestoreFromJson,
-        onRestoreComplete = { msg ->
-            isRestoringBackup = false
-            backupStatusMessage = msg
-            refreshLocalBackups()
-        },
-        context = context
-    )
+    // Güncellemeleri Denetle Aksiyonu
+    fun checkAppUpdates() {
+        isCheckingUpdate = true
+        coroutineScope.launch {
+            val result = AppUpdateChecker.checkForUpdates()
+            isCheckingUpdate = false
+            result.onSuccess { info ->
+                if (info.hasUpdate) {
+                    updateInfoState = info
+                    showUpdateDialog = true
+                } else {
+                    Toast.makeText(context, "Uygulamanız güncel! (${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                }
+            }.onFailure { e ->
+                Toast.makeText(context, "Güncelleme kontrolü yapılamadı: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Update Dialog
+    if (showUpdateDialog && updateInfoState != null) {
+        AppUpdateDialog(
+            updateInfo = updateInfoState!!,
+            isDownloading = isDownloadingApk,
+            downloadProgress = downloadProgressPercent,
+            onConfirmUpdate = {
+                val downloadUrl = updateInfoState?.downloadUrl.orEmpty()
+                if (downloadUrl.isNotBlank()) {
+                    isDownloadingApk = true
+                    downloadProgressPercent = 0
+                    coroutineScope.launch {
+                        val downloadResult = AppUpdateChecker.downloadApk(
+                            context = context,
+                            downloadUrl = downloadUrl,
+                            onProgress = { progress -> downloadProgressPercent = progress }
+                        )
+                        isDownloadingApk = false
+                        downloadResult.onSuccess { apkFile ->
+                            showUpdateDialog = false
+                            AppUpdateChecker.installApk(context, apkFile)
+                        }.onFailure { e ->
+                            Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+            },
+            onDismiss = {
+                isDownloadingApk = false
+                showUpdateDialog = false
+            }
+        )
+    }
+
+    // Reset Confirmation Dialog (Tehlikeli Bölge)
+    if (showResetDialog) {
+        AlertDialog(
+            onDismissRequest = { showResetDialog = false },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.DeleteOutline,
+                    contentDescription = null,
+                    tint = ExpiredRed,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Tüm Verileri Sıfırla",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "Tüm verileri silmek istediğinize emin misiniz? Kayıtlı ürünler, SKT'ler, takip ve sayım verileri kalıcı olarak silinecektir. Bu işlem geri alınamaz.",
+                    fontSize = 13.5.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                OutlinedButton(
+                    onClick = {
+                        showResetDialog = false
+                        onResetDatabase()
+                        Toast.makeText(context, "Tüm ürün ve operasyon verileri sıfırlandı.", Toast.LENGTH_SHORT).show()
+                    },
+                    border = BorderStroke(1.dp, ExpiredRed),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed)
+                ) {
+                    Text("Evet, Tümünü Sil", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showResetDialog = false }
+                ) {
+                    Text("Vazgeç", color = Slate700, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
+
+    // Restore Choice Dialog (Mevcutla Birleştir vs Üzerine Yaz)
+    if (showRestoreChoiceDialog && restorePendingJson != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showRestoreChoiceDialog = false
+                restorePendingJson = null
+            },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.FolderOpen,
+                    contentDescription = null,
+                    tint = TurquoiseDark,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Yedekten Geri Yükleme Yöntemi",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Text(
+                    text = "Yedek dosyasındaki verileri mevcut veritabanınızla birleştirmek mi yoksa mevcut verilerin üzerine yazmak mı istersiniz?",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val json = restorePendingJson ?: return@Button
+                        showRestoreChoiceDialog = false
+                        restorePendingJson = null
+                        onRestoreFromJson(json, true) { result ->
+                            Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Mevcutla Birleştir", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        val json = restorePendingJson ?: return@OutlinedButton
+                        showRestoreChoiceDialog = false
+                        restorePendingJson = null
+                        onRestoreFromJson(json, false) { result ->
+                            Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                        }
+                    },
+                    border = BorderStroke(1.dp, TurquoisePrimary),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                ) {
+                    Text("Üzerine Yaz", fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // Repair Result Dialog
+    showRepairResultDialog?.let { resultMsg ->
+        AlertDialog(
+            onDismissRequest = { showRepairResultDialog = null },
+            shape = RoundedCornerShape(16.dp),
+            title = {
+                Text("Veritabanı Onarım Sonucu", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Text(resultMsg, fontSize = 13.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showRepairResultDialog = null },
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Tamam", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
@@ -307,11 +493,12 @@ fun CsvScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column {
+                    // Top App Bar Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .statusBarsPadding()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
@@ -319,111 +506,54 @@ fun CsvScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .background(Slate100, CircleShape)
+                                .testTag("settings_back_button")
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Geri",
-                                tint = Slate700,
+                                tint = Slate800,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(TurquoisePrimary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Settings, contentDescription = null, tint = TurquoisePrimary)
-                        }
+
                         Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = if (isMsUser) "AYARLAR & VERİ YÖNETİMİ" else "GENEL AYARLAR",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = if (isMsUser) "Görünüm, Bildirimler, Güvenli Yedekleme ve CSV" else "Uygulama Görünümü ve Bildirim Tercihleri",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+
+                        Text(
+                            text = "Ayarlar ve Veri Yönetimi",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
                     }
 
-                    TabRow(
-                        selectedTabIndex = selectedTab,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        contentColor = TurquoisePrimary
+                    // 2-Tab Modern Segmented Control / Tab Bar
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Tab(
-                            selected = selectedTab == 0,
+                        // Tab 0: Genel Ayarlar
+                        SegmentedTabButton(
+                            label = "Genel Ayarlar",
+                            icon = Icons.Default.Settings,
+                            isSelected = selectedTab == 0,
                             onClick = { selectedTab = 0 },
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Settings, contentDescription = null, modifier = Modifier.size(15.dp))
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("AYARLAR", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            modifier = Modifier.weight(1f)
                         )
-                        Tab(
-                            selected = selectedTab == 1,
-                            onClick = {
-                                if (!isMsUser) {
-                                    Toast.makeText(context, "🔒 Bu sekmeye erişmek için 'Mağaza Sorumlusu (MS)' yetkisi gereklidir.", Toast.LENGTH_LONG).show()
-                                } else {
-                                    selectedTab = 1
-                                }
-                            },
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (!isMsUser) Icons.Default.Lock else Icons.Default.Security,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp),
-                                        tint = if (!isMsUser) Color.Gray else if (selectedTab == 1) TurquoisePrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "VERİLER & YEDEK",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (!isMsUser) Color.Gray else Color.Unspecified
-                                    )
-                                }
-                            }
-                        )
-                        Tab(
-                            selected = selectedTab == 2,
-                            onClick = {
-                                if (!isMsUser) {
-                                    Toast.makeText(context, "🔒 Bu sekmeye erişmek için 'Mağaza Sorumlusu (MS)' yetkisi gereklidir.", Toast.LENGTH_LONG).show()
-                                } else {
-                                    selectedTab = 2
-                                }
-                            },
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (!isMsUser) Icons.Default.Lock else Icons.Default.UploadFile,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp),
-                                        tint = if (!isMsUser) Color.Gray else if (selectedTab == 2) TurquoisePrimary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "CSV İŞLEMLERİ",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (!isMsUser) Color.Gray else Color.Unspecified
-                                    )
-                                }
-                            }
+
+                        // Tab 1: Veri Ayarları
+                        SegmentedTabButton(
+                            label = "Veri Ayarları",
+                            icon = Icons.Default.Storage,
+                            isSelected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            modifier = Modifier.weight(1f)
                         )
                     }
+
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
@@ -433,194 +563,560 @@ fun CsvScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (selectedTab == 0) {
-                GeneralSettingsTabContent(
-                    currentUser = currentUser,
-                    isDarkMode = isDarkMode,
-                    onToggleDarkMode = onToggleDarkMode,
-                    isBatterySaverMode = isBatterySaverMode,
-                    onToggleBatterySaverMode = onToggleBatterySaverMode,
-                    soundEffectsEnabled = soundEffectsEnabled,
-                    onToggleSoundEffects = onToggleSoundEffects,
-                    vibrationEnabled = vibrationEnabled,
-                    onToggleVibration = onToggleVibration,
-                    onEditProfileClick = {
-                        tempProfileName = currentUser?.fullName ?: ""
-                        tempProfileRole = currentUser?.roleTitle ?: ""
-                        tempProfileDepartment = currentUser?.department ?: "Süt & Şarküteri Reyonu"
-                        isEditingProfile = true
-                    },
-                    onOpenQrFixMode = onOpenQrFixMode,
-                    onFixAndRepairDatabase = onFixAndRepairDatabase,
-                    onRepairResult = { msg -> repairResultText = msg }
-                )
-            } else if (selectedTab == 1) {
-                BackupSettingsTabContent(
-                    localBackups = localBackups,
-                    onTriggerLocalBackup = {
-                        isTakingBackup = true
-                        onSaveLocalBackup("manual") { file ->
-                            isTakingBackup = false
-                            if (file != null) {
-                                backupStatusMessage = "✅ Güvenli yedek başarıyla alındı ve cihaz hafızasına kaydedildi!\n\nDosya: ${file.name}\nBoyut: ${com.example.data.DataBackupManager.formatBytes(file.length())}\n\nYedeklenen Veriler:\n• Ürünler ve SKT / stok adetleri\n• Takip sayfası kayıtları\n• Adetsel sayım kayıtları"
-                                refreshLocalBackups()
-                            } else {
-                                backupStatusMessage = "⚠️ Yedek oluşturulamadı."
-                            }
-                        }
-                    },
-                    onRefreshLocalBackups = { refreshLocalBackups() },
-                    isTakingBackup = isTakingBackup,
-                    onTriggerJsonExport = {
-                        val dateStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                        val suggestedName = "SKT_TAKIP_YEDEK_$dateStr.json"
-                        jsonExportLauncher.launch(suggestedName)
-                    },
-                    onTriggerJsonImport = {
-                        jsonImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
-                    },
-                    isRestoringBackup = isRestoringBackup,
-                    onSelectBackupToRestore = { b ->
-                        restoreConfirmBackupFile = b
-                    },
-                    onFixAndRepairDatabase = onFixAndRepairDatabase,
-                    onRepairResult = { msg -> repairResultText = msg }
-                )
-            } else if (selectedTab == 2) {
-                // TAB CSV: CSV İŞLEMLERİ (2 KATEGORİ: İÇE AKTAR VE DIŞA AKTAR)
+                // =============================================================
+                // SEKME 1: GENEL AYARLAR
+                // =============================================================
+
+                // A. Sürüm ve Güncelleme Kartı
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Slate200),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Row(
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp)
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        // İÇE AKTAR
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { selectedCsvSubTab = 0 },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (selectedCsvSubTab == 0) TurquoisePrimary else Color.Transparent,
-                            shadowElevation = if (selectedCsvSubTab == 0) 2.dp else 0.dp
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.UploadFile,
+                                    imageVector = Icons.Default.Info,
                                     contentDescription = null,
-                                    tint = if (selectedCsvSubTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(18.dp)
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "İçe Aktar",
+                                    text = "Uygulama Sürümü: ${com.example.BuildConfig.VERSION_NAME}",
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = if (selectedCsvSubTab == 0) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = Slate900
+                                )
+                                Text(
+                                    text = "GitHub üzerinden en son yayınlanan güncellemeyi kontrol edin.",
+                                    fontSize = 12.sp,
+                                    color = Slate600
                                 )
                             }
                         }
 
-                        // DIŞA AKTAR
-                        Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { selectedCsvSubTab = 1 },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (selectedCsvSubTab == 1) TurquoisePrimary else Color.Transparent,
-                            shadowElevation = if (selectedCsvSubTab == 1) 2.dp else 0.dp
+                        OutlinedButton(
+                            onClick = { checkAppUpdates() },
+                            enabled = !isCheckingUpdate,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(vertical = 12.dp, horizontal = 6.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                            if (isCheckingUpdate) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = TurquoiseDark
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Kontrol Ediliyor...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            } else {
                                 Icon(
-                                    imageVector = Icons.Default.FileDownload,
+                                    imageVector = Icons.Default.CloudDownload,
                                     contentDescription = null,
-                                    tint = if (selectedCsvSubTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Dışa Aktar",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp,
-                                    color = if (selectedCsvSubTab == 1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Güncellemeleri Denetle", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // B. Görünüm ve Performans Tercihleri (4 Switch Kartı)
+                SettingSwitchCard(
+                    title = "Karanlık Tema (Dark Mode)",
+                    description = "Gece ve düşük ışıklı ortamlar için koyu renk düzeni",
+                    icon = Icons.Default.DarkMode,
+                    isChecked = isDarkMode,
+                    onCheckedChange = { onToggleDarkMode() }
+                )
 
-                if (selectedCsvSubTab == 0) {
-                    CsvImportSection(
-                        filePickerLauncher = filePickerLauncher,
-                        onResetDatabaseClick = { showResetDialog = true },
-                        context = context
-                    )
-                } else {
-                    CsvExportSection(
-                        products = products,
-                        csvExportText = csvExportText,
-                        exportDocumentLauncher = exportDocumentLauncher,
-                        context = context
-                    )
-                }
+                SettingSwitchCard(
+                    title = "Pil Tasarrufu Modu",
+                    description = "Kamera FPS ve ağır görsel efektleri kısarak pil ömrünü uzatır",
+                    icon = Icons.Default.BatterySaver,
+                    isChecked = isBatterySaverMode,
+                    onCheckedChange = { onToggleBatterySaverMode() }
+                )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                SettingSwitchCard(
+                    title = "Ses Efektleri",
+                    description = "Barkod okuma ve işlem tamamlama sesli bildirimleri",
+                    icon = Icons.Default.VolumeUp,
+                    isChecked = soundEffectsEnabled,
+                    onCheckedChange = { onToggleSoundEffects() }
+                )
 
-                // En alt sağ: Uygulama Sürümü
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                SettingSwitchCard(
+                    title = "Titreşimli Geri Bildirim",
+                    description = "Başarılı tarama ve silme işlemlerinde dokunsal geri bildirim",
+                    icon = Icons.Default.Vibration,
+                    isChecked = vibrationEnabled,
+                    onCheckedChange = { onToggleVibration() }
+                )
+
+                // C. Mağaza Notları Kısayolu
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Slate200),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(0.8.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.EditNote,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Hatırlatıcılar ve Mağaza Notları",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate900
+                                )
+                                Text(
+                                    text = "Vardiya teslim notları, kritik reyon uyarıları ve yapılacak görevler.",
+                                    fontSize = 12.sp,
+                                    color = Slate600
+                                )
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = onNavigateToReminders,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Info,
+                                imageVector = Icons.Default.EditNote,
                                 contentDescription = null,
-                                tint = TurquoisePrimary,
-                                modifier = Modifier.size(13.dp)
+                                modifier = Modifier.size(18.dp)
                             )
-                            Text(
-                                text = "Sürüm ${com.example.BuildConfig.VERSION_NAME}",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Notlar ve Hatırlatıcılar Sayfasına Git", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+            } else {
+                // =============================================================
+                // SEKME 2: VERİ AYARLARI
+                // =============================================================
+
+                // A. Veri Yedekleme ve Dışa Aktarma (Export)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Slate200),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Veri Yedekleme (Dışa Aktar)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Text(
+                            text = "Tüm ürünler, SKT'ler, fiyatlar, adetsel sayımlar ve takip kayıtlarını güvenle yedekleyin.",
+                            fontSize = 12.sp,
+                            color = Slate600
+                        )
+
+                        // Buton 1: Tüm Verileri Dışa Aktar (JSON) - Dolgu Turkuaz
+                        Button(
+                            onClick = { executeJsonShareExport() },
+                            enabled = !isExporting,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                        ) {
+                            if (isExporting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Yedek Hazırlanıyor...", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Tüm Verileri Dışa Aktar (JSON)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // Buton 2: Cihaza Hızlı Yedek Al - Outline Turkuaz
+                        OutlinedButton(
+                            onClick = {
+                                isSavingLocal = true
+                                onSaveLocalBackup("manual") { file ->
+                                    isSavingLocal = false
+                                    if (file != null) {
+                                        val sizeStr = DataBackupManager.formatBytes(file.length())
+                                        Toast.makeText(context, "Cihaza yedek alındı: ${file.name} ($sizeStr)", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, "Yedek oluşturulamadı.", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                            enabled = !isSavingLocal,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                        ) {
+                            if (isSavingLocal) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = TurquoiseDark
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Kaydediliyor...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Default.Save,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Cihaza Hızlı Yedek Al", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                // B. Veri Yükleme ve İçe Aktarma (Import)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Slate200),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Veri Yükleme (İçe Aktar)",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+
+                        // Buton 1: JSON Yedekten Geri Yükle
+                        OutlinedButton(
+                            onClick = {
+                                jsonImportLauncher.launch(arrayOf("application/json", "text/plain", "*/*"))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FolderOpen,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("JSON Yedekten Geri Yükle", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Buton 2: CSV Ürün Verisi Yükle (5 Kolon Desteği)
+                        OutlinedButton(
+                            onClick = {
+                                csvPickerLauncher.launch(arrayOf(
+                                    "text/csv",
+                                    "text/comma-separated-values",
+                                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                    "application/vnd.ms-excel",
+                                    "text/plain",
+                                    "*/*"
+                                ))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.UploadFile,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("CSV Ürün Verisi Yükle", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Format Bilgi Kutusu
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF0FDFA),
+                            border = BorderStroke(1.dp, Color(0xFF99F6E4)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = "Format: Barkod;ÜrünKodu;ÜrünAdı;Fiyat;Kategori",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TurquoiseDark
+                                    )
+                                    Text(
+                                        text = "Örnek: 8690504011223;25002501;SÜTAŞ AYRAN 200 ML;12.50;Dolap Ürünleri",
+                                        fontSize = 11.sp,
+                                        color = Slate600
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // C. Bakım, Onarım ve Sıfırlama
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, Slate200),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = "Sistem Bakımı ve Onarım",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+
+                        // Buton 1: Veritabanını Onar & Düzelt
+                        OutlinedButton(
+                            onClick = {
+                                onFixAndRepairDatabase { count, message ->
+                                    showRepairResultDialog = message
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Build,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Veritabanını Onar & Düzelt", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // Buton 2: Verileri Sıfırla (Tehlikeli Bölge - Kırmızı Outline)
+                        OutlinedButton(
+                            onClick = { showResetDialog = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, ExpiredRed),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DeleteOutline,
+                                contentDescription = null,
+                                tint = ExpiredRed,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Verileri Sıfırla (Tehlikeli Bölge)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun SegmentedTabButton(
+    label: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) TurquoiseDark else Slate100,
+        border = if (isSelected) null else BorderStroke(1.dp, Slate200),
+        modifier = modifier.height(44.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) Color.White else Slate700,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                color = if (isSelected) Color.White else Slate700
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingSwitchCard(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    isChecked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = TurquoiseDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+                Text(
+                    text = description,
+                    fontSize = 11.5.sp,
+                    color = Slate600
+                )
+            }
+
+            Switch(
+                checked = isChecked,
+                onCheckedChange = onCheckedChange,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = Color.White,
+                    checkedTrackColor = TurquoisePrimary,
+                    uncheckedThumbColor = Slate500,
+                    uncheckedTrackColor = Slate200
+                )
+            )
         }
     }
 }

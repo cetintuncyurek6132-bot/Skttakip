@@ -236,12 +236,12 @@ fun BarcodeScannerSheet(
                         CameraXBarcodeView(
                             isFlashOn = isFlashOn,
                             zoomRatio = zoomRatio,
-                            filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ALL,
+                            filterMode = ScannerFilterMode.ALL,
                             isBatterySaverMode = isBatterySaverMode,
                             isPaused = isScannerPaused || isCooldownActive,
-                            requireCloseDistance = true,
+                            requireCloseDistance = !isFixQrMode,
                             onDistanceStateChanged = { tooFar ->
-                                isBarcodeTooFar = tooFar
+                                isBarcodeTooFar = if (isFixQrMode) false else tooFar
                             },
                             onBarcodeScanned = { barcode ->
                                 val now = System.currentTimeMillis()
@@ -490,6 +490,42 @@ fun BarcodeScannerSheet(
                                         isGlowing = isViewfinderGlowing
                                     )
                                 }
+
+                                // Quick Zoom Selector Buttons (1x, 1.5x, 2x)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = Color.Black.copy(alpha = 0.55f),
+                                    modifier = Modifier.height(30.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        listOf(1.0f to "1x", 1.5f to "1.5x", 2.0f to "2x").forEach { (level, text) ->
+                                            val isSelected = kotlin.math.abs(zoomRatio - level) < 0.15f
+                                            Surface(
+                                                onClick = { zoomRatio = level },
+                                                shape = RoundedCornerShape(16.dp),
+                                                color = if (isSelected) TurquoisePrimary else Color.Transparent,
+                                                modifier = Modifier.height(24.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = text,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -502,6 +538,7 @@ fun BarcodeScannerSheet(
                         onModeChange = { isFixMode ->
                             isFixQrMode = isFixMode
                             qrFixResultMsg = ""
+                            zoomRatio = if (isFixMode) 1.35f else 1.0f
                         },
                         onFlashToggle = { isFlashOn = !isFlashOn }
                     )

@@ -50,6 +50,7 @@ import com.example.ui.screens.products.DateRangePickerModal
 import com.example.ui.screens.products.ProductsEmptyState
 import com.example.ui.screens.products.ProductsFilterBar
 import com.example.ui.screens.products.ProductsGroupedList
+import com.example.ui.components.WhatsAppShareModal
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.example.util.ProductImageGenerator
@@ -60,6 +61,8 @@ import java.util.Locale
 @Composable
 fun ProductsScreen(
     products: List<Product>,
+    allProducts: List<Product> = products,
+    totalRegisteredCount: Int = products.size,
     searchQuery: String,
     selectedFilter: ProductFilter,
     selectedGroupFilter: ProductGroupFilter = ProductGroupFilter.ALL,
@@ -79,6 +82,7 @@ fun ProductsScreen(
     val context = LocalContext.current
     val listState = rememberLazyListState()
     var isDateRangeModalOpen by remember { mutableStateOf(false) }
+    var isWhatsAppShareModalOpen by remember { mutableStateOf(false) }
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     val hasDateFilter = startDateFilter != null || endDateFilter != null
@@ -125,7 +129,7 @@ fun ProductsScreen(
             selectedFilter = selectedFilter,
             selectedGroupFilter = selectedGroupFilter,
             dateFormat = dateFormat,
-            totalProductCount = products.size,
+            totalProductCount = totalRegisteredCount,
             onOpenDateRange = { isDateRangeModalOpen = true },
             onClearDateRange = onClearDateRange,
             onOpenQrFixMode = onOpenQrFixMode,
@@ -202,16 +206,7 @@ fun ProductsScreen(
 
                 ExtendedFloatingActionButton(
                     onClick = {
-                        if (products.isEmpty()) {
-                            Toast.makeText(context, "Paylaşılacak ürün bulunamadı", Toast.LENGTH_SHORT).show()
-                        } else {
-                            ProductImageGenerator.shareProductsAsImage(
-                                context = context,
-                                filterLabel = selectedFilter.label,
-                                searchQuery = searchQuery,
-                                productList = products
-                            )
-                        }
+                        isWhatsAppShareModalOpen = true
                     },
                     expanded = isFabExpanded,
                     icon = {
@@ -240,6 +235,13 @@ fun ProductsScreen(
                         .testTag("whatsapp_share_list_image_button")
                 )
             }
+        }
+
+        if (isWhatsAppShareModalOpen) {
+            WhatsAppShareModal(
+                allProducts = if (allProducts.isNotEmpty()) allProducts else products,
+                onDismiss = { isWhatsAppShareModalOpen = false }
+            )
         }
     }
 }

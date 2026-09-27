@@ -83,13 +83,13 @@ object ProductCsvImporter {
 
         for (rawLine in lines) {
             val line = rawLine.trim()
-            val lowerLine = line.lowercase()
+            val lowerLine = line.lowercase(java.util.Locale.forLanguageTag("tr-TR"))
             if (line.isEmpty() || line.startsWith("#")) continue
-            if (lowerLine.startsWith("barkod") ||
-                lowerLine.contains("ürün kodu") || lowerLine.contains("urun kodu") ||
-                lowerLine.contains("ürün adı") || lowerLine.contains("urun adi")
+            if (lowerLine.contains("barkod") ||
+                lowerLine.contains("ürün adı") || lowerLine.contains("urun adi") ||
+                lowerLine.contains("ürün kodu") || lowerLine.contains("urun kodu")
             ) {
-                // Header row
+                // Header row - automatically skip
                 continue
             }
             if (isGarbageText(line)) {
@@ -97,34 +97,61 @@ object ProductCsvImporter {
                 continue
             }
 
-            val parts = line.split(",", ";", "\t").map { cleanField(it) }.filter { it.isNotBlank() }
+            val delimiter = if (line.contains(";")) ";" else ","
+            val parts = line.split(delimiter).map { it.trim().removeSurrounding("\"").trim() }
             if (parts.size < 2) {
                 skippedCount++
                 continue
             }
 
-            // 1. Try smart parsing (immune to shifted columns and extra reyon IDs)
-            val smartProduct = ProductDataHealer.smartParseProductRow(parts)
-            val resolvedProduct = if (smartProduct != null) {
-                smartProduct
-            } else if (parts.size >= 3) {
+            // Standard 5-Column Format: Barkod;ÜrünKodu;ÜrünAdı;Fiyat;Kategori
+            val resolvedProduct = if (parts.size >= 5) {
                 val rawBarkod = parts[0]
                 val urunKodu = parts[1]
                 val urunAdi = parts[2]
-                val kategori = if (parts.size >= 4 && parts[3].isNotBlank()) parts[3] else "Genel"
-                val sktTarihi = if (parts.size >= 5 && parts[4].isNotBlank()) parseDateOrOffset(parts[4]) else 0L
-                val stokAdedi = if (sktTarihi > 0L) (if (parts.size >= 6) parts[5].toIntOrNull() ?: 1 else 1) else 0
+
+                // Price parsing: clean "TL", "₺", change comma to dot
+                val rawPrice = parts[3].replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim()
+                val parsedPrice = rawPrice.toDoubleOrNull()?.takeIf { it >= 0.0 }
+                val parsedCategory = parts[4].ifBlank { "Genel" }
 
                 val rawProd = Product(
                     barkod = rawBarkod.ifEmpty { urunKodu },
                     urunKodu = urunKodu.ifEmpty { "0000" },
-                    urunAdi = urunAdi.uppercase(),
-                    kategori = kategori,
-                    sktTarihi = sktTarihi,
-                    stokAdedi = stokAdedi
+                    urunAdi = urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
+                    kategori = parsedCategory,
+                    sktTarihi = 0L,
+                    stokAdedi = 0,
+                    fiyat = parsedPrice
                 )
                 ProductDataHealer.autoHealProduct(rawProd)
-            } else null
+            } else {
+                // Try smart parsing (immune to shifted columns and extra reyon IDs)
+                val smartProduct = ProductDataHealer.smartParseProductRow(parts)
+                if (smartProduct != null) {
+                    smartProduct
+                } else if (parts.size >= 3) {
+                    val rawBarkod = parts[0]
+                    val urunKodu = parts[1]
+                    val urunAdi = parts[2]
+                    val rawPrice = if (parts.size >= 4) {
+                        parts[3].replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim()
+                    } else ""
+                    val parsedPrice = rawPrice.toDoubleOrNull()?.takeIf { it >= 0.0 }
+                    val parsedCategory = if (parts.size >= 4 && parsedPrice == null) parts[3].ifBlank { "Genel" } else "Genel"
+
+                    val rawProd = Product(
+                        barkod = rawBarkod.ifEmpty { urunKodu },
+                        urunKodu = urunKodu.ifEmpty { "0000" },
+                        urunAdi = urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
+                        kategori = parsedCategory,
+                        sktTarihi = 0L,
+                        stokAdedi = 0,
+                        fiyat = parsedPrice
+                    )
+                    ProductDataHealer.autoHealProduct(rawProd)
+                } else null
+            }
 
             if (resolvedProduct != null &&
                 resolvedProduct.barkod.isNotEmpty() &&

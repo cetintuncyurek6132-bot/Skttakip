@@ -4,6 +4,7 @@ import android.widget.Toast
 import com.example.ui.screens.DateOcrScannerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -350,99 +351,144 @@ fun AddSktModal(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 4. SKT QUANTITY STEPPER
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                // 4. SKT QUANTITY STEPPER (BÜYÜTÜLMÜŞ VE HIZLI MİKTAR KISAYOLLARI)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
+                        .padding(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        text = "Adet",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
-                        color = Slate900
-                    )
-
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                        modifier = Modifier.height(44.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(2.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(TurquoisePrimary.copy(alpha = 0.15f))
-                                    .clickable {
-                                        val current = stokAdedi.toIntOrNull() ?: 0
-                                        if (current > 1) stokAdedi = (current - 1).toString()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    "-",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = TurquoiseDark
-                                )
-                            }
+                        Text(
+                            text = "📦 Adet / Miktar",
+                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 13.sp,
+                            color = Slate900
+                        )
 
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFCBD5E1)),
-                                modifier = Modifier
-                                    .padding(horizontal = 4.dp)
-                                    .width(56.dp)
-                                    .height(36.dp)
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.fillMaxSize()
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(1, 5, 10, 24).forEach { addCount ->
+                                Surface(
+                                    onClick = {
+                                        val current = stokAdedi.toIntOrNull() ?: 0
+                                        stokAdedi = (current + addCount).toString()
+                                    },
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = Color(0xFFE2E8F0),
+                                    modifier = Modifier.height(24.dp)
                                 ) {
-                                    BasicTextField(
-                                        value = stokAdedi,
-                                        onValueChange = { newValue ->
-                                            if (newValue.all { it.isDigit() } && newValue.length <= 4) {
-                                                stokAdedi = newValue
-                                            }
-                                        },
-                                        singleLine = true,
-                                        textStyle = androidx.compose.ui.text.TextStyle(
-                                            textAlign = TextAlign.Center,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 17.sp,
-                                            color = Slate900
-                                        ),
-                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                        cursorBrush = SolidColor(TurquoiseDark),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
+                                    Box(
+                                        modifier = Modifier.padding(horizontal = 6.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "+$addCount",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TurquoiseDark
+                                        )
+                                    }
                                 }
                             }
+                        }
+                    }
 
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(TurquoisePrimary.copy(alpha = 0.15f))
-                                    .clickable {
-                                        val current = stokAdedi.toIntOrNull() ?: 0
-                                        stokAdedi = (current + 1).toString()
-                                    },
-                                contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.5.dp, TurquoisePrimary),
+                            modifier = Modifier.height(50.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(4.dp)
                             ) {
-                                Text(
-                                    "+",
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = TurquoiseDark
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary.copy(alpha = 0.15f))
+                                        .clickable {
+                                            val current = stokAdedi.toIntOrNull() ?: 0
+                                            if (current > 1) stokAdedi = (current - 1).toString()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "-",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = TurquoiseDark
+                                    )
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFFF1F5F9),
+                                    modifier = Modifier
+                                        .padding(horizontal = 6.dp)
+                                        .width(76.dp)
+                                        .height(42.dp)
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        BasicTextField(
+                                            value = stokAdedi,
+                                            onValueChange = { newValue ->
+                                                if (newValue.all { it.isDigit() } && newValue.length <= 4) {
+                                                    stokAdedi = newValue
+                                                }
+                                            },
+                                            singleLine = true,
+                                            textStyle = androidx.compose.ui.text.TextStyle(
+                                                textAlign = TextAlign.Center,
+                                                fontWeight = FontWeight.Black,
+                                                fontSize = 20.sp,
+                                                color = Slate900
+                                            ),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            cursorBrush = SolidColor(TurquoiseDark),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("skt_modal_quantity_input")
+                                        )
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary)
+                                        .clickable {
+                                            val current = stokAdedi.toIntOrNull() ?: 0
+                                            stokAdedi = (current + 1).toString()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        "+",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color.White
+                                    )
+                                }
                             }
                         }
                     }

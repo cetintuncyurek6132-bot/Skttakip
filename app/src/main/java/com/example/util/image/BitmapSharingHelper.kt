@@ -63,6 +63,76 @@ object BitmapSharingHelper {
         shareBitmap(context, bitmap, fileNamePrefix)
     }
 
+    fun shareBitmapsToWhatsApp(
+        context: Context,
+        bitmaps: List<Bitmap>,
+        fileNamePrefix: String = "skt_paylasim"
+    ) {
+        if (bitmaps.isEmpty()) return
+        try {
+            val cachePath = File(context.cacheDir, "whatsapp_share")
+            if (cachePath.exists()) {
+                cachePath.listFiles()?.forEach { it.delete() }
+            }
+            cachePath.mkdirs()
+
+            val uris = ArrayList<android.net.Uri>()
+            val timestamp = System.currentTimeMillis()
+
+            bitmaps.forEachIndexed { index, bmp ->
+                val imageFile = File(cachePath, "${fileNamePrefix}_${timestamp}_p${index + 1}.png")
+                FileOutputStream(imageFile).use { out ->
+                    bmp.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+                val contentUri = FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.fileprovider",
+                    imageFile
+                )
+                uris.add(contentUri)
+            }
+
+            if (uris.isEmpty()) return
+
+            val shareIntent = if (uris.size == 1) {
+                Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uris[0])
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            } else {
+                Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                    type = "image/png"
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            }
+
+            val whatsappIntent = Intent(shareIntent).apply {
+                setPackage("com.whatsapp")
+            }
+
+            try {
+                context.startActivity(whatsappIntent)
+            } catch (e: Exception) {
+                // Try WhatsApp Business as secondary
+                try {
+                    val w4bIntent = Intent(shareIntent).apply {
+                        setPackage("com.whatsapp.w4b")
+                    }
+                    context.startActivity(w4bIntent)
+                } catch (e2: Exception) {
+                    val chooser = Intent.createChooser(shareIntent, "Görselleri Paylaş")
+                    chooser.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    context.startActivity(chooser)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(context, "Paylaşım hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     fun saveBitmapToGallery(context: Context, bitmap: Bitmap, fileNamePrefix: String = "skt_rapor") {
         try {
             val fileName = "${fileNamePrefix}_${System.currentTimeMillis()}.png"

@@ -247,11 +247,11 @@ fun ProductListItemCard(
                                 textAlign = TextAlign.Center
                             )
                             Text(
-                                text = "GÜN",
+                                text = "GÜN KALDI",
                                 color = squareTextColor.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 8.5.sp,
-                                lineHeight = 9.5.sp,
+                                fontSize = 7.5.sp,
+                                lineHeight = 8.5.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -524,11 +524,11 @@ fun GroupedProductListItemCard(
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
-                                    text = "GÜN",
+                                    text = "GÜN KALDI",
                                     color = squareTextColor.copy(alpha = 0.9f),
                                     fontWeight = FontWeight.Bold,
-                                    fontSize = 8.5.sp,
-                                    lineHeight = 9.5.sp,
+                                    fontSize = 7.5.sp,
+                                    lineHeight = 8.5.sp,
                                     textAlign = TextAlign.Center
                                 )
                             }
@@ -651,28 +651,32 @@ fun GroupedProductListItemCard(
                             CriticalOrangeBorder,
                             CriticalOrange,
                             Color.White,
-                            if (itemDaysLeft == 0L) "SON GÜN" else "$itemDaysLeft GÜN"
+                            when {
+                                itemDaysLeft == 0L -> "SON GÜN"
+                                itemDaysLeft == 1L -> "YARIN"
+                                else -> "$itemDaysLeft GÜN KALDI"
+                            }
                         )
                         itemStatus == ExpiryStatus.SOON -> arrayOf(
                             SoonYellowContainer,
                             SoonYellowBorder,
                             SoonYellow,
                             Color.Black,
-                            "$itemDaysLeft GÜN"
+                            "$itemDaysLeft GÜN KALDI"
                         )
                         itemStatus == ExpiryStatus.WARNING -> arrayOf(
                             WarningBlueContainer,
                             WarningBlueBorder,
                             WarningBlue,
                             Color.White,
-                            "$itemDaysLeft GÜN"
+                            "$itemDaysLeft GÜN KALDI"
                         )
                         else -> arrayOf(
                             NormalGreenContainer,
                             NormalGreenBorder,
                             NormalGreen,
                             Color.White,
-                            "$itemDaysLeft GÜN"
+                            "$itemDaysLeft GÜN KALDI"
                         )
                     }
 

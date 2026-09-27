@@ -176,6 +176,15 @@ fun CameraXBarcodeView(
             try {
                 pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
                 cameraProviderRef.value?.unbindAll()
+                cameraRef.value = null
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            try {
+                val providerFuture = ProcessCameraProvider.getInstance(context)
+                if (providerFuture.isDone) {
+                    providerFuture.get()?.unbindAll()
+                }
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -200,9 +209,23 @@ fun CameraXBarcodeView(
             }
             previewViewRef.value = previewView
 
-            // Tap-to-Focus support
+            val scaleGestureDetector = android.view.ScaleGestureDetector(
+                ctx,
+                object : android.view.ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                    override fun onScale(detector: android.view.ScaleGestureDetector): Boolean {
+                        val camera = cameraRef.value ?: return false
+                        val currentZoom = camera.cameraInfo.zoomState.value?.zoomRatio ?: 1.0f
+                        val delta = detector.scaleFactor
+                        camera.cameraControl.setZoomRatio((currentZoom * delta).coerceIn(1.0f, 6.0f))
+                        return true
+                    }
+                }
+            )
+
+            // Tap-to-Focus and Pinch-to-Zoom support
             previewView.setOnTouchListener { v, event ->
-                if (event.action == android.view.MotionEvent.ACTION_UP) {
+                scaleGestureDetector.onTouchEvent(event)
+                if (event.action == android.view.MotionEvent.ACTION_UP && !scaleGestureDetector.isInProgress) {
                     val camera = cameraRef.value
                     if (camera != null) {
                         try {
@@ -236,7 +259,7 @@ fun CameraXBarcodeView(
                     val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
                         .setResolutionStrategy(
                             androidx.camera.core.resolutionselector.ResolutionStrategy(
-                                android.util.Size(1280, 720),
+                                android.util.Size(1920, 1080),
                                 androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                             )
                         )
@@ -451,22 +474,22 @@ private fun processImageProxy(
                                b.format == Barcode.FORMAT_AZTEC ||
                                b.format == Barcode.FORMAT_PDF417
 
-                    // Center region alignment check
+                    // Center region alignment check (broad & forgiving)
                     val centerX = box.centerX().toFloat()
                     val centerY = box.centerY().toFloat()
-                    val isCentered = (centerX in (rotatedW * 0.08f)..(rotatedW * 0.92f)) &&
-                                     (centerY in (rotatedH * 0.08f)..(rotatedH * 0.92f))
+                    val isCentered = (centerX in (rotatedW * 0.02f)..(rotatedW * 0.98f)) &&
+                                     (centerY in (rotatedH * 0.02f)..(rotatedH * 0.98f))
 
                     // Proximity criteria:
-                    // 1D Barcode: Length at least 12% of minFrameDim (~85px on 720p)
-                    // 2D QR Code: Side length at least 16% of minFrameDim (~115px on 720p)
+                    // 1D Barcode: Length at least 3.5% of minFrameDim (scans reliably from distance)
+                    // 2D QR Code: Side length at least 1.8% of minFrameDim - effortlessly scans small shelf labels from standing distance
                     val hasRequiredSize = if (is2D) {
-                        minBoxDim >= minFrameDim * 0.16f
+                        minBoxDim >= minFrameDim * 0.018f
                     } else {
-                        maxBoxDim >= minFrameDim * 0.12f
+                        maxBoxDim >= minFrameDim * 0.035f
                     }
 
-                    (isCentered || maxBoxDim >= minFrameDim * 0.35f) && hasRequiredSize
+                    (isCentered || maxBoxDim >= minFrameDim * 0.12f) && hasRequiredSize
                 }
 
                 if (closeBarcodes.isNotEmpty()) {

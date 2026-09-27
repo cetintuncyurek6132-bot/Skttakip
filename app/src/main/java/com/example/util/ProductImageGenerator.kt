@@ -99,6 +99,17 @@ object ProductImageGenerator {
         productList: List<Product>
     ): Bitmap? = ProductReportImageRenderer.createProductsBitmap(filterLabel, searchQuery, productList)
 
+    fun createCleanWhatsAppShareBitmaps(
+        productList: List<Product>,
+        todayMidnight: Long = com.example.data.getTodayMidnightMillis()
+    ): List<Bitmap> = ProductReportImageRenderer.createCleanWhatsAppShareBitmaps(productList, todayMidnight)
+
+    fun shareBitmapsToWhatsApp(
+        context: Context,
+        bitmaps: List<Bitmap>,
+        fileNamePrefix: String = "skt_paylasim"
+    ) = BitmapSharingHelper.shareBitmapsToWhatsApp(context, bitmaps, fileNamePrefix)
+
     fun shareProductsAsImage(
         context: Context,
         filterLabel: String,

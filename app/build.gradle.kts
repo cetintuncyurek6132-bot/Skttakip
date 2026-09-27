@@ -13,7 +13,7 @@ android {
     minSdk = 24
     targetSdk = 36
     versionCode = (project.findProperty("android.injected.version.code")?.toString()?.toIntOrNull()) ?: 1
-    versionName = (project.findProperty("android.injected.version.name")?.toString()) ?: "1.0"
+    versionName = (project.findProperty("android.injected.version.name")?.toString()) ?: "beta 1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -27,15 +27,12 @@ android {
       keyPassword = System.getenv("KEY_PASSWORD")
     }
     getByName("debug") {
-      val projectKs = file("${rootDir}/debug.keystore")
-      val userKs = file("${System.getProperty("user.home")}/.android/debug.keystore")
-      val selectedFile = when {
-        projectKs.exists() -> projectKs
-        userKs.exists() -> userKs
-        else -> null
-      }
-      if (selectedFile != null) {
-        storeFile = selectedFile
+      val fixedKeystore = file("${rootDir}/debug.keystore")
+      val homeKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+      val targetKeystore = if (fixedKeystore.exists()) fixedKeystore else homeKeystore
+
+      if (targetKeystore.exists()) {
+        storeFile = targetKeystore
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"

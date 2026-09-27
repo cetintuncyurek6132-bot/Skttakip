@@ -35,6 +35,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -97,6 +100,19 @@ fun AdetselSayimDialog(
             "EKSIK" -> -discrepancyNumber
             "FAZLA" -> discrepancyNumber
             else -> 0
+        }
+    }
+
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(selectedSonuc) {
+        if (selectedSonuc == "EKSIK" || selectedSonuc == "FAZLA") {
+            kotlinx.coroutines.delay(120)
+            try {
+                focusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore focus exception
+            }
         }
     }
 
@@ -345,7 +361,9 @@ fun AdetselSayimDialog(
                                                 color = ExpiredRedDark
                                             ),
                                             cursorBrush = SolidColor(ExpiredRedDark),
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .focusRequester(focusRequester)
                                         )
                                         if (discrepancyText.isEmpty()) {
                                             Text(
@@ -445,7 +463,9 @@ fun AdetselSayimDialog(
                                                 color = WarningBlueDark
                                             ),
                                             cursorBrush = SolidColor(WarningBlueDark),
-                                            modifier = Modifier.fillMaxWidth()
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .focusRequester(focusRequester)
                                         )
                                         if (discrepancyText.isEmpty()) {
                                             Text(

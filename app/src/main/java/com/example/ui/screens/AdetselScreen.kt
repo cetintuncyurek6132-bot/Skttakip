@@ -100,10 +100,10 @@ fun AdetselScreen(
     val distinctYapilacakList = remember(yapilacakList) {
         yapilacakList.distinctBy { item ->
             when {
-                item.barkod.isNotBlank() -> "B:${item.barkod.trim()}"
-                item.urunKodu.isNotBlank() -> "K:${item.urunKodu.trim()}"
+                item.barkod.isNotBlank() -> "B:${item.barkod.trim()}_${item.productId}"
+                item.urunKodu.isNotBlank() -> "K:${item.urunKodu.trim()}_${item.productId}"
                 item.productId > 0 -> "P:${item.productId}"
-                else -> "N:${item.urunAdi.trim().lowercase()}"
+                else -> "N:${item.urunAdi.trim().lowercase()}_${item.id}"
             }
         }
     }
