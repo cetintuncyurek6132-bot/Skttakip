@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.ProductFilter
@@ -80,12 +81,12 @@ fun MorningOperationCardsSection(
             onClick = { onFilterSelectAndNavigate(ProductFilter.EXPIRED) }
         )
 
-        // 🟠 Kart 2: Sıcak Satışa Al (Sarı Etiket / Son 1-2 Gün)
+        // 🟠 Kart 2: Sıcak Satışa Al (Son 1-2 Gün)
         MorningOperationCard(
-            title = "Sıcak Satışa Al (Sarı Etiket / Son 1-2 Gün)",
+            title = "Sıcak Satışa Al (Son 1-2 Gün)",
             varietyCount = criticalVariety,
             totalStockCount = criticalTotalStock,
-            description = "Kasa önüne veya reyon önüne çekip indirim uygulayın.",
+            description = "Sarı etiketle kasa veya reyon önüne çekip indirim uygulayın.",
             badgeColor = CriticalOrange,
             bgColor = Color(0xFFFFF9F2),
             borderColor = CriticalOrangeBorder,
@@ -163,9 +164,11 @@ fun MorningOperationCard(
             ) {
                 Text(
                     text = title,
-                    fontSize = 14.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Slate900
+                    color = Slate900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(

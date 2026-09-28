@@ -90,6 +90,7 @@ import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedDark
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
@@ -496,12 +497,16 @@ fun AnalyticsScreen(
                         .padding(16.dp)
                 ) {
                     // Chart Header
-                    Row(
+                    // Başlık ve Lejant Alanı
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Column {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.Analytics,
@@ -517,19 +522,58 @@ fun AnalyticsScreen(
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                            Text(
-                                text = "Günlük süresi dolan ve yaklaşan ürün adedi",
-                                fontSize = 11.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+
+                            // Sağ üstteki lejant alanı (tek satır ve ferah, kelime bölünmesi kesinlikle engellenmiş)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFEF4444))
+                                    )
+                                    Text(
+                                        text = "Süresi Geçen",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate700,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(8.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFF97316))
+                                    )
+                                    Text(
+                                        text = "Kritik / Yaklaşan",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate700,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
                         }
 
-                        // Legend
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            LegendItem(color = ExpiredRed, label = "Geçen")
-                            LegendItem(color = CriticalOrange, label = "Kritik")
-                            LegendItem(color = TurquoisePrimary, label = "Bugün")
-                        }
+                        Text(
+                            text = "Günlük süresi dolan ve yaklaşan ürün adedi",
+                            fontSize = 11.5.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -649,14 +693,14 @@ fun AnalyticsScreen(
                         }
                     }
 
-                    // Interactive Canvas Bar Chart
+                    // Interactive Modern Bar Chart
                     InteractiveBarChart(
                         data = barChartData,
                         selectedIndex = selectedBarIndex,
                         onSelectIndex = { selectedBarIndex = it },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(190.dp)
+                            .height(200.dp)
                     )
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -1109,104 +1153,182 @@ private fun InteractiveBarChart(
         if (maxVal < 4) 4 else maxVal
     }
 
-    Box(modifier = modifier) {
-        Canvas(
+    Column(modifier = modifier) {
+        // Ana Grafik Alanı (Sol Kılavuz Sayıları + Çubuklar & Yatay Kılavuz Çizgileri)
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(data) {
-                    detectTapGestures { offset ->
-                        val barWidth = size.width / data.size.toFloat()
-                        val tappedIndex = (offset.x / barWidth).toInt().coerceIn(0, data.size - 1)
-                        if (selectedIndex == tappedIndex) {
-                            onSelectIndex(null)
-                        } else {
-                            onSelectIndex(tappedIndex)
-                        }
-                    }
-                }
+                .fillMaxWidth()
+                .weight(1f),
+            verticalAlignment = Alignment.Bottom
         ) {
-            val canvasW = size.width
-            val canvasH = size.height
-            val bottomPadding = 36f
-            val topPadding = 16f
-            val chartH = canvasH - bottomPadding - topPadding
-
-            val barCount = data.size
-            val barSlotWidth = canvasW / barCount.toFloat()
-            val barWidth = (barSlotWidth * 0.65f).coerceIn(4f, 24f)
-
-            // 1. Draw horizontal grid lines
-            val gridLines = 4
-            for (g in 0..gridLines) {
-                val gridY = topPadding + (chartH * (1f - (g / gridLines.toFloat())))
-                drawLine(
-                    color = Color(0xFFE2E8F0),
-                    start = Offset(0f, gridY),
-                    end = Offset(canvasW, gridY),
-                    strokeWidth = 1f
+            // Sol Taraf: En Yüksek, Orta ve Sıfır Kılavuz Adetleri
+            Column(
+                modifier = Modifier
+                    .width(24.dp)
+                    .fillMaxHeight()
+                    .padding(bottom = 2.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = "$maxCount",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+                Text(
+                    text = "${(maxCount + 1) / 2}",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
+                )
+                Text(
+                    text = "0",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400
                 )
             }
 
-            // 2. Draw Bars
-            data.forEachIndexed { index, item ->
-                val totalForDay = item.expiredCount + item.criticalCount
-                val heightRatio = if (maxCount > 0) (totalForDay.toFloat() / maxCount.toFloat()).coerceIn(0f, 1f) else 0f
-                val barH = if (totalForDay > 0) (chartH * heightRatio).coerceAtLeast(8f) else 3f
+            Spacer(modifier = Modifier.width(6.dp))
 
-                val barX = (index * barSlotWidth) + ((barSlotWidth - barWidth) / 2f)
-                val barY = topPadding + chartH - barH
-
-                val isSelected = selectedIndex == index
-
-                val barColor = when {
-                    item.isToday -> TurquoisePrimary
-                    item.isPast && totalForDay > 0 -> ExpiredRed
-                    !item.isPast && totalForDay > 0 -> CriticalOrange
-                    else -> Color(0xFFCBD5E1)
+            // Sağ Taraf: Çubuklar ve Arka Plan Kılavuz Çizgileri
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                // Arka Plan Kılavuz Çizgileri (Color(0xFFF1F5F9))
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 2.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
                 }
 
-                // Draw Bar
-                drawRoundRect(
-                    color = if (isSelected) barColor else barColor.copy(alpha = if (totalForDay > 0) 0.85f else 0.4f),
-                    topLeft = Offset(barX, barY),
-                    size = Size(barWidth, barH),
-                    cornerRadius = CornerRadius(4f, 4f)
-                )
+                // Çubuklar
+                val scrollState = rememberScrollState()
+                val isScrollable = data.size > 14
 
-                // Selection Ring
-                if (isSelected) {
-                    drawRoundRect(
-                        color = TurquoiseDark,
-                        topLeft = Offset(barX - 2f, barY - 2f),
-                        size = Size(barWidth + 4f, barH + 4f),
-                        cornerRadius = CornerRadius(6f, 6f),
-                        style = Stroke(width = 2f)
-                    )
+                LaunchedEffect(data) {
+                    val todayIndex = data.indexOfFirst { it.isToday }
+                    if (todayIndex > 0 && isScrollable) {
+                        val approxScroll = (todayIndex * 18 * 2)
+                        scrollState.scrollTo(approxScroll)
+                    }
                 }
 
-                // Draw Today Marker Indicator
-                if (item.isToday) {
-                    drawCircle(
-                        color = TurquoisePrimary,
-                        radius = 3.5f,
-                        center = Offset(barX + (barWidth / 2f), topPadding + chartH + 10f)
-                    )
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (isScrollable) Modifier.horizontalScroll(scrollState) else Modifier),
+                    horizontalArrangement = if (isScrollable) Arrangement.spacedBy(6.dp) else Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    val barWidth = if (data.size <= 7) 20.dp else if (data.size <= 14) 14.dp else 9.5.dp
+
+                    data.forEachIndexed { index, item ->
+                        val totalForDay = item.expiredCount + item.criticalCount
+                        val heightFraction = if (maxCount > 0) {
+                            (totalForDay.toFloat() / maxCount.toFloat()).coerceIn(0.04f, 1f)
+                        } else 0.04f
+
+                        val isSelected = selectedIndex == index
+
+                        val gradientBrush = when {
+                            item.isToday -> Brush.verticalGradient(
+                                listOf(Color(0xFF14B8A6), Color(0xFF0F766E))
+                            )
+                            item.isPast && totalForDay > 0 -> Brush.verticalGradient(
+                                listOf(Color(0xFFEF4444), Color(0xFFDC2626))
+                            )
+                            !item.isPast && totalForDay > 0 -> Brush.verticalGradient(
+                                listOf(Color(0xFFF97316), Color(0xFFEA580C))
+                            )
+                            else -> Brush.verticalGradient(
+                                listOf(Color(0xFFE2E8F0), Color(0xFFCBD5E1))
+                            )
+                        }
+
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Bottom,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(if (isScrollable) barWidth + 4.dp else barWidth + 6.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    onSelectIndex(if (isSelected) null else index)
+                                }
+                                .padding(horizontal = 1.dp)
+                        ) {
+                            // Çubuğun tepesindeki minik, belirgin adet etiketi
+                            if (totalForDay > 0) {
+                                Text(
+                                    text = "$totalForDay",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isSelected) TurquoiseDark else Slate700,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                            } else {
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
+
+                            // Çubuk (Bar)
+                            Box(
+                                modifier = Modifier
+                                    .width(barWidth)
+                                    .fillMaxHeight(heightFraction)
+                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .background(gradientBrush)
+                                    .then(
+                                        if (isSelected) {
+                                            Modifier.border(
+                                                width = 1.5.dp,
+                                                color = TurquoiseDark,
+                                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                                            )
+                                        } else Modifier
+                                    )
+                            )
+
+                            // Bugün Noktası
+                            if (item.isToday) {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
-        // X-Axis Labels Row (Bottom)
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Alt Tarih Etiketleri (09 Eyl, 24 Eyl, 08 Eki vb. çubukların hizasıyla dengeli)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(top = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(start = 30.dp, end = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             if (data.isNotEmpty()) {
                 Text(
                     text = data.first().shortLabel,
                     fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = Slate500
                 )
                 if (data.size > 2) {
@@ -1214,12 +1336,14 @@ private fun InteractiveBarChart(
                     Text(
                         text = data[midIndex].shortLabel,
                         fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = Slate500
                     )
                 }
                 Text(
                     text = data.last().shortLabel,
                     fontSize = 10.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = Slate500
                 )
             }
