@@ -272,7 +272,7 @@ fun TakipKaydiCard(
                                 modifier = Modifier
                                     .size(50.dp)
                                     .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column(modifier = Modifier.weight(1f)) {

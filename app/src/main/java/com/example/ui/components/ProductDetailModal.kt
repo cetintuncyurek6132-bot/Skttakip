@@ -291,9 +291,10 @@ fun ProductDetailModal(
                         }
 
                         Surface(
-                            modifier = Modifier.size(56.dp),
+                            modifier = Modifier
+                                .size(width = 64.dp, height = 64.dp), // Şişe ve paketlerin rahat sığması için 64x64 dp
                             shape = RoundedCornerShape(10.dp),
-                            color = Color.White,
+                            color = Color.White, // Ürün resminin arkası temiz beyaz zemin olsun
                             border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                             shadowElevation = 1.dp
                         ) {
@@ -302,12 +303,13 @@ fun ProductDetailModal(
                                     model = activeImageUrl,
                                     imageLoader = ProductImageManager.getImageLoader(context),
                                     contentDescription = localProduct.urunAdi,
-                                    contentScale = ContentScale.Fit, // Kesilme olmadan tam sığdır
+                                    contentScale = ContentScale.Fit, // KESİNLİKLE FIT OLACAK (Hiçbir ambalaj kesilmeyecek)
+                                    alignment = Alignment.Center,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(3.dp), // Kenarlara yapışmaması için iç boşluk
+                                        .padding(4.dp), // Görselin kenarlara yapışmaması için nefes payı
                                     loading = {
-                                        Box(contentAlignment = Alignment.Center) {
+                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             CircularProgressIndicator(
                                                 modifier = Modifier.size(16.dp),
                                                 strokeWidth = 2.dp,

@@ -227,7 +227,7 @@ fun ProductDetailPreviewCard(
                 if (!previewImageUrl.isNullOrBlank()) {
                     Surface(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(52.dp)
                             .padding(end = 8.dp),
                         shape = RoundedCornerShape(8.dp),
                         color = Color.White,
@@ -239,9 +239,10 @@ fun ProductDetailPreviewCard(
                             imageLoader = ProductImageManager.getImageLoader(context),
                             contentDescription = product.urunAdi,
                             contentScale = ContentScale.Fit,
+                            alignment = Alignment.Center,
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(2.dp)
+                                .padding(3.dp)
                         )
                     }
                 }
