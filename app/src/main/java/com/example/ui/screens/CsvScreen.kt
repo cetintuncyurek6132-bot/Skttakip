@@ -757,38 +757,24 @@ fun CsvScreen(
                 shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp)
+                ) {
                     // Top App Bar Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(top = 4.dp, bottom = 8.dp, start = 4.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(Slate100, CircleShape)
-                                .testTag("settings_back_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri",
-                                tint = Slate800,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(10.dp))
-
                         Text(
                             text = "Ayarlar ve Veri Yönetimi",
                             fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Slate900
                         )
                     }
 
@@ -796,7 +782,7 @@ fun CsvScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                            .padding(horizontal = 4.dp, vertical = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         // Tab 0: Genel Ayarlar
@@ -828,7 +814,7 @@ fun CsvScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             if (selectedTab == 0) {

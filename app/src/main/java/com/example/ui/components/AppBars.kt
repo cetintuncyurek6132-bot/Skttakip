@@ -81,6 +81,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
@@ -154,6 +155,23 @@ fun SktTopAppBar(
         }
     }
 
+    // 2 dakikada bir kendi ekseni etrafında dönen (3D Flip) mikro-animasyon
+    val rotationY = remember { androidx.compose.animation.core.Animatable(0f) }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(120_000L) // 2 dakika (120 saniye) bekle
+            rotationY.animateTo(
+                targetValue = 360f,
+                animationSpec = androidx.compose.animation.core.tween(
+                    durationMillis = 900,
+                    easing = androidx.compose.animation.core.FastOutSlowInEasing
+                )
+            )
+            rotationY.snapTo(0f) // Tur bitince açıyı sıfırla, bir sonraki 2 dakikayı bekle
+        }
+    }
+
     Surface(
         color = TurquoisePrimary,
         shadowElevation = 4.dp,
@@ -179,6 +197,10 @@ fun SktTopAppBar(
                     contentDescription = "SKT Logo",
                     modifier = Modifier
                         .size(28.dp)
+                        .graphicsLayer {
+                            this.rotationY = rotationY.value
+                            cameraDistance = 12f * density // Gerçekçi ve derin 3D perspektifi
+                        }
                         .clip(RoundedCornerShape(6.dp))
                 )
                 Spacer(modifier = Modifier.width(5.dp))
