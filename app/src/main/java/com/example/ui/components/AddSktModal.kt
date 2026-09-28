@@ -115,7 +115,7 @@ fun AddSktModal(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
-                .padding(vertical = 16.dp),
+                .padding(vertical = 12.dp),
             shape = RoundedCornerShape(20.dp),
             color = Color.White,
             border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
@@ -125,7 +125,7 @@ fun AddSktModal(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
+                    .padding(14.dp)
             ) {
                 // 1. MODAL HEADER
                 Row(
@@ -135,25 +135,25 @@ fun AddSktModal(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = TurquoisePrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(30.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = if (isEditMode) Icons.Default.Edit else Icons.Default.Add,
                                     contentDescription = null,
                                     tint = TurquoiseDark,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(16.dp)
                                 )
                             }
                         }
                         Text(
                             text = if (isEditMode) "Tarih ve Adet Düzenle" else "SKT ve Adet Girişi",
-                            fontSize = 16.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark
                         )
@@ -161,22 +161,22 @@ fun AddSktModal(
 
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Kapat",
                             tint = Slate500,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // 2. PRODUCT INFO CARD
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(10.dp),
                     color = Color(0xFFF8FAFC),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier.fillMaxWidth()
@@ -184,31 +184,31 @@ fun AddSktModal(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp)
+                            .padding(8.dp)
                     ) {
                         Text(
                             text = product.urunAdi,
-                            fontSize = 14.sp,
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate900
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         val codeDisplay = if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu} | Barkod: ${product.barkod}" else "Barkod: ${product.barkod}"
                         Text(
                             text = codeDisplay,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             color = Slate500
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // 3. NEW SKT DATE & OCR SCANNER BUTTON
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(
                         text = "Son Kullanma Tarihi",
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = TurquoiseDark
                     )
@@ -219,25 +219,25 @@ fun AddSktModal(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(10.dp),
                             color = Color.White,
-                            border = BorderStroke(2.dp, TurquoisePrimary),
+                            border = BorderStroke(1.5.dp, TurquoisePrimary),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(52.dp)
+                                .height(44.dp)
                                 .clickable { showDatePicker = true }
                                 .testTag("input_new_skt_date")
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 12.dp),
+                                    .padding(horizontal = 10.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
                                     text = dateFormat.format(Date(selectedDateMillis)),
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Slate900
                                 )
@@ -245,16 +245,17 @@ fun AddSktModal(
                                     imageVector = Icons.Default.CalendarToday,
                                     contentDescription = "Tarih Seç",
                                     tint = TurquoiseDark,
-                                    modifier = Modifier.size(20.dp)
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
 
                         OutlinedButton(
                             onClick = { showOcrScanner = true },
-                            modifier = Modifier.height(52.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.5.dp, TurquoisePrimary),
+                            modifier = Modifier.height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.2.dp, TurquoisePrimary),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                             colors = ButtonDefaults.outlinedButtonColors(
                                 containerColor = Color.White,
                                 contentColor = TurquoiseDark
@@ -264,9 +265,9 @@ fun AddSktModal(
                                 imageVector = Icons.Default.CameraAlt,
                                 contentDescription = "Tarih Oku",
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 "Tarih Oku",
                                 fontSize = 11.sp,
@@ -281,7 +282,7 @@ fun AddSktModal(
                         modifier = Modifier
                             .fillMaxWidth()
                             .horizontalScroll(rememberScrollState())
-                            .padding(top = 4.dp),
+                            .padding(top = 2.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -328,18 +329,18 @@ fun AddSktModal(
                                 onClick = {
                                     selectedDateMillis = dateCalc()
                                 },
-                                shape = RoundedCornerShape(8.dp),
+                                shape = RoundedCornerShape(6.dp),
                                 color = Color(0xFFF1F5F9),
                                 border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.4f)),
-                                modifier = Modifier.height(30.dp)
+                                modifier = Modifier.height(26.dp)
                             ) {
                                 Box(
                                     contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp)
                                 ) {
                                     Text(
                                         text = label,
-                                        fontSize = 11.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = TurquoiseDark
                                     )
@@ -349,16 +350,16 @@ fun AddSktModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // 4. SKT QUANTITY STEPPER (BÜYÜTÜLMÜŞ VE HIZLI MİKTAR KISAYOLLARI)
+                // 4. SKT QUANTITY STEPPER (KOMPAKT MİKTAR VE HIZLI KISAYOLLAR)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
-                        .padding(10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
+                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -368,7 +369,7 @@ fun AddSktModal(
                         Text(
                             text = "📦 SKT Adedi",
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 13.sp,
+                            fontSize = 12.sp,
                             color = Slate900
                         )
 
@@ -382,17 +383,17 @@ fun AddSktModal(
                                         val current = stokAdedi.toIntOrNull() ?: 0
                                         stokAdedi = (current + addCount).toString()
                                     },
-                                    shape = RoundedCornerShape(6.dp),
+                                    shape = RoundedCornerShape(5.dp),
                                     color = Color(0xFFE2E8F0),
-                                    modifier = Modifier.height(24.dp)
+                                    modifier = Modifier.height(22.dp)
                                 ) {
                                     Box(
-                                        modifier = Modifier.padding(horizontal = 6.dp),
+                                        modifier = Modifier.padding(horizontal = 5.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = "+$addCount",
-                                            fontSize = 11.sp,
+                                            fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = TurquoiseDark
                                         )
@@ -408,18 +409,18 @@ fun AddSktModal(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCornerShape(20.dp),
                             color = Color.White,
-                            border = BorderStroke(1.5.dp, TurquoisePrimary),
-                            modifier = Modifier.height(50.dp)
+                            border = BorderStroke(1.2.dp, TurquoisePrimary),
+                            modifier = Modifier.height(42.dp)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(4.dp)
+                                modifier = Modifier.padding(3.dp)
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(TurquoisePrimary.copy(alpha = 0.15f))
                                         .clickable {
@@ -430,19 +431,19 @@ fun AddSktModal(
                                 ) {
                                     Text(
                                         "-",
-                                        fontSize = 24.sp,
+                                        fontSize = 20.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = TurquoiseDark
                                     )
                                 }
 
                                 Surface(
-                                    shape = RoundedCornerShape(8.dp),
+                                    shape = RoundedCornerShape(6.dp),
                                     color = Color(0xFFF1F5F9),
                                     modifier = Modifier
-                                        .padding(horizontal = 6.dp)
-                                        .width(76.dp)
-                                        .height(42.dp)
+                                        .padding(horizontal = 4.dp)
+                                        .width(68.dp)
+                                        .height(36.dp)
                                 ) {
                                     Box(
                                         contentAlignment = Alignment.Center,
@@ -459,7 +460,7 @@ fun AddSktModal(
                                             textStyle = androidx.compose.ui.text.TextStyle(
                                                 textAlign = TextAlign.Center,
                                                 fontWeight = FontWeight.Black,
-                                                fontSize = 20.sp,
+                                                fontSize = 18.sp,
                                                 color = Slate900
                                             ),
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -473,7 +474,7 @@ fun AddSktModal(
 
                                 Box(
                                     modifier = Modifier
-                                        .size(44.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(TurquoisePrimary)
                                         .clickable {
@@ -484,7 +485,7 @@ fun AddSktModal(
                                 ) {
                                     Text(
                                         "+",
-                                        fontSize = 24.sp,
+                                        fontSize = 20.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Color.White
                                     )
@@ -494,12 +495,12 @@ fun AddSktModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // 5. ACTION BUTTONS
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val context = LocalContext.current
                     if (!isEditMode) {
@@ -512,14 +513,14 @@ fun AddSktModal(
                             },
                             modifier = Modifier
                                 .weight(1f)
-                                .height(50.dp)
+                                .height(42.dp)
                                 .testTag("submit_add_skt_button"),
                             colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(10.dp)
                         ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = "Ekle", tint = Color.White)
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Icon(imageVector = Icons.Default.Add, contentDescription = "Ekle", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = "Ekle",
                                 fontWeight = FontWeight.Bold,
@@ -539,14 +540,14 @@ fun AddSktModal(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(50.dp)
+                            .height(42.dp)
                             .testTag("save_and_close_skt_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = if (isEditMode) TurquoisePrimary else Slate900),
                         elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(12.dp)
+                        shape = RoundedCornerShape(10.dp)
                     ) {
-                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Kaydet", tint = Color.White)
-                        Spacer(modifier = Modifier.width(6.dp))
+                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Kaydet", tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = "Kaydet",
                             fontWeight = FontWeight.Bold,

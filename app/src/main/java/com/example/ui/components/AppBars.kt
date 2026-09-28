@@ -189,27 +189,19 @@ fun SktTopAppBar(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color.White)
-                    .padding(horizontal = 6.dp, vertical = 3.dp),
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_skt_shield_logo),
-                    contentDescription = "SKT Logo",
-                    modifier = Modifier
-                        .size(28.dp)
-                        .graphicsLayer {
-                            this.rotationY = rotationY.value
-                            cameraDistance = 12f * density // Gerçekçi ve derin 3D perspektifi
-                        }
-                        .clip(RoundedCornerShape(6.dp))
-                )
-                Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = "SKT",
                     color = TurquoiseDark,
                     fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
-                    letterSpacing = 0.5.sp
+                    fontSize = 17.sp,
+                    letterSpacing = 0.5.sp,
+                    modifier = Modifier.graphicsLayer {
+                        this.rotationY = rotationY.value
+                        cameraDistance = 12f * density
+                    }
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))

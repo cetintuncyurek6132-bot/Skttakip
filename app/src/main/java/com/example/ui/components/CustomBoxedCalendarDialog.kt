@@ -101,7 +101,7 @@ fun CustomBoxedCalendarDialog(
 
     val trLocale = remember { Locale.forLanguageTag("tr-TR") }
     val monthYearFormat = remember { SimpleDateFormat("MMMM yyyy", trLocale) }
-    val fullDateFormat = remember { SimpleDateFormat("dd MMMM yyyy, EEEE", trLocale) }
+    val numericHeaderFormat = remember { SimpleDateFormat("dd/MM/yyyy", trLocale) }
     val shortDateFormat = remember { SimpleDateFormat("dd MMMM yyyy", trLocale) }
 
     Dialog(
@@ -139,7 +139,7 @@ fun CustomBoxedCalendarDialog(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (selectedMillis > 0L) fullDateFormat.format(Date(selectedMillis)) else "Tarih Seçiniz",
+                            text = if (selectedMillis > 0L) numericHeaderFormat.format(Date(selectedMillis)) else "Tarih Seçiniz",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
