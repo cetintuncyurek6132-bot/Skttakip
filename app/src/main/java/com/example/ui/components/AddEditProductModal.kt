@@ -552,6 +552,7 @@ fun AddEditProductModal(
                             val finalHealed = ProductDataHealer.autoHealProduct(candidate)
 
                             if (finalHealed.urunAdi.isNotBlank()) {
+                                com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
                                 onSave(
                                     finalHealed.barkod,
                                     finalHealed.urunKodu,

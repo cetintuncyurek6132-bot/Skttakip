@@ -240,6 +240,7 @@ fun PriceQrScannerDialog(
 
                                 hasHandledScan = true
                                 isFlashOn = false
+                                com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
                                 val formatted = if (parsedPrice % 1.0 == 0.0) parsedPrice.toInt().toString() else String.format(Locale.US, "%.2f", parsedPrice)
                                 Toast.makeText(context, "✅ QR Etiketinden Fiyat Alındı: $formatted ₺", Toast.LENGTH_SHORT).show()
                                 onPriceScanned(parsedPrice, raw)

@@ -507,6 +507,7 @@ fun AddSktModal(
                         Button(
                             onClick = {
                                 val count = stokAdedi.toIntOrNull() ?: 1
+                                com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
                                 onSaveSkt(product, selectedDateMillis, count)
                                 Toast.makeText(context, "SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
                                 stokAdedi = "1"
@@ -533,6 +534,7 @@ fun AddSktModal(
                     Button(
                         onClick = {
                             val count = stokAdedi.toIntOrNull() ?: 1
+                            com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
                             onSaveSkt(product, selectedDateMillis, count)
                             val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
