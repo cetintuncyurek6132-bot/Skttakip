@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -206,382 +207,380 @@ fun BarcodeScannerSheet(
             decorFitsSystemWindows = false
         )
     ) {
-        Surface(
+        val hasProductDetail = activeBarcode.isNotBlank()
+        val isScannerPaused = (isFixQrMode && qrFixResultMsg.isNotBlank())
+        val isCameraAnalysisPaused = isScannerPaused || isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
+        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
+        val topAreaWeight = 1.0f - bottomWeight
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding(),
-            color = Color(0xFF0D121F)
+                .imePadding()
+                .background(Color.Black)
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                // =========================================================================
-                // 1. TOP SECTION: CAMERA PREVIEW & TARGETING VIEWFINDER
-                // =========================================================================
-                val hasProductDetail = activeBarcode.isNotBlank()
-                // In serial scan mode, camera remains live and continuously scans close barcodes
-                val isScannerPaused = (isFixQrMode && qrFixResultMsg.isNotBlank())
-                val isCameraAnalysisPaused = isScannerPaused || isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
-                val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
-                val cameraWeight = 1.0f - bottomWeight
+            // =========================================================================
+            // 1. TAM EKRAN KAMERA ÖNİZLEMESİ (Alt tabakada kesintisiz akar)
+            // =========================================================================
+            if (cameraPermissionState.status.isGranted) {
+                CameraXBarcodeView(
+                    isFlashOn = isFlashOn,
+                    zoomRatio = zoomRatio,
+                    filterMode = ScannerFilterMode.ALL,
+                    isBatterySaverMode = isBatterySaverMode,
+                    isPaused = isCameraAnalysisPaused,
+                    requireCloseDistance = !isFixQrMode,
+                    onDistanceStateChanged = { tooFar ->
+                        isBarcodeTooFar = if (isFixQrMode) false else tooFar
+                    },
+                    onBarcodeScanned = { barcode ->
+                        val now = System.currentTimeMillis()
+                        if (now < resumeCooldownUntil || isCooldownActive) {
+                            return@CameraXBarcodeView
+                        }
+                        if (isScannerPaused || (isFixQrMode && qrFixResultMsg.isNotBlank())) {
+                            return@CameraXBarcodeView
+                        }
+                        val trimmedBar = barcode.trim()
+                        if (trimmedBar.isNotBlank()) {
+                            // Debounce to prevent rapid repeated scans of same barcode (1800ms)
+                            val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 1800L
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .let { if (isFixQrMode) it.weight(1f) else it.weight(cameraWeight) }
-                        .heightIn(min = 80.dp)
-                        .background(Color(0xFF0D121F))
-                ) {
-                    // CAMERA PREVIEW (Continuous Scanning with Proximity Requirement)
-                    if (cameraPermissionState.status.isGranted) {
-                        CameraXBarcodeView(
-                            isFlashOn = isFlashOn,
-                            zoomRatio = zoomRatio,
-                            filterMode = ScannerFilterMode.ALL,
-                            isBatterySaverMode = isBatterySaverMode,
-                            isPaused = isCameraAnalysisPaused,
-                            requireCloseDistance = !isFixQrMode,
-                            onDistanceStateChanged = { tooFar ->
-                                isBarcodeTooFar = if (isFixQrMode) false else tooFar
-                            },
-                            onBarcodeScanned = { barcode ->
-                                val now = System.currentTimeMillis()
-                                if (now < resumeCooldownUntil || isCooldownActive) {
-                                    return@CameraXBarcodeView
+                            if (!isSameRecent) {
+                                val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(trimmedBar, products, todayMidnight)
+                                ScannerFeedbackHelper.playFeedback(
+                                    context = context,
+                                    toneGenerator = toneGenerator,
+                                    risk = risk
+                                )
+                                lastScannedRisk = risk
+                                lastRemainingDays = remainingDays
+                                lastScannedCode = trimmedBar
+                                lastScannedTime = now
+                                activeBarcode = trimmedBar
+                                manualBarcode = trimmedBar
+                                selectedProductOverride = null
+                                if (isSerialScanMode) {
+                                    serialScanCount++
                                 }
-                                if (isScannerPaused || (isFixQrMode && qrFixResultMsg.isNotBlank())) {
-                                    return@CameraXBarcodeView
-                                }
-                                val trimmedBar = barcode.trim()
-                                if (trimmedBar.isNotBlank()) {
-                                    // Debounce to prevent rapid repeated scans of same barcode (1800ms)
-                                    val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 1800L
+                                resumeCooldownUntil = now + 1200L
 
-                                    if (!isSameRecent) {
-                                        val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(trimmedBar, products, todayMidnight)
-                                        ScannerFeedbackHelper.playFeedback(
-                                            context = context,
-                                            toneGenerator = toneGenerator,
-                                            risk = risk
+                                if (isFixQrMode && onFixQrScanned != null) {
+                                    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                                    val formattedTime = timeFormat.format(Date(now))
+                                    qrFixLastTime = formattedTime
+                                    val shelfData = parseShelfQrPayload(trimmedBar)
+                                    val sc = shelfData.storeCode
+                                    if (!sc.isNullOrBlank()) {
+                                        qrFixStoreCode = sc
+                                    }
+                                    val realBarcode = shelfData.barcode.ifBlank { trimmedBar }
+                                    val pCode = shelfData.productCode
+                                    val matchedProd = products.firstOrNull { p ->
+                                        (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
+                                        (pCode != null && pCode.isNotBlank() && p.urunKodu.equals(pCode, ignoreCase = true)) ||
+                                        p.urunKodu.equals(realBarcode, ignoreCase = true)
+                                    }
+                                    val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
+
+                                    onFixQrScanned(trimmedBar) { msg, isSuccess ->
+                                        qrFixResultMsg = msg
+                                        qrFixLastInfo = msg
+                                        if (isSuccess) {
+                                            qrFixSuccessCount++
+                                            com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
+                                        } else {
+                                            qrFixErrorCount++
+                                        }
+                                        qrFixHistoryList.add(
+                                            0,
+                                            com.example.ui.screens.scanner.QrFixHistoryItem(
+                                                time = formattedTime,
+                                                barcode = realBarcode,
+                                                productCode = pCode ?: matchedProd?.urunKodu,
+                                                productName = prodName,
+                                                message = msg,
+                                                isSuccess = isSuccess
+                                            )
                                         )
-                                        lastScannedRisk = risk
-                                        lastRemainingDays = remainingDays
-                                        lastScannedCode = trimmedBar
-                                        lastScannedTime = now
-                                        activeBarcode = trimmedBar
-                                        manualBarcode = trimmedBar
-                                        selectedProductOverride = null
-                                        if (isSerialScanMode) {
-                                            serialScanCount++
-                                        }
-                                        resumeCooldownUntil = now + 1200L
-
-                                        if (isFixQrMode && onFixQrScanned != null) {
-                                            val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                                            val formattedTime = timeFormat.format(Date(now))
-                                            qrFixLastTime = formattedTime
-                                            val shelfData = parseShelfQrPayload(trimmedBar)
-                                            val sc = shelfData.storeCode
-                                            if (!sc.isNullOrBlank()) {
-                                                qrFixStoreCode = sc
-                                            }
-                                            val realBarcode = shelfData.barcode.ifBlank { trimmedBar }
-                                            val pCode = shelfData.productCode
-                                            val matchedProd = products.firstOrNull { p ->
-                                                (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
-                                                (pCode != null && pCode.isNotBlank() && p.urunKodu.equals(pCode, ignoreCase = true)) ||
-                                                p.urunKodu.equals(realBarcode, ignoreCase = true)
-                                            }
-                                            val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
-
-                                            onFixQrScanned(trimmedBar) { msg, isSuccess ->
-                                                qrFixResultMsg = msg
-                                                qrFixLastInfo = msg
-                                                if (isSuccess) {
-                                                    qrFixSuccessCount++
-                                                } else {
-                                                    qrFixErrorCount++
-                                                }
-                                                qrFixHistoryList.add(
-                                                    0,
-                                                    com.example.ui.screens.scanner.QrFixHistoryItem(
-                                                        time = formattedTime,
-                                                        barcode = realBarcode,
-                                                        productCode = pCode ?: matchedProd?.urunKodu,
-                                                        productName = prodName,
-                                                        message = msg,
-                                                        isSuccess = isSuccess
-                                                    )
-                                                )
-                                            }
-                                        }
                                     }
                                 }
-                            }
-                        )
-                    } else {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Kamera İzni",
-                                tint = Color.White.copy(alpha = 0.7f),
-                                modifier = Modifier.size(54.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Kamera erişim izni bekleniyor...",
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Kamera açılmadığında aşağıdaki elle barkod arama kutusunu kullanabilirsiniz.",
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { cameraPermissionState.launchPermissionRequest() },
-                                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
-                            ) {
-                                Text("KAMERA İZNİ VER", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                             }
                         }
                     }
-
-                    // DYNAMIC FRAME DIMENSIONS BASED ON ACTIVE MODE
-                    val targetW = if (isFixQrMode) 220.dp else 280.dp
-                    val targetH = if (isFixQrMode) {
-                        if (isKeyboardVisible || hasProductDetail) 140.dp else 220.dp
-                    } else {
-                        if (isKeyboardVisible || hasProductDetail) 85.dp else 120.dp
-                    }
-
-                    val animatedFrameWidth by animateDpAsState(
-                        targetValue = targetW,
-                        animationSpec = tween(durationMillis = 250),
-                        label = "frameWidth"
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CameraAlt,
+                        contentDescription = "Kamera İzni",
+                        tint = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.size(54.dp)
                     )
-                    val animatedFrameHeight by animateDpAsState(
-                        targetValue = targetH,
-                        animationSpec = tween(durationMillis = 250),
-                        label = "frameHeight"
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Kamera erişim izni bekleniyor...",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
                     )
-
-                    val viewfinderColor = when {
-                        isBarcodeTooFar -> SoonYellow
-                        lastScannedRisk != null -> lastScannedRisk!!.color
-                        isScannerPaused -> SoonYellow
-                        else -> TurquoisePrimary
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = "Kamera açılmadığında aşağıdaki elle barkod arama kutusunu kullanabilirsiniz.",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { cameraPermissionState.launchPermissionRequest() },
+                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                    ) {
+                        Text("KAMERA İZNİ VER", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
-                    val isViewfinderGlowing = isBarcodeTooFar || lastScannedRisk != null || isScannerPaused
+                }
+            }
 
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        // Prominent Corner Brackets Target Box with Top Guidance Badge
-                        if (!isKeyboardVisible) {
-                            Column(
-                                modifier = Modifier.align(Alignment.Center),
-                                horizontalAlignment = Alignment.CenterHorizontally
+            // =========================================================================
+            // 2. KAMERA ÜST ALANI: HEDEF ÇERÇEVESİ, KONTROLLER VE ZOOM DÜĞMELERİ
+            // =========================================================================
+            val targetW = if (isFixQrMode) 220.dp else 280.dp
+            val targetH = if (isFixQrMode) {
+                if (isKeyboardVisible || hasProductDetail) 140.dp else 220.dp
+            } else {
+                if (isKeyboardVisible || hasProductDetail) 85.dp else 120.dp
+            }
+
+            val animatedFrameWidth by animateDpAsState(
+                targetValue = targetW,
+                animationSpec = tween(durationMillis = 250),
+                label = "frameWidth"
+            )
+            val animatedFrameHeight by animateDpAsState(
+                targetValue = targetH,
+                animationSpec = tween(durationMillis = 250),
+                label = "frameHeight"
+            )
+
+            val viewfinderColor = when {
+                isBarcodeTooFar -> SoonYellow
+                lastScannedRisk != null -> lastScannedRisk!!.color
+                isScannerPaused -> SoonYellow
+                else -> TurquoisePrimary
+            }
+            val isViewfinderGlowing = isBarcodeTooFar || lastScannedRisk != null || isScannerPaused
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(if (isFixQrMode) 1.0f else topAreaWeight)
+                    .align(Alignment.TopCenter)
+            ) {
+                if (!isKeyboardVisible) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(top = 40.dp, bottom = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Status / Proximity Guidance Badge
+                        if (isCooldownActive && cooldownRemainingSeconds > 0) {
+                            Surface(
+                                onClick = {
+                                    resumeCooldownUntil = 0L
+                                    isCooldownActive = false
+                                    cooldownRemainingSeconds = 0
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFF0F172A).copy(alpha = 0.90f),
+                                border = BorderStroke(1.dp, TurquoisePrimary),
+                                shadowElevation = 6.dp
                             ) {
-                                // Status / Proximity Guidance Badge (Positioned ABOVE the viewfinder box)
-                                if (isCooldownActive && cooldownRemainingSeconds > 0) {
-                                    Surface(
-                                        onClick = {
-                                            resumeCooldownUntil = 0L
-                                            isCooldownActive = false
-                                            cooldownRemainingSeconds = 0
-                                        },
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = Color(0xFF0F172A).copy(alpha = 0.90f),
-                                        border = BorderStroke(1.dp, TurquoisePrimary),
-                                        shadowElevation = 6.dp
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Text(
-                                                text = "⏳ Bekleme: ${cooldownRemainingSeconds}sn (Dokun: Hemen Oku)",
-                                                color = TurquoisePrimary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        }
-                                    }
-                                } else if (isBarcodeTooFar) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = SoonYellow.copy(alpha = 0.95f),
-                                        shadowElevation = 6.dp
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "📏 Barkoda Yaklaşın",
-                                                color = Color(0xFF1A1A1A),
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        }
-                                    }
-                                } else if (lastScannedRisk != null) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = lastScannedRisk!!.color,
-                                        shadowElevation = 6.dp
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = lastScannedRisk!!.title + (if (lastRemainingDays != null && lastRemainingDays!! >= 0) " (${lastRemainingDays} Gün)" else ""),
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = NormalGreen.copy(alpha = 0.90f),
-                                        shadowElevation = 4.dp
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = if (isFixQrMode) "🎯 Tekli QR Okuma Modu" else "⚡ Seri Tarama Modu",
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(10.dp))
-
-                                // Unobstructed Clean Viewfinder Frame
-                                Box(
-                                    modifier = Modifier
-                                        .width(animatedFrameWidth)
-                                        .height(animatedFrameHeight)
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    CornerBracketsViewfinder(
-                                        modifier = Modifier.fillMaxSize(),
-                                        color = viewfinderColor,
-                                        strokeWidth = 5.dp,
-                                        cornerLength = 32.dp,
-                                        cornerRadius = 16.dp,
-                                        isGlowing = isViewfinderGlowing
+                                    Text(
+                                        text = "⏳ Bekleme: ${cooldownRemainingSeconds}sn (Dokun: Hemen Oku)",
+                                        color = TurquoisePrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black
                                     )
                                 }
-
-                                // Quick Zoom Selector Buttons (1x, 1.5x, 2x)
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(20.dp),
-                                    color = Color.Black.copy(alpha = 0.55f),
-                                    modifier = Modifier.height(30.dp)
+                            }
+                        } else if (isBarcodeTooFar) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = SoonYellow.copy(alpha = 0.95f),
+                                shadowElevation = 6.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Text(
+                                        text = "📏 Barkoda Yaklaşın",
+                                        color = Color(0xFF1A1A1A),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+                        } else if (lastScannedRisk != null) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = lastScannedRisk!!.color,
+                                shadowElevation = 6.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = lastScannedRisk!!.title + (if (lastRemainingDays != null && lastRemainingDays!! >= 0) " (${lastRemainingDays} Gün)" else ""),
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+                        } else {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = NormalGreen.copy(alpha = 0.90f),
+                                shadowElevation = 4.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = if (isFixQrMode) "🎯 Tekli QR Okuma Modu" else "⚡ Seri Tarama Modu",
+                                        color = Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Unobstructed Clean Viewfinder Frame
+                        Box(
+                            modifier = Modifier
+                                .width(animatedFrameWidth)
+                                .height(animatedFrameHeight)
+                        ) {
+                            CornerBracketsViewfinder(
+                                modifier = Modifier.fillMaxSize(),
+                                color = viewfinderColor,
+                                strokeWidth = 5.dp,
+                                cornerLength = 32.dp,
+                                cornerRadius = 16.dp,
+                                isGlowing = isViewfinderGlowing
+                            )
+                        }
+
+                        // Quick Zoom Selector Buttons (1x, 1.5x, 2x)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(20.dp),
+                            color = Color.Black.copy(alpha = 0.55f),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                listOf(1.0f to "1x", 1.5f to "1.5x", 2.0f to "2x").forEach { (level, text) ->
+                                    val isSelected = kotlin.math.abs(zoomRatio - level) < 0.15f
+                                    Surface(
+                                        onClick = { zoomRatio = level },
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = if (isSelected) TurquoisePrimary else Color.Transparent,
+                                        modifier = Modifier.height(24.dp)
                                     ) {
-                                        listOf(1.0f to "1x", 1.5f to "1.5x", 2.0f to "2x").forEach { (level, text) ->
-                                            val isSelected = kotlin.math.abs(zoomRatio - level) < 0.15f
-                                            Surface(
-                                                onClick = { zoomRatio = level },
-                                                shape = RoundedCornerShape(16.dp),
-                                                color = if (isSelected) TurquoisePrimary else Color.Transparent,
-                                                modifier = Modifier.height(24.dp)
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier.padding(horizontal = 8.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = text,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
-                                                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f)
-                                                    )
-                                                }
-                                            }
+                                        Box(
+                                            modifier = Modifier.padding(horizontal = 8.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = text,
+                                                fontSize = 11.sp,
+                                                fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.75f)
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
                     }
-
-                    // TOP OVERLAY BAR: UNIFORM DARK PILL/CIRCLE BUTTONS & SEGMENTED MODE SELECTOR
-                    ScannerTopControls(
-                        isFixQrMode = isFixQrMode,
-                        isFlashOn = isFlashOn,
-                        onCloseClick = safeDismiss,
-                        onModeChange = { isFixMode ->
-                            isFixQrMode = isFixMode
-                            qrFixResultMsg = ""
-                            zoomRatio = if (isFixMode) 1.35f else 1.0f
-                        },
-                        onFlashToggle = { isFlashOn = !isFlashOn }
-                    )
                 }
 
-                // =========================================================================
-                // 2. BOTTOM SECTION: MANUAL SEARCH & PRODUCT DETAILS
-                // =========================================================================
-                if (isFixQrMode) {
-                    Surface(
+                // TOP OVERLAY BAR: UNIFORM DARK PILL/CIRCLE BUTTONS & SEGMENTED MODE SELECTOR
+                ScannerTopControls(
+                    isFixQrMode = isFixQrMode,
+                    isFlashOn = isFlashOn,
+                    onCloseClick = safeDismiss,
+                    onModeChange = { isFixMode ->
+                        isFixQrMode = isFixMode
+                        qrFixResultMsg = ""
+                        zoomRatio = if (isFixMode) 1.35f else 1.0f
+                    },
+                    onFlashToggle = { isFlashOn = !isFlashOn }
+                )
+            }
+
+            // =========================================================================
+            // 3. ALT BEYAZ KART: ARKA PLANDAN ŞEFFAF, DOĞRUDAN CANLI KAMERA ÜZERİNDE
+            // =========================================================================
+            if (isFixQrMode) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding(),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    color = Color.White,
+                    shadowElevation = 16.dp
+                ) {
+                    QrFixSummaryPanel(
+                        storeCode = qrFixStoreCode,
+                        userName = userName,
+                        lastProcessTime = qrFixLastTime,
+                        totalScannedCount = qrFixSuccessCount + qrFixErrorCount,
+                        successCount = qrFixSuccessCount,
+                        errorCount = qrFixErrorCount,
+                        lastProcessedInfo = qrFixLastInfo,
+                        historyList = qrFixHistoryList,
+                        onClearHistory = { qrFixHistoryList.clear() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .wrapContentHeight()
-                            .navigationBarsPadding(),
-                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 12.dp
-                    ) {
-                        QrFixSummaryPanel(
-                            storeCode = qrFixStoreCode,
-                            userName = userName,
-                            lastProcessTime = qrFixLastTime,
-                            totalScannedCount = qrFixSuccessCount + qrFixErrorCount,
-                            successCount = qrFixSuccessCount,
-                            errorCount = qrFixErrorCount,
-                            lastProcessedInfo = qrFixLastInfo,
-                            historyList = qrFixHistoryList,
-                            onClearHistory = { qrFixHistoryList.clear() },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentHeight()
-                        )
-                    }
-                } else {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(bottomWeight),
-                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 12.dp
-                    ) {
+                    )
+                }
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(bottomWeight)
+                        .align(Alignment.BottomCenter),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    color = Color.White,
+                    shadowElevation = 16.dp
+                ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -718,5 +717,5 @@ fun BarcodeScannerSheet(
             }
         }
     }
-}
+
 

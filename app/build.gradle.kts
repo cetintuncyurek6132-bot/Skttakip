@@ -100,6 +100,8 @@ dependencies {
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.mlkit.barcode.scanning)
   implementation(libs.mlkit.text.recognition)
+  implementation(libs.coil.compose)
+  implementation(libs.okhttp)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
 

@@ -72,7 +72,8 @@ data class Product(
     val eklenmeTarihi: Long = System.currentTimeMillis(),
     val isImportant: Boolean = false,
     val sonKontrolTarihi: Long = 0L,
-    val fiyat: Double? = null
+    val fiyat: Double? = null,
+    val resimUrl: String? = null
 ) {
     fun getFormattedPrice(): String? {
         val f = fiyat ?: return null

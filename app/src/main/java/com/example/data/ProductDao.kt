@@ -40,6 +40,12 @@ interface ProductDao {
     @Query("UPDATE products SET stokAdedi = :newStok, sonKontrolTarihi = :now WHERE id = :productId")
     suspend fun updateStockAndControlDate(productId: Int, newStok: Int, now: Long = System.currentTimeMillis())
 
+    @Query("UPDATE products SET resimUrl = :resimUrl WHERE barkod = :barkod")
+    suspend fun updateProductImageByBarcode(barkod: String, resimUrl: String?)
+
+    @Query("UPDATE products SET resimUrl = :resimUrl WHERE id = :productId")
+    suspend fun updateProductImageById(productId: Int, resimUrl: String?)
+
     @Delete
     suspend fun deleteProduct(product: Product): Int
 

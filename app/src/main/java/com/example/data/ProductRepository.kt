@@ -89,6 +89,16 @@ class ProductRepository(
         return productDao.getProductsByBarcode(barkod)
     }
 
+    suspend fun updateProductImage(barkod: String, resimUrl: String?) {
+        if (barkod.isBlank() || resimUrl.isNullOrBlank()) return
+        productDao.updateProductImageByBarcode(barkod, resimUrl)
+    }
+
+    suspend fun updateProductImageById(productId: Int, resimUrl: String?) {
+        if (productId <= 0 || resimUrl.isNullOrBlank()) return
+        productDao.updateProductImageById(productId, resimUrl)
+    }
+
     suspend fun insertOrUpdateProduct(product: Product): Long {
         val id = if (product.id != 0) {
             productDao.updateProduct(product)

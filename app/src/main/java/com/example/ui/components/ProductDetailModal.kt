@@ -56,6 +56,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.example.util.image.ProductImageManager
 import com.example.data.Product
 import com.example.data.getDisplayName
 import com.example.ui.components.detail.DeductStockDialog
@@ -270,23 +274,58 @@ fun ProductDetailModal(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        var activeImageUrl by remember(localProduct.barkod, localProduct.resimUrl) {
+                            mutableStateOf(localProduct.resimUrl)
+                        }
+
+                        androidx.compose.runtime.LaunchedEffect(localProduct.barkod) {
+                            if (activeImageUrl.isNullOrBlank() && localProduct.barkod.isNotBlank() && !localProduct.barkod.startsWith("NO_BARCODE_")) {
+                                val fetched = ProductImageManager.getOrFetchProductImageUrl(
+                                    barcode = localProduct.barkod,
+                                    existingResimUrl = localProduct.resimUrl
+                                )
+                                if (!fetched.isNullOrBlank()) {
+                                    activeImageUrl = fetched
+                                }
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(TurquoiseDark, Color(0xFF0D9488))
-                                    )
-                                ),
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(10.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = localProduct.getDisplayName().take(1).uppercase(),
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White
-                            )
+                            if (!activeImageUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(context)
+                                        .data(activeImageUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    imageLoader = ProductImageManager.getImageLoader(context),
+                                    contentDescription = localProduct.getDisplayName(),
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                listOf(TurquoiseDark, Color(0xFF0D9488))
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = localProduct.getDisplayName().take(1).uppercase(),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White
+                                    )
+                                }
+                            }
                         }
 
                         Spacer(modifier = Modifier.width(10.dp))

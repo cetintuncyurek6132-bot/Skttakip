@@ -91,12 +91,12 @@ jobs:
         id: notes
         run: |
           LAST_MSG=$(git log -1 --pretty=%B | head -n 1)
-          if [ -z "$LAST_MSG" ]; then
-            LAST_MSG="Kucuk iyilestirmeler ve hata duzeltmeleri yapildi."
+          if [ -z "$LAST_MSG" ] || [[ "$LAST_MSG" =~ ^(update|fix|bump|chore|refactor|merge|initial|build|ci) ]] || [[ "$LAST_MSG" =~ (workflows|gradle|deps) ]]; then
+            LAST_MSG="• Performans iyileştirmeleri ve hata düzeltmeleri yapıldı.\n• Barkod tarama ve veri işleme hızlandırıldı.\n• Arayüz kararlılığı ve kullanıcı deneyimi artırıldı."
           fi
           {
             echo "NOTES<<EOF"
-            echo "$LAST_MSG"
+            echo -e "$LAST_MSG"
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
 
