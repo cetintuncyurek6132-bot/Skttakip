@@ -30,12 +30,17 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatterySaver
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CreateNewFolder
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storage
@@ -74,6 +79,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
@@ -84,8 +90,10 @@ import com.example.data.DataBackupManager
 import com.example.data.Product
 import com.example.ui.components.AppUpdateDialog
 import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.IndigoAccent
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate300
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
@@ -96,6 +104,7 @@ import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
 import com.example.util.AppUpdateChecker
 import com.example.util.AppUpdateInfo
+import com.example.util.BackupExportHelper
 import com.example.util.CsvParseResult
 import com.example.util.XlsxParser
 import kotlinx.coroutines.launch
@@ -149,6 +158,26 @@ fun CsvScreen(
     // Backup & Restore processing states
     var isExporting by remember { mutableStateOf(false) }
     var isSavingLocal by remember { mutableStateOf(false) }
+    var showExportOptionsDialog by remember { mutableStateOf(false) }
+    var pendingExportJson by remember { mutableStateOf<String?>(null) }
+    var pendingExportFileName by remember { mutableStateOf("") }
+
+    // Storage Access Framework (SAF) CreateDocument Launcher for JSON Export
+    val jsonCreateDocLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val json = pendingExportJson
+            if (!json.isNullOrBlank()) {
+                val res = BackupExportHelper.writeJsonToUri(context, uri, json)
+                if (res.isSuccess) {
+                    Toast.makeText(context, "✅ Yedek seçilen klasöre başarıyla kaydedildi!", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     // JSON Import Launcher (Geri Yükle)
     val jsonImportLauncher = rememberLauncherForActivityResult(
@@ -254,35 +283,19 @@ fun CsvScreen(
         }
     }
 
-    // JSON Dışa Aktarma Paylaşım Fonksiyonu
-    fun executeJsonShareExport() {
+    // JSON Dışa Aktarma Başlatıcı (Diyalog Açılır)
+    fun triggerJsonExport() {
         isExporting = true
         onExportJsonBackup { jsonString ->
             isExporting = false
-            try {
-                val timeStamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
-                val fileName = "skt_takip_yedek_$timeStamp.json"
-                val cacheFile = File(context.cacheDir, fileName)
-                cacheFile.writeText(jsonString, Charsets.UTF_8)
-
-                val contentUri = FileProvider.getUriForFile(
-                    context,
-                    "${context.packageName}.fileprovider",
-                    cacheFile
-                )
-
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "application/json"
-                    putExtra(Intent.EXTRA_STREAM, contentUri)
-                    putExtra(Intent.EXTRA_SUBJECT, "SKT Takip Tam Sistem Yedeği ($timeStamp)")
-                    putExtra(Intent.EXTRA_TEXT, "SKT Takip uygulaması tam veri yedeği (Ürünler, SKT'ler, Fiyatlar, Takip ve Sayımlar).")
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-
-                context.startActivity(Intent.createChooser(shareIntent, "Yedeği Paylaş / Dışa Aktar"))
-            } catch (e: Exception) {
-                Toast.makeText(context, "Dışa aktarma hatası: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            if (jsonString.isBlank()) {
+                Toast.makeText(context, "Dışa aktarılacak veri bulunamadı!", Toast.LENGTH_SHORT).show()
+                return@onExportJsonBackup
             }
+            val fileName = BackupExportHelper.generateBackupFileName()
+            pendingExportJson = jsonString
+            pendingExportFileName = fileName
+            showExportOptionsDialog = true
         }
     }
 
@@ -478,6 +491,258 @@ fun CsvScreen(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text("Tamam", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    // JSON Yedek Dışa Aktarma ve Cihaz Belleğine Kaydetme Diyaloğu
+    if (showExportOptionsDialog && pendingExportJson != null) {
+        AlertDialog(
+            onDismissRequest = { showExportOptionsDialog = false },
+            shape = RoundedCornerShape(18.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SaveAlt,
+                        contentDescription = null,
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    text = "JSON Yedeğini Dışa Aktar",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        text = "Yedek dosyasını telefon belleğinize kaydedebilir veya diğer uygulamalara aktarabilirsiniz:",
+                        fontSize = 12.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Dosya Adı Bilgi Rozeti
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = Slate100,
+                        border = BorderStroke(1.dp, Slate200),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Description,
+                                contentDescription = null,
+                                tint = Slate600,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = pendingExportFileName,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate800,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    // SEÇENEK 1: İndirilenler Klasörüne Doğrudan Kaydet (Cihaz Hafızası)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val json = pendingExportJson
+                                val fileName = pendingExportFileName
+                                if (!json.isNullOrBlank()) {
+                                    val res = BackupExportHelper.saveJsonToDownloads(context, json, fileName)
+                                    if (res.isSuccess) {
+                                        Toast.makeText(
+                                            context,
+                                            "✅ Yedek cihazınızın İndirilenler (Downloads) klasörüne kaydedildi:\n$fileName",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                        showExportOptionsDialog = false
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "İndirilenler'e kaydetme hatası: ${res.exceptionOrNull()?.localizedMessage}",
+                                            Toast.LENGTH_LONG
+                                        ).show()
+                                    }
+                                }
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = TurquoisePrimary.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.5.dp, TurquoisePrimary)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(TurquoisePrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Download,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "İndirilenler'e Kaydet (En Hızlı)",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = TurquoiseDark
+                                )
+                                Text(
+                                    text = "Telefonun İndirilenler (Downloads) klasörüne doğrudan kaydeder.",
+                                    fontSize = 11.sp,
+                                    color = Slate600
+                                )
+                            }
+                        }
+                    }
+
+                    // SEÇENEK 2: Klasör Seçerek Kaydet (Farklı Kaydet)
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val fileName = pendingExportFileName
+                                showExportOptionsDialog = false
+                                try {
+                                    jsonCreateDocLauncher.launch(fileName)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Dosya seçici açılamadı: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Slate300)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(IndigoAccent.copy(alpha = 0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CreateNewFolder,
+                                    contentDescription = null,
+                                    tint = IndigoAccent,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Konum / Klasör Seçerek Kaydet",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Slate900
+                                )
+                                Text(
+                                    text = "Cihaz belleğinde istediğiniz klasörü seçin (Belgeler, SD Kart vb.).",
+                                    fontSize = 11.sp,
+                                    color = Slate600
+                                )
+                            }
+                        }
+                    }
+
+                    // SEÇENEK 3: Diğer Uygulamalar ile Paylaş
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                val json = pendingExportJson
+                                val fileName = pendingExportFileName
+                                if (!json.isNullOrBlank()) {
+                                    showExportOptionsDialog = false
+                                    val res = BackupExportHelper.shareJsonBackup(context, json, fileName)
+                                    if (res.isFailure) {
+                                        Toast.makeText(context, "Paylaşım hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Slate300)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(Slate200),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Share,
+                                    contentDescription = null,
+                                    tint = Slate700,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Uygulamalar ile Paylaş",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Slate900
+                                )
+                                Text(
+                                    text = "WhatsApp, Google Drive, E-posta vb. ile gönderin.",
+                                    fontSize = 11.sp,
+                                    color = Slate600
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { showExportOptionsDialog = false }
+                ) {
+                    Text("Kapat", fontWeight = FontWeight.Bold, color = Slate700)
                 }
             }
         )
@@ -780,9 +1045,36 @@ fun CsvScreen(
                             color = Slate600
                         )
 
+                        // Bilgi İpucu Kutusu
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.2f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Yedekler doğrudan cihazınızın İndirilenler (Downloads) klasörüne güvenle kaydedilir.",
+                                    fontSize = 11.5.sp,
+                                    color = TurquoiseDark,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+
                         // Buton 1: Tüm Verileri Dışa Aktar (JSON) - Dolgu Turkuaz
                         Button(
-                            onClick = { executeJsonShareExport() },
+                            onClick = { triggerJsonExport() },
                             enabled = !isExporting,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
@@ -798,7 +1090,7 @@ fun CsvScreen(
                                 Text("Yedek Hazırlanıyor...", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             } else {
                                 Icon(
-                                    imageVector = Icons.Default.Share,
+                                    imageVector = Icons.Default.FileDownload,
                                     contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(18.dp)
@@ -815,8 +1107,12 @@ fun CsvScreen(
                                 onSaveLocalBackup("manual") { file ->
                                     isSavingLocal = false
                                     if (file != null) {
+                                        try {
+                                            val jsonContent = file.readText(Charsets.UTF_8)
+                                            BackupExportHelper.saveJsonToDownloads(context, jsonContent, file.name)
+                                        } catch (_: Exception) {}
                                         val sizeStr = DataBackupManager.formatBytes(file.length())
-                                        Toast.makeText(context, "Cihaza yedek alındı: ${file.name} ($sizeStr)", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "✅ Cihaza ve İndirilenler'e yedek alındı:\n${file.name} ($sizeStr)", Toast.LENGTH_LONG).show()
                                     } else {
                                         Toast.makeText(context, "Yedek oluşturulamadı.", Toast.LENGTH_SHORT).show()
                                     }

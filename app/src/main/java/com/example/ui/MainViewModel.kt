@@ -115,7 +115,7 @@ class MainViewModel(
         val validSktProducts = ArrayList<Product>(products.size)
 
         for (prod in products) {
-            if (prod.sktTarihi > 0L) {
+            if (prod.sktTarihi > 0L && prod.stokAdedi > 0) {
                 sktEnteredCount++
                 validSktProducts.add(prod)
                 when (prod.getExpiryStatus(todayMidnight)) {

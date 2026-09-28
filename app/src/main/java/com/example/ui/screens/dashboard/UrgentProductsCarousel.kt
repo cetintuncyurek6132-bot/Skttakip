@@ -191,14 +191,14 @@ fun UrgentProductsCarousel(
                             ) {
                                 Text(
                                     text = badgeInfo.numberText,
-                                    fontSize = if (badgeInfo.numberText == "!") 22.sp else 19.sp,
+                                    fontSize = if (badgeInfo.numberText == "!") 23.sp else 20.sp,
                                     fontWeight = FontWeight.Black,
                                     color = badgeInfo.textColor,
                                     lineHeight = 20.sp
                                 )
                                 Text(
                                     text = badgeInfo.labelText,
-                                    fontSize = 8.5.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White.copy(alpha = 0.95f),
                                     letterSpacing = 0.3.sp,

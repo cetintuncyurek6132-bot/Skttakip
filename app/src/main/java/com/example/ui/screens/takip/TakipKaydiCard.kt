@@ -125,6 +125,15 @@ fun TakipKaydiCard(
                             fontSize = 16.sp
                         )
                     )
+                    if (!record.urunKodu.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "🏷️ Kod: ${record.urunKodu}",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TurquoiseDark
+                        )
+                    }
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "📅 İade Tarihi: ${record.iadeTarihi}",
@@ -149,6 +158,8 @@ fun TakipKaydiCard(
                             color = statusColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }

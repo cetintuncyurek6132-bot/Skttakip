@@ -87,7 +87,7 @@ fun ProductDetailSktTabContent(
 ) {
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
     val allValidSktProducts = remember(matchingProducts) {
-        matchingProducts.filter { it.sktTarihi > 0L }.sortedBy { it.sktTarihi }
+        matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }.sortedBy { it.sktTarihi }
     }
 
     var selectedRiskFilter by remember { mutableStateOf(SktRiskFilter.ALL) }
@@ -363,7 +363,7 @@ fun ProductDetailSktTabContent(
                                         ) {
                                             Text(
                                                 text = badgeText,
-                                                fontSize = 9.5.sp,
+                                                fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.Black,
                                                 color = badgeTextColor,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)

@@ -366,7 +366,7 @@ fun AddSktModal(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📦 Adet / Miktar",
+                            text = "📦 SKT Adedi",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 13.sp,
                             color = Slate900

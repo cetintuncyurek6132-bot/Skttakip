@@ -256,7 +256,7 @@ fun ProductDetailModal(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // 2. FERAH ÜRÜN ÖZET KARTI (Ürün Adı + Kod + Toplam Stok)
+                // 2. FERAH ÜRÜN ÖZET KARTI (Ürün Adı + Kod + Toplam Adet)
                 Surface(
                     shape = RoundedCornerShape(14.dp),
                     color = MaterialTheme.colorScheme.surface,
@@ -402,15 +402,31 @@ fun ProductDetailModal(
             onDismiss = { selectedBatchForDeduct = null },
             onDeduct = { amount, reason ->
                 val batchToDeduct = selectedBatchForDeduct!!
-                localMatchingProducts = localMatchingProducts.map {
-                    if (it.id == batchToDeduct.id) it.copy(stokAdedi = maxOf(0, it.stokAdedi - amount)) else it
-                }
-                if (localProduct.id == batchToDeduct.id) {
-                    localProduct = localProduct.copy(stokAdedi = maxOf(0, localProduct.stokAdedi - amount))
+                val remaining = maxOf(0, batchToDeduct.stokAdedi - amount)
+                if (remaining == 0) {
+                    val remainingMatching = localMatchingProducts.filter { it.id != batchToDeduct.id }
+                    localMatchingProducts = remainingMatching
+                    val nextActive = remainingMatching.firstOrNull { it.stokAdedi > 0 }
+                    if (nextActive != null) {
+                        localProduct = nextActive
+                    } else {
+                        localProduct = localProduct.copy(sktTarihi = 0L, stokAdedi = 0)
+                    }
+                } else {
+                    localMatchingProducts = localMatchingProducts.map {
+                        if (it.id == batchToDeduct.id) it.copy(stokAdedi = remaining) else it
+                    }
+                    if (localProduct.id == batchToDeduct.id) {
+                        localProduct = localProduct.copy(stokAdedi = remaining)
+                    }
                 }
                 onDeductStock(batchToDeduct, amount, reason)
-                val remaining = maxOf(0, batchToDeduct.stokAdedi - amount)
-                Toast.makeText(context, "$amount adet $reason olarak kaydedildi (Kalan: $remaining)", Toast.LENGTH_SHORT).show()
+                val toastMsg = if (remaining == 0) {
+                    "$amount adet $reason olarak düşüldü (Parti tamamlandı)"
+                } else {
+                    "$amount adet $reason olarak kaydedildi (Kalan: $remaining)"
+                }
+                Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
                 selectedBatchForDeduct = null
             }
         )

@@ -23,10 +23,10 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     // User Profile State
-    private val _userName = MutableStateFlow("Ahmet Yılmaz")
+    private val _userName = MutableStateFlow("Mağaza Personeli")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
-    private val _userBranch = MutableStateFlow("Kadıköy Şubesi #4102")
+    private val _userBranch = MutableStateFlow("Şube / Mağaza")
     val userBranch: StateFlow<String> = _userBranch.asStateFlow()
 
     private val _userRole = MutableStateFlow("Reyon Sorumlusu & SKT Görevlisi")

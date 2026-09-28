@@ -128,11 +128,11 @@ class InventoryViewModel(
             // 2. Status Filter
             val matchesFilter = when (filter) {
                 ProductFilter.ALL -> prod.sktTarihi > 0L && prod.stokAdedi > 0
-                ProductFilter.IMPORTANT -> prod.isImportant
-                ProductFilter.LAST_2_DAYS -> prod.sktTarihi > 0L && prod.getRemainingDays(todayMidnight) in 0L..2L
-                ProductFilter.EXPIRED -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED
-                ProductFilter.CRITICAL -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL
-                ProductFilter.SOON -> prod.sktTarihi > 0L && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON
+                ProductFilter.IMPORTANT -> prod.isImportant && prod.stokAdedi > 0
+                ProductFilter.LAST_2_DAYS -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in 0L..2L
+                ProductFilter.EXPIRED -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED
+                ProductFilter.CRITICAL -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL
+                ProductFilter.SOON -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON
             }
             if (!matchesFilter) continue
 
@@ -433,10 +433,57 @@ class InventoryViewModel(
         viewModelScope.launch {
             val safeAmount = if (amount <= 0) 1 else amount
             val newStock = maxOf(0, product.stokAdedi - safeAmount)
-            repository.updateProductStock(product, newStock)
-            val updated = product.copy(stokAdedi = newStock, sonKontrolTarihi = System.currentTimeMillis())
-            if (_detailProduct.value?.id == product.id) {
-                _detailProduct.value = updated
+
+            val existingBatches = if (product.barkod.isNotBlank() && !product.barkod.startsWith("NO_BARCODE_")) {
+                repository.getProductsByBarcode(product.barkod).ifEmpty {
+                    allProducts.value.filter {
+                        it.barkod == product.barkod ||
+                        (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu) ||
+                        it.urunAdi.equals(product.urunAdi, ignoreCase = true)
+                    }
+                }
+            } else {
+                allProducts.value.filter {
+                    (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu) ||
+                    it.urunAdi.equals(product.urunAdi, ignoreCase = true)
+                }
+            }
+            val otherBatches = existingBatches.filter { it.id != product.id }
+            val otherActiveBatches = otherBatches.filter { it.stokAdedi > 0 && it.sktTarihi > 0L }
+
+            if (newStock == 0) {
+                if (otherActiveBatches.isNotEmpty()) {
+                    // Depleted batch is completely removed
+                    repository.deleteProduct(product)
+                    // Also clean up any stale 0-stock batches that may linger
+                    otherBatches.filter { it.stokAdedi <= 0 && it.sktTarihi > 0L }.forEach { stale ->
+                        repository.deleteProduct(stale)
+                    }
+                    if (_detailProduct.value?.id == product.id) {
+                        _detailProduct.value = otherActiveBatches.first()
+                    }
+                } else {
+                    // All active batches for this product are finished. Clean up extra batch rows
+                    otherBatches.forEach { other ->
+                        repository.deleteProduct(other)
+                    }
+                    // Reset to single base product with NO active SKT (sktTarihi = 0L) and 0 stock
+                    val resetProduct = product.copy(
+                        sktTarihi = 0L,
+                        stokAdedi = 0,
+                        sonKontrolTarihi = System.currentTimeMillis()
+                    )
+                    repository.insertOrUpdateProduct(resetProduct)
+                    if (_detailProduct.value?.id == product.id) {
+                        _detailProduct.value = resetProduct
+                    }
+                }
+            } else {
+                repository.updateProductStock(product, newStock)
+                val updated = product.copy(stokAdedi = newStock, sonKontrolTarihi = System.currentTimeMillis())
+                if (_detailProduct.value?.id == product.id) {
+                    _detailProduct.value = updated
+                }
             }
             onSuccess(newStock)
         }
@@ -444,10 +491,44 @@ class InventoryViewModel(
 
     fun removeProductFromShelf(product: Product, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
-            val updated = product.copy(stokAdedi = 0)
-            repository.insertOrUpdateProduct(updated)
-            if (_detailProduct.value?.id == product.id) {
-                _detailProduct.value = updated
+            val existingBatches = if (product.barkod.isNotBlank() && !product.barkod.startsWith("NO_BARCODE_")) {
+                repository.getProductsByBarcode(product.barkod).ifEmpty {
+                    allProducts.value.filter {
+                        it.barkod == product.barkod ||
+                        (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu) ||
+                        it.urunAdi.equals(product.urunAdi, ignoreCase = true)
+                    }
+                }
+            } else {
+                allProducts.value.filter {
+                    (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu) ||
+                    it.urunAdi.equals(product.urunAdi, ignoreCase = true)
+                }
+            }
+            val otherBatches = existingBatches.filter { it.id != product.id }
+            val otherActiveBatches = otherBatches.filter { it.stokAdedi > 0 && it.sktTarihi > 0L }
+
+            if (otherActiveBatches.isNotEmpty()) {
+                repository.deleteProduct(product)
+                otherBatches.filter { it.stokAdedi <= 0 && it.sktTarihi > 0L }.forEach { stale ->
+                    repository.deleteProduct(stale)
+                }
+                if (_detailProduct.value?.id == product.id) {
+                    _detailProduct.value = otherActiveBatches.first()
+                }
+            } else {
+                otherBatches.forEach { other ->
+                    repository.deleteProduct(other)
+                }
+                val resetProduct = product.copy(
+                    sktTarihi = 0L,
+                    stokAdedi = 0,
+                    sonKontrolTarihi = System.currentTimeMillis()
+                )
+                repository.insertOrUpdateProduct(resetProduct)
+                if (_detailProduct.value?.id == product.id) {
+                    _detailProduct.value = resetProduct
+                }
             }
             onSuccess()
         }
@@ -456,8 +537,39 @@ class InventoryViewModel(
     fun removeMultipleProductsFromShelf(products: List<Product>, onSuccess: () -> Unit = {}) {
         viewModelScope.launch {
             products.forEach { prod ->
-                val updated = prod.copy(stokAdedi = 0)
-                repository.insertOrUpdateProduct(updated)
+                val existingBatches = if (prod.barkod.isNotBlank() && !prod.barkod.startsWith("NO_BARCODE_")) {
+                    repository.getProductsByBarcode(prod.barkod).ifEmpty {
+                        allProducts.value.filter {
+                            it.barkod == prod.barkod ||
+                            (prod.urunKodu.isNotBlank() && it.urunKodu == prod.urunKodu) ||
+                            it.urunAdi.equals(prod.urunAdi, ignoreCase = true)
+                        }
+                    }
+                } else {
+                    allProducts.value.filter {
+                        (prod.urunKodu.isNotBlank() && it.urunKodu == prod.urunKodu) ||
+                        it.urunAdi.equals(prod.urunAdi, ignoreCase = true)
+                    }
+                }
+                val otherBatches = existingBatches.filter { it.id != prod.id }
+                val otherActiveBatches = otherBatches.filter { it.stokAdedi > 0 && it.sktTarihi > 0L }
+
+                if (otherActiveBatches.isNotEmpty()) {
+                    repository.deleteProduct(prod)
+                    otherBatches.filter { it.stokAdedi <= 0 && it.sktTarihi > 0L }.forEach { stale ->
+                        repository.deleteProduct(stale)
+                    }
+                } else {
+                    otherBatches.forEach { other ->
+                        repository.deleteProduct(other)
+                    }
+                    val resetProduct = prod.copy(
+                        sktTarihi = 0L,
+                        stokAdedi = 0,
+                        sonKontrolTarihi = System.currentTimeMillis()
+                    )
+                    repository.insertOrUpdateProduct(resetProduct)
+                }
             }
             onSuccess()
         }

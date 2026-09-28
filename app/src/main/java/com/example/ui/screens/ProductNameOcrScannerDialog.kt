@@ -367,7 +367,7 @@ fun ProductNameOcrScannerDialog(
                         .fillMaxWidth()
                         .navigationBarsPadding(),
                     color = Slate900,
-                    shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                     border = BorderStroke(1.dp, Slate800)
                 ) {
                     Column(

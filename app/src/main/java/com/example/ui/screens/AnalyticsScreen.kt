@@ -134,7 +134,7 @@ enum class ProductListFilter(val label: String) {
     EXPIRED("Süresi Dolanlar"),
     CRITICAL_0_3("0-3 Gün"),
     SOON_4_7("4-7 Gün"),
-    HIGH_STOCK_RISK("Yüksek Stok Riski")
+    HIGH_STOCK_RISK("Yüksek Adetli Risk")
 }
 
 @Composable
@@ -379,7 +379,7 @@ fun AnalyticsScreen(
                     modifier = Modifier.weight(1f),
                     title = "Kritik & Süresi Dolan",
                     value = "${expiredProducts.size + criticalProducts.size}",
-                    subText = "${expiredProducts.sumOf { it.stokAdedi } + criticalProducts.sumOf { it.stokAdedi }} Adet Stok",
+                    subText = "${expiredProducts.sumOf { it.stokAdedi } + criticalProducts.sumOf { it.stokAdedi }} Adet",
                     icon = Icons.Default.Warning,
                     color = ExpiredRed,
                     bgColor = Color(0xFFFEF2F2),
@@ -391,7 +391,7 @@ fun AnalyticsScreen(
                     modifier = Modifier.weight(1f),
                     title = "Yaklaşan (4-7 Gün)",
                     value = "${soonProducts.size}",
-                    subText = "${soonProducts.sumOf { it.stokAdedi }} Adet Stok",
+                    subText = "${soonProducts.sumOf { it.stokAdedi }} Adet",
                     icon = Icons.Default.Schedule,
                     color = CriticalOrange,
                     bgColor = Color(0xFFFFFBEB),
@@ -415,12 +415,12 @@ fun AnalyticsScreen(
                     borderColor = Color(0xFF99F6E4)
                 )
 
-                // KPI 4: Toplam Stok
+                // KPI 4: Toplam SKT Adedi
                 KpiMetricCard(
                     modifier = Modifier.weight(1f),
-                    title = "Toplam Stok Adedi",
+                    title = "Toplam SKT Adedi",
                     value = "$totalStockCount",
-                    subText = "Reyon & Depo",
+                    subText = "Aktif Partiler",
                     icon = Icons.Default.Category,
                     color = Slate700,
                     bgColor = Slate100,
@@ -593,7 +593,7 @@ fun AnalyticsScreen(
                                         )
                                         val count = item.expiredCount + item.criticalCount
                                         Text(
-                                            text = "$count Çeşit • ${item.totalStock} Adet Stok",
+                                            text = "$count Çeşit • ${item.totalStock} Adet",
                                             color = Color.White,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.ExtraBold
@@ -661,7 +661,7 @@ fun AnalyticsScreen(
 
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        text = "💡 Çubuklara dokunarak o günün süresi geçen / dolacak ürün ve stok detayını görebilirsiniz.",
+                        text = "💡 Çubuklara dokunarak o günün süresi geçen / dolacak ürün ve parti adetlerini görebilirsiniz.",
                         fontSize = 11.sp,
                         color = Slate500,
                         textAlign = TextAlign.Center,
@@ -700,7 +700,7 @@ fun AnalyticsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Genel SKT Risk & Stok Dağılımı",
+                                text = "SKT Risk ve Adet Dağılımı",
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 15.sp,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -758,7 +758,7 @@ fun AnalyticsScreen(
             }
 
             // -----------------------------------------------------------------
-            // EN ÇOK SÜRESİ YAKLAŞAN ÜRÜNLER & STOK DURUMLARI (LIST & TABS)
+            // EN ÇOK SÜRESİ YAKLAŞAN ÜRÜNLER & ADET DURUMLARI (LIST & TABS)
             // -----------------------------------------------------------------
             Card(
                 modifier = Modifier
@@ -969,7 +969,7 @@ fun AnalyticsScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Kategori Bazlı Risk & Stok",
+                                text = "Kategori Bazlı Risk ve Adet",
                                 fontWeight = FontWeight.ExtraBold,
                                 fontSize = 15.sp,
                                 color = MaterialTheme.colorScheme.onSurface

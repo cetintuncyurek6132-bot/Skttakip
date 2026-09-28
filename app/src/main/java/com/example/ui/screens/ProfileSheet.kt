@@ -384,7 +384,7 @@ fun ProfileSheet(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Column(horizontalAlignment = Alignment.Start) {
-                                        Text("📦 Yönetilen Stok", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Bold)
+                                        Text("📦 Takip Edilen Adet", fontSize = 10.sp, color = Slate500, fontWeight = FontWeight.Bold)
                                         Text("${dashboardState.totalCount} Kalem", fontSize = 13.sp, color = Slate900, fontWeight = FontWeight.Black)
                                     }
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {

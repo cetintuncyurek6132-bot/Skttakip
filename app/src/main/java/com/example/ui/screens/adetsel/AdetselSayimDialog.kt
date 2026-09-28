@@ -105,17 +105,6 @@ fun AdetselSayimDialog(
 
     val focusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(selectedSonuc) {
-        if (selectedSonuc == "EKSIK" || selectedSonuc == "FAZLA") {
-            kotlinx.coroutines.delay(120)
-            try {
-                focusRequester.requestFocus()
-            } catch (e: Exception) {
-                // Ignore focus exception
-            }
-        }
-    }
-
     fun adjustDiscrepancy(delta: Int) {
         val current = discrepancyNumber
         val next = maxOf(1, current + delta)
@@ -260,241 +249,140 @@ fun AdetselSayimDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // DİNAMİK FARK GİRİŞİ ALANI
-                when (selectedSonuc) {
-                    "TAM" -> {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = NormalGreenContainer,
-                            border = BorderStroke(1.dp, NormalGreenBorder),
-                            modifier = Modifier.fillMaxWidth()
+                if (selectedSonuc == "TAM") {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = NormalGreenContainer,
+                        border = BorderStroke(1.dp, NormalGreenBorder),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = NormalGreenDark,
-                                    modifier = Modifier.size(20.dp)
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = NormalGreenDark,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Tam (0 Fark)",
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 13.sp,
+                                    color = NormalGreenDark
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column {
-                                    Text(
-                                        text = "Tam (0 Fark)",
-                                        fontWeight = FontWeight.Black,
-                                        fontSize = 13.sp,
-                                        color = NormalGreenDark
-                                    )
-                                    Text(
-                                        text = "Stokta eksik veya fazla adet bulunmuyor.",
-                                        fontSize = 11.sp,
-                                        color = Slate700
-                                    )
-                                }
+                                Text(
+                                    text = "Sayımda eksik veya fazla adet bulunmuyor (Tam).",
+                                    fontSize = 11.sp,
+                                    color = Slate700
+                                )
                             }
                         }
                     }
+                } else {
+                    val isEksik = selectedSonuc == "EKSIK"
+                    val activeColor = if (isEksik) ExpiredRedDark else WarningBlueDark
+                    val activeContainer = if (isEksik) ExpiredRedContainer.copy(alpha = 0.25f) else WarningBlueContainer.copy(alpha = 0.25f)
+                    val activeBorder = if (isEksik) ExpiredRedBorder else WarningBlueBorder
 
-                    "EKSIK" -> {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "KAÇ ADET EKSİK?",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = ExpiredRedDark,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = if (isEksik) "KAÇ ADET EKSİK?" else "KAÇ ADET FAZLA?",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = activeColor,
+                            letterSpacing = 0.5.sp
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Minus Button (-1)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Slate100,
+                                border = BorderStroke(1.2.dp, Slate300),
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clickable { adjustDiscrepancy(-1) }
                             ) {
-                                // Minus Button (-1)
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Slate100,
-                                    border = BorderStroke(1.2.dp, Slate300),
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clickable { adjustDiscrepancy(-1) }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Remove,
-                                            contentDescription = "Azalt",
-                                            tint = Slate700,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Remove,
+                                        contentDescription = "Azalt",
+                                        tint = Slate700,
+                                        modifier = Modifier.size(22.dp)
+                                    )
                                 }
+                            }
 
-                                // Sayı Giriş Alanı - Geniş, ferah ve tam görünür
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = ExpiredRedContainer.copy(alpha = 0.25f),
-                                    border = BorderStroke(1.5.dp, ExpiredRedBorder),
+                            // Sayı Giriş Alanı - Geniş, ferah ve persistent (klavye açılıp kapanmasını önler)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = activeContainer,
+                                border = BorderStroke(1.5.dp, activeBorder),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(52.dp)
+                            ) {
+                                Box(
                                     modifier = Modifier
-                                        .weight(1f)
-                                        .height(52.dp)
+                                        .fillMaxSize()
+                                        .padding(horizontal = 12.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
+                                    BasicTextField(
+                                        value = discrepancyText,
+                                        onValueChange = { input ->
+                                            val digits = input.filter { it.isDigit() }
+                                            discrepancyText = digits
+                                        },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        textStyle = TextStyle(
+                                            fontSize = 24.sp,
+                                            fontWeight = FontWeight.Black,
+                                            textAlign = TextAlign.Center,
+                                            color = activeColor
+                                        ),
+                                        cursorBrush = SolidColor(activeColor),
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 12.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        BasicTextField(
-                                            value = discrepancyText,
-                                            onValueChange = { input ->
-                                                val digits = input.filter { it.isDigit() }
-                                                discrepancyText = digits
-                                            },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                            textStyle = TextStyle(
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.Black,
-                                                textAlign = TextAlign.Center,
-                                                color = ExpiredRedDark
-                                            ),
-                                            cursorBrush = SolidColor(ExpiredRedDark),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .focusRequester(focusRequester)
-                                        )
-                                        if (discrepancyText.isEmpty()) {
-                                            Text(
-                                                text = "0",
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = ExpiredRedDark.copy(alpha = 0.4f),
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Plus Button (+1)
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = ExpiredRedDark,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clickable { adjustDiscrepancy(1) }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = "Artır",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
+                                            .fillMaxWidth()
+                                            .focusRequester(focusRequester)
+                                    )
+                                    if (discrepancyText.isEmpty()) {
+                                        Text(
+                                            text = "0",
+                                            fontSize = 24.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = activeColor.copy(alpha = 0.4f),
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
                             }
-                        }
-                    }
 
-                    "FAZLA" -> {
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                text = "KAÇ ADET FAZLA?",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = WarningBlueDark,
-                                letterSpacing = 0.5.sp
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            // Plus Button (+1)
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = activeColor,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clickable { adjustDiscrepancy(1) }
                             ) {
-                                // Minus Button (-1)
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Slate100,
-                                    border = BorderStroke(1.2.dp, Slate300),
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clickable { adjustDiscrepancy(-1) }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Remove,
-                                            contentDescription = "Azalt",
-                                            tint = Slate700,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
-
-                                // Sayı Giriş Alanı - Geniş, ferah ve tam görünür
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = WarningBlueContainer.copy(alpha = 0.25f),
-                                    border = BorderStroke(1.5.dp, WarningBlueBorder),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(52.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 12.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        BasicTextField(
-                                            value = discrepancyText,
-                                            onValueChange = { input ->
-                                                val digits = input.filter { it.isDigit() }
-                                                discrepancyText = digits
-                                            },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                            textStyle = TextStyle(
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.Black,
-                                                textAlign = TextAlign.Center,
-                                                color = WarningBlueDark
-                                            ),
-                                            cursorBrush = SolidColor(WarningBlueDark),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .focusRequester(focusRequester)
-                                        )
-                                        if (discrepancyText.isEmpty()) {
-                                            Text(
-                                                text = "0",
-                                                fontSize = 24.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = WarningBlueDark.copy(alpha = 0.4f),
-                                                textAlign = TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Plus Button (+1)
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = WarningBlueDark,
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clickable { adjustDiscrepancy(1) }
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = "Artır",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = "Artır",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(22.dp)
+                                    )
                                 }
                             }
                         }

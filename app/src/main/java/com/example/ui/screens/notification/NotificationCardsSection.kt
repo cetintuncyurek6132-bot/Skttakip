@@ -364,7 +364,7 @@ fun LazyListScope.notificationCardsList(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Yüksek Stoklu Yaklaşan Ürünler (${highStockNearExpiry.size} Kalem)",
+                            text = "Yüksek Adetli Yaklaşan Ürünler (${highStockNearExpiry.size} Kalem)",
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,
                             color = Color(0xFF4338CA)
@@ -378,7 +378,7 @@ fun LazyListScope.notificationCardsList(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Stok miktarı yüksek ve son kullanma tarihi yaklaşan ürünler.",
+                        text = "Parti adedi yüksek ve son kullanma tarihi yaklaşan ürünler.",
                         fontSize = 11.sp,
                         color = Slate700,
                         lineHeight = 15.sp

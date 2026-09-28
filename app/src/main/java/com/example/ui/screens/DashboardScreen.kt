@@ -132,7 +132,7 @@ fun DashboardScreen(
     // 1. Acil Ürünler (daysLeft <= 2) - En acilden (küçük daysLeft) en uzağa sıralı
     val urgentProducts = remember(products, todayMidnight) {
         products
-            .filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) <= 2 }
+            .filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) <= 2 }
             .sortedWith(
                 compareBy<Product> { it.getRemainingDays(todayMidnight) }
                     .thenBy { it.sktTarihi }
@@ -143,21 +143,21 @@ fun DashboardScreen(
     // 2. Sabah Operasyon Ürün Gruplamaları
     // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçenler: daysLeft < 0)
     val expiredProducts = remember(products, todayMidnight) {
-        products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) < 0 }
+        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) < 0 }
     }
     val expiredVariety = expiredProducts.size
     val expiredTotalStock = expiredProducts.sumOf { it.stokAdedi }
 
     // 🟠 Kart 2: Sıcak Satışa Al (Sarı Etiket / Son 1-2 Gün: daysLeft in 0..1)
     val criticalProducts = remember(products, todayMidnight) {
-        products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 0..1 }
+        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 0..1 }
     }
     val criticalVariety = criticalProducts.size
     val criticalTotalStock = criticalProducts.sumOf { it.stokAdedi }
 
     // 🟡 Kart 3: Yakın Takip (3 - 7 Gün Kalanlar: daysLeft in 2..7)
     val soonProducts = remember(products, todayMidnight) {
-        products.filter { it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) in 2..7 }
+        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 2..7 }
     }
     val soonVariety = soonProducts.size
     val soonTotalStock = soonProducts.sumOf { it.stokAdedi }
@@ -178,10 +178,10 @@ fun DashboardScreen(
     // 5. Sabah Açılış Rutini (SharedPreferences tabanlı günlük 4 maddelik checklist)
     val routineItems = remember {
         listOf(
-            "Süt & Şarküteri dolap SKT kontrolü yapıldı",
-            "Sıcak satış / sarı etiketli ürünler öne çekildi (FIFO)",
-            "Dünkü ambar teslim ve irsaliye tutanakları kontrol edildi",
-            "Ekmek ve taze ürün iadeleri ayrıldı"
+            "Dolap ve şarküteri reyonu sıcaklık/tarih kontrolü yapıldı",
+            "Günü geçen ve kritik ürünler raftan toplandı",
+            "Son 1-2 günü kalan ürünlere indirim/sarı etiket uygulandı",
+            "Reyon önü teşhir ve kasa önü sepetleri düzenlendi"
         )
     }
 

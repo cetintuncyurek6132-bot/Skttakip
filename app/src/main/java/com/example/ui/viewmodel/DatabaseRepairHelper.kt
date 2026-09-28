@@ -58,6 +58,11 @@ object DatabaseRepairHelper {
                     newStok = 0
                     isModified = true
                 }
+                var finalSkt = healed.sktTarihi
+                if (finalSkt > 0L && newStok <= 0) {
+                    finalSkt = 0L
+                    isModified = true
+                }
 
                 if (isModified) {
                     fixedCount++
@@ -65,7 +70,7 @@ object DatabaseRepairHelper {
 
                 val effectiveBarcode = if (cleanBarcode.isNotEmpty()) cleanBarcode else healed.barkod.trim()
                 val identifier = if (effectiveBarcode.isNotEmpty()) effectiveBarcode else trimmedName.lowercase()
-                val formattedSkt = healed.getFormattedSkt()
+                val formattedSkt = if (finalSkt > 0L) healed.getFormattedSkt() else "SKT_YOK"
 
                 // Deduplication key MUST include name and product code
                 val dupKey = "${identifier}_${cleanUrunKodu.lowercase()}_${trimmedName.lowercase()}-$formattedSkt"
@@ -80,6 +85,7 @@ object DatabaseRepairHelper {
                                 urunAdi = trimmedName,
                                 barkod = effectiveBarcode,
                                 urunKodu = cleanUrunKodu,
+                                sktTarihi = finalSkt,
                                 stokAdedi = newStok
                             )
                         )

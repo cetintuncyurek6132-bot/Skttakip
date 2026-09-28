@@ -9,7 +9,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,8 +53,22 @@ fun ScannerProductDetailsSection(
     ) {
         val qrData = remember(activeBarcode) { parseShelfQrPayload(activeBarcode) }
 
-        val matchingProducts = remember(activeBarcode, products) {
-            products.findMatchingProducts(activeBarcode)
+        var matchingProducts by remember { mutableStateOf<List<Product>>(emptyList()) }
+        var isSearching by remember { mutableStateOf(false) }
+
+        LaunchedEffect(activeBarcode, products) {
+            val query = activeBarcode.trim()
+            if (query.isBlank()) {
+                matchingProducts = emptyList()
+                isSearching = false
+                return@LaunchedEffect
+            }
+            isSearching = true
+            val results = withContext(Dispatchers.Default) {
+                products.findMatchingProducts(query)
+            }
+            matchingProducts = results
+            isSearching = false
         }
 
         // Group matching products by unique barcode/product name to detect if query matched multiple distinct items
@@ -56,7 +76,9 @@ fun ScannerProductDetailsSection(
             matchingProducts.distinctBy { if (it.barkod.isNotBlank()) it.barkod else it.urunKodu.ifBlank { it.urunAdi } }
         }
 
-        val baseFoundProduct = selectedProductOverride ?: matchingProducts.firstOrNull()
+        val baseFoundProduct = selectedProductOverride
+            ?: matchingProducts.firstOrNull { it.stokAdedi > 0 }
+            ?: matchingProducts.firstOrNull()
         val foundProduct = remember(baseFoundProduct, qrData) {
             if (baseFoundProduct != null && qrData.price != null && qrData.price > 0.0) {
                 baseFoundProduct.copy(fiyat = qrData.price)
@@ -140,8 +162,34 @@ fun ScannerProductDetailsSection(
                 )
             }
 
-            // 2) A search term is entered/scanned, but product not found
-            activeBarcode.isNotBlank() -> {
+            // 2) Searching in progress
+            activeBarcode.isNotBlank() && isSearching && foundProduct == null -> {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "🔍 Ürün aranıyor...",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoisePrimary
+                        )
+                    }
+                }
+            }
+
+            // 3) A search term is entered/scanned, but product not found
+            activeBarcode.isNotBlank() && !isSearching -> {
                 val parsedActiveQr = remember(activeBarcode) { parseShelfQrPayload(activeBarcode) }
                 ProductNotFoundPreviewCard(
                     barcode = activeBarcode,

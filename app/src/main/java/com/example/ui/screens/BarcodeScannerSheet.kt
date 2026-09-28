@@ -107,7 +107,7 @@ fun BarcodeScannerSheet(
     var qrFixErrorCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixLastTime by remember { mutableStateOf("") }
     var qrFixLastInfo by remember { mutableStateOf<String?>(null) }
-    var qrFixStoreCode by remember { mutableStateOf("D724") }
+    var qrFixStoreCode by remember { mutableStateOf(com.example.sync.CloudSyncManager.getStoreCode()) }
     val qrFixHistoryList = remember { mutableStateListOf<com.example.ui.screens.scanner.QrFixHistoryItem>() }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
@@ -193,7 +193,7 @@ fun BarcodeScannerSheet(
                 activeBarcode = ""
             }
         } else {
-            kotlinx.coroutines.delay(220)
+            kotlinx.coroutines.delay(350)
             activeBarcode = manualBarcode.trim()
         }
     }
@@ -210,7 +210,7 @@ fun BarcodeScannerSheet(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding(),
-            color = MaterialTheme.colorScheme.background
+            color = Color(0xFF0D121F)
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
@@ -221,6 +221,7 @@ fun BarcodeScannerSheet(
                 val hasProductDetail = activeBarcode.isNotBlank()
                 // In serial scan mode, camera remains live and continuously scans close barcodes
                 val isScannerPaused = (isFixQrMode && qrFixResultMsg.isNotBlank())
+                val isCameraAnalysisPaused = isScannerPaused || isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
                 val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
                 val cameraWeight = 1.0f - bottomWeight
 
@@ -238,7 +239,7 @@ fun BarcodeScannerSheet(
                             zoomRatio = zoomRatio,
                             filterMode = ScannerFilterMode.ALL,
                             isBatterySaverMode = isBatterySaverMode,
-                            isPaused = isScannerPaused || isCooldownActive,
+                            isPaused = isCameraAnalysisPaused,
                             requireCloseDistance = !isFixQrMode,
                             onDistanceStateChanged = { tooFar ->
                                 isBarcodeTooFar = if (isFixQrMode) false else tooFar
@@ -553,7 +554,7 @@ fun BarcodeScannerSheet(
                             .fillMaxWidth()
                             .wrapContentHeight()
                             .navigationBarsPadding(),
-                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                         color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 12.dp
                     ) {
@@ -577,9 +578,9 @@ fun BarcodeScannerSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .weight(bottomWeight),
-                        shape = RectangleShape,
+                        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 8.dp
+                        shadowElevation = 12.dp
                     ) {
                         Column(
                             modifier = Modifier

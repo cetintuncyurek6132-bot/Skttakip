@@ -319,10 +319,10 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
     }
 
     // 5. FALLBACK TEXT SEARCH QUERY MATCH
-    val searchMatches = this.filter {
-        it.matchesSearchQuery(queryBarcode) ||
-        it.matchesSearchQuery(raw) ||
-        (queryProductCode != null && it.matchesSearchQuery(queryProductCode))
+    val searchMatches = this.filter { p ->
+        p.matchesSearchQuery(raw) ||
+        (queryBarcode.isNotBlank() && queryBarcode != raw && p.matchesSearchQuery(queryBarcode)) ||
+        (!queryProductCode.isNullOrBlank() && queryProductCode != raw && p.matchesSearchQuery(queryProductCode))
     }
     return searchMatches.sortedBy { it.sktTarihi }
 }

@@ -129,7 +129,7 @@ fun DeductStockDialog(
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Stok Düşme İşlemi",
+                            text = "Adet Düşme İşlemi",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark
@@ -323,7 +323,7 @@ fun DeductStockDialog(
                                 return@Button
                             }
                             if (batch.stokAdedi <= 0) {
-                                Toast.makeText(context, "Bu partide stok bulunmuyor", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Bu partide adet bulunmuyor", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
                             val safeQty = minOf(qty, batch.stokAdedi)
@@ -364,7 +364,7 @@ fun DeductStockDialog(
                                 return@Button
                             }
                             if (batch.stokAdedi <= 0) {
-                                Toast.makeText(context, "Bu partide stok bulunmuyor", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Bu partide adet bulunmuyor", Toast.LENGTH_SHORT).show()
                                 return@Button
                             }
                             val safeQty = minOf(qty, batch.stokAdedi)

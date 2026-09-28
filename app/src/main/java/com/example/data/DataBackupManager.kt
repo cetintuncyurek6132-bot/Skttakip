@@ -187,6 +187,13 @@ object DataBackupManager {
             val file = File(dir, fileName)
             file.writeText(jsonContent, Charsets.UTF_8)
 
+            // If it's a manual backup, also export a copy to Downloads so user can access it in file manager
+            if (tag == "manual") {
+                try {
+                    com.example.util.BackupExportHelper.saveJsonToDownloads(context, jsonContent, fileName)
+                } catch (_: Exception) {}
+            }
+
             // Rotate backups (keep latest 15 files)
             rotateBackups(dir, 15)
 

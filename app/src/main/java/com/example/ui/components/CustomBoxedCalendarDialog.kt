@@ -424,7 +424,7 @@ fun CustomBoxedCalendarDialog(
                                 ) {
                                     Text(
                                         text = label,
-                                        fontSize = 11.5.sp,
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = txtCol,
                                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)

@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -54,7 +56,7 @@ fun MorningOperationCardsSection(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
             text = "Sabah Operasyon Görevleri",
@@ -137,13 +139,13 @@ fun MorningOperationCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(14.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(40.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(badgeColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
@@ -152,13 +154,12 @@ fun MorningOperationCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = badgeColor,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
 
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                modifier = Modifier.weight(1f)
             ) {
                 Text(
                     text = title,
@@ -166,6 +167,7 @@ fun MorningOperationCard(
                     fontWeight = FontWeight.Bold,
                     color = Slate900
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "$varietyCount Çeşit • $totalStockCount Adet",
                     fontSize = 17.5.sp,
@@ -173,6 +175,7 @@ fun MorningOperationCard(
                     color = textColor,
                     letterSpacing = (-0.3).sp
                 )
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = description,
                     fontSize = 11.5.sp,
@@ -184,7 +187,7 @@ fun MorningOperationCard(
 
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.85f))
                     .border(1.dp, borderColor.copy(alpha = 0.6f), CircleShape),
@@ -194,7 +197,7 @@ fun MorningOperationCard(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "İncele",
                     tint = textColor,
-                    modifier = Modifier.size(15.dp)
+                    modifier = Modifier.size(14.dp)
                 )
             }
         }

@@ -101,17 +101,13 @@ fun ProductDetailPreviewCard(
     val context = LocalContext.current
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
-    // Only products with a valid SKT date and stock > 0
+    // Only products with a valid SKT date and stock > 0, sorted by SKT date (FIFO)
     val validSktProducts = remember(matchingProducts) {
-        matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }
+        matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }.sortedBy { it.sktTarihi }
     }
 
     val effectiveProduct = remember(product, validSktProducts) {
-        if (product.sktTarihi > 0L) {
-            product
-        } else {
-            validSktProducts.minByOrNull { it.sktTarihi } ?: product
-        }
+        validSktProducts.firstOrNull() ?: product
     }
 
     val hasSkt = effectiveProduct.sktTarihi > 0L
@@ -276,7 +272,7 @@ fun ProductDetailPreviewCard(
                         Text(
                             text = badgeText,
                             color = badgeTextColor,
-                            fontSize = 10.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
                         )
@@ -451,7 +447,7 @@ fun ProductDetailPreviewCard(
                                         onDeductStock(targetBatch, 1, "SATILDI")
                                         Toast.makeText(context, "✅ 1 adet Satıldı olarak düşüldü (${batchDateStr})", Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, "⚠️ Bu partide stok kalmadı!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "⚠️ Bu partide adet kalmadı (Tükendi)", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 enabled = canDeduct,
@@ -485,7 +481,7 @@ fun ProductDetailPreviewCard(
                                         onDeductStock(targetBatch, 1, "FİRE")
                                         Toast.makeText(context, "🗑️ 1 adet Fire olarak düşüldü (${batchDateStr})", Toast.LENGTH_SHORT).show()
                                     } else {
-                                        Toast.makeText(context, "⚠️ Bu partide stok kalmadı!", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "⚠️ Bu partide adet kalmadı (Tükendi)", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 enabled = canDeduct,

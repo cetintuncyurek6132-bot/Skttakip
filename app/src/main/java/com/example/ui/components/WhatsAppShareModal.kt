@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -84,6 +85,7 @@ import com.example.ui.theme.TurquoisePrimary
 import com.example.util.ProductImageGenerator
 
 enum class ShareCategory {
+    TODAY_AND_OVERDUE_1,
     LAST_7_DAYS,
     IMPORTANT
 }
@@ -96,11 +98,17 @@ fun WhatsAppShareModal(
     val context = LocalContext.current
     val todayMidnight = remember { getTodayMidnightMillis() }
 
-    var selectedCategory by remember { mutableStateOf(ShareCategory.LAST_7_DAYS) }
+    var selectedCategory by remember { mutableStateOf(ShareCategory.TODAY_AND_OVERDUE_1) }
     var isPreviewMode by remember { mutableStateOf(false) }
     var generatedBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
 
     // Filter lists
+    val todayAndOverdue1Products = remember(allProducts, todayMidnight) {
+        allProducts.filter { prod ->
+            prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in -1L..0L
+        }.sortedBy { it.sktTarihi }
+    }
+
     val last7DaysProducts = remember(allProducts, todayMidnight) {
         allProducts.filter { prod ->
             prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in 0L..7L
@@ -113,10 +121,10 @@ fun WhatsAppShareModal(
         }.sortedBy { it.sktTarihi }
     }
 
-    val currentCategoryProducts = if (selectedCategory == ShareCategory.LAST_7_DAYS) {
-        last7DaysProducts
-    } else {
-        importantProducts
+    val currentCategoryProducts = when (selectedCategory) {
+        ShareCategory.TODAY_AND_OVERDUE_1 -> todayAndOverdue1Products
+        ShareCategory.LAST_7_DAYS -> last7DaysProducts
+        ShareCategory.IMPORTANT -> importantProducts
     }
 
     var selectedProductIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
@@ -218,9 +226,44 @@ fun WhatsAppShareModal(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
-                            // Tab 1: SKT SON 7 GÜN
+                            // Tab 1 (ÖNCELİKLİ / BAŞTA): SON GÜN / -1 GÜN GEÇMİŞ
+                            Box(
+                                modifier = Modifier
+                                    .weight(1.15f)
+                                    .fillMaxHeight()
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(
+                                        if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) TurquoisePrimary else Color.Transparent
+                                    )
+                                    .clickable { selectedCategory = ShareCategory.TODAY_AND_OVERDUE_1 }
+                                    .testTag("share_tab_today_and_overdue_1"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Son Gün / -1 Gün (${todayAndOverdue1Products.size})",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        color = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            // Tab 2: SKT SON 7 GÜN
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -235,27 +278,30 @@ fun WhatsAppShareModal(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    modifier = Modifier.padding(horizontal = 4.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Schedule,
                                         contentDescription = null,
                                         tint = if (selectedCategory == ShareCategory.LAST_7_DAYS) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "SKT Son 7 Gün (${last7DaysProducts.size})",
-                                        fontSize = 12.sp,
+                                        text = "Son 7 Gün (${last7DaysProducts.size})",
+                                        fontSize = 10.5.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.LAST_7_DAYS) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.LAST_7_DAYS) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (selectedCategory == ShareCategory.LAST_7_DAYS) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
 
-                            // Tab 2: ÖNEMLİ
+                            // Tab 3: ÖNEMLİ
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .weight(0.9f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(
@@ -267,19 +313,22 @@ fun WhatsAppShareModal(
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    modifier = Modifier.padding(horizontal = 4.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Star,
                                         contentDescription = null,
                                         tint = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "Önemli (${importantProducts.size})",
-                                        fontSize = 12.sp,
+                                        fontSize = 10.5.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.IMPORTANT) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }
@@ -384,10 +433,10 @@ fun WhatsAppShareModal(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = if (selectedCategory == ShareCategory.LAST_7_DAYS) {
-                                        "Son 7 gün içinde süresi dolacak ürün kaydı bulunmuyor."
-                                    } else {
-                                        "Önemli olarak işaretlenmiş ürün bulunmuyor."
+                                    text = when (selectedCategory) {
+                                        ShareCategory.TODAY_AND_OVERDUE_1 -> "Son gün veya 1 gün geçmiş süresi dolan ürün kaydı bulunmuyor."
+                                        ShareCategory.LAST_7_DAYS -> "Son 7 gün içinde süresi dolacak ürün kaydı bulunmuyor."
+                                        ShareCategory.IMPORTANT -> "Önemli olarak işaretlenmiş ürün bulunmuyor."
                                     },
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -44,6 +44,7 @@ enum class IadeDurumu(val displayName: String) {
 data class DepoIadeKaydi(
     val id: String = UUID.randomUUID().toString(),
     val urunAdi: String,
+    val urunKodu: String? = null,
     val irsaliyeGorselPath: String? = null,
     val iadeTarihi: String,
     val iadeTarihiMillis: Long = System.currentTimeMillis(),
@@ -286,6 +287,7 @@ object DepoIadeManager {
                     DepoIadeKaydi(
                         id = obj.optString("id", "").ifBlank { UUID.randomUUID().toString() },
                         urunAdi = obj.optString("urunAdi", ""),
+                        urunKodu = obj.optString("urunKodu", "").takeIf { it.isNotBlank() },
                         irsaliyeGorselPath = obj.optString("irsaliyeGorselPath", "").takeIf { it.isNotBlank() },
                         iadeTarihi = obj.optString("iadeTarihi", getTodayDateString()),
                         iadeTarihiMillis = obj.optLong("iadeTarihiMillis", System.currentTimeMillis()),
@@ -319,6 +321,9 @@ object DepoIadeManager {
             val obj = JSONObject()
             obj.put("id", item.id)
             obj.put("urunAdi", item.urunAdi)
+            if (!item.urunKodu.isNullOrBlank()) {
+                obj.put("urunKodu", item.urunKodu)
+            }
             if (item.irsaliyeGorselPath != null) {
                 obj.put("irsaliyeGorselPath", item.irsaliyeGorselPath)
             }

@@ -313,7 +313,7 @@ fun NotificationSheet(
                         onClick = { selectedCategory = NotificationCategoryFilter.APPROACHING }
                     )
                     NotificationCategoryChip(
-                        title = "Yüksek Stok",
+                        title = "Yüksek Adet",
                         badgeCount = if (highStockNearExpiry.isNotEmpty()) highStockNearExpiry.size else null,
                         isSelected = selectedCategory == NotificationCategoryFilter.HIGH_STOCK,
                         onClick = { selectedCategory = NotificationCategoryFilter.HIGH_STOCK }

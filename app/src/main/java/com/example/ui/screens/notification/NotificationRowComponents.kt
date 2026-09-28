@@ -58,14 +58,14 @@ fun ActionableProductNotificationRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = subtitle,
-                        fontSize = 10.5.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = subtitleColor
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "• ${product.stokAdedi} Adet",
-                        fontSize = 10.5.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate700
                     )
