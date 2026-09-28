@@ -41,6 +41,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -56,7 +58,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
 import com.example.data.Product
+import com.example.util.image.ProductImageManager
 import com.example.ui.components.CustomBoxedCalendarDialog
 import com.example.ui.screens.DateOcrScannerDialog
 import java.util.Calendar
@@ -198,12 +202,50 @@ fun ProductDetailPreviewCard(
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Top info: Full Product Name & Clear Button (Row 1), Badges & Category/Barcode (Row 2)
+            // Top info: Image Thumbnail + Full Product Name & Clear Button (Row 1), Badges & Category/Barcode (Row 2)
+            var previewImageUrl by remember(product.barkod, product.resimUrl) {
+                mutableStateOf(product.resimUrl)
+            }
+
+            LaunchedEffect(product.barkod) {
+                if (previewImageUrl.isNullOrBlank() && product.barkod.isNotBlank() && !product.barkod.startsWith("NO_BARCODE_")) {
+                    val fetched = ProductImageManager.getOrFetchProductImageUrl(
+                        barcode = product.barkod,
+                        existingResimUrl = product.resimUrl
+                    )
+                    if (!fetched.isNullOrBlank()) {
+                        previewImageUrl = fetched
+                    }
+                }
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
+                if (!previewImageUrl.isNullOrBlank()) {
+                    Surface(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .padding(end = 8.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = Color.White,
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        shadowElevation = 1.dp
+                    ) {
+                        SubcomposeAsyncImage(
+                            model = previewImageUrl,
+                            imageLoader = ProductImageManager.getImageLoader(context),
+                            contentDescription = product.urunAdi,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(2.dp)
+                        )
+                    }
+                }
+
                 Text(
                     text = product.urunAdi,
                     fontSize = 15.sp,

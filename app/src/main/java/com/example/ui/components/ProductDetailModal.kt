@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -57,8 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
+import coil.compose.SubcomposeAsyncImage
 import com.example.util.image.ProductImageManager
 import com.example.data.Product
 import com.example.data.getDisplayName
@@ -290,41 +290,37 @@ fun ProductDetailModal(
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp)
-                                .clip(RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
+                        Surface(
+                            modifier = Modifier.size(56.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            color = Color.White,
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            shadowElevation = 1.dp
                         ) {
                             if (!activeImageUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = ImageRequest.Builder(context)
-                                        .data(activeImageUrl)
-                                        .crossfade(true)
-                                        .build(),
+                                SubcomposeAsyncImage(
+                                    model = activeImageUrl,
                                     imageLoader = ProductImageManager.getImageLoader(context),
-                                    contentDescription = localProduct.getDisplayName(),
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Box(
+                                    contentDescription = localProduct.urunAdi,
+                                    contentScale = ContentScale.Fit, // Kesilme olmadan tam sığdır
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .background(
-                                            Brush.verticalGradient(
-                                                listOf(TurquoiseDark, Color(0xFF0D9488))
+                                        .padding(3.dp), // Kenarlara yapışmaması için iç boşluk
+                                    loading = {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = TurquoisePrimary
                                             )
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = localProduct.getDisplayName().take(1).uppercase(),
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White
-                                    )
-                                }
+                                        }
+                                    },
+                                    error = {
+                                        FallbackLetterBadge(localProduct.getDisplayName())
+                                    }
+                                )
+                            } else {
+                                FallbackLetterBadge(localProduct.getDisplayName())
                             }
                         }
 
@@ -539,5 +535,26 @@ private fun ProductDetailTabButton(
                 color = if (isSelected) Color.White else Slate700
             )
         }
+    }
+}
+
+@Composable
+private fun FallbackLetterBadge(displayName: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    listOf(TurquoiseDark, Color(0xFF0D9488))
+                )
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = displayName.take(1).uppercase(),
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Black,
+            color = Color.White
+        )
     }
 }
