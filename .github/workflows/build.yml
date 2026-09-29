@@ -69,8 +69,8 @@ jobs:
           fi
           MAJOR=$(( 1 + ACTUAL_CODE / 10 ))
           MINOR=$(( ACTUAL_CODE % 10 ))
-          VERSION_NAME="beta ${MAJOR}.${MINOR}"
-          TAG_NAME="v${MAJOR}.${MINOR}"
+          VERSION_NAME="${MAJOR}.${MINOR}"
+          TAG_NAME="${MAJOR}.${MINOR}"
           echo "APP_VERSION=${VERSION_NAME}" >> $GITHUB_ENV
           echo "APP_VERSION_CODE=${ACTUAL_CODE}" >> $GITHUB_ENV
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
@@ -90,10 +90,7 @@ jobs:
       - name: Guncelleme Notunu Hazirla
         id: notes
         run: |
-          LAST_MSG=$(git log -1 --pretty=%B | head -n 1)
-          if [ -z "$LAST_MSG" ] || [[ "$LAST_MSG" =~ ^(update|fix|bump|chore|refactor|merge|initial|build|ci) ]] || [[ "$LAST_MSG" =~ (workflows|gradle|deps) ]]; then
-            LAST_MSG="• Performans iyileştirmeleri ve hata düzeltmeleri yapıldı.\n• Barkod tarama ve veri işleme hızlandırıldı.\n• Arayüz kararlılığı ve kullanıcı deneyimi artırıldı."
-          fi
+          LAST_MSG="• Performans iyileştirmeleri ve hız optimizasyonu yapıldı.\n• Barkod tarama ve sayım modülü geliştirildi.\n• Bulut veri senkronizasyonu kararlı hale getirildi."
           {
             echo "NOTES<<EOF"
             echo -e "$LAST_MSG"
@@ -104,7 +101,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.calc_version.outputs.TAG_NAME }}
-          name: "Sürüm ${{ env.APP_VERSION }}"
+          name: "${{ env.APP_VERSION }}"
           body: ${{ steps.notes.outputs.NOTES }}
           files: app/build/outputs/apk/debug/*.apk
         env:

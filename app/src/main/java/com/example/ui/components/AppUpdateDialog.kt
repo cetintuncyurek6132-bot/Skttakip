@@ -51,6 +51,21 @@ fun AppUpdateDialog(
     onConfirmUpdate: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val filteredNotes = androidx.compose.runtime.remember(updateInfo.releaseNotes) {
+        val raw = updateInfo.releaseNotes.trim()
+        val lower = raw.lowercase()
+        if (raw.isBlank() ||
+            lower.contains("add files via upload") ||
+            lower.contains("merge") ||
+            lower.contains("commit") ||
+            lower.contains("github")
+        ) {
+            "• Performans ve kararlılık iyileştirmeleri yapıldı."
+        } else {
+            raw
+        }
+    }
+
     AlertDialog(
         onDismissRequest = {
             if (!isDownloading) {
@@ -87,8 +102,9 @@ fun AppUpdateDialog(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    val cleanVer = updateInfo.latestVersionName.replace(Regex("(?i)beta|v|sürüm|\\:"), "").trim()
                     Text(
-                        text = "Sürüm ${updateInfo.latestVersionName}",
+                        text = cleanVer,
                         style = MaterialTheme.typography.bodySmall,
                         color = TurquoiseDark,
                         fontWeight = FontWeight.SemiBold
@@ -101,12 +117,12 @@ fun AppUpdateDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Uygulamanın yeni bir sürümü yayınlandı. Yeniliklerden yararlanmak için lütfen güncelleyin.",
+                    text = "Uygulamanın yeni bir sürümü yayınlandı. Yeniliklerden ve kararlılık iyileştirmelerinden yararlanmak için lütfen güncelleyin.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (updateInfo.releaseNotes.isNotBlank()) {
+                if (filteredNotes.isNotBlank()) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -122,14 +138,14 @@ fun AppUpdateDialog(
                                 .verticalScroll(rememberScrollState())
                         ) {
                             Text(
-                                text = "📝 Güncelleme Notları:",
+                                text = "📝 Güncelleme Notları",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TurquoiseDark
                             )
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = updateInfo.releaseNotes,
+                                text = filteredNotes,
                                 fontSize = 12.sp,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 17.sp
@@ -197,7 +213,7 @@ fun AppUpdateDialog(
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("İndir", fontWeight = FontWeight.Bold)
+                    Text("İndir ve Güncelle", fontWeight = FontWeight.Bold)
                 }
             }
         },
@@ -208,7 +224,7 @@ fun AppUpdateDialog(
                 modifier = Modifier.testTag("app_update_dismiss_button")
             ) {
                 Text(
-                    text = "Vazgeç",
+                    text = "Daha Sonra",
                     color = MaterialTheme.colorScheme.outline
                 )
             }

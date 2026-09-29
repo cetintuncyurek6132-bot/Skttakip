@@ -256,10 +256,16 @@ fun CameraXBarcodeView(
                     }
                     previewUseCaseRef.value = preview
 
+                    val targetResolutionSize = if (currentIsBatterySaverMode) {
+                        android.util.Size(1280, 720) // 720p Eko Mod (İşlemci ve pil tasarrufu)
+                    } else {
+                        android.util.Size(1920, 1080) // 1080p Standart Mod
+                    }
+
                     val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
                         .setResolutionStrategy(
                             androidx.camera.core.resolutionselector.ResolutionStrategy(
-                                android.util.Size(1920, 1080),
+                                targetResolutionSize,
                                 androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                             )
                         )
@@ -286,7 +292,7 @@ fun CameraXBarcodeView(
                             return@setAnalyzer
                         }
 
-                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 320L else 220L
+                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 380L else 220L
                         val lastAnalyzed = lastAnalyzedTimeRef.get()
                         if (currentTime - lastAnalyzed < minFrameIntervalMs) {
                             imageProxy.close()

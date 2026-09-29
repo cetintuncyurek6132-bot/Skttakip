@@ -58,7 +58,11 @@ fun Product.matchesSearchQuery(rawQuery: String, queryTokens: List<String> = emp
 
 @Entity(
     tableName = "products",
-    indices = [Index(value = ["barkod"], unique = false)]
+    indices = [
+        Index(value = ["barkod"], unique = false),
+        Index(value = ["urunKodu"], unique = false),
+        Index(value = ["sktTarihi"], unique = false)
+    ]
 )
 data class Product(
     @PrimaryKey(autoGenerate = true)

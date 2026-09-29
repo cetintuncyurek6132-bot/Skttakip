@@ -310,7 +310,8 @@ fun CsvScreen(
                     updateInfoState = info
                     showUpdateDialog = true
                 } else {
-                    Toast.makeText(context, "Uygulamanız güncel! (${BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                    val cleanVer = BuildConfig.VERSION_NAME.replace(Regex("(?i)beta|v|sürüm"), "").trim()
+                    Toast.makeText(context, "Uygulamanız güncel! ($cleanVer)", Toast.LENGTH_SHORT).show()
                 }
             }.onFailure { e ->
                 Toast.makeText(context, "Güncelleme kontrolü yapılamadı: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
@@ -357,7 +358,7 @@ fun CsvScreen(
         AlertDialog(
             onDismissRequest = { showResetDialog = false },
             shape = RoundedCornerShape(16.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White,
             icon = {
                 Icon(
                     imageVector = Icons.Default.DeleteOutline,
@@ -371,14 +372,14 @@ fun CsvScreen(
                     text = "Tüm Verileri Sıfırla",
                     fontWeight = FontWeight.Bold,
                     fontSize = 17.sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                 )
             },
             text = {
                 Text(
                     text = "Tüm verileri silmek istediğinize emin misiniz? Kayıtlı ürünler, SKT'ler, takip ve sayım verileri kalıcı olarak silinecektir. Bu işlem geri alınamaz.",
                     fontSize = 13.5.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                 )
             },
             confirmButton = {
@@ -399,7 +400,7 @@ fun CsvScreen(
                 TextButton(
                     onClick = { showResetDialog = false }
                 ) {
-                    Text("Vazgeç", color = Slate700, fontWeight = FontWeight.SemiBold)
+                    Text("Vazgeç", color = if (isDarkMode) Color(0xFF94A3B8) else Slate700, fontWeight = FontWeight.SemiBold)
                 }
             }
         )
@@ -413,12 +414,12 @@ fun CsvScreen(
                 restorePendingJson = null
             },
             shape = RoundedCornerShape(16.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White,
             icon = {
                 Icon(
                     imageVector = Icons.Default.FolderOpen,
                     contentDescription = null,
-                    tint = TurquoiseDark,
+                    tint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                     modifier = Modifier.size(28.dp)
                 )
             },
@@ -427,14 +428,14 @@ fun CsvScreen(
                     text = "Yedekten Geri Yükleme Yöntemi",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                 )
             },
             text = {
                 Text(
                     text = "Yedek dosyasındaki verileri mevcut veritabanınızla birleştirmek mi yoksa mevcut verilerin üzerine yazmak mı istersiniz?",
                     fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                 )
             },
             confirmButton = {
@@ -463,9 +464,9 @@ fun CsvScreen(
                             Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
                         }
                     },
-                    border = BorderStroke(1.dp, TurquoisePrimary),
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
                     shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                 ) {
                     Text("Üzerine Yaz", fontWeight = FontWeight.Bold)
                 }
@@ -478,11 +479,12 @@ fun CsvScreen(
         AlertDialog(
             onDismissRequest = { showRepairResultDialog = null },
             shape = RoundedCornerShape(16.dp),
+            containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White,
             title = {
-                Text("Veritabanı Onarım Sonucu", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Veritabanı Onarım Sonucu", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900)
             },
             text = {
-                Text(resultMsg, fontSize = 13.5.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(resultMsg, fontSize = 13.5.sp, color = if (isDarkMode) Color(0xFF94A3B8) else Slate600)
             },
             confirmButton = {
                 Button(
@@ -501,19 +503,19 @@ fun CsvScreen(
         AlertDialog(
             onDismissRequest = { showExportOptionsDialog = false },
             shape = RoundedCornerShape(18.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White,
             icon = {
                 Box(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                        .background(if (isDarkMode) Color(0xFF0F172A) else TurquoisePrimary.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.SaveAlt,
                         contentDescription = null,
-                        tint = TurquoiseDark,
+                        tint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -523,7 +525,7 @@ fun CsvScreen(
                     text = "JSON Yedeğini Dışa Aktar",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                 )
             },
             text = {
@@ -534,14 +536,14 @@ fun CsvScreen(
                     Text(
                         text = "Yedek dosyasını telefon belleğinize kaydedebilir veya diğer uygulamalara aktarabilirsiniz:",
                         fontSize = 12.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                     )
 
                     // Dosya Adı Bilgi Rozeti
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = Slate100,
-                        border = BorderStroke(1.dp, Slate200),
+                        color = if (isDarkMode) Color(0xFF0F172A) else Slate100,
+                        border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -551,7 +553,7 @@ fun CsvScreen(
                             Icon(
                                 imageVector = Icons.Default.Description,
                                 contentDescription = null,
-                                tint = Slate600,
+                                tint = if (isDarkMode) Color(0xFF94A3B8) else Slate600,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -559,7 +561,7 @@ fun CsvScreen(
                                 text = pendingExportFileName,
                                 fontSize = 11.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Slate800,
+                                color = if (isDarkMode) Color(0xFFF1F5F9) else Slate800,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -592,8 +594,8 @@ fun CsvScreen(
                                 }
                             },
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = TurquoisePrimary.copy(alpha = 0.08f)),
-                        border = BorderStroke(1.5.dp, TurquoisePrimary)
+                        colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF0F172A) else TurquoisePrimary.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.5.dp, if (isDarkMode) Color(0xFF0D9488) else TurquoisePrimary)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -619,12 +621,12 @@ fun CsvScreen(
                                     text = "İndirilenler'e Kaydet (En Hızlı)",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = TurquoiseDark
+                                    color = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark
                                 )
                                 Text(
                                     text = "Telefonun İndirilenler (Downloads) klasörüne doğrudan kaydeder.",
                                     fontSize = 11.sp,
-                                    color = Slate600
+                                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                                 )
                             }
                         }
@@ -644,8 +646,8 @@ fun CsvScreen(
                                 }
                             },
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, Slate300)
+                        colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF0F172A) else Color.White),
+                        border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate300)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -671,12 +673,12 @@ fun CsvScreen(
                                     text = "Konum / Klasör Seçerek Kaydet",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Slate900
+                                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                                 )
                                 Text(
                                     text = "Cihaz belleğinde istediğiniz klasörü seçin (Belgeler, SD Kart vb.).",
                                     fontSize = 11.sp,
-                                    color = Slate600
+                                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                                 )
                             }
                         }
@@ -698,8 +700,8 @@ fun CsvScreen(
                                 }
                             },
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, Slate300)
+                        colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF0F172A) else Color.White),
+                        border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate300)
                     ) {
                         Row(
                             modifier = Modifier.padding(12.dp),
@@ -709,13 +711,13 @@ fun CsvScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(CircleShape)
-                                    .background(Slate200),
+                                    .background(if (isDarkMode) Color(0xFF1E293B) else Slate200),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Share,
                                     contentDescription = null,
-                                    tint = Slate700,
+                                    tint = if (isDarkMode) Color(0xFF94A3B8) else Slate700,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -725,12 +727,12 @@ fun CsvScreen(
                                     text = "Uygulamalar ile Paylaş",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 13.sp,
-                                    color = Slate900
+                                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                                 )
                                 Text(
                                     text = "WhatsApp, Google Drive, E-posta vb. ile gönderin.",
                                     fontSize = 11.sp,
-                                    color = Slate600
+                                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                                 )
                             }
                         }
@@ -742,7 +744,7 @@ fun CsvScreen(
                 TextButton(
                     onClick = { showExportOptionsDialog = false }
                 ) {
-                    Text("Kapat", fontWeight = FontWeight.Bold, color = Slate700)
+                    Text("Kapat", fontWeight = FontWeight.Bold, color = if (isDarkMode) Color(0xFF94A3B8) else Slate700)
                 }
             }
         )
@@ -750,10 +752,10 @@ fun CsvScreen(
 
     Scaffold(
         contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = if (isDarkMode) Color(0xFF0F172A) else MaterialTheme.colorScheme.background,
         topBar = {
             Surface(
-                color = MaterialTheme.colorScheme.surface,
+                color = if (isDarkMode) Color(0xFF0F172A) else MaterialTheme.colorScheme.surface,
                 shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -774,7 +776,7 @@ fun CsvScreen(
                             text = "Ayarlar ve Veri Yönetimi",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Slate900
+                            color = if (isDarkMode) Color(0xFFF8FAFC) else Slate900
                         )
                     }
 
@@ -790,6 +792,7 @@ fun CsvScreen(
                             label = "Genel Ayarlar",
                             icon = Icons.Default.Settings,
                             isSelected = selectedTab == 0,
+                            isDarkMode = isDarkMode,
                             onClick = { selectedTab = 0 },
                             modifier = Modifier.weight(1f)
                         )
@@ -799,6 +802,7 @@ fun CsvScreen(
                             label = "Veri Ayarları",
                             icon = Icons.Default.Storage,
                             isSelected = selectedTab == 1,
+                            isDarkMode = isDarkMode,
                             onClick = { selectedTab = 1 },
                             modifier = Modifier.weight(1f)
                         )
@@ -826,8 +830,8 @@ fun CsvScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, Slate200),
+                    colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White),
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
@@ -845,28 +849,29 @@ fun CsvScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                                    .background(if (isDarkMode) Color(0xFF0F172A) else TurquoisePrimary.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
-                                    tint = TurquoiseDark,
+                                    tint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
 
                             Column(modifier = Modifier.weight(1f)) {
+                                val cleanVer = com.example.BuildConfig.VERSION_NAME.replace(Regex("(?i)beta|v|sürüm"), "").trim()
                                 Text(
-                                    text = "Uygulama Sürümü: ${com.example.BuildConfig.VERSION_NAME}",
-                                    fontSize = 14.sp,
+                                    text = cleanVer,
+                                    fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Slate900
+                                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                                 )
                                 Text(
-                                    text = "GitHub üzerinden en son yayınlanan güncellemeyi kontrol edin.",
+                                    text = "Sunucu üzerinden en son yayınlanan kurumsal güncellemeyi denetleyin.",
                                     fontSize = 12.sp,
-                                    color = Slate600
+                                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                                 )
                             }
                         }
@@ -876,14 +881,14 @@ fun CsvScreen(
                             enabled = !isCheckingUpdate,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TurquoisePrimary),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                         ) {
                             if (isCheckingUpdate) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
                                     strokeWidth = 2.dp,
-                                    color = TurquoiseDark
+                                    color = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Kontrol Ediliyor...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -906,6 +911,7 @@ fun CsvScreen(
                     description = "Gece ve düşük ışıklı ortamlar için koyu renk düzeni",
                     icon = Icons.Default.DarkMode,
                     isChecked = isDarkMode,
+                    isDarkMode = isDarkMode,
                     onCheckedChange = { onToggleDarkMode() }
                 )
 
@@ -914,6 +920,7 @@ fun CsvScreen(
                     description = "Kamera FPS ve ağır görsel efektleri kısarak pil ömrünü uzatır",
                     icon = Icons.Default.BatterySaver,
                     isChecked = isBatterySaverMode,
+                    isDarkMode = isDarkMode,
                     onCheckedChange = { onToggleBatterySaverMode() }
                 )
 
@@ -922,6 +929,7 @@ fun CsvScreen(
                     description = "Barkod okuma ve işlem tamamlama sesli bildirimleri",
                     icon = Icons.Default.VolumeUp,
                     isChecked = soundEffectsEnabled,
+                    isDarkMode = isDarkMode,
                     onCheckedChange = { onToggleSoundEffects() }
                 )
 
@@ -930,6 +938,7 @@ fun CsvScreen(
                     description = "Başarılı tarama ve silme işlemlerinde dokunsal geri bildirim",
                     icon = Icons.Default.Vibration,
                     isChecked = vibrationEnabled,
+                    isDarkMode = isDarkMode,
                     onCheckedChange = { onToggleVibration() }
                 )
 
@@ -937,8 +946,8 @@ fun CsvScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, Slate200),
+                    colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White),
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
@@ -956,13 +965,13 @@ fun CsvScreen(
                                 modifier = Modifier
                                     .size(38.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                                    .background(if (isDarkMode) Color(0xFF0F172A) else TurquoisePrimary.copy(alpha = 0.12f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.EditNote,
                                     contentDescription = null,
-                                    tint = TurquoiseDark,
+                                    tint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -972,12 +981,12 @@ fun CsvScreen(
                                     text = "Hatırlatıcılar ve Mağaza Notları",
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Slate900
+                                    color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                                 )
                                 Text(
                                     text = "Vardiya teslim notları, kritik reyon uyarıları ve yapılacak görevler.",
                                     fontSize = 12.sp,
-                                    color = Slate600
+                                    color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                                 )
                             }
                         }
@@ -986,8 +995,8 @@ fun CsvScreen(
                             onClick = onNavigateToReminders,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TurquoisePrimary),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.EditNote,
@@ -1009,8 +1018,8 @@ fun CsvScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, Slate200),
+                    colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White),
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
@@ -1023,19 +1032,19 @@ fun CsvScreen(
                             text = "Veri Yedekleme (Dışa Aktar)",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Slate900
+                            color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                         )
                         Text(
                             text = "Tüm ürünler, SKT'ler, fiyatlar, adetsel sayımlar ve takip kayıtlarını güvenle yedekleyin.",
                             fontSize = 12.sp,
-                            color = Slate600
+                            color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                         )
 
                         // Bilgi İpucu Kutusu
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.2f)),
+                            color = if (isDarkMode) Color(0xFF0F172A) else TurquoisePrimary.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF134E4A) else TurquoisePrimary.copy(alpha = 0.2f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -1045,14 +1054,14 @@ fun CsvScreen(
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
-                                    tint = TurquoiseDark,
+                                    tint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                                     modifier = Modifier.size(16.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Yedekler doğrudan cihazınızın İndirilenler (Downloads) klasörüne güvenle kaydedilir.",
                                     fontSize = 11.5.sp,
-                                    color = TurquoiseDark,
+                                    color = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -1107,14 +1116,14 @@ fun CsvScreen(
                             enabled = !isSavingLocal,
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TurquoisePrimary),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                         ) {
                             if (isSavingLocal) {
                                 CircularProgressIndicator(
                                     modifier = Modifier.size(16.dp),
                                     strokeWidth = 2.dp,
-                                    color = TurquoiseDark
+                                    color = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Kaydediliyor...", fontSize = 13.sp, fontWeight = FontWeight.Bold)
@@ -1135,8 +1144,8 @@ fun CsvScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, Slate200),
+                    colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White),
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
@@ -1149,7 +1158,7 @@ fun CsvScreen(
                             text = "Veri Yükleme (İçe Aktar)",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Slate900
+                            color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                         )
 
                         // Buton 1: JSON Yedekten Geri Yükle
@@ -1159,8 +1168,8 @@ fun CsvScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TurquoisePrimary),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.FolderOpen,
@@ -1185,8 +1194,8 @@ fun CsvScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TurquoisePrimary),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.UploadFile,
@@ -1200,8 +1209,8 @@ fun CsvScreen(
                         // Format Bilgi Kutusu
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = Color(0xFFF0FDFA),
-                            border = BorderStroke(1.dp, Color(0xFF99F6E4)),
+                            color = if (isDarkMode) Color(0xFF0F172A) else Color(0xFFF0FDFA),
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF134E4A) else Color(0xFF99F6E4)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -1212,7 +1221,7 @@ fun CsvScreen(
                                 Icon(
                                     imageVector = Icons.Default.Info,
                                     contentDescription = null,
-                                    tint = TurquoiseDark,
+                                    tint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1220,12 +1229,12 @@ fun CsvScreen(
                                         text = "Format: Barkod;ÜrünKodu;ÜrünAdı;Fiyat;Kategori",
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = TurquoiseDark
+                                        color = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark
                                     )
                                     Text(
-                                        text = "Örnek: 8690504011223;25002501;SÜTAŞ AYRAN 200 ML;12.50;Dolap Ürünleri",
+                                        text = "Örnek: 8690504011223;25002501;SÜTAŞ AYRAN 200 ML;12.50;Genel",
                                         fontSize = 11.sp,
-                                        color = Slate600
+                                        color = if (isDarkMode) Color(0xFF94A3B8) else Slate600
                                     )
                                 }
                             }
@@ -1237,8 +1246,8 @@ fun CsvScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.dp, Slate200),
+                    colors = CardDefaults.cardColors(containerColor = if (isDarkMode) Color(0xFF1E293B) else Color.White),
+                    border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                 ) {
                     Column(
@@ -1251,7 +1260,7 @@ fun CsvScreen(
                             text = "Sistem Bakımı ve Onarım",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Slate900
+                            color = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
                         )
 
                         // Buton 1: Veritabanını Onar & Düzelt
@@ -1263,8 +1272,8 @@ fun CsvScreen(
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.dp, TurquoisePrimary),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TurquoiseDark)
+                            border = BorderStroke(1.dp, if (isDarkMode) Color(0xFF2DD4BF) else TurquoisePrimary),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Build,
@@ -1306,14 +1315,27 @@ private fun SegmentedTabButton(
     label: String,
     icon: ImageVector,
     isSelected: Boolean,
+    isDarkMode: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val containerColor = if (isSelected) {
+        if (isDarkMode) Color(0xFF0D9488) else TurquoiseDark
+    } else {
+        if (isDarkMode) Color(0xFF1E293B) else Slate100
+    }
+    val contentColor = if (isSelected) {
+        Color.White
+    } else {
+        if (isDarkMode) Color(0xFF94A3B8) else Slate700
+    }
+    val border = if (isSelected) null else BorderStroke(1.dp, if (isDarkMode) Color(0xFF334155) else Slate200)
+
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) TurquoiseDark else Slate100,
-        border = if (isSelected) null else BorderStroke(1.dp, Slate200),
+        color = containerColor,
+        border = border,
         modifier = modifier.height(44.dp)
     ) {
         Row(
@@ -1324,7 +1346,7 @@ private fun SegmentedTabButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) Color.White else Slate700,
+                tint = contentColor,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
@@ -1332,7 +1354,7 @@ private fun SegmentedTabButton(
                 text = label,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                color = if (isSelected) Color.White else Slate700
+                color = contentColor
             )
         }
     }
@@ -1344,13 +1366,21 @@ private fun SettingSwitchCard(
     description: String,
     icon: ImageVector,
     isChecked: Boolean,
+    isDarkMode: Boolean = false,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val cardBg = if (isDarkMode) Color(0xFF1E293B) else Color.White
+    val cardBorder = if (isDarkMode) Color(0xFF334155) else Slate200
+    val iconBg = if (isDarkMode) Color(0xFF0F172A) else TurquoisePrimary.copy(alpha = 0.12f)
+    val iconTint = if (isDarkMode) Color(0xFF2DD4BF) else TurquoiseDark
+    val titleColor = if (isDarkMode) Color(0xFFF1F5F9) else Slate900
+    val descColor = if (isDarkMode) Color(0xFF94A3B8) else Slate500
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, Slate200),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
@@ -1364,13 +1394,13 @@ private fun SettingSwitchCard(
                 modifier = Modifier
                     .size(38.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                    .background(iconBg),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = TurquoiseDark,
+                    tint = iconTint,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1380,12 +1410,12 @@ private fun SettingSwitchCard(
                     text = title,
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Slate900
+                    color = titleColor
                 )
                 Text(
                     text = description,
                     fontSize = 11.5.sp,
-                    color = Slate600
+                    color = descColor
                 )
             }
 
@@ -1394,9 +1424,9 @@ private fun SettingSwitchCard(
                 onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = TurquoisePrimary,
-                    uncheckedThumbColor = Slate500,
-                    uncheckedTrackColor = Slate200
+                    checkedTrackColor = if (isDarkMode) Color(0xFF0D9488) else TurquoisePrimary,
+                    uncheckedThumbColor = if (isDarkMode) Color(0xFF64748B) else Slate500,
+                    uncheckedTrackColor = if (isDarkMode) Color(0xFF334155) else Slate200
                 )
             )
         }

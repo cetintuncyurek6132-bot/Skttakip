@@ -12,14 +12,14 @@ import org.json.JSONObject
 data class UserAccount(
     val username: String,
     val password: String,
-    val role: String,      // "MS", "MSY", "P1", "P2"
-    val roleTitle: String, // "Mağaza Sorumlusu", etc.
+    val role: String = "USER",
+    val roleTitle: String = "",
     val fullName: String,
-    val department: String = "Süt & Şarküteri Reyonu"
+    val department: String = ""
 ) {
     val canAccessSettings: Boolean get() = true
-    val canAccessReports: Boolean get() = role == "MS" || role == "MSY"
-    val canEditUsers: Boolean get() = role == "MS"
+    val canAccessReports: Boolean get() = true
+    val canEditUsers: Boolean get() = true
 }
 
 object UserManager {
@@ -36,10 +36,10 @@ object UserManager {
     val usersList: StateFlow<List<UserAccount>> = _usersList.asStateFlow()
 
     private val defaultUsers = listOf(
-        UserAccount("Cetin", "3232", "MS", "Mağaza Sorumlusu (MS)", "Çetin Tunçyürek"),
-        UserAccount("Ayse", "3232", "MSY", "Mağaza Sorumlu Yardımcısı (MSY)", "Ayşe Yılmaz"),
-        UserAccount("Aykut", "3232", "P1", "Personel 1 (P1)", "Aykut Demir"),
-        UserAccount("Rumeysa", "3232", "P2", "Personel 2 (P2)", "Rümeysa Kaya")
+        UserAccount("Kullanici1", "3232", "ADMIN", "", "Kullanıcı 1", ""),
+        UserAccount("Kullanici2", "3232", "USER", "", "Kullanıcı 2", ""),
+        UserAccount("Kullanici3", "3232", "USER", "", "Kullanıcı 3", ""),
+        UserAccount("Kullanici4", "3232", "USER", "", "Kullanıcı 4", "")
     )
 
     fun initialize(context: Context) {
@@ -51,12 +51,12 @@ object UserManager {
             val matched = _usersList.value.find { it.username.equals(savedUsername, ignoreCase = true) }
             if (matched != null) {
                 _currentUser.value = matched
-                CloudSyncManager.setUserName("${matched.fullName} (${matched.role})")
+                CloudSyncManager.setUserName(matched.fullName)
             } else {
                 val defaultUser = _usersList.value.firstOrNull()
                 _currentUser.value = defaultUser
                 if (defaultUser != null) {
-                    CloudSyncManager.setUserName("${defaultUser.fullName} (${defaultUser.role})")
+                    CloudSyncManager.setUserName(defaultUser.fullName)
                 }
             }
         } else {
@@ -64,7 +64,7 @@ object UserManager {
             if (defaultUser != null) {
                 _currentUser.value = defaultUser
                 prefs?.edit()?.putString(KEY_LOGGED_IN_USER, defaultUser.username)?.apply()
-                CloudSyncManager.setUserName("${defaultUser.fullName} (${defaultUser.role})")
+                CloudSyncManager.setUserName(defaultUser.fullName)
             }
         }
     }
@@ -84,10 +84,10 @@ object UserManager {
                         UserAccount(
                             username = obj.getString("username"),
                             password = obj.getString("password"),
-                            role = obj.getString("role"),
-                            roleTitle = obj.getString("roleTitle"),
+                            role = obj.optString("role", "USER"),
+                            roleTitle = obj.optString("roleTitle", ""),
                             fullName = obj.getString("fullName"),
-                            department = obj.optString("department", "Süt & Şarküteri Reyonu")
+                            department = obj.optString("department", "")
                         )
                     )
                 }
@@ -129,7 +129,7 @@ object UserManager {
         return if (user != null) {
             _currentUser.value = user
             prefs?.edit()?.putString(KEY_LOGGED_IN_USER, user.username)?.apply()
-            CloudSyncManager.setUserName("${user.fullName} (${user.role})")
+            CloudSyncManager.setUserName(user.fullName)
             true
         } else {
             false
@@ -151,7 +151,7 @@ object UserManager {
 
             if (_currentUser.value?.username.equals(updatedUser.username, ignoreCase = true)) {
                 _currentUser.value = updatedUser
-                CloudSyncManager.setUserName("${updatedUser.fullName} (${updatedUser.role})")
+                CloudSyncManager.setUserName(updatedUser.fullName)
             }
         }
     }

@@ -1,4 +1,5 @@
 package com.example.ui.screens
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +33,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -56,9 +59,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.SubcomposeAsyncImage
 import com.example.data.AdetselKayit
+import com.example.data.Product
+import com.example.data.findMatchingProducts
+import com.example.data.getDisplayName
 import com.example.ui.screens.BarcodeScannerSheet
 import com.example.util.HapticFeedbackHelper
+import com.example.util.image.ProductImageManager
 import com.example.ui.screens.adetsel.AdetselFilterChip
 import com.example.ui.screens.adetsel.AdetselSayimDialog
 import com.example.ui.screens.adetsel.CompactYapilacakCard
@@ -85,6 +93,8 @@ enum class AdetselTab {
 fun AdetselScreen(
     yapilacakList: List<AdetselKayit>,
     yapildiList: List<AdetselKayit>,
+    allProducts: List<Product> = emptyList(),
+    onAddToAdetsel: ((Product, ((Boolean) -> Unit)?) -> Unit)? = null,
     onSaveSayim: (kayit: AdetselKayit, sonuc: String, fark: Int, notlar: String) -> Unit,
     onUndoSayim: (AdetselKayit) -> Unit,
     onDeleteKayit: (Int) -> Unit,
@@ -98,6 +108,7 @@ fun AdetselScreen(
     var selectedResultFilter by remember { mutableStateOf("ALL") } // ALL, EKSIK, FAZLA, TAM
     var showBarcodeScanner by remember { mutableStateOf(false) }
 
+    var candidateProductToAdd by remember { mutableStateOf<Product?>(null) }
     var countingKayit by remember { mutableStateOf<AdetselKayit?>(null) }
     var initialModeForDialog by remember { mutableStateOf("TAM") } // "TAM", "EKSIK", "FAZLA"
     var itemToDelete by remember { mutableStateOf<AdetselKayit?>(null) }
@@ -146,25 +157,254 @@ fun AdetselScreen(
     // BARKOD TARAYICI MODALI
     if (showBarcodeScanner) {
         BarcodeScannerSheet(
-            products = emptyList(),
+            products = allProducts,
             onDismiss = { showBarcodeScanner = false },
             onBarcodeDetected = { scannedBarcode ->
                 val clean = scannedBarcode.trim()
                 if (clean.isNotBlank()) {
                     HapticFeedbackHelper.triggerSuccessHaptic(context)
-                    searchQuery = clean
                     showBarcodeScanner = false
 
-                    // Listedeki eşleşen ürünü bulup sayım penceresini aç
-                    val matched = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
-                        .find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-                        ?: distinctYapilacakList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-                        ?: yapildiList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                    // 1. Önce tüm ürün veritabanında ara
+                    val matches = allProducts.findMatchingProducts(clean)
+                    val matchedProduct = matches.firstOrNull()
 
-                    if (matched != null) {
-                        countingKayit = matched
-                        initialModeForDialog = "TAM"
+                    if (matchedProduct != null) {
+                        // Ürün bulundu -> Sayıma Ekle onay diyaloğunu aç
+                        candidateProductToAdd = matchedProduct
+                    } else {
+                        // 2. Mevcut adetsel listelerinde ara
+                        val matchedAdetsel = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
+                            .find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                            ?: distinctYapilacakList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                            ?: yapildiList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+
+                        if (matchedAdetsel != null) {
+                            countingKayit = matchedAdetsel
+                            initialModeForDialog = "TAM"
+                        } else {
+                            searchQuery = clean
+                            Toast.makeText(context, "Bu barkoda ait kayıtlı ürün bulunamadı.", Toast.LENGTH_SHORT).show()
+                        }
                     }
+                }
+            }
+        )
+    }
+
+    // SAYIMA ÜRÜN EKLE ONAY DİYALOĞU
+    candidateProductToAdd?.let { product ->
+        val systemStock = remember(product, allProducts) {
+            val matchingStock = allProducts.filter {
+                (it.barkod.isNotBlank() && it.barkod == product.barkod) ||
+                (it.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu)
+            }.sumOf { it.stokAdedi }
+            if (matchingStock > 0) matchingStock else product.stokAdedi
+        }
+
+        AlertDialog(
+            onDismissRequest = { candidateProductToAdd = null },
+            shape = RoundedCornerShape(16.dp),
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = TurquoisePrimary.copy(alpha = 0.15f),
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Inventory2,
+                            contentDescription = null,
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    text = "Sayıma Ürün Ekle",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Ürün Detay Kartı
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Ürün Görseli / Baş Harf
+                            Surface(
+                                modifier = Modifier.size(52.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            ) {
+                                if (!product.resimUrl.isNullOrBlank()) {
+                                    SubcomposeAsyncImage(
+                                        model = product.resimUrl,
+                                        imageLoader = ProductImageManager.getImageLoader(context),
+                                        contentDescription = product.urunAdi,
+                                        contentScale = ContentScale.Fit,
+                                        alignment = Alignment.Center,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(3.dp),
+                                        loading = {
+                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(14.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = TurquoisePrimary
+                                                )
+                                            }
+                                        },
+                                        error = {
+                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                Text(
+                                                    text = product.getDisplayName().take(1).uppercase(),
+                                                    fontWeight = FontWeight.Bold,
+                                                    fontSize = 18.sp,
+                                                    color = TurquoiseDark
+                                                )
+                                            }
+                                        }
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(TurquoisePrimary.copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = product.getDisplayName().take(1).uppercase(),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 18.sp,
+                                            color = TurquoiseDark
+                                        )
+                                    }
+                                }
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = product.getDisplayName(),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 2
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                if (product.urunKodu.isNotBlank()) {
+                                    Text(
+                                        text = "Kod: ${product.urunKodu}",
+                                        fontSize = 11.5.sp,
+                                        color = Slate500,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                if (product.barkod.isNotBlank() && !product.barkod.startsWith("NO_BARCODE_")) {
+                                    Text(
+                                        text = "Barkod: ${product.barkod}",
+                                        fontSize = 11.sp,
+                                        color = Slate500
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Sistem Stoğu Bilgi Alanı
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp),
+                        color = TurquoisePrimary.copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Mevcut Sistem Stoğu:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate700
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = TurquoiseDark
+                            ) {
+                                Text(
+                                    text = "$systemStock Adet",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val p = candidateProductToAdd ?: return@Button
+                        if (onAddToAdetsel != null) {
+                            onAddToAdetsel(p) { isSuccess ->
+                                if (isSuccess) {
+                                    Toast.makeText(context, "${p.urunAdi} sayım listesine eklendi", Toast.LENGTH_SHORT).show()
+                                    selectedTab = AdetselTab.YAPILACAK
+                                    searchQuery = ""
+                                } else {
+                                    Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, "${p.urunAdi} sayıma eklenemedi.", Toast.LENGTH_SHORT).show()
+                        }
+                        candidateProductToAdd = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.testTag("adetsel_confirm_add_product_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Sayıma Ekle", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { candidateProductToAdd = null },
+                    modifier = Modifier.testTag("adetsel_cancel_add_product_button")
+                ) {
+                    Text("Vazgeç", color = Slate700, fontSize = 13.sp)
                 }
             }
         )

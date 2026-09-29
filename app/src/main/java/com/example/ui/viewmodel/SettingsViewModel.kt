@@ -23,19 +23,19 @@ class SettingsViewModel(
 ) : ViewModel() {
 
     // User Profile State
-    private val _userName = MutableStateFlow("Mağaza Personeli")
+    private val _userName = MutableStateFlow("Kullanıcı")
     val userName: StateFlow<String> = _userName.asStateFlow()
 
-    private val _userBranch = MutableStateFlow("Şube / Mağaza")
+    private val _userBranch = MutableStateFlow("")
     val userBranch: StateFlow<String> = _userBranch.asStateFlow()
 
-    private val _userRole = MutableStateFlow("Reyon Sorumlusu & SKT Görevlisi")
+    private val _userRole = MutableStateFlow("")
     val userRole: StateFlow<String> = _userRole.asStateFlow()
 
-    private val _userDepartment = MutableStateFlow("Süt & Şarküteri Reyonu")
+    private val _userDepartment = MutableStateFlow("")
     val userDepartment: StateFlow<String> = _userDepartment.asStateFlow()
 
-    private val _userDutyStatus = MutableStateFlow("Vardiyada (Aktif)")
+    private val _userDutyStatus = MutableStateFlow("Aktif")
     val userDutyStatus: StateFlow<String> = _userDutyStatus.asStateFlow()
 
     // Preferences & Theme

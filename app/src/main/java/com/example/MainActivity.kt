@@ -436,10 +436,12 @@ fun SktMainApp(
 
     // PRODUCT DETAIL MODAL (Ürün Detay Sayfası)
     if (detailProduct != null) {
-        val allMatchingProducts = allProducts.filter {
-            it.barkod.equals(detailProduct!!.barkod.trim(), ignoreCase = true) ||
-            (detailProduct!!.urunKodu.isNotBlank() && it.urunKodu.equals(detailProduct!!.urunKodu.trim(), ignoreCase = true))
-        }.sortedBy { it.sktTarihi }
+        val allMatchingProducts = remember(detailProduct, allProducts) {
+            allProducts.filter {
+                it.barkod.equals(detailProduct!!.barkod.trim(), ignoreCase = true) ||
+                (detailProduct!!.urunKodu.isNotBlank() && it.urunKodu.equals(detailProduct!!.urunKodu.trim(), ignoreCase = true))
+            }.sortedBy { it.sktTarihi }
+        }
 
         ProductDetailModal(
             product = detailProduct,

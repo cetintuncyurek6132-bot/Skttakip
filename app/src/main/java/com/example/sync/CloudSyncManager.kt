@@ -100,7 +100,7 @@ object CloudSyncManager {
     }
 
     fun getStoreCode(): String {
-        return prefs?.getString(KEY_STORE_CODE, "MAĞAZA-101") ?: "MAĞAZA-101"
+        return prefs?.getString(KEY_STORE_CODE, "Ana Depo") ?: "Ana Depo"
     }
 
     fun setStoreCode(code: String) {
@@ -111,7 +111,7 @@ object CloudSyncManager {
     }
 
     fun getUserName(): String {
-        return prefs?.getString(KEY_USER_NAME, "Ekip Üyesi") ?: "Ekip Üyesi"
+        return prefs?.getString(KEY_USER_NAME, "Kullanıcı") ?: "Kullanıcı"
     }
 
     fun setUserName(name: String) {
@@ -296,16 +296,30 @@ object CloudSyncManager {
     }
 
     /**
-     * Firestore'daki tüm ürünleri çekip yerel Room veritabanıyla güvenle birleştirir.
-     * Mevcut yerel verileri silmez; eşleşenleri günceller, eksikleri ekler.
+     * Firestore'daki güncel ürünleri çekip yerel Room veritabanıyla güvenle birleştirir.
+     * Delta sync desteğiyle sadece son başarılı eşitlemeden sonra değişen dokümanları çeker.
      */
     suspend fun syncWithCloud(): Boolean = withContext(Dispatchers.IO) {
         val db = firestoreInstance ?: return@withContext false
         val dao = productDaoRef ?: return@withContext false
+        val sp = prefs
 
         try {
             _syncState.value = SyncState.SYNCING
-            val snapshot = db.collection(COLLECTION_PRODUCTS).get().awaitTask()
+            val lastSync = sp?.getLong("last_successful_sync_timestamp", 0L) ?: 0L
+
+            val snapshot = if (lastSync > 0L) {
+                // Sadece son eşitlemeden sonra güncellenenleri çek (Delta sync - Mobil veri tasarrufu)
+                db.collection(COLLECTION_PRODUCTS)
+                    .whereGreaterThan("updatedAt", lastSync)
+                    .get()
+                    .awaitTask()
+            } else {
+                // Yalnızca ilk kurulumda tam liste çekilsin
+                db.collection(COLLECTION_PRODUCTS)
+                    .get()
+                    .awaitTask()
+            }
 
             val cloudProducts = mutableListOf<Product>()
             for (doc in snapshot.documents) {
@@ -352,15 +366,19 @@ object CloudSyncManager {
             }
 
             // Yerel ürünleri de buluta aktar (mükerrerliği önlemek için)
-            for (local in localProducts) {
-                val docId = getDocumentIdForProduct(local)
-                db.collection(COLLECTION_PRODUCTS)
-                    .document(docId)
-                    .set(productToMap(local), SetOptions.merge())
+            if (lastSync == 0L) {
+                for (local in localProducts) {
+                    val docId = getDocumentIdForProduct(local)
+                    db.collection(COLLECTION_PRODUCTS)
+                        .document(docId)
+                        .set(productToMap(local), SetOptions.merge())
+                }
             }
 
+            val now = System.currentTimeMillis()
+            sp?.edit()?.putLong("last_successful_sync_timestamp", now)?.apply()
             _syncState.value = SyncState.CONNECTED
-            _lastSyncTimestamp.value = System.currentTimeMillis()
+            _lastSyncTimestamp.value = now
             true
         } catch (e: Exception) {
             Log.e(TAG, "syncWithCloud error: ${e.message}", e)

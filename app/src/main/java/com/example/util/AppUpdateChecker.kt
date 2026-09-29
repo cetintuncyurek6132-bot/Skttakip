@@ -50,7 +50,7 @@ object AppUpdateChecker {
             val json = JSONObject(responseBody)
 
             val rawTagName = json.optString("tag_name", "")
-            val cleanTagName = rawTagName.trim().removePrefix("v").removePrefix("V").trim()
+            val cleanTagName = rawTagName.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
             val rawReleaseNotes = json.optString("body", "")
             val releaseNotes = formatReleaseNotesTurkish(rawReleaseNotes)
 
@@ -67,7 +67,7 @@ object AppUpdateChecker {
                 }
             }
 
-            val currentVersion = BuildConfig.VERSION_NAME.trim().removePrefix("v").removePrefix("V").trim()
+            val currentVersion = BuildConfig.VERSION_NAME.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
             val isNewer = isVersionNewer(cleanTagName, currentVersion)
 
             Log.d(TAG, "Mevcut: $currentVersion | GitHub: $cleanTagName | Güncelleme Var mı: $isNewer | URL: $downloadUrl")
@@ -91,8 +91,15 @@ object AppUpdateChecker {
      * Türkçeleştirir, temizler ve anlaşılır madde imleri halinde formatlar.
      */
     fun formatReleaseNotesTurkish(rawNotes: String): String {
-        if (rawNotes.isBlank()) {
-            return "• Performans iyileştirmeleri ve hata düzeltmeleri yapıldı.\n• Barkod tarama ve veri işleme hızlandırıldı.\n• Arayüz kararlılığı ve kullanıcı deneyimi artırıldı."
+        val trimmed = rawNotes.trim()
+        val lower = trimmed.lowercase()
+        if (trimmed.isBlank() ||
+            lower.contains("add files via upload") ||
+            lower.contains("merge") ||
+            lower.contains("commit") ||
+            lower.contains("github")
+        ) {
+            return "• Performans ve kararlılık iyileştirmeleri yapıldı."
         }
 
         // Markdown linkleri, PR numaraları ve GitHub kullanıcı etiketlerini temizle

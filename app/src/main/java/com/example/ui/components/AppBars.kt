@@ -110,6 +110,7 @@ import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SoonYellowContainer
 import com.example.ui.theme.TurquoiseDark
@@ -172,8 +173,10 @@ fun SktTopAppBar(
         }
     }
 
+    val isDark = MaterialTheme.colorScheme.background == Slate900 || MaterialTheme.colorScheme.surface == Slate800
+
     Surface(
-        color = TurquoisePrimary,
+        color = if (isDark) Color(0xFF0F766E) else TurquoisePrimary,
         shadowElevation = 4.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -188,13 +191,13 @@ fun SktTopAppBar(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(10.dp))
-                    .background(Color.White)
+                    .background(if (isDark) Color(0xFF1E293B) else Color.White)
                     .padding(horizontal = 10.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "SKT",
-                    color = TurquoiseDark,
+                    color = if (isDark) Color(0xFF2DD4BF) else TurquoiseDark,
                     fontWeight = FontWeight.Black,
                     fontSize = 17.sp,
                     letterSpacing = 0.5.sp,
@@ -216,7 +219,7 @@ fun SktTopAppBar(
                     }
                     .testTag("top_bar_search_field"),
                 shape = RoundedCornerShape(12.dp),
-                color = Color.White,
+                color = if (isDark) Color(0xFF1E293B) else Color.White,
                 shadowElevation = 1.dp
             ) {
                 Row(
@@ -228,14 +231,18 @@ fun SktTopAppBar(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Manuel Ara",
-                        tint = Slate500,
+                        tint = if (isDark) Color(0xFF94A3B8) else Slate500,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
                         text = if (searchQuery.isNotEmpty()) searchQuery else "Ürün adı, barkod veya kod ara",
-                        color = if (searchQuery.isNotEmpty()) Slate900 else Slate500.copy(alpha = 0.65f),
+                        color = if (searchQuery.isNotEmpty()) {
+                            if (isDark) Color(0xFFF1F5F9) else Slate900
+                        } else {
+                            if (isDark) Color(0xFF94A3B8) else Slate500.copy(alpha = 0.65f)
+                        },
                         fontSize = 12.sp,
                         fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
@@ -252,7 +259,7 @@ fun SktTopAppBar(
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
                             contentDescription = "Barkod Tara",
-                            tint = TurquoisePrimary,
+                            tint = if (isDark) Color(0xFF2DD4BF) else TurquoisePrimary,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -314,359 +321,13 @@ fun SktTopAppBar(
         }
     }
 
-    if (isSearchExpanded) {
-        LaunchedEffect(Unit) {
-            delay(100)
-            focusRequester.requestFocus()
-            keyboardController?.show()
-        }
-
-        Popup(
-            onDismissRequest = {
-                isSearchExpanded = false
-                onSearchQueryChange("")
-                focusManager.clearFocus(force = true)
-            },
-            properties = PopupProperties(
-                focusable = true,
-                dismissOnBackPress = true,
-                dismissOnClickOutside = true
-            )
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.65f))
-                    .clickable {
-                        isSearchExpanded = false
-                        onSearchQueryChange("")
-                        focusManager.clearFocus(force = true)
-                    }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(top = 10.dp, start = 10.dp, end = 10.dp, bottom = 10.dp)
-                        .clickable(enabled = false) {}
-                ) {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f, fill = false),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                        ) {
-                            // Active Search Input Field inside Popup
-                            Surface(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(42.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                color = Slate100,
-                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f))
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Ara",
-                                        tint = TurquoiseDark,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                        contentAlignment = Alignment.CenterStart
-                                    ) {
-                                        if (searchQuery.isEmpty()) {
-                                            Text(
-                                                text = "Ürün adı, barkod veya kod ara",
-                                                color = Slate500,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Normal,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                        }
-                                        BasicTextField(
-                                            value = searchQuery,
-                                            onValueChange = { onSearchQueryChange(it) },
-                                            singleLine = true,
-                                            textStyle = androidx.compose.ui.text.TextStyle(
-                                                color = Slate900,
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.Bold
-                                            ),
-                                            cursorBrush = SolidColor(TurquoisePrimary),
-                                            keyboardOptions = KeyboardOptions(
-                                                capitalization = KeyboardCapitalization.Characters,
-                                                imeAction = ImeAction.Search
-                                            ),
-                                            keyboardActions = KeyboardActions(
-                                                onSearch = {
-                                                    keyboardController?.hide()
-                                                }
-                                            ),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .focusRequester(focusRequester)
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = {
-                                            if (searchQuery.isNotEmpty()) {
-                                                onSearchQueryChange("")
-                                            } else {
-                                                isSearchExpanded = false
-                                                focusManager.clearFocus(force = true)
-                                                keyboardController?.hide()
-                                            }
-                                        },
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "Kapat",
-                                            tint = Slate700,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            val queryTrim = searchQuery.trim()
-                            val matchingProducts = remember(allProducts, queryTrim) {
-                                if (queryTrim.isEmpty()) {
-                                    allProducts.take(50)
-                                } else {
-                                    allProducts.filter { prod ->
-                                        prod.matchesSearchQuery(queryTrim)
-                                    }.take(50)
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 2.dp, vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = if (queryTrim.isEmpty()) Icons.Default.Inventory2 else Icons.Default.FilterList,
-                                        contentDescription = null,
-                                        tint = TurquoiseDark,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = if (queryTrim.isEmpty()) "TÜM ÜRÜNLER (${allProducts.size})" else "ARAMA SONUÇLARI (${matchingProducts.size})",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = TurquoiseDark
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            if (matchingProducts.isEmpty()) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 32.dp, horizontal = 16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(54.dp)
-                                            .clip(CircleShape)
-                                            .background(Slate100),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.SearchOff,
-                                            contentDescription = null,
-                                            tint = Slate500,
-                                            modifier = Modifier.size(28.dp)
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "Aradığınız ürün bulunamadı. Yeni ürün olarak eklemek ister misiniz?",
-                                        fontSize = 13.5.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Slate700,
-                                        textAlign = TextAlign.Center,
-                                        lineHeight = 18.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Button(
-                                        onClick = {
-                                            isSearchExpanded = false
-                                            onSearchQueryChange("")
-                                            focusManager.clearFocus(force = true)
-                                            onAddNewProductClick()
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                                        shape = RoundedCornerShape(12.dp),
-                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
-                                    ) {
-                                        Text(
-                                            text = "YENİ ÜRÜN EKLE",
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 12.sp,
-                                            color = Color.White
-                                        )
-                                    }
-                                }
-                            } else {
-                                LazyColumn(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 420.dp)
-                                        .weight(1f, fill = false),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    items(matchingProducts, key = { it.id }) { product ->
-                                        val status = if (product.sktTarihi > 0L) product.getExpiryStatus() else ExpiryStatus.NORMAL
-                                        val daysLeft = if (product.sktTarihi > 0L) product.getRemainingDays() else 9999L
-
-                                        val (statusBg, statusText, statusLabel) = when {
-                                            product.sktTarihi <= 0L -> Triple(Slate100, Slate700, "TARİHSİZ")
-                                            status == ExpiryStatus.EXPIRED -> Triple(ExpiredRedContainer, ExpiredRed, "SÜRESİ GEÇTİ")
-                                            status == ExpiryStatus.CRITICAL -> Triple(CriticalOrangeContainer, CriticalOrange, if (daysLeft == 0L) "BUGÜN" else "$daysLeft GÜN")
-                                            status == ExpiryStatus.SOON -> Triple(SoonYellowContainer, Color(0xFF8B6B00), "$daysLeft GÜN")
-                                            status == ExpiryStatus.WARNING -> Triple(WarningBlueContainer, WarningBlue, "$daysLeft GÜN")
-                                            else -> Triple(NormalGreenContainer, NormalGreen, "$daysLeft GÜN")
-                                        }
-
-                                        Surface(
-                                            onClick = {
-                                                isSearchExpanded = false
-                                                onSearchQueryChange("")
-                                                focusManager.clearFocus(force = true)
-                                                onProductClick(product)
-                                            },
-                                            shape = RoundedCornerShape(12.dp),
-                                            color = Slate50,
-                                            border = BorderStroke(1.dp, Slate200),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                val displayName = product.getDisplayName()
-                                                val displayCode = product.getDisplayCode()
-                                                val firstChar = displayName.trim().firstOrNull { it.isLetterOrDigit() }?.uppercaseChar()?.toString() ?: "#"
-
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(38.dp)
-                                                        .clip(RoundedCornerShape(10.dp))
-                                                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Text(
-                                                        text = firstChar,
-                                                        fontSize = 16.sp,
-                                                        fontWeight = FontWeight.Black,
-                                                        color = TurquoiseDark
-                                                    )
-                                                }
-
-                                                Spacer(modifier = Modifier.width(12.dp))
-
-                                                Column(modifier = Modifier.weight(1f)) {
-                                                    Text(
-                                                        text = displayName.uppercase(),
-                                                        fontSize = 13.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Slate900,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    val infoText = buildString {
-                                                        append(if (product.kategori.isNotBlank()) product.kategori else "Genel")
-                                                        val barcode = product.barkod.trim()
-                                                        if (barcode.isNotBlank()) {
-                                                            append(" • Barkod: ")
-                                                            append(barcode)
-                                                        }
-                                                        if (displayCode.isNotBlank() && displayCode != barcode && displayCode != displayName) {
-                                                            append(" • Kod: ")
-                                                            append(displayCode)
-                                                        }
-                                                    }
-                                                    Text(
-                                                        text = infoText,
-                                                        fontSize = 11.sp,
-                                                        color = Slate500,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis
-                                                    )
-                                                }
-
-                                                Spacer(modifier = Modifier.width(10.dp))
-
-                                                Column(
-                                                    horizontalAlignment = Alignment.End,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(6.dp))
-                                                            .background(statusBg)
-                                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = statusLabel,
-                                                            fontSize = 10.sp,
-                                                            fontWeight = FontWeight.Black,
-                                                            color = statusText
-                                                        )
-                                                    }
-
-                                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                                    Text(
-                                                        text = "Adet: ${product.stokAdedi}",
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Slate700
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+    GlobalSearchDialog(
+        isOpen = isSearchExpanded,
+        onDismiss = { isSearchExpanded = false },
+        searchQuery = searchQuery,
+        onSearchQueryChange = onSearchQueryChange,
+        allProducts = allProducts,
+        onProductClick = onProductClick,
+        onAddNewProductClick = onAddNewProductClick
+    )
 }

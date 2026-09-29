@@ -1,29 +1,52 @@
 package com.example.ui.screens
 
-import android.widget.Toast
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.EventBusy
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.PlatformTextStyle
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -32,88 +55,72 @@ import com.example.data.ExpiryStatus
 import com.example.data.Product
 import com.example.ui.DashboardState
 import com.example.ui.ProductFilter
-import com.example.ui.screens.notification.*
-import com.example.ui.theme.*
-
-enum class NotificationCategoryFilter {
-    ALL,
-    EXPIRED,
-    APPROACHING,
-    HIGH_STOCK
-}
+import com.example.ui.theme.CriticalOrange
+import com.example.ui.theme.CriticalOrangeBorder
+import com.example.ui.theme.CriticalOrangeContainer
+import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.ExpiredRedBorder
+import com.example.ui.theme.ExpiredRedContainer
+import com.example.ui.theme.NormalGreen
+import com.example.ui.theme.NormalGreenContainer
+import com.example.ui.theme.Slate500
+import com.example.ui.theme.Slate700
+import com.example.ui.theme.SoonYellow
+import com.example.ui.theme.SoonYellowBorder
+import com.example.ui.theme.SoonYellowContainer
+import com.example.ui.theme.SoonYellowDark
+import com.example.ui.theme.TurquoiseDark
+import com.example.ui.theme.TurquoisePrimary
 
 @Composable
 fun NotificationSheet(
     dashboardState: DashboardState,
     allProducts: List<Product>,
-    morningReminderEnabled: Boolean,
-    criticalAlertEnabled: Boolean,
-    highStockAlertEnabled: Boolean,
+    morningReminderEnabled: Boolean = true,
+    criticalAlertEnabled: Boolean = true,
+    highStockAlertEnabled: Boolean = true,
     onDismiss: () -> Unit,
     onFilterSelected: (ProductFilter) -> Unit,
-    onNavigate: (String) -> Unit,
-    onMarkAllAsRead: () -> Unit,
-    onToggleMorningReminder: () -> Unit,
-    onToggleCriticalAlert: () -> Unit,
-    onToggleHighStockAlert: () -> Unit,
+    onNavigate: (String) -> Unit = {},
+    onMarkAllAsRead: () -> Unit = {},
+    onToggleMorningReminder: () -> Unit = {},
+    onToggleCriticalAlert: () -> Unit = {},
+    onToggleHighStockAlert: () -> Unit = {},
     onRemoveFromShelf: (Product) -> Unit = {},
     onRemoveMultipleFromShelf: (List<Product>) -> Unit = {},
     onAddToAdetsel: (Product) -> Unit = {},
     onOpenProductDetail: (Product) -> Unit = {}
 ) {
-    val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
-    var selectedCategory by remember { mutableStateOf(NotificationCategoryFilter.ALL) }
-    var showSettingsSection by remember { mutableStateOf(false) }
-    var showBulkRemoveDialog by remember { mutableStateOf<List<Product>?>(null) }
-
-    val overdue2DaysProducts = remember(allProducts) {
-        allProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays() <= -2 }
-    }
-    val expiredProducts = remember(allProducts) {
-        allProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.EXPIRED }
-    }
-    val criticalProducts = remember(allProducts) {
-        allProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.CRITICAL }
-    }
-    val highStockNearExpiry = remember(allProducts) {
-        allProducts.filter { it.sktTarihi > 0L && it.getRemainingDays() in 1..30 && it.stokAdedi >= 10 }
+    // Sayısal Özet Hesaplamaları
+    val expiredCount = remember(allProducts, dashboardState) {
+        val countFromList = allProducts.count {
+            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.EXPIRED
+        }
+        if (countFromList > 0) countFromList else dashboardState.expiredCount
     }
 
-    // Toplu Raftan Kaldırma Onay Penceresi
-    if (showBulkRemoveDialog != null) {
-        val targets = showBulkRemoveDialog!!
-        AlertDialog(
-            onDismissRequest = { showBulkRemoveDialog = null },
-            title = {
-                Text("Toplu Raftan Kaldır", fontWeight = FontWeight.Bold, color = Slate900)
-            },
-            text = {
-                Text(
-                    text = "${targets.size} adet ürünün reyon stoğu sıfırlanacak ve raftan kaldırıldı olarak işaretlenecektir. Onaylıyor musunuz?",
-                    fontSize = 13.sp,
-                    color = Slate700
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onRemoveMultipleFromShelf(targets)
-                        showBulkRemoveDialog = null
-                        Toast.makeText(context, "${targets.size} ürün başarıyla raftan kaldırıldı", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed)
-                ) {
-                    Text("Evet, Raftan Kaldır", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBulkRemoveDialog = null }) {
-                    Text("İptal", color = Slate700)
-                }
-            }
-        )
+    val criticalCount = remember(allProducts, dashboardState) {
+        val countFromList = allProducts.count {
+            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.CRITICAL
+        }
+        if (countFromList > 0) countFromList else dashboardState.criticalCount
     }
+
+    val soonCount = remember(allProducts) {
+        allProducts.count {
+            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.SOON
+        }
+    }
+
+    val highStockCount = remember(allProducts) {
+        allProducts.filter {
+            it.sktTarihi > 0L && it.stokAdedi >= 10 && it.getRemainingDays() in 0..30
+        }.distinctBy {
+            it.barkod.ifBlank { it.urunKodu }.ifBlank { it.urunAdi }
+        }.size
+    }
+
+    val totalAlertCount = expiredCount + criticalCount + soonCount + highStockCount
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -121,83 +128,62 @@ fun NotificationSheet(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
+                .fillMaxWidth(0.92f)
                 .wrapContentHeight()
-                .heightIn(max = 680.dp),
-            shape = RoundedCornerShape(24.dp),
+                .heightIn(max = 620.dp),
+            shape = RoundedCornerShape(22.dp),
             color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 12.dp
+            shadowElevation = 10.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(20.dp)
             ) {
-                // HEADER
+                // BAŞLIK ALANI (Sade ve Şık)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(TurquoisePrimary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = TurquoisePrimary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(38.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = "Bildirimler",
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = "Bildirimler",
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 17.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.NotificationsActive,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                                if (dashboardState.unreadNotificationCount > 0) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(CircleShape)
-                                            .background(
-                                                Brush.verticalGradient(
-                                                    colors = listOf(
-                                                        Color(0xFFFF3B53),
-                                                        Color(0xFFDC2626)
-                                                    )
-                                                )
-                                            )
-                                            .padding(horizontal = 6.5.dp, vertical = 2.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = if (dashboardState.unreadNotificationCount > 99) "99+" else "${dashboardState.unreadNotificationCount}",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = Color.White,
-                                            style = TextStyle(
-                                                platformStyle = PlatformTextStyle(
-                                                    includeFontPadding = false
-                                                ),
-                                                lineHeight = 10.sp
-                                            )
-                                        )
-                                    }
-                                }
                             }
+                        }
+
+                        Column {
+                            Text(
+                                text = "Bildirim Özeti",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 17.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = if (totalAlertCount > 0) "$totalAlertCount aktif durum bildirimi" else "Tüm durumlar güncel",
+                                fontSize = 11.5.sp,
+                                color = Slate500
+                            )
                         }
                     }
 
-                    IconButton(onClick = onDismiss) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.testTag("notification_sheet_close_button")
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Kapat",
@@ -206,163 +192,264 @@ fun NotificationSheet(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // AYARLAR & OKUNDU AKSİYON ÇUBUĞU
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = { showSettingsSection = !showSettingsSection },
-                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            tint = Slate700,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (showSettingsSection) "Ayarları Gizle" else "Uyarı Ayarları",
-                            fontSize = 11.sp,
-                            color = Slate700,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    try {
-                                        com.example.worker.MorningCheckWorker.triggerTestNotificationDirectly(context)
-                                        Toast.makeText(context, "Test bildirimi gönderildi", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Bildirim hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.size(28.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.VolumeUp,
-                                contentDescription = "Sesi Test Et",
-                                tint = Slate500,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        TextButton(
-                            onClick = {
-                                onMarkAllAsRead()
-                                Toast.makeText(context, "Bildirimler temizlendi", Toast.LENGTH_SHORT).show()
-                            },
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "Bildirimleri Temizle",
-                                fontSize = 10.5.sp,
-                                color = TurquoiseDark,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-
-                // COLLAPSIBLE SETTINGS SECTION
-                AnimatedVisibility(visible = showSettingsSection) {
-                    NotificationSettingsCard(
-                        morningReminderEnabled = morningReminderEnabled,
-                        criticalAlertEnabled = criticalAlertEnabled,
-                        highStockAlertEnabled = highStockAlertEnabled,
-                        onToggleMorningReminder = onToggleMorningReminder,
-                        onToggleCriticalAlert = onToggleCriticalAlert,
-                        onToggleHighStockAlert = onToggleHighStockAlert
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // CATEGORY FILTER CHIPS
-                Row(
+                // İÇERİK: SAYISAL ÖZET KARTLARI
+                Column(
                     modifier = Modifier
+                        .weight(1f, fill = false)
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    NotificationCategoryChip(
-                        title = "Tümü",
-                        badgeCount = null,
-                        isSelected = selectedCategory == NotificationCategoryFilter.ALL,
-                        onClick = { selectedCategory = NotificationCategoryFilter.ALL }
-                    )
-                    NotificationCategoryChip(
-                        title = "Günü Geçen",
-                        badgeCount = if (dashboardState.expiredCount > 0) dashboardState.expiredCount else null,
-                        isSelected = selectedCategory == NotificationCategoryFilter.EXPIRED,
-                        onClick = { selectedCategory = NotificationCategoryFilter.EXPIRED }
-                    )
-                    NotificationCategoryChip(
-                        title = "Yaklaşan",
-                        badgeCount = if (dashboardState.criticalCount > 0) dashboardState.criticalCount else null,
-                        isSelected = selectedCategory == NotificationCategoryFilter.APPROACHING,
-                        onClick = { selectedCategory = NotificationCategoryFilter.APPROACHING }
-                    )
-                    NotificationCategoryChip(
-                        title = "Yüksek Adet",
-                        badgeCount = if (highStockNearExpiry.isNotEmpty()) highStockNearExpiry.size else null,
-                        isSelected = selectedCategory == NotificationCategoryFilter.HIGH_STOCK,
-                        onClick = { selectedCategory = NotificationCategoryFilter.HIGH_STOCK }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // NOTIFICATION CARDS LIST
-                LazyColumn(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    notificationCardsList(
-                        selectedCategory = selectedCategory,
-                        overdue2DaysProducts = overdue2DaysProducts,
-                        expiredProducts = expiredProducts,
-                        criticalProducts = criticalProducts,
-                        highStockNearExpiry = highStockNearExpiry,
-                        dashboardState = dashboardState,
-                        onShowBulkRemoveDialog = { showBulkRemoveDialog = it },
-                        onRemoveFromShelf = onRemoveFromShelf,
-                        onAddToAdetsel = onAddToAdetsel,
-                        onOpenProductDetail = onOpenProductDetail,
-                        onFilterSelected = onFilterSelected,
-                        onNavigate = onNavigate,
-                        onDismiss = onDismiss
-                    )
+                    if (totalAlertCount == 0) {
+                        // HİÇBİR UYARI YOKSA TEMİZ DURUM KARTI
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = NormalGreenContainer.copy(alpha = 0.7f),
+                            border = BorderStroke(1.dp, NormalGreen.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = NormalGreen.copy(alpha = 0.2f),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = null,
+                                            tint = NormalGreen,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                }
+                                Column {
+                                    Text(
+                                        text = "Tüm ürünlerin durumu iyi, kritik SKT bulunmuyor.",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Reyonlarınız güvende ve kontroller tamamlandı.",
+                                        fontSize = 11.5.sp,
+                                        color = Slate700
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // 1. GÜNÜ GEÇENLER (Kırmızı Kart)
+                        if (expiredCount > 0) {
+                            NotificationSummaryCard(
+                                title = "Günü Geçenler",
+                                message = "Bugün $expiredCount adet ürünün süresi doldu.",
+                                icon = Icons.Default.EventBusy,
+                                badgeText = "$expiredCount Adet",
+                                containerColor = ExpiredRedContainer,
+                                borderColor = ExpiredRedBorder,
+                                badgeBgColor = ExpiredRed,
+                                badgeTextColor = Color.White,
+                                iconColor = ExpiredRed,
+                                onClick = {
+                                    onNavigate("products")
+                                    onFilterSelected(ProductFilter.EXPIRED)
+                                    onDismiss()
+                                },
+                                testTag = "notification_summary_expired"
+                            )
+                        }
+
+                        // 2. KRİTİK YAKLAŞANLAR (Turuncu Kart)
+                        if (criticalCount > 0) {
+                            NotificationSummaryCard(
+                                title = "Kritik Yaklaşanlar",
+                                message = "$criticalCount adet ürün için son 7 gün!",
+                                icon = Icons.Default.WarningAmber,
+                                badgeText = "$criticalCount Adet",
+                                containerColor = CriticalOrangeContainer,
+                                borderColor = CriticalOrangeBorder,
+                                badgeBgColor = CriticalOrange,
+                                badgeTextColor = Color.White,
+                                iconColor = CriticalOrange,
+                                onClick = {
+                                    onNavigate("products")
+                                    onFilterSelected(ProductFilter.CRITICAL)
+                                    onDismiss()
+                                },
+                                testTag = "notification_summary_critical"
+                            )
+                        }
+
+                        // 3. YAKLAŞANLAR / ORTA VADE (Sarı Kart)
+                        if (soonCount > 0) {
+                            NotificationSummaryCard(
+                                title = "Yaklaşanlar",
+                                message = "$soonCount adet ürünün SKT tarihi yaklaşıyor (8-30 gün).",
+                                icon = Icons.Default.Schedule,
+                                badgeText = "$soonCount Adet",
+                                containerColor = SoonYellowContainer,
+                                borderColor = SoonYellowBorder,
+                                badgeBgColor = SoonYellow,
+                                badgeTextColor = Color.White,
+                                iconColor = SoonYellowDark,
+                                onClick = {
+                                    onNavigate("products")
+                                    onFilterSelected(ProductFilter.SOON)
+                                    onDismiss()
+                                },
+                                testTag = "notification_summary_soon"
+                            )
+                        }
+
+                        // 4. YÜKSEK ADETLİLER (Mavi/Mor Kart)
+                        if (highStockCount > 0) {
+                            NotificationSummaryCard(
+                                title = "Yüksek Stok Riski",
+                                message = "$highStockCount kalem üründe yüksek stoklu parti bulunuyor.",
+                                icon = Icons.Default.Inventory2,
+                                badgeText = "$highStockCount Kalem",
+                                containerColor = Color(0xFFEFF6FF),
+                                borderColor = Color(0xFFBFDBFE),
+                                badgeBgColor = Color(0xFF2563EB),
+                                badgeTextColor = Color.White,
+                                iconColor = Color(0xFF2563EB),
+                                onClick = {
+                                    onNavigate("products")
+                                    onFilterSelected(ProductFilter.CRITICAL)
+                                    onDismiss()
+                                },
+                                testTag = "notification_summary_high_stock"
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                // FOOTER
+                // ALT BUTON (Sadece "Kapat")
                 Button(
                     onClick = onDismiss,
                     colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
                     shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("notification_sheet_bottom_close_button")
                 ) {
                     Text(
                         text = "Kapat",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontSize = 14.sp,
                         color = Color.White
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun NotificationSummaryCard(
+    title: String,
+    message: String,
+    icon: ImageVector,
+    badgeText: String,
+    containerColor: Color,
+    borderColor: Color,
+    badgeBgColor: Color,
+    badgeTextColor: Color,
+    iconColor: Color,
+    onClick: () -> Unit,
+    testTag: String
+) {
+    val cardShape = RoundedCornerShape(14.dp)
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true),
+                onClick = onClick
+            )
+            .testTag(testTag),
+        shape = cardShape,
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = iconColor.copy(alpha = 0.15f),
+                modifier = Modifier.size(38.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.5.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = badgeBgColor
+                    ) {
+                        Text(
+                            text = badgeText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            color = badgeTextColor,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(
+                    text = message,
+                    fontSize = 12.5.sp,
+                    color = Slate700,
+                    lineHeight = 16.sp
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = "Filtrele",
+                tint = Slate500,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

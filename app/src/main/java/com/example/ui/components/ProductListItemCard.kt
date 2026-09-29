@@ -107,16 +107,7 @@ fun ProductListItemCard(
         }
     }
 
-    val squareTextColor: Color = remember(hasSkt, status) {
-        if (!hasSkt) {
-            Color.White
-        } else {
-            when (status) {
-                ExpiryStatus.SOON -> Color.Black
-                else -> Color.White
-            }
-        }
-    }
+    val squareTextColor: Color = Color.White
 
     val sktSummaryText = remember(product.sktTarihi) {
         if (hasSkt) {
@@ -426,16 +417,7 @@ fun GroupedProductListItemCard(
         }
     }
 
-    val squareTextColor: Color = remember(hasSkt, status) {
-        if (!hasSkt) {
-            Color.White
-        } else {
-            when (status) {
-                ExpiryStatus.SOON -> Color.Black
-                else -> Color.White
-            }
-        }
-    }
+    val squareTextColor: Color = Color.White
 
     val cardShape = RoundedCornerShape(12.dp)
     Card(
@@ -704,7 +686,7 @@ fun GroupedProductListItemCard(
                             SoonYellowContainer,
                             SoonYellowBorder,
                             SoonYellow,
-                            Color.Black,
+                            Color.White,
                             "$itemDaysLeft GÜN KALDI"
                         )
                         itemStatus == ExpiryStatus.WARNING -> arrayOf(

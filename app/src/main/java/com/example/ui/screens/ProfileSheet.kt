@@ -115,7 +115,7 @@ fun ProfileSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = "Personel Profili",
+                                text = "Kullanıcı Profili",
                                 fontWeight = FontWeight.Black,
                                 fontSize = 16.sp,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -199,42 +199,19 @@ fun ProfileSheet(
                                                 )
                                                 Spacer(modifier = Modifier.width(6.dp))
                                                 Text(
-                                                    text = userName,
+                                                    text = userName.ifBlank { "Kullanıcı" },
                                                     fontSize = 16.sp,
                                                     fontWeight = FontWeight.Black,
                                                     color = MaterialTheme.colorScheme.onSurface
                                                 )
                                             }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Storefront,
-                                                    contentDescription = null,
-                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
+                                            if (userBranch.isNotBlank()) {
+                                                Spacer(modifier = Modifier.height(4.dp))
                                                 Text(
                                                     text = userBranch,
                                                     fontSize = 12.sp,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = FontWeight.Medium,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(4.dp))
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Category,
-                                                    contentDescription = null,
-                                                    tint = TurquoisePrimary,
-                                                    modifier = Modifier.size(14.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(6.dp))
-                                                Text(
-                                                    text = userDepartment,
-                                                    fontSize = 12.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = TurquoiseDark
                                                 )
                                             }
                                         }
@@ -262,7 +239,7 @@ fun ProfileSheet(
                                     OutlinedTextField(
                                         value = tempName,
                                         onValueChange = { tempName = it },
-                                        label = { Text("Ad Soyad") },
+                                        label = { Text("Kullanıcı Adı") },
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth()
                                     )
@@ -271,73 +248,37 @@ fun ProfileSheet(
                                     OutlinedTextField(
                                         value = tempBranch,
                                         onValueChange = { tempBranch = it },
-                                        label = { Text("Şube Bilgisi / Kodu") },
+                                        label = { Text("Açıklama / Not") },
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth()
                                     )
-                                    Spacer(modifier = Modifier.height(8.dp))
-
-                                    OutlinedTextField(
-                                        value = tempRole,
-                                        onValueChange = { tempRole = it },
-                                        label = { Text("Unvan / Görev") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    Spacer(modifier = Modifier.height(10.dp))
-
-                                    Text(
-                                        text = "Varsayılan Sorumlu Reyon:",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Slate700
-                                    )
-                                    Spacer(modifier = Modifier.height(6.dp))
-
-                                    FlowRow(
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        departmentsList.forEach { dept ->
-                                            val isSel = tempDepartment == dept
-                                            FilterChip(
-                                                selected = isSel,
-                                                onClick = { tempDepartment = dept },
-                                                label = { Text(dept, fontSize = 11.sp) },
-                                                colors = FilterChipDefaults.filterChipColors(
-                                                    selectedContainerColor = TurquoisePrimary,
-                                                    selectedLabelColor = Color.White
-                                                )
-                                            )
-                                        }
-                                    }
-
                                     Spacer(modifier = Modifier.height(12.dp))
 
                                     Row(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.End
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         TextButton(onClick = { isEditing = false }) {
-                                            Text("İptal", color = Slate500)
+                                            Text("Vazgeç", color = Slate500)
                                         }
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Button(
                                             onClick = {
-                                                onUpdateProfile(tempName, tempBranch, tempRole, tempDepartment)
                                                 isEditing = false
-                                                Toast.makeText(context, "Profil güncellendi", Toast.LENGTH_SHORT).show()
+                                                onUpdateProfile(tempName, tempBranch, "", "")
+                                                Toast.makeText(context, "Profil güncellendi.", Toast.LENGTH_SHORT).show()
                                             },
-                                            colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                                            colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                                            shape = RoundedCornerShape(8.dp)
                                         ) {
-                                            Text("KAYDET", fontWeight = FontWeight.Bold, color = Color.White)
+                                            Text("Kaydet", color = Color.White, fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 }
                             }
                         }
                     }
-
                     // GAMIFICATION & PERFORMANCE STATS
                     item {
                         Card(
@@ -353,7 +294,7 @@ fun ProfileSheet(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = "🏆 REYON SKT BAŞARI SKORU",
+                                        text = "🏆 SKT BAŞARI SKORU",
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Black,
                                         color = TurquoiseDark

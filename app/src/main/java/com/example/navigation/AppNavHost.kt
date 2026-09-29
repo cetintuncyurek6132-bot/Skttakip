@@ -197,6 +197,10 @@ fun AppNavHost(
             AdetselScreen(
                 yapilacakList = yapilacakAdetsel,
                 yapildiList = yapildiAdetsel,
+                allProducts = allProducts,
+                onAddToAdetsel = { prod, onComplete ->
+                    adetselViewModel.addToAdetsel(prod, onComplete)
+                },
                 onSaveSayim = { kayit, sonuc, fark, notlar ->
                     adetselViewModel.saveAdetselSayim(
                         kayit = kayit,

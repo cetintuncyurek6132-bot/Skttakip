@@ -1,16 +1,18 @@
 package com.example.util.image
 
 /**
- * Ürün görseli sağlayıcıları için genişletilebilir arayüz.
- * İleride yeni bir servis veya lokal veritabanı kaynağı eklenmek istendiğinde
- * bu arayüzü uygulayan yeni bir sınıf tanımlamak yeterlidir.
+ * Ürün görseli sağlayıcıları için arayüz.
+ * Barkod, ürün adı veya kategori bilgisine göre görsel arar.
  */
 interface ProductImageProvider {
     val providerName: String
 
     /**
-     * Verilen barkoda ait ürün fotoğraf URL'sini arar.
-     * Bulunamazsa veya hata oluşursa null döner.
+     * Verilen barkoda ve/veya ürün adı/kategorisine ait görsel URL'sini arar.
      */
-    suspend fun findProductImageUrl(barcode: String): String?
+    suspend fun findProductImageUrl(
+        barcode: String,
+        productName: String? = null,
+        category: String? = null
+    ): String?
 }
