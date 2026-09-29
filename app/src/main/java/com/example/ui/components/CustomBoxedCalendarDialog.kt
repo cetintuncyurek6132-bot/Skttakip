@@ -134,7 +134,7 @@ fun CustomBoxedCalendarDialog(
                             text = "SON KULLANMA TARİHİ",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = TurquoiseDark,
+                            color = MaterialTheme.colorScheme.primary,
                             letterSpacing = 1.sp
                         )
                         Spacer(modifier = Modifier.height(2.dp))
@@ -187,7 +187,7 @@ fun CustomBoxedCalendarDialog(
                             Icon(
                                 imageVector = Icons.Default.ChevronLeft,
                                 contentDescription = "Önceki Ay",
-                                tint = TurquoiseDark,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -212,7 +212,7 @@ fun CustomBoxedCalendarDialog(
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
                                 contentDescription = "Sonraki Ay",
-                                tint = TurquoiseDark,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -287,8 +287,8 @@ fun CustomBoxedCalendarDialog(
                                             .clip(RoundedCornerShape(8.dp))
                                             .background(
                                                 when {
-                                                    isSelected -> TurquoiseDark
-                                                    isToday -> TurquoisePrimary.copy(alpha = 0.15f)
+                                                    isSelected -> MaterialTheme.colorScheme.primary
+                                                    isToday -> MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                                                     else -> Color.Transparent
                                                 }
                                             )
@@ -298,7 +298,7 @@ fun CustomBoxedCalendarDialog(
                                                     isToday -> 1.5.dp
                                                     else -> 0.dp
                                                 },
-                                                color = if (isToday) TurquoiseDark else Color.Transparent,
+                                                color = if (isToday) MaterialTheme.colorScheme.primary else Color.Transparent,
                                                 shape = RoundedCornerShape(8.dp)
                                             )
                                             .clickable {
@@ -312,9 +312,9 @@ fun CustomBoxedCalendarDialog(
                                             fontSize = 15.sp,
                                             color = when {
                                                 isSelected -> Color.White
-                                                isToday -> TurquoiseDark
-                                                isPast -> Slate500
-                                                else -> Slate900
+                                                isToday -> MaterialTheme.colorScheme.primary
+                                                isPast -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                                                else -> MaterialTheme.colorScheme.onSurface
                                             }
                                         )
                                     }
@@ -369,7 +369,7 @@ fun CustomBoxedCalendarDialog(
                                 text = if (selectedMillis > 0L) shortDateFormat.format(Date(selectedMillis)) else "-",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
-                                color = Slate900
+                                color = MaterialTheme.colorScheme.onSurface
                             )
 
                             if (daysDiff != null) {
@@ -476,7 +476,7 @@ fun CustomBoxedCalendarDialog(
                             .height(46.dp)
                             .testTag("confirm_select_date_button"),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = TurquoiseDark,
+                            containerColor = MaterialTheme.colorScheme.primary,
                             disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
                         ),
                         shape = RoundedCornerShape(10.dp),

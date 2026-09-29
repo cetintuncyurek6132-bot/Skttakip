@@ -343,6 +343,16 @@ class InventoryViewModel(
         }
     }
 
+    fun updateProductImage(barkod: String, resimUrl: String?) {
+        if (barkod.isBlank() || resimUrl.isNullOrBlank()) return
+        viewModelScope.launch {
+            repository.updateProductImage(barkod, resimUrl)
+            if (_detailProduct.value?.barkod == barkod) {
+                _detailProduct.value = _detailProduct.value?.copy(resimUrl = resimUrl)
+            }
+        }
+    }
+
     fun toggleProductImportant(product: Product) {
         viewModelScope.launch {
             val updated = product.copy(isImportant = !product.isImportant)

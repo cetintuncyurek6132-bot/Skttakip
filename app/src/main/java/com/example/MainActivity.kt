@@ -462,6 +462,9 @@ fun SktMainApp(
             onUpdatePrice = { prod, newPrice ->
                 inventoryViewModel.updateProductPrice(prod, newPrice)
             },
+            onUpdateImage = { barkod, url ->
+                inventoryViewModel.updateProductImage(barkod, url)
+            },
             onAddToAdetsel = { prod ->
                 adetselViewModel.addToAdetsel(prod) { isSuccess ->
                     if (isSuccess) {

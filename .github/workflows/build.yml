@@ -75,6 +75,18 @@ jobs:
           echo "APP_VERSION_CODE=${ACTUAL_CODE}" >> $GITHUB_ENV
           echo "TAG_NAME=${TAG_NAME}" >> $GITHUB_OUTPUT
 
+      - name: Sabit google-services.json Olustur
+        run: |
+          if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
+            echo "google-services.json secret kasasindan basariyla olusturuldu."
+          elif [ -f "app/google-services.json" ]; then
+            echo "app/google-services.json yerel dosyasi kullaniliyor."
+          else
+            echo "HATA: google-services.json bulunamadi!"
+            exit 1
+          fi
+
       - name: Hizlandirilmis APK Derle
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:+UseParallelGC -Dorg.gradle.daemon=true -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
