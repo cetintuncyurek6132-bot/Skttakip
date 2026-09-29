@@ -17,6 +17,11 @@ android {
     versionName = (project.findProperty("android.injected.version.name")?.toString()) ?: "beta 4.6"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+    // Sadece telefonların kullandığı ana 64-bit ve 32-bit ARM mimarisini derle (Boyutu 3'te 1'e düşürür)
+    ndk {
+      abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
+    }
   }
 
   signingConfigs {
@@ -52,8 +57,9 @@ android {
         "proguard-rules.pro"
       )
     }
-    debug {
+    getByName("debug") {
       isMinifyEnabled = false
+      isShrinkResources = false
       signingConfig = signingConfigs.getByName("debug")
     }
   }

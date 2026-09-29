@@ -55,16 +55,7 @@ object DataBackupManager {
     }
 
     private fun getSettingsPrefs(context: Context): SharedPreferences {
-        val sp = context.getSharedPreferences("skt_settings_prefs", Context.MODE_PRIVATE)
-        val legacy = context.getSharedPreferences("a101_settings_prefs", Context.MODE_PRIVATE)
-        if (sp.all.isEmpty() && legacy.all.isNotEmpty()) {
-            val ed = sp.edit()
-            legacy.all.forEach { (k, v) ->
-                if (v is String) ed.putString(k, v)
-            }
-            ed.apply()
-        }
-        return sp
+        return context.getSharedPreferences("skt_settings_prefs", Context.MODE_PRIVATE)
     }
 
     fun generateDefaultExportFileName(): String {
@@ -194,8 +185,8 @@ object DataBackupManager {
                 } catch (_: Exception) {}
             }
 
-            // Rotate backups (keep latest 15 files)
-            rotateBackups(dir, 15)
+            // Rotate backups (keep latest 2 files)
+            rotateBackups(dir, 2)
 
             file
         } catch (e: Exception) {

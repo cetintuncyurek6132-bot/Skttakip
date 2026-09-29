@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -48,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +57,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.AdetselKayit
+import com.example.ui.screens.BarcodeScannerSheet
+import com.example.util.HapticFeedbackHelper
 import com.example.ui.screens.adetsel.AdetselFilterChip
 import com.example.ui.screens.adetsel.AdetselSayimDialog
 import com.example.ui.screens.adetsel.CompactYapilacakCard
@@ -88,9 +92,11 @@ fun AdetselScreen(
     onNavigateToProducts: () -> Unit,
     onBackClick: () -> Unit = onNavigateToProducts
 ) {
+    val context = LocalContext.current
     var selectedTab by remember { mutableStateOf(AdetselTab.YAPILACAK) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedResultFilter by remember { mutableStateOf("ALL") } // ALL, EKSIK, FAZLA, TAM
+    var showBarcodeScanner by remember { mutableStateOf(false) }
 
     var countingKayit by remember { mutableStateOf<AdetselKayit?>(null) }
     var initialModeForDialog by remember { mutableStateOf("TAM") } // "TAM", "EKSIK", "FAZLA"
@@ -135,6 +141,33 @@ fun AdetselScreen(
             }
             matchQuery && matchFilter
         }
+    }
+
+    // BARKOD TARAYICI MODALI
+    if (showBarcodeScanner) {
+        BarcodeScannerSheet(
+            products = emptyList(),
+            onDismiss = { showBarcodeScanner = false },
+            onBarcodeDetected = { scannedBarcode ->
+                val clean = scannedBarcode.trim()
+                if (clean.isNotBlank()) {
+                    HapticFeedbackHelper.triggerSuccessHaptic(context)
+                    searchQuery = clean
+                    showBarcodeScanner = false
+
+                    // Listedeki eşleşen ürünü bulup sayım penceresini aç
+                    val matched = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
+                        .find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                        ?: distinctYapilacakList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                        ?: yapildiList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+
+                    if (matched != null) {
+                        countingKayit = matched
+                        initialModeForDialog = "TAM"
+                    }
+                }
+            }
+        )
     }
 
     // SAYIM DIALOGU
@@ -422,16 +455,35 @@ fun AdetselScreen(
                         )
                     }
 
-                    if (searchQuery.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(
+                                onClick = { searchQuery = "" },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Temizle",
+                                    tint = Slate500,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
                         IconButton(
-                            onClick = { searchQuery = "" },
-                            modifier = Modifier.size(24.dp)
+                            onClick = { showBarcodeScanner = true },
+                            modifier = Modifier
+                                .size(28.dp)
+                                .testTag("adetsel_barcode_scanner_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Temizle",
-                                tint = Slate500,
-                                modifier = Modifier.size(16.dp)
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = "Barkod Oku",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(19.dp)
                             )
                         }
                     }

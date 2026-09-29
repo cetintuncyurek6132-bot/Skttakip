@@ -162,56 +162,7 @@ object DepoIadeManager {
     }
 
     private fun getDefaultSeedRecords(): List<DepoIadeKaydi> {
-        val now = System.currentTimeMillis()
-        val day = 86400000L
-
-        return listOf(
-            DepoIadeKaydi(
-                id = "seed_1",
-                urunAdi = "KOKOREÇ KUZU 150 G ŞAMPİYON",
-                irsaliyeGorselPath = null,
-                iadeTarihi = formatMillisToDate(now - 2 * day),
-                iadeTarihiMillis = now - 2 * day,
-                redNedeni = "Depo kabul etmedi",
-                aciklama = "İrsaliye kesildi, ambar teslim tutanağı ve onay bekleniyor.",
-                oncelik = IadeOncelik.KRITIK,
-                durum = IadeDurumu.DEVAM_EDIYOR,
-                hatirlatmaTarihi = formatMillisToDate(now + 1 * day),
-                hatirlatmaTarihiMillis = now + 1 * day,
-                olusturmaTarihiMillis = now - 2 * day,
-                guncellemeTarihiMillis = now - 1 * day
-            ),
-            DepoIadeKaydi(
-                id = "seed_2",
-                urunAdi = "SÜT 1 L YARIM YAĞLI BİRSEN",
-                irsaliyeGorselPath = null,
-                iadeTarihi = formatMillisToDate(now - 4 * day),
-                iadeTarihiMillis = now - 4 * day,
-                redNedeni = "İade şartlarına uygun değil",
-                aciklama = "Koli içi adet uyumsuzluğu giderildi, sevkiyata onay verildi.",
-                oncelik = IadeOncelik.ONEMLI,
-                durum = IadeDurumu.ONAYLANDI,
-                hatirlatmaTarihi = "",
-                hatirlatmaTarihiMillis = null,
-                olusturmaTarihiMillis = now - 4 * day,
-                guncellemeTarihiMillis = now - 2 * day
-            ),
-            DepoIadeKaydi(
-                id = "seed_3",
-                urunAdi = "TEREYAĞI 500 G KEBİR",
-                irsaliyeGorselPath = null,
-                iadeTarihi = formatMillisToDate(now - 5 * day),
-                iadeTarihiMillis = now - 5 * day,
-                redNedeni = "SKT sorunu",
-                aciklama = "Süre aşımı gerekçesiyle depo tarafından reddedildi.",
-                oncelik = IadeOncelik.NORMAL,
-                durum = IadeDurumu.REDDEDILDI,
-                hatirlatmaTarihi = "",
-                hatirlatmaTarihiMillis = null,
-                olusturmaTarihiMillis = now - 5 * day,
-                guncellemeTarihiMillis = now - 1 * day
-            )
-        )
+        return emptyList()
     }
 
     fun loadRecords(context: Context): List<DepoIadeKaydi> {
@@ -259,12 +210,10 @@ object DepoIadeManager {
                     saveRecords(context, list)
                     return list
                 } catch (e: Exception) {
-                    // fallback to seed
+                    // ignore
                 }
             }
-            return getDefaultSeedRecords().also {
-                saveRecords(context, it)
-            }
+            return emptyList()
         }
 
         return try {

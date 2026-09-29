@@ -71,15 +71,6 @@ object DataMigrationManager {
 
                 // 2. Perform safe non-destructive migration / healing for all products if version upgraded
                 if (storedVersion < CURRENT_DATA_VERSION) {
-                    _migrationStatus.value = MigrationStatus(
-                        isVisible = true,
-                        title = "Veri Güvenliği & Güncelleme",
-                        message = "Mevcut verileriniz bulundu. Verileriniz korunarak yeni sürüme aktarılıyor...",
-                        isSuccess = true,
-                        preservedProductsCount = productCount,
-                        preservedDepoCount = depoCount
-                    )
-
                     // Heal any inconsistent columns without dropping data
                     for (prod in existingProducts) {
                         val healed = com.example.util.ProductDataHealer.autoHealProduct(prod)
@@ -93,16 +84,6 @@ object DataMigrationManager {
                         .putInt(KEY_DATA_VERSION, CURRENT_DATA_VERSION)
                         .putLong(KEY_LAST_UPDATE_TIME, now)
                         .apply()
-
-                    // Update UI with reassurance banner
-                    _migrationStatus.value = MigrationStatus(
-                        isVisible = true,
-                        title = "Verileriniz Başarıyla Korundu",
-                        message = "$productCount ürün, $depoCount takip kaydı ve $adetselCount adetsel sayım kaydı yeni sürüme kayıpsız aktarıldı.",
-                        isSuccess = true,
-                        preservedProductsCount = productCount,
-                        preservedDepoCount = depoCount
-                    )
                 } else {
                     // Already at latest version, make sure timestamp is noted
                     prefs.edit().putLong(KEY_LAST_UPDATE_TIME, now).apply()
