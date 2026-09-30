@@ -78,10 +78,10 @@ jobs:
       - name: Sabit google-services.json Olustur
         run: |
           if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
-            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" > app/google-services.json
-            echo "google-services.json secret kasasindan basariyla olusturuldu."
+            echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+            echo "google-services.json base64 üzerinden hatasiz cozuldu."
           elif [ -f "app/google-services.json" ]; then
-            echo "app/google-services.json yerel dosyasi kullaniliyor."
+            echo "app/google-services.json mevcut."
           else
             echo "HATA: google-services.json bulunamadi!"
             exit 1
