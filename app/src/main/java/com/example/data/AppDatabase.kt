@@ -17,9 +17,17 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
     }
 }
 
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_products_barkod ON products(barkod)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_products_urunKodu ON products(urunKodu)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS index_products_sktTarihi ON products(sktTarihi)")
+    }
+}
+
 @Database(
     entities = [Product::class, InspectionReport::class, AdetselKayit::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -42,7 +50,8 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "skt_takip_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .fallbackToDestructiveMigration()
                     .addCallback(AppDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance
