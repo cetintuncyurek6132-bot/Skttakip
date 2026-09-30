@@ -260,6 +260,7 @@ fun NotificationSheet(
                                 badgeBgColor = ExpiredRed,
                                 badgeTextColor = Color.White,
                                 iconColor = ExpiredRed,
+                                titleColor = Color(0xFF991B1B),
                                 onClick = {
                                     onNavigate("products")
                                     onFilterSelected(ProductFilter.EXPIRED)
@@ -281,6 +282,7 @@ fun NotificationSheet(
                                 badgeBgColor = CriticalOrange,
                                 badgeTextColor = Color.White,
                                 iconColor = CriticalOrange,
+                                titleColor = Color(0xFF9A3412),
                                 onClick = {
                                     onNavigate("products")
                                     onFilterSelected(ProductFilter.CRITICAL)
@@ -302,6 +304,7 @@ fun NotificationSheet(
                                 badgeBgColor = SoonYellow,
                                 badgeTextColor = Color.White,
                                 iconColor = SoonYellowDark,
+                                titleColor = Color(0xFF854D0E),
                                 onClick = {
                                     onNavigate("products")
                                     onFilterSelected(ProductFilter.SOON)
@@ -323,6 +326,7 @@ fun NotificationSheet(
                                 badgeBgColor = Color(0xFF2563EB),
                                 badgeTextColor = Color.White,
                                 iconColor = Color(0xFF2563EB),
+                                titleColor = Color(0xFF1E40AF),
                                 onClick = {
                                     onNavigate("products")
                                     onFilterSelected(ProductFilter.CRITICAL)
@@ -369,6 +373,7 @@ private fun NotificationSummaryCard(
     badgeBgColor: Color,
     badgeTextColor: Color,
     iconColor: Color,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit,
     testTag: String
 ) {
@@ -418,9 +423,9 @@ private fun NotificationSummaryCard(
                 ) {
                     Text(
                         text = title,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.5.sp,
-                        color = MaterialTheme.colorScheme.onSurface
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        color = titleColor
                     )
                     Surface(
                         shape = RoundedCornerShape(6.dp),
@@ -439,7 +444,8 @@ private fun NotificationSummaryCard(
                 Text(
                     text = message,
                     fontSize = 12.5.sp,
-                    color = Slate700,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFF1E293B),
                     lineHeight = 16.sp
                 )
             }

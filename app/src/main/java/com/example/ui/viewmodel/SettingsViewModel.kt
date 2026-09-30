@@ -61,6 +61,33 @@ class SettingsViewModel(
     private val _vibrationEnabled = MutableStateFlow(true)
     val vibrationEnabled: StateFlow<Boolean> = _vibrationEnabled.asStateFlow()
 
+    private var sharedPrefs: android.content.SharedPreferences? = null
+
+    fun initializePreferences(context: Context) {
+        val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+        sharedPrefs = prefs
+        _isDarkMode.value = prefs.getBoolean("is_dark_mode", false)
+        _isBatterySaverMode.value = prefs.getBoolean("is_battery_saver", false)
+        _morningCheckReminderEnabled.value = prefs.getBoolean("morning_reminder", true)
+        _criticalSktAlertEnabled.value = prefs.getBoolean("critical_alert", true)
+        _highStockAlertEnabled.value = prefs.getBoolean("high_stock_alert", true)
+        _soundEffectsEnabled.value = prefs.getBoolean("sound_effects", true)
+        _vibrationEnabled.value = prefs.getBoolean("vibration_effects", true)
+        _userName.value = prefs.getString("user_name", "Kullanıcı") ?: "Kullanıcı"
+        _userBranch.value = prefs.getString("user_branch", "") ?: ""
+        _userRole.value = prefs.getString("user_role", "") ?: ""
+        _userDepartment.value = prefs.getString("user_department", "") ?: ""
+        _userDutyStatus.value = prefs.getString("user_duty_status", "Aktif") ?: "Aktif"
+    }
+
+    private fun persistBoolean(key: String, value: Boolean) {
+        sharedPrefs?.edit()?.putBoolean(key, value)?.apply()
+    }
+
+    private fun persistString(key: String, value: String) {
+        sharedPrefs?.edit()?.putString(key, value)?.apply()
+    }
+
     // Data Protection & Migration
     val migrationStatus: StateFlow<MigrationStatus?> = DataMigrationManager.migrationStatus
 
@@ -69,6 +96,7 @@ class SettingsViewModel(
     }
 
     fun runStartupDataProtection(context: Context) {
+        initializePreferences(context)
         viewModelScope.launch(Dispatchers.IO) {
             DataMigrationManager.performStartupDataProtectionCheck(
                 context = context,
@@ -85,57 +113,87 @@ class SettingsViewModel(
         role: String = "Reyon Sorumlusu & SKT Görevlisi",
         department: String = "Süt & Şarküteri Reyonu"
     ) {
-        if (name.isNotBlank()) _userName.value = name.trim()
-        if (branch.isNotBlank()) _userBranch.value = branch.trim()
-        if (role.isNotBlank()) _userRole.value = role.trim()
-        if (department.isNotBlank()) _userDepartment.value = department.trim()
+        if (name.isNotBlank()) {
+            _userName.value = name.trim()
+            persistString("user_name", name.trim())
+        }
+        if (branch.isNotBlank()) {
+            _userBranch.value = branch.trim()
+            persistString("user_branch", branch.trim())
+        }
+        if (role.isNotBlank()) {
+            _userRole.value = role.trim()
+            persistString("user_role", role.trim())
+        }
+        if (department.isNotBlank()) {
+            _userDepartment.value = department.trim()
+            persistString("user_department", department.trim())
+        }
     }
 
     fun updateDutyStatus(status: String) {
         _userDutyStatus.value = status
+        persistString("user_duty_status", status)
     }
 
     fun toggleDarkMode() {
-        _isDarkMode.value = !_isDarkMode.value
+        val next = !_isDarkMode.value
+        _isDarkMode.value = next
+        persistBoolean("is_dark_mode", next)
     }
 
     fun setDarkMode(dark: Boolean) {
         _isDarkMode.value = dark
+        persistBoolean("is_dark_mode", dark)
     }
 
     fun toggleBatterySaverMode() {
         val nextVal = !_isBatterySaverMode.value
         _isBatterySaverMode.value = nextVal
+        persistBoolean("is_battery_saver", nextVal)
         if (nextVal) {
             _isDarkMode.value = true
+            persistBoolean("is_dark_mode", true)
         }
     }
 
     fun setBatterySaverMode(enabled: Boolean) {
         _isBatterySaverMode.value = enabled
+        persistBoolean("is_battery_saver", enabled)
         if (enabled) {
             _isDarkMode.value = true
+            persistBoolean("is_dark_mode", true)
         }
     }
 
     fun toggleMorningCheckReminder() {
-        _morningCheckReminderEnabled.value = !_morningCheckReminderEnabled.value
+        val next = !_morningCheckReminderEnabled.value
+        _morningCheckReminderEnabled.value = next
+        persistBoolean("morning_reminder", next)
     }
 
     fun toggleCriticalSktAlert() {
-        _criticalSktAlertEnabled.value = !_criticalSktAlertEnabled.value
+        val next = !_criticalSktAlertEnabled.value
+        _criticalSktAlertEnabled.value = next
+        persistBoolean("critical_alert", next)
     }
 
     fun toggleHighStockAlert() {
-        _highStockAlertEnabled.value = !_highStockAlertEnabled.value
+        val next = !_highStockAlertEnabled.value
+        _highStockAlertEnabled.value = next
+        persistBoolean("high_stock_alert", next)
     }
 
     fun toggleSoundEffects() {
-        _soundEffectsEnabled.value = !_soundEffectsEnabled.value
+        val next = !_soundEffectsEnabled.value
+        _soundEffectsEnabled.value = next
+        persistBoolean("sound_effects", next)
     }
 
     fun toggleVibration() {
-        _vibrationEnabled.value = !_vibrationEnabled.value
+        val next = !_vibrationEnabled.value
+        _vibrationEnabled.value = next
+        persistBoolean("vibration_effects", next)
     }
 
     // Data Backup / Restore & Maintenance

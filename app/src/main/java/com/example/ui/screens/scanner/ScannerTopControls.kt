@@ -30,10 +30,11 @@ fun ScannerTopControls(
     isFlashOn: Boolean,
     onCloseClick: () -> Unit,
     onModeChange: (Boolean) -> Unit,
-    onFlashToggle: () -> Unit
+    onFlashToggle: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp),

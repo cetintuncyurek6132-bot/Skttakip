@@ -253,15 +253,13 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
     if (!queryProductCode.isNullOrBlank()) {
         val codeMatches = this.filter { p ->
             val pCode = p.urunKodu.trim()
-            val pCodeDigits = pCode.filter { it.isDigit() }
             val pBarcode = p.barkod.trim()
-            val pBarcodeDigits = pBarcode.filter { it.isDigit() }
 
             (pCode.isNotEmpty() && pCode.equals(queryProductCode, ignoreCase = true)) ||
-            (queryProductCodeDigits.isNotEmpty() && pCodeDigits.isNotEmpty() && pCodeDigits == queryProductCodeDigits) ||
+            (queryProductCodeDigits.isNotEmpty() && pCode.filter { it.isDigit() } == queryProductCodeDigits) ||
             (pCode.isNotEmpty() && pCode.equals(queryBarcode, ignoreCase = true)) ||
             (pBarcode.isNotEmpty() && pBarcode.equals(queryProductCode, ignoreCase = true)) ||
-            (queryProductCodeDigits.isNotEmpty() && pBarcodeDigits.isNotEmpty() && pBarcodeDigits == queryProductCodeDigits)
+            (queryProductCodeDigits.isNotEmpty() && pBarcode.filter { it.isDigit() } == queryProductCodeDigits)
         }
         if (codeMatches.isNotEmpty()) {
             return codeMatches.sortedBy { it.sktTarihi }
@@ -274,8 +272,8 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
         val pBarcodeDigits = pBarcode.filter { it.isDigit() }
         val pBarcodeNoZeros = pBarcodeDigits.trimStart('0')
 
-        pBarcode.equals(queryBarcode, ignoreCase = true) ||
-        pBarcode.equals(raw, ignoreCase = true) ||
+        (queryBarcode.isNotBlank() && !queryBarcode.startsWith("NO_BARCODE_") && pBarcode.equals(queryBarcode, ignoreCase = true)) ||
+        (!raw.startsWith("NO_BARCODE_") && pBarcode.equals(raw, ignoreCase = true)) ||
         (queryDigits.isNotEmpty() && pBarcodeDigits == queryDigits) ||
         (rawDigits.isNotEmpty() && pBarcodeDigits == rawDigits) ||
         (queryNoLeadingZeros.isNotEmpty() && pBarcodeNoZeros == queryNoLeadingZeros) ||
@@ -297,33 +295,25 @@ fun List<Product>.findMatchingProducts(rawQuery: String): List<Product> {
         val pBarcode = p.barkod.trim()
 
         (queryProductCode != null && queryProductCode.isNotBlank() && pCode.equals(queryProductCode, ignoreCase = true)) ||
-        pCode.equals(queryBarcode, ignoreCase = true) ||
+        (queryBarcode.isNotBlank() && pCode.equals(queryBarcode, ignoreCase = true)) ||
         pCode.equals(raw, ignoreCase = true) ||
         (queryDigits.isNotEmpty() && pCodeDigits.isNotEmpty() && pCodeDigits == queryDigits) ||
         (rawDigits.isNotEmpty() && pCodeDigits.isNotEmpty() && pCodeDigits == rawDigits) ||
         // Swapped column check (where DB has barcode in urunKodu or vice versa)
         (queryProductCode != null && queryProductCode.isNotBlank() && pBarcode.equals(queryProductCode, ignoreCase = true)) ||
-        pBarcode.equals(queryProductCode, ignoreCase = true)
+        (queryBarcode.isNotBlank() && pBarcode.equals(queryBarcode, ignoreCase = true))
     }
     if (exactCodeMatches.isNotEmpty()) {
         return exactCodeMatches.sortedBy { it.sktTarihi }
     }
 
-    // 4. EMBEDDED DIGIT SEQUENCE MATCH (For shelf labels / QR codes containing barcode or code)
-    if (queryDigits.length >= 8 || rawDigits.length >= 8) {
-        val embeddedMatches = this.filter { p ->
-            val pBarcodeDigits = p.barkod.trim().filter { it.isDigit() }
-            val pCodeDigits = p.urunKodu.trim().filter { it.isDigit() }
-
-            (pBarcodeDigits.length in 8..14 && (queryDigits.contains(pBarcodeDigits) || rawDigits.contains(pBarcodeDigits))) ||
-            (pCodeDigits.length in 5..10 && (queryDigits.contains(pCodeDigits) || rawDigits.contains(pCodeDigits)))
-        }
-        if (embeddedMatches.isNotEmpty()) {
-            return embeddedMatches.sortedBy { it.sktTarihi }
-        }
+    // If this is a structured Shelf QR code and no exact barcode/code match was found,
+    // do NOT perform loose text search to avoid matching random products (e.g. wrong ice cream / items)
+    if (qrData.isShelfQr) {
+        return emptyList()
     }
 
-    // 5. FALLBACK TEXT SEARCH QUERY MATCH
+    // 4. FALLBACK TEXT SEARCH QUERY MATCH (Only for manual search bar queries)
     val searchMatches = this.filter { p ->
         p.matchesSearchQuery(raw) ||
         (queryBarcode.isNotBlank() && queryBarcode != raw && p.matchesSearchQuery(queryBarcode)) ||

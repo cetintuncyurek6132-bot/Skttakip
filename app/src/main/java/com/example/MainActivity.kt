@@ -462,9 +462,6 @@ fun SktMainApp(
             onUpdatePrice = { prod, newPrice ->
                 inventoryViewModel.updateProductPrice(prod, newPrice)
             },
-            onUpdateImage = { barkod, url ->
-                inventoryViewModel.updateProductImage(barkod, url)
-            },
             onAddToAdetsel = { prod ->
                 adetselViewModel.addToAdetsel(prod) { isSuccess ->
                     if (isSuccess) {
@@ -498,6 +495,8 @@ fun SktMainApp(
             userName = currentUser?.fullName ?: userName,
             startInFixQrMode = startScannerInFixMode,
             isBatterySaverMode = isBatterySaverMode,
+            soundEffectsEnabled = soundEffectsEnabled,
+            vibrationEnabled = vibrationEnabled,
             onDismiss = {
                 isBarcodeScannerOpen = false
                 startScannerInFixMode = false

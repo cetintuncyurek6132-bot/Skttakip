@@ -102,7 +102,7 @@ jobs:
       - name: Guncelleme Notunu Hazirla
         id: notes
         run: |
-          LAST_MSG="• Performans iyileştirmeleri ve hız optimizasyonu yapıldı.\n• Barkod tarama ve sayım modülü geliştirildi.\n• Bulut veri senkronizasyonu kararlı hale getirildi."
+          LAST_MSG="• Performans ve hız optimizasyonları yapıldı.\n• Raf etiketi QR ve barkod tarama motoru kararlı hale getirildi.\n• Mobil veri tasarrufu sağlandı ve arayüz iyileştirildi."
           {
             echo "NOTES<<EOF"
             echo -e "$LAST_MSG"

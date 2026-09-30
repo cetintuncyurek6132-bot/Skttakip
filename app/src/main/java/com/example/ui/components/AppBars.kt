@@ -231,7 +231,7 @@ fun SktTopAppBar(
                     Icon(
                         imageVector = Icons.Default.Search,
                         contentDescription = "Manuel Ara",
-                        tint = if (isDark) Color(0xFF94A3B8) else Slate500,
+                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Slate500,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -239,9 +239,9 @@ fun SktTopAppBar(
                     Text(
                         text = if (searchQuery.isNotEmpty()) searchQuery else "Ürün adı, barkod veya kod ara",
                         color = if (searchQuery.isNotEmpty()) {
-                            if (isDark) Color(0xFFF1F5F9) else Slate900
+                            MaterialTheme.colorScheme.onSurface
                         } else {
-                            if (isDark) Color(0xFF94A3B8) else Slate500.copy(alpha = 0.65f)
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                         },
                         fontSize = 12.sp,
                         fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,

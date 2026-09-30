@@ -762,14 +762,13 @@ fun CsvScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
                         .padding(horizontal = 12.dp)
                 ) {
                     // Top App Bar Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp, bottom = 8.dp, start = 4.dp, end = 4.dp),
+                            .padding(top = 8.dp, bottom = 8.dp, start = 4.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(

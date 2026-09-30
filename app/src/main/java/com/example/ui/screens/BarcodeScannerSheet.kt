@@ -93,6 +93,8 @@ fun BarcodeScannerSheet(
     userName: String = "Kullanıcı",
     startInFixQrMode: Boolean = false,
     isBatterySaverMode: Boolean = false,
+    soundEffectsEnabled: Boolean = true,
+    vibrationEnabled: Boolean = true,
     onDismiss: () -> Unit,
     onBarcodeDetected: (String) -> Unit,
     onFixQrScanned: ((rawQr: String, onResult: (String, Boolean) -> Unit) -> Unit)? = null,
@@ -155,9 +157,17 @@ fun BarcodeScannerSheet(
 
     val toneGenerator = remember {
         try {
-            ToneGenerator(AudioManager.STREAM_MUSIC, 85)
-        } catch (e: Exception) {
-            null
+            ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+        } catch (_: Exception) {
+            try {
+                ToneGenerator(AudioManager.STREAM_SYSTEM, 100)
+            } catch (_: Exception) {
+                try {
+                    ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+                } catch (_: Exception) {
+                    null
+                }
+            }
         }
     }
 
@@ -213,7 +223,7 @@ fun BarcodeScannerSheet(
     ) {
         val hasProductDetail = activeBarcode.isNotBlank()
         val isCameraAnalysisPaused = isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
-        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
+        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else if (isFixQrMode) 0.38f else 0.35f
         val topAreaWeight = 1.0f - bottomWeight
 
         Box(
@@ -266,9 +276,12 @@ fun BarcodeScannerSheet(
                                 val realBarcode = shelfData.barcode.ifBlank { trimmedBar }
                                 val pCode = shelfData.productCode
                                 val matchedProd = products.firstOrNull { p ->
-                                    (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
-                                    (pCode != null && pCode.isNotBlank() && p.urunKodu.equals(pCode, ignoreCase = true)) ||
-                                    p.urunKodu.equals(realBarcode, ignoreCase = true)
+                                    val pBar = p.barkod.trim()
+                                    val pCodeStr = p.urunKodu.trim()
+                                    (realBarcode.isNotBlank() && !realBarcode.startsWith("NO_BARCODE_") && pBar.equals(realBarcode, ignoreCase = true)) ||
+                                    (pCode != null && pCode.isNotBlank() && pCodeStr.equals(pCode, ignoreCase = true)) ||
+                                    (realBarcode.isNotBlank() && !realBarcode.startsWith("NO_BARCODE_") && pCodeStr.equals(realBarcode, ignoreCase = true)) ||
+                                    (pCode != null && pCode.isNotBlank() && pBar.equals(pCode, ignoreCase = true))
                                 }
                                 val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
 
@@ -276,9 +289,18 @@ fun BarcodeScannerSheet(
                                     qrFixLastInfo = msg
                                     if (isSuccess) {
                                         qrFixSuccessCount++
-                                        com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
+                                        if (vibrationEnabled) {
+                                            com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = soundEffectsEnabled)
+                                        } else if (soundEffectsEnabled) {
+                                            com.example.util.HapticFeedbackHelper.playSuccessTone()
+                                        }
                                     } else {
                                         qrFixErrorCount++
+                                        if (vibrationEnabled) {
+                                            com.example.util.HapticFeedbackHelper.triggerWarningHaptic(context, playSound = soundEffectsEnabled)
+                                        } else if (soundEffectsEnabled) {
+                                            com.example.util.HapticFeedbackHelper.playWarningTone()
+                                        }
                                     }
                                     qrFixHistoryList.add(
                                         0,
@@ -317,7 +339,9 @@ fun BarcodeScannerSheet(
                             ScannerFeedbackHelper.playFeedback(
                                 context = context,
                                 toneGenerator = toneGenerator,
-                                risk = risk
+                                risk = risk,
+                                soundEnabled = soundEffectsEnabled,
+                                vibrationEnabled = vibrationEnabled
                             )
                             lastScannedRisk = risk
                             lastRemainingDays = remainingDays
@@ -327,9 +351,12 @@ fun BarcodeScannerSheet(
                             resumeCooldownUntil = now + 1200L
 
                             val matchedProd = products.firstOrNull { p ->
-                                (cleanBarcode.isNotBlank() && p.barkod.equals(cleanBarcode, ignoreCase = true)) ||
-                                (shelfData.productCode != null && shelfData.productCode.isNotBlank() && p.urunKodu.equals(shelfData.productCode, ignoreCase = true)) ||
-                                p.urunKodu.equals(cleanBarcode, ignoreCase = true)
+                                val pBar = p.barkod.trim()
+                                val pCodeStr = p.urunKodu.trim()
+                                (cleanBarcode.isNotBlank() && !cleanBarcode.startsWith("NO_BARCODE_") && pBar.equals(cleanBarcode, ignoreCase = true)) ||
+                                (shelfData.productCode != null && shelfData.productCode.isNotBlank() && pCodeStr.equals(shelfData.productCode, ignoreCase = true)) ||
+                                (cleanBarcode.isNotBlank() && !cleanBarcode.startsWith("NO_BARCODE_") && pCodeStr.equals(cleanBarcode, ignoreCase = true)) ||
+                                (shelfData.productCode != null && shelfData.productCode.isNotBlank() && pBar.equals(shelfData.productCode, ignoreCase = true))
                             }
 
                             if (matchedProd != null && matchedProd.urunAdi.isNotBlank() && !matchedProd.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
@@ -388,7 +415,7 @@ fun BarcodeScannerSheet(
             // =========================================================================
             val targetW = if (isFixQrMode) 220.dp else 280.dp
             val targetH = if (isFixQrMode) {
-                if (isKeyboardVisible || hasProductDetail) 140.dp else 220.dp
+                if (isKeyboardVisible || hasProductDetail) 140.dp else 200.dp
             } else {
                 if (isKeyboardVisible || hasProductDetail) 85.dp else 120.dp
             }
@@ -412,17 +439,19 @@ fun BarcodeScannerSheet(
             }
             val isViewfinderGlowing = isBarcodeTooFar || lastScannedRisk != null || isProcessingScan
 
+            // VİZÖR VE MOD ROZETİNİ KAMERA ALANININ DİKEY/YATAY MERKEZİNE SABİTLE
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(if (isFixQrMode) 1.0f else topAreaWeight)
-                    .align(Alignment.TopCenter)
+                    .fillMaxHeight(topAreaWeight)
+                    .align(Alignment.TopCenter),
+                contentAlignment = Alignment.Center
             ) {
                 if (!isKeyboardVisible) {
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .padding(top = 40.dp, bottom = 4.dp),
+                            .padding(top = 52.dp, bottom = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         // Status / Proximity Guidance Badge
@@ -513,7 +542,8 @@ fun BarcodeScannerSheet(
                         Box(
                             modifier = Modifier
                                 .width(animatedFrameWidth)
-                                .height(animatedFrameHeight)
+                                .height(animatedFrameHeight),
+                            contentAlignment = Alignment.Center
                         ) {
                             CornerBracketsViewfinder(
                                 modifier = Modifier.fillMaxSize(),
@@ -526,7 +556,7 @@ fun BarcodeScannerSheet(
                         }
 
                         // Quick Zoom Selector Buttons (1x, 1.5x, 2x)
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = Color.Black.copy(alpha = 0.55f),
@@ -562,31 +592,32 @@ fun BarcodeScannerSheet(
                         }
                     }
                 }
-
-                // TOP OVERLAY BAR: UNIFORM DARK PILL/CIRCLE BUTTONS & SEGMENTED MODE SELECTOR
-                ScannerTopControls(
-                    isFixQrMode = isFixQrMode,
-                    isFlashOn = isFlashOn,
-                    onCloseClick = safeDismiss,
-                    onModeChange = { isFixMode ->
-                        isFixQrMode = isFixMode
-                        qrFixResultMsg = ""
-                        manualBarcode = ""
-                        activeBarcode = ""
-                        selectedProductOverride = null
-                        lastScannedCode = ""
-                        isProcessingScan = false
-                        lastScannedTime = 0L
-                        lastScannedRisk = null
-                        lastRemainingDays = null
-                        resumeCooldownUntil = 0L
-                        isCooldownActive = false
-                        cooldownRemainingSeconds = 0
-                        zoomRatio = if (isFixMode) 1.35f else 1.0f
-                    },
-                    onFlashToggle = { isFlashOn = !isFlashOn }
-                )
             }
+
+            // TOP OVERLAY BAR: UNIFORM DARK PILL/CIRCLE BUTTONS & SEGMENTED MODE SELECTOR
+            ScannerTopControls(
+                isFixQrMode = isFixQrMode,
+                isFlashOn = isFlashOn,
+                onCloseClick = safeDismiss,
+                onModeChange = { isFixMode ->
+                    isFixQrMode = isFixMode
+                    qrFixResultMsg = ""
+                    manualBarcode = ""
+                    activeBarcode = ""
+                    selectedProductOverride = null
+                    lastScannedCode = ""
+                    isProcessingScan = false
+                    lastScannedTime = 0L
+                    lastScannedRisk = null
+                    lastRemainingDays = null
+                    resumeCooldownUntil = 0L
+                    isCooldownActive = false
+                    cooldownRemainingSeconds = 0
+                    zoomRatio = if (isFixMode) 1.35f else 1.0f
+                },
+                onFlashToggle = { isFlashOn = !isFlashOn },
+                modifier = Modifier.align(Alignment.TopCenter)
+            )
 
             // =========================================================================
             // 3. ALT BEYAZ KART: ARKA PLANDAN ŞEFFAF, DOĞRUDAN CANLI KAMERA ÜZERİNDE
@@ -595,11 +626,11 @@ fun BarcodeScannerSheet(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .wrapContentHeight()
+                        .fillMaxHeight(bottomWeight)
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding(),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 16.dp
                 ) {
                     QrFixSummaryPanel(
@@ -614,7 +645,7 @@ fun BarcodeScannerSheet(
                         onClearHistory = { qrFixHistoryList.clear() },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .wrapContentHeight()
+                            .fillMaxSize()
                     )
                 }
             } else {
@@ -624,7 +655,7 @@ fun BarcodeScannerSheet(
                         .fillMaxHeight(bottomWeight)
                         .align(Alignment.BottomCenter),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.surface,
                     shadowElevation = 16.dp
                 ) {
                         Column(

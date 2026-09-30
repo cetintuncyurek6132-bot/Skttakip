@@ -90,22 +90,38 @@ object ScannerFeedbackHelper {
         vibrationEnabled: Boolean = true
     ) {
         val now = System.currentTimeMillis()
-        if (now - lastFeedbackTime < 450L) {
+        if (now - lastFeedbackTime < 400L) {
             return // Prevent audio & vibrator IPC floods that trigger SELinux audit rate limit
         }
         lastFeedbackTime = now
 
-        if (soundEnabled && toneGenerator != null) {
-            try {
-                when (risk) {
-                    ScanResultRisk.SAFE -> toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
-                    ScanResultRisk.WARNING -> toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP2, 130)
-                    ScanResultRisk.CRITICAL, ScanResultRisk.EXPIRED -> toneGenerator.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200)
-                    ScanResultRisk.NOT_FOUND -> toneGenerator.startTone(ToneGenerator.TONE_PROP_NACK, 140)
-                    ScanResultRisk.NO_SKT -> toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 100)
+        if (soundEnabled) {
+            val tg = toneGenerator ?: try {
+                ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
+            } catch (_: Exception) {
+                try {
+                    ToneGenerator(android.media.AudioManager.STREAM_SYSTEM, 100)
+                } catch (_: Exception) {
+                    try {
+                        ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 100)
+                    } catch (_: Exception) {
+                        null
+                    }
                 }
-            } catch (e: Exception) {
-                // Ignore audio playback error
+            }
+
+            if (tg != null) {
+                try {
+                    when (risk) {
+                        ScanResultRisk.SAFE -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                        ScanResultRisk.WARNING -> tg.startTone(ToneGenerator.TONE_PROP_BEEP2, 140)
+                        ScanResultRisk.CRITICAL, ScanResultRisk.EXPIRED -> tg.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200)
+                        ScanResultRisk.NOT_FOUND -> tg.startTone(ToneGenerator.TONE_PROP_NACK, 160)
+                        ScanResultRisk.NO_SKT -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                    }
+                } catch (e: Exception) {
+                    // Ignore audio playback error
+                }
             }
         }
 

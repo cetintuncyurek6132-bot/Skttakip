@@ -16,22 +16,27 @@ object BarcodeScanProcessor {
     ) {
         val qrData = parseShelfQrPayload(rawInput)
         val realBarcode = qrData.barcode.trim()
-        val productCode = qrData.productCode?.trim()
+        val productCode = qrData.productCode?.trim()?.takeIf { it.isNotBlank() }
         val newPrice = qrData.price
 
         val all = repository.getProductListDirect()
-        var targetProducts = all.filter { p ->
-            (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
-            (productCode != null && productCode.isNotBlank() && p.urunKodu.equals(productCode, ignoreCase = true)) ||
-            (productCode != null && productCode.isNotBlank() && p.barkod.equals(productCode, ignoreCase = true)) ||
-            p.urunKodu.equals(realBarcode, ignoreCase = true) ||
-            p.urunKodu.equals(rawInput.trim(), ignoreCase = true)
+
+        // SADECE KATI BİREBİR EŞLEŞME (Exact Match)
+        // Barkod veya Ürün Kodu veritabanında kesin olarak eşleşmelidir
+        val targetProducts = all.filter { p ->
+            val pBarcode = p.barkod.trim()
+            val pCode = p.urunKodu.trim()
+
+            // 1. Barkod ile birebir tam eşleşme (EAN-13, EAN-8 vb.)
+            (realBarcode.isNotBlank() && !realBarcode.startsWith("NO_BARCODE_") && pBarcode.equals(realBarcode, ignoreCase = true)) ||
+            // 2. Ürün kodu ile birebir tam eşleşme (örn: 16000491)
+            (productCode != null && pCode.isNotBlank() && pCode.equals(productCode, ignoreCase = true)) ||
+            // 3. Sütunların yerel veritabanında yer değiştirmiş olması ihtimaline karşı çapraz tam eşleşme
+            (realBarcode.isNotBlank() && !realBarcode.startsWith("NO_BARCODE_") && pCode.equals(realBarcode, ignoreCase = true)) ||
+            (productCode != null && pBarcode.isNotBlank() && pBarcode.equals(productCode, ignoreCase = true))
         }
 
-        if (targetProducts.isEmpty()) {
-            targetProducts = all.findMatchingProducts(rawInput)
-        }
-
+        // Birebir eşleşen ürün yoksa ASLA gevşek/benzer arama yapma ve işlemi doğrudan HATALI olarak bildir
         if (targetProducts.isEmpty()) {
             val identifier = if (realBarcode.isNotBlank()) realBarcode else (productCode ?: rawInput.take(15))
             withContext(Dispatchers.Main) {
@@ -44,7 +49,7 @@ object BarcodeScanProcessor {
         var sampleName = ""
 
         targetProducts.forEach { prod ->
-            val finalBarcode = if (realBarcode.length >= 8 && realBarcode != prod.urunKodu) realBarcode else prod.barkod
+            val finalBarcode = if (realBarcode.length >= 8 && !realBarcode.startsWith("NO_BARCODE_") && realBarcode != prod.urunKodu) realBarcode else prod.barkod
             val finalPrice = newPrice ?: prod.fiyat
             if (finalBarcode != prod.barkod || finalPrice != prod.fiyat) {
                 val updated = prod.copy(
@@ -66,7 +71,7 @@ object BarcodeScanProcessor {
             } else ""
 
             if (updatedCount > 0) {
-                onResult("Son İşlem: $sampleName$priceStr kaydedildi", true)
+                onResult("Son İşlem: $sampleName$priceStr güncellendi", true)
             } else {
                 onResult("Son İşlem: $sampleName zaten güncel ($realBarcode$priceStr)", true)
             }

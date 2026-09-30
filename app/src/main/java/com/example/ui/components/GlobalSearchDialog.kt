@@ -158,7 +158,7 @@ fun GlobalSearchDialog(
                                 .fillMaxWidth()
                                 .height(42.dp),
                             shape = RoundedCornerShape(12.dp),
-                            color = Slate100,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                             border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f))
                         ) {
                             Row(
@@ -170,7 +170,7 @@ fun GlobalSearchDialog(
                                 Icon(
                                     imageVector = Icons.Default.Search,
                                     contentDescription = "Ara",
-                                    tint = TurquoiseDark,
+                                    tint = TurquoisePrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -182,7 +182,7 @@ fun GlobalSearchDialog(
                                     if (searchQuery.isEmpty()) {
                                         Text(
                                             text = "Ürün adı, barkod veya kod ara",
-                                            color = Slate500,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                             fontSize = 13.sp,
                                             fontWeight = FontWeight.Normal,
                                             maxLines = 1,
@@ -194,7 +194,7 @@ fun GlobalSearchDialog(
                                         onValueChange = onSearchQueryChange,
                                         singleLine = true,
                                         textStyle = androidx.compose.ui.text.TextStyle(
-                                            color = Slate900,
+                                            color = MaterialTheme.colorScheme.onSurface,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold
                                         ),

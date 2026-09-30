@@ -84,7 +84,6 @@ fun ProductDetailModal(
     onEditSktItem: (product: Product, sktTarihi: Long, stokAdedi: Int) -> Unit = { _, _, _ -> },
     onDeleteSkt: (Product) -> Unit,
     onUpdatePrice: (product: Product, price: Double) -> Unit = { _, _ -> },
-    onUpdateImage: (barkod: String, imageUrl: String) -> Unit = { _, _ -> },
     onAddToAdetsel: (Product) -> Unit = {},
     onDeductStock: (product: Product, amount: Int, reason: String) -> Unit = { _, _, _ -> }
 ) {

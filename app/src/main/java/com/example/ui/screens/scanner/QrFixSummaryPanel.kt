@@ -178,7 +178,7 @@ fun QrFixSummaryPanel(
                         text = lastProcessedInfo,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (isSuccess) Slate900 else MaterialTheme.colorScheme.onSurface,
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

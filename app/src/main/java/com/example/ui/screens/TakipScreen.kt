@@ -193,7 +193,7 @@ fun TakipScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate50)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // KOMPAKT SAYFA BAŞLIĞI VE İŞLEMLER
         Surface(
@@ -212,14 +212,14 @@ fun TakipScreen(
                         text = "İade & Depo Takibi",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
-                            color = Slate900,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontSize = 17.sp
                         )
                     )
                     Text(
                         text = "${filteredRecords.size} aktif takip kaydı",
                         style = MaterialTheme.typography.bodySmall.copy(
-                            color = Slate500,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.5.sp
                         )
                     )
