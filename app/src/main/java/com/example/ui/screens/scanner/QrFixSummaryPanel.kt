@@ -88,18 +88,9 @@ fun QrFixSummaryPanel(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Top Grip Bar
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .width(36.dp)
-                .height(3.dp)
-                .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.35f), RoundedCornerShape(2.dp))
-        )
-
         // 1. ÜST BAŞLIK VE SAĞ ÜSTTEKİ KÜÇÜK DİKDÖRTGEN "TOPLAM" KARTI
         Row(
             modifier = Modifier.fillMaxWidth(),

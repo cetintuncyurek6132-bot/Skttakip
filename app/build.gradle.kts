@@ -109,8 +109,6 @@ dependencies {
   implementation(libs.androidx.work.runtime.ktx)
   implementation(libs.mlkit.barcode.scanning)
   implementation(libs.mlkit.text.recognition)
-  // implementation(libs.coil.compose) // Görsel indirme mobil veri tasarrufu için kaldırılmıştır
-  implementation(libs.okhttp)
   implementation(libs.kotlinx.coroutines.android)
   implementation(libs.kotlinx.coroutines.core)
 

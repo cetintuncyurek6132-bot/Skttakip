@@ -47,7 +47,7 @@ object UserManager {
         loadUsers()
 
         val savedUsername = prefs?.getString(KEY_LOGGED_IN_USER, null)
-        if (!savedUsername.isNull_or_Empty()) {
+        if (!savedUsername.isNullOrEmpty()) {
             val matched = _usersList.value.find { it.username.equals(savedUsername, ignoreCase = true) }
             if (matched != null) {
                 _currentUser.value = matched
@@ -71,7 +71,7 @@ object UserManager {
 
     private fun loadUsers() {
         val jsonStr = prefs?.getString(KEY_USERS_JSON, null)
-        if (jsonStr.isNull_or_Empty()) {
+        if (jsonStr.isNullOrEmpty()) {
             _usersList.value = defaultUsers
             saveUsersToPrefs(defaultUsers)
         } else {
@@ -185,5 +185,3 @@ object UserManager {
         saveUsersToPrefs(defaultUsers)
     }
 }
-
-private fun String?.isNull_or_Empty(): Boolean = this == null || this.isEmpty()

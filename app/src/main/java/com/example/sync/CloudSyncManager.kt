@@ -184,7 +184,6 @@ object CloudSyncManager {
                                                     stokAdedi = prod.stokAdedi,
                                                     sktTarihi = prod.sktTarihi,
                                                     fiyat = prod.fiyat ?: existing.fiyat,
-                                                    resimUrl = prod.resimUrl ?: existing.resimUrl,
                                                     isImportant = prod.isImportant || existing.isImportant,
                                                     sonKontrolTarihi = maxOf(prod.sonKontrolTarihi, existing.sonKontrolTarihi)
                                                 )
@@ -195,8 +194,7 @@ object CloudSyncManager {
                                                 if (exactMatch != null) {
                                                     val merged = exactMatch.copy(
                                                         stokAdedi = prod.stokAdedi,
-                                                        fiyat = prod.fiyat ?: exactMatch.fiyat,
-                                                        resimUrl = prod.resimUrl ?: exactMatch.resimUrl
+                                                        fiyat = prod.fiyat ?: exactMatch.fiyat
                                                     )
                                                     dao.updateProduct(merged)
                                                 } else {
@@ -344,7 +342,6 @@ object CloudSyncManager {
                         stokAdedi = cloudProd.stokAdedi,
                         sktTarihi = cloudProd.sktTarihi,
                         fiyat = cloudProd.fiyat ?: existingLocal.fiyat,
-                        resimUrl = cloudProd.resimUrl ?: existingLocal.resimUrl,
                         isImportant = cloudProd.isImportant || existingLocal.isImportant,
                         sonKontrolTarihi = maxOf(cloudProd.sonKontrolTarihi, existingLocal.sonKontrolTarihi)
                     )
@@ -357,8 +354,7 @@ object CloudSyncManager {
                     } else {
                         val merged = match.copy(
                             stokAdedi = cloudProd.stokAdedi,
-                            fiyat = cloudProd.fiyat ?: match.fiyat,
-                            resimUrl = cloudProd.resimUrl ?: match.resimUrl
+                            fiyat = cloudProd.fiyat ?: match.fiyat
                         )
                         dao.updateProduct(merged)
                     }
@@ -408,7 +404,6 @@ object CloudSyncManager {
             "isImportant" to product.isImportant,
             "sonKontrolTarihi" to product.sonKontrolTarihi,
             "fiyat" to product.fiyat,
-            "resimUrl" to product.resimUrl,
             "updatedAt" to System.currentTimeMillis(),
             "deviceId" to getDeviceId(),
             "storeCode" to getStoreCode()
@@ -429,7 +424,6 @@ object CloudSyncManager {
         val isImportant = (data["isImportant"] as? Boolean) ?: false
         val sonKontrolTarihi = (data["sonKontrolTarihi"] as? Number)?.toLong() ?: 0L
         val fiyat = (data["fiyat"] as? Number)?.toDouble()
-        val resimUrl = data["resimUrl"] as? String
 
         return Product(
             id = id,
@@ -442,8 +436,7 @@ object CloudSyncManager {
             eklenmeTarihi = eklenmeTarihi,
             isImportant = isImportant,
             sonKontrolTarihi = sonKontrolTarihi,
-            fiyat = fiyat,
-            resimUrl = resimUrl
+            fiyat = fiyat
         )
     }
 }

@@ -161,60 +161,9 @@ object DepoIadeManager {
         saveRecords(context, emptyList())
     }
 
-    private fun getDefaultSeedRecords(): List<DepoIadeKaydi> {
-        return emptyList()
-    }
-
     fun loadRecords(context: Context): List<DepoIadeKaydi> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val jsonStr = prefs.getString(KEY_RECORDS_JSON, null)
-        if (jsonStr == null) {
-            // Check legacy v1 records if any
-            val legacyStr = prefs.getString("depo_iade_records_v1", null)
-            if (legacyStr != null) {
-                try {
-                    val legacyArray = JSONArray(legacyStr)
-                    val list = mutableListOf<DepoIadeKaydi>()
-                    for (i in 0 until legacyArray.length()) {
-                        val obj = legacyArray.getJSONObject(i)
-                        val legacyDurum = obj.optString("durum", "TAKIPTE")
-                        val mappedDurum = when (legacyDurum) {
-                            "COZULDU" -> IadeDurumu.ONAYLANDI
-                            "REDDEDILDI" -> IadeDurumu.REDDEDILDI
-                            else -> IadeDurumu.DEVAM_EDIYOR
-                        }
-                        list.add(
-                            DepoIadeKaydi(
-                                id = obj.optString("id", "").ifBlank { UUID.randomUUID().toString() },
-                                urunAdi = obj.optString("urunAdi", ""),
-                                irsaliyeGorselPath = obj.optString("irsaliyeGorselPath", "").takeIf { it.isNotBlank() },
-                                iadeTarihi = obj.optString("iadeTarihi", getTodayDateString()),
-                                iadeTarihiMillis = obj.optLong("iadeTarihiMillis", System.currentTimeMillis()),
-                                redNedeni = obj.optString("redNedeni", IadeRedNedeni.DEPO_KABUL_ETMEDI.displayName),
-                                aciklama = obj.optString("aciklama", ""),
-                                oncelik = try {
-                                    IadeOncelik.valueOf(obj.optString("oncelik", "NORMAL"))
-                                } catch (e: Exception) {
-                                    IadeOncelik.NORMAL
-                                },
-                                durum = mappedDurum,
-                                hatirlatmaTarihi = obj.optString("hatirlatmaTarihi", ""),
-                                hatirlatmaTarihiMillis = if (obj.has("hatirlatmaTarihiMillis") && !obj.isNull("hatirlatmaTarihiMillis")) {
-                                    obj.optLong("hatirlatmaTarihiMillis")
-                                } else null,
-                                olusturmaTarihiMillis = obj.optLong("olusturmaTarihiMillis", System.currentTimeMillis()),
-                                guncellemeTarihiMillis = obj.optLong("guncellemeTarihiMillis", System.currentTimeMillis())
-                            )
-                        )
-                    }
-                    saveRecords(context, list)
-                    return list
-                } catch (e: Exception) {
-                    // ignore
-                }
-            }
-            return emptyList()
-        }
+        val jsonStr = prefs.getString(KEY_RECORDS_JSON, null) ?: return emptyList()
 
         return try {
             val jsonArray = JSONArray(jsonStr)
@@ -259,7 +208,7 @@ object DepoIadeManager {
             }
             list
         } catch (e: Exception) {
-            getDefaultSeedRecords()
+            emptyList()
         }
     }
 

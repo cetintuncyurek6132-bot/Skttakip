@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -30,6 +31,8 @@ import com.example.ui.screens.TakipScreen
 import com.example.ui.viewmodel.AdetselViewModel
 import com.example.ui.viewmodel.InventoryViewModel
 import com.example.ui.viewmodel.SettingsViewModel
+
+import com.example.ui.screens.scanner.ScannerOpenMode
 
 @Composable
 fun AppNavHost(
@@ -55,7 +58,7 @@ fun AppNavHost(
     mainViewModel: MainViewModel,
     adetselViewModel: AdetselViewModel,
     navigateToTab: (String) -> Unit,
-    onOpenScanner: (fixMode: Boolean) -> Unit,
+    onOpenScanner: (mode: ScannerOpenMode) -> Unit,
     onOpenProfile: () -> Unit,
     onOpenNotifications: () -> Unit
 ) {
@@ -79,7 +82,7 @@ fun AppNavHost(
                 onQuickActionClick = { action ->
                     when (action) {
                         "add_product" -> inventoryViewModel.openAddProductModal()
-                        "scan" -> onOpenScanner(false)
+                        "scan" -> onOpenScanner(ScannerOpenMode.BARCODE_SEARCH)
                         "reminders" -> navigateToTab("reminders")
                         "analytics" -> navigateToTab("analytics")
                         "csv" -> navigateToTab("csv")
@@ -106,10 +109,13 @@ fun AppNavHost(
 
         // 2. ÜRÜNLER (PRODUCTS)
         composable("products") {
+            val sktProductCount = remember(allProducts) {
+                allProducts.count { it.sktTarihi > 0L && it.stokAdedi > 0 }
+            }
             ProductsScreen(
                 products = filteredProducts,
                 allProducts = allProducts,
-                totalRegisteredCount = allProducts.size,
+                totalRegisteredCount = sktProductCount,
                 searchQuery = searchQuery,
                 selectedFilter = selectedFilter,
                 selectedGroupFilter = selectedGroupFilter,
@@ -124,7 +130,7 @@ fun AppNavHost(
                 onDeleteProduct = { prod -> inventoryViewModel.deleteProduct(prod) },
                 onAddProductClick = { inventoryViewModel.openAddProductModal() },
                 onQuickAddSkt = { prod -> inventoryViewModel.openAddSktModal(prod) },
-                onOpenQrFixMode = { onOpenScanner(true) }
+                onOpenQrFixMode = { onOpenScanner(ScannerOpenMode.LABEL_FIX) }
             )
         }
 
@@ -133,7 +139,7 @@ fun AppNavHost(
             TakipScreen(
                 products = allProducts,
                 onBackClick = { navigateToTab("panel") },
-                onOpenScanner = { onOpenScanner(false) }
+                onOpenScanner = { onOpenScanner(ScannerOpenMode.BARCODE_SEARCH) }
             )
         }
 
@@ -175,7 +181,7 @@ fun AppNavHost(
                         if (isLoading) mainViewModel.showLoading(msg) else mainViewModel.hideLoading()
                     }
                 },
-                onOpenQrFixMode = { onOpenScanner(true) },
+                onOpenQrFixMode = { onOpenScanner(ScannerOpenMode.LABEL_FIX) },
                 onExportJsonBackup = { cb -> settingsViewModel.createUnifiedBackupJson(context, cb) },
                 onSaveLocalBackup = { tag, cb -> settingsViewModel.saveLocalBackup(context, tag, cb) },
                 onGetLocalBackups = { settingsViewModel.getLocalBackups(context) },
@@ -227,6 +233,7 @@ fun AppNavHost(
                     adetselViewModel.clearCompletedAdetselKayitlar()
                     Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
                 },
+                onOpenScanner = onOpenScanner,
                 onNavigateToProducts = { navigateToTab("products") },
                 onBackClick = { navigateToTab("panel") }
             )

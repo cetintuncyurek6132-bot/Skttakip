@@ -90,16 +90,6 @@ class MainViewModel(
             initialValue = emptyList()
         )
 
-    init {
-        viewModelScope.launch {
-            val list = repository.getProductListDirect()
-            val userHasReset = CloudSyncManager.hasUserResetData()
-            if (list.isEmpty() && !userHasReset) {
-                repository.reSeedDefaultData()
-            }
-        }
-    }
-
     val dashboardState: StateFlow<DashboardState> = combine(
         allProducts,
         allReports,

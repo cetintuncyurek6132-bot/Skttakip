@@ -62,7 +62,7 @@ import java.util.Locale
 fun ProductsScreen(
     products: List<Product>,
     allProducts: List<Product> = products,
-    totalRegisteredCount: Int = products.size,
+    totalRegisteredCount: Int = remember(allProducts) { allProducts.count { it.sktTarihi > 0L && it.stokAdedi > 0 } },
     searchQuery: String,
     selectedFilter: ProductFilter,
     selectedGroupFilter: ProductGroupFilter = ProductGroupFilter.ALL,

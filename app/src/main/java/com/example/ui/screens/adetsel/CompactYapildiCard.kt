@@ -120,8 +120,16 @@ fun CompactYapildiCard(
                     )
                 }
 
+                val formattedDate = if (kayit.islemTarihi <= 0L) "-" else {
+                    try {
+                        java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.forLanguageTag("tr-TR")).format(java.util.Date(kayit.islemTarihi))
+                    } catch (_: Exception) {
+                        "-"
+                    }
+                }
+
                 Text(
-                    text = kayit.getFormattedIslemTarihi(),
+                    text = formattedDate,
                     fontSize = 10.5.sp,
                     color = Slate500,
                     fontWeight = FontWeight.Medium

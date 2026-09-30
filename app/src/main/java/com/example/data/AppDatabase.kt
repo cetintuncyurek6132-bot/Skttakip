@@ -64,17 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
         ) : RoomDatabase.Callback() {
             override fun onCreate(db: SupportSQLiteDatabase) {
                 super.onCreate(db)
-                INSTANCE?.let { database ->
-                    scope.launch(Dispatchers.IO) {
-                        populateInitialData(database.productDao(), database.inspectionReportDao())
-                    }
-                }
             }
-        }
-
-        suspend fun populateInitialData(productDao: ProductDao, reportDao: InspectionReportDao) {
-            // Seed / Sahte veri ekleme devre dışı bırakıldı - Veritabanı temiz ve boş başlar
-            return
         }
     }
 }

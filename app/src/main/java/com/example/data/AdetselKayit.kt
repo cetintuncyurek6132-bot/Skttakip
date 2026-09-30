@@ -24,25 +24,6 @@ data class AdetselKayit(
     val notlar: String = "",
     val islemTarihi: Long = 0L
 ) {
-    fun getFormattedEklenmeTarihi(): String {
-        return try {
-            val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR"))
-            sdf.format(Date(eklenmeTarihi))
-        } catch (e: Exception) {
-            "-"
-        }
-    }
-
-    fun getFormattedIslemTarihi(): String {
-        if (islemTarihi <= 0L) return "-"
-        return try {
-            val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR"))
-            sdf.format(Date(islemTarihi))
-        } catch (e: Exception) {
-            "-"
-        }
-    }
-
     fun getDisplayCode(): String {
         return when {
             urunKodu.isNotBlank() -> urunKodu

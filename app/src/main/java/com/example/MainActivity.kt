@@ -85,6 +85,8 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.AdetselViewModel
 import com.example.ui.viewmodel.InventoryViewModel
 import com.example.ui.viewmodel.SettingsViewModel
+import com.example.ui.screens.scanner.ScannerOpenMode
+import com.example.data.findMatchingProducts
 import com.example.worker.MorningCheckWorker
 
 class MainActivity : ComponentActivity() {
@@ -302,7 +304,7 @@ fun SktMainApp(
 
     // Dialog & Scanner control states
     var isBarcodeScannerOpen by remember { mutableStateOf(false) }
-    var startScannerInFixMode by remember { mutableStateOf(false) }
+    var scannerOpenMode by remember { mutableStateOf(ScannerOpenMode.BARCODE_SEARCH) }
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
 
@@ -493,30 +495,49 @@ fun SktMainApp(
         BarcodeScannerSheet(
             products = allProducts,
             userName = currentUser?.fullName ?: userName,
-            startInFixQrMode = startScannerInFixMode,
+            openMode = scannerOpenMode,
+            startInFixQrMode = (scannerOpenMode == ScannerOpenMode.LABEL_FIX),
             isBatterySaverMode = isBatterySaverMode,
             soundEffectsEnabled = soundEffectsEnabled,
             vibrationEnabled = vibrationEnabled,
             onDismiss = {
                 isBarcodeScannerOpen = false
-                startScannerInFixMode = false
             },
             onFixQrScanned = { rawQr, onResult ->
                 inventoryViewModel.fixProductBarcodeAndPriceFromQr(rawQr, onResult)
             },
             onBarcodeDetected = { scannedRaw ->
-                inventoryViewModel.handleBarcodeScanned(
-                    barkod = scannedRaw,
-                    onFound = { productFound ->
-                        isBarcodeScannerOpen = false
-                        inventoryViewModel.openEditProductModal(productFound)
-                    },
-                    onNotFound = { barcodeNotFound ->
-                        val notFoundClean = com.example.data.parseShelfQrPayload(barcodeNotFound).barcode.ifBlank { barcodeNotFound }
-                        isBarcodeScannerOpen = false
-                        inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
+                if (scannerOpenMode == ScannerOpenMode.ADETSEL_SAYIM) {
+                    val clean = scannedRaw.trim()
+                    if (clean.isNotBlank()) {
+                        val matches = allProducts.findMatchingProducts(clean)
+                        val matchedProduct = matches.firstOrNull()
+                        if (matchedProduct != null) {
+                            adetselViewModel.addToAdetsel(matchedProduct) { isSuccess ->
+                                if (isSuccess) {
+                                    Toast.makeText(context, "${matchedProduct.urunAdi} sayım listesine eklendi", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "${matchedProduct.urunAdi} zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else {
+                            Toast.makeText(context, "Barkod ($clean) kayıtlı ürünlerde bulunamadı", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                )
+                } else {
+                    inventoryViewModel.handleBarcodeScanned(
+                        barkod = scannedRaw,
+                        onFound = { productFound ->
+                            isBarcodeScannerOpen = false
+                            inventoryViewModel.openEditProductModal(productFound)
+                        },
+                        onNotFound = { barcodeNotFound ->
+                            val notFoundClean = com.example.data.parseShelfQrPayload(barcodeNotFound).barcode.ifBlank { barcodeNotFound }
+                            isBarcodeScannerOpen = false
+                            inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
+                        }
+                    )
+                }
             },
             onAddSkt = { product, sktMillis, count ->
                 inventoryViewModel.addSktToExistingProduct(product, sktMillis, count)
@@ -562,7 +583,10 @@ fun SktMainApp(
                     onNavigate = { target ->
                         navigateToTab(target)
                     },
-                    onScanClick = { isBarcodeScannerOpen = true },
+                    onScanClick = {
+                        scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
+                        isBarcodeScannerOpen = true
+                    },
                     userRoleCode = currentUser?.role ?: "MS"
                 )
             },
@@ -581,11 +605,13 @@ fun SktMainApp(
                             onAddNewProductClick = {
                                 inventoryViewModel.openAddProductModal()
                             },
-                            onOpenScanner = { isBarcodeScannerOpen = true },
+                            onOpenScanner = {
+                                scannerOpenMode = if (currentRoute == "adetsel") ScannerOpenMode.ADETSEL_SAYIM else ScannerOpenMode.BARCODE_SEARCH
+                                isBarcodeScannerOpen = true
+                            },
                             onBellClick = { isNotificationDialogOpen = true },
                             unreadCount = dashboardState.unreadNotificationCount,
                             onAvatarClick = { navigateToTab("reminders") },
-                            onRemindersClick = { navigateToTab("reminders") },
                             onSettingsClick = { navigateToTab("csv") },
                             showHomeButton = currentRoute != "panel",
                             onHomeClick = { navigateToTab("panel") }
@@ -664,8 +690,8 @@ fun SktMainApp(
                 mainViewModel = mainViewModel,
                 adetselViewModel = adetselViewModel,
                 navigateToTab = { tab -> navigateToTab(tab) },
-                onOpenScanner = { fixMode ->
-                    startScannerInFixMode = fixMode
+                onOpenScanner = { mode ->
+                    scannerOpenMode = mode
                     isBarcodeScannerOpen = true
                 },
                 onOpenProfile = { isProfileDialogOpen = true },

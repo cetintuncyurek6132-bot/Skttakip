@@ -27,6 +27,7 @@ import com.example.ui.theme.TurquoisePrimary
 @Composable
 fun ScannerTopControls(
     isFixQrMode: Boolean,
+    openMode: ScannerOpenMode = ScannerOpenMode.BARCODE_SEARCH,
     isFlashOn: Boolean,
     onCloseClick: () -> Unit,
     onModeChange: (Boolean) -> Unit,
@@ -60,7 +61,7 @@ fun ScannerTopControls(
             }
         }
 
-        // 2. Segmented Pill Mode Selector: [ 🔍 Arama ] [ 🏷️ QR Düzelt ]
+        // 2. Segmented Pill Mode Selector: [ 🔍 Arama / 📋 Sayım ] [ 🏷️ QR Düzelt ]
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = Color.Black.copy(alpha = 0.55f),
@@ -72,6 +73,7 @@ fun ScannerTopControls(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 // ARAMA / TARA MODU
+                val standardModeLabel = if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "Sayım Modu" else "Barkod Ara"
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
@@ -81,7 +83,7 @@ fun ScannerTopControls(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Barkod Ara",
+                        text = standardModeLabel,
                         color = if (!isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
                         fontWeight = if (!isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
                         fontSize = 11.sp,

@@ -343,7 +343,6 @@ object DataBackupManager {
             // Perform Save / Merge
             if (!mergeWithExisting) {
                 productDao.deleteAllProducts()
-                reportDao.deleteAllReports()
                 adetselDao?.deleteAllAdetselKayitlar()
                 DepoIadeManager.clearAllRecords(context)
             }

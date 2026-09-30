@@ -132,7 +132,6 @@ fun SktTopAppBar(
     onAddNewProductClick: () -> Unit = {},
     onOpenScanner: () -> Unit = {},
     onAvatarClick: () -> Unit = {},
-    onRemindersClick: () -> Unit = onAvatarClick,
     onSettingsClick: () -> Unit = {},
     showHomeButton: Boolean = false,
     onHomeClick: () -> Unit = {}

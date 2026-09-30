@@ -13,10 +13,4 @@ interface InspectionReportDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertReport(report: InspectionReport): Long
-
-    @Query("DELETE FROM inspection_reports WHERE id = :id")
-    suspend fun deleteReportById(id: Int)
-
-    @Query("DELETE FROM inspection_reports")
-    suspend fun deleteAllReports()
 }

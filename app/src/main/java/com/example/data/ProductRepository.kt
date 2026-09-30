@@ -78,25 +78,8 @@ class ProductRepository(
         }
     }
 
-    private suspend fun scopeSyncProduct(productId: Int) {
-        val prod = productDao.getProductById(productId)
-        if (prod != null) {
-            CloudSyncManager.syncProductToCloud(prod)
-        }
-    }
-
     suspend fun getProductsByBarcode(barkod: String): List<Product> {
         return productDao.getProductsByBarcode(barkod)
-    }
-
-    suspend fun updateProductImage(barkod: String, resimUrl: String?) {
-        if (barkod.isBlank() || resimUrl.isNullOrBlank()) return
-        productDao.updateProductImageByBarcode(barkod, resimUrl)
-    }
-
-    suspend fun updateProductImageById(productId: Int, resimUrl: String?) {
-        if (productId <= 0 || resimUrl.isNullOrBlank()) return
-        productDao.updateProductImageById(productId, resimUrl)
     }
 
     suspend fun insertOrUpdateProduct(product: Product): Long {
@@ -130,25 +113,12 @@ class ProductRepository(
 
     suspend fun resetAllData() {
         productDao.deleteAllProducts()
-        reportDao.deleteAllReports()
         adetselDao?.deleteAllAdetselKayitlar()
         CloudSyncManager.clearAllCloudData()
     }
 
     suspend fun insertReport(report: InspectionReport): Long {
         return reportDao.insertReport(report)
-    }
-
-    suspend fun deleteReport(reportId: Int) {
-        reportDao.deleteReportById(reportId)
-    }
-
-    suspend fun clearAllReports() {
-        reportDao.deleteAllReports()
-    }
-
-    suspend fun reSeedDefaultData() {
-        AppDatabase.populateInitialData(productDao, reportDao)
     }
 
     suspend fun createUnifiedBackupJson(context: Context): String {

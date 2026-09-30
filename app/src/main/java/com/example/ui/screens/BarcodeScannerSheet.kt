@@ -86,12 +86,15 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+import com.example.ui.screens.scanner.ScannerOpenMode
+
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun BarcodeScannerSheet(
     products: List<Product> = emptyList(),
     userName: String = "Kullanıcı",
-    startInFixQrMode: Boolean = false,
+    openMode: ScannerOpenMode = ScannerOpenMode.BARCODE_SEARCH,
+    startInFixQrMode: Boolean = (openMode == ScannerOpenMode.LABEL_FIX),
     isBatterySaverMode: Boolean = false,
     soundEffectsEnabled: Boolean = true,
     vibrationEnabled: Boolean = true,
@@ -103,7 +106,7 @@ fun BarcodeScannerSheet(
 ) {
     var manualBarcode by remember { mutableStateOf("") }
     var activeBarcode by remember { mutableStateOf("") }
-    var isFixQrMode by remember { mutableStateOf(startInFixQrMode) }
+    var isFixQrMode by remember { mutableStateOf(openMode == ScannerOpenMode.LABEL_FIX || startInFixQrMode) }
     val isSerialScanMode = !isFixQrMode
     var isBarcodeTooFar by remember { mutableStateOf(false) }
     var serialScanCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -286,8 +289,14 @@ fun BarcodeScannerSheet(
                                 val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
 
                                 onFixQrScanned(trimmedBar) { msg, isSuccess ->
-                                    qrFixLastInfo = msg
                                     if (isSuccess) {
+                                        qrFixLastInfo = msg
+                                        coroutineScope.launch {
+                                            delay(3500L)
+                                            if (qrFixLastInfo == msg) {
+                                                qrFixLastInfo = null
+                                            }
+                                        }
                                         qrFixSuccessCount++
                                         if (vibrationEnabled) {
                                             com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = soundEffectsEnabled)
@@ -295,6 +304,7 @@ fun BarcodeScannerSheet(
                                             com.example.util.HapticFeedbackHelper.playSuccessTone()
                                         }
                                     } else {
+                                        qrFixLastInfo = null
                                         qrFixErrorCount++
                                         if (vibrationEnabled) {
                                             com.example.util.HapticFeedbackHelper.triggerWarningHaptic(context, playSound = soundEffectsEnabled)
@@ -334,6 +344,22 @@ fun BarcodeScannerSheet(
                             }
                             lastScannedCode = cleanBarcode
                             lastScannedTime = now
+
+                            if (openMode == ScannerOpenMode.ADETSEL_SAYIM) {
+                                isProcessingScan = true
+                                serialScanCount++
+                                if (vibrationEnabled) {
+                                    com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = soundEffectsEnabled)
+                                } else if (soundEffectsEnabled) {
+                                    com.example.util.HapticFeedbackHelper.playSuccessTone()
+                                }
+                                onBarcodeDetected(cleanBarcode)
+                                coroutineScope.launch {
+                                    delay(1200L)
+                                    isProcessingScan = false
+                                }
+                                return@CameraXBarcodeView
+                            }
 
                             val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(cleanBarcode, products, todayMidnight)
                             ScannerFeedbackHelper.playFeedback(
@@ -527,7 +553,7 @@ fun BarcodeScannerSheet(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = if (isFixQrMode) "🎯 Tekli QR Okuma Modu" else "⚡ Seri Tarama Modu",
+                                        text = if (isFixQrMode) "🎯 Tekli QR Okuma Modu" else if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "📋 Sayım Barkod Modu" else "⚡ Seri Tarama Modu",
                                         color = Color.White,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold
@@ -597,6 +623,7 @@ fun BarcodeScannerSheet(
             // TOP OVERLAY BAR: UNIFORM DARK PILL/CIRCLE BUTTONS & SEGMENTED MODE SELECTOR
             ScannerTopControls(
                 isFixQrMode = isFixQrMode,
+                openMode = openMode,
                 isFlashOn = isFlashOn,
                 onCloseClick = safeDismiss,
                 onModeChange = { isFixMode ->
@@ -702,13 +729,13 @@ fun BarcodeScannerSheet(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            text = "⚡ Seri Barkod Okuma Modu",
+                                            text = if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "📋 Sayım Barkod Modu" else "⚡ Seri Barkod Okuma Modu",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = "Telefonu barkoda yaklaştırarak sırayla okutabilirsiniz",
+                                            text = if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "Okutulan barkod doğrudan sayım listesine eklenir" else "Telefonu barkoda yaklaştırarak sırayla okutabilirsiniz",
                                             fontSize = 10.5.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )

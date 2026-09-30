@@ -82,6 +82,8 @@ import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.theme.WarningBlueDark
 
+import com.example.ui.screens.scanner.ScannerOpenMode
+
 enum class AdetselTab {
     YAPILACAK,
     YAPILDI
@@ -97,6 +99,7 @@ fun AdetselScreen(
     onUndoSayim: (AdetselKayit) -> Unit,
     onDeleteKayit: (Int) -> Unit,
     onClearCompleted: () -> Unit,
+    onOpenScanner: ((ScannerOpenMode) -> Unit)? = null,
     onNavigateToProducts: () -> Unit,
     onBackClick: () -> Unit = onNavigateToProducts
 ) {
@@ -156,6 +159,7 @@ fun AdetselScreen(
     if (showBarcodeScanner) {
         BarcodeScannerSheet(
             products = allProducts,
+            openMode = ScannerOpenMode.ADETSEL_SAYIM,
             onDismiss = { showBarcodeScanner = false },
             onBarcodeDetected = { scannedBarcode ->
                 val clean = scannedBarcode.trim()
@@ -678,7 +682,13 @@ fun AdetselScreen(
                         }
 
                         IconButton(
-                            onClick = { showBarcodeScanner = true },
+                            onClick = {
+                                if (onOpenScanner != null) {
+                                    onOpenScanner(ScannerOpenMode.ADETSEL_SAYIM)
+                                } else {
+                                    showBarcodeScanner = true
+                                }
+                            },
                             modifier = Modifier
                                 .size(28.dp)
                                 .testTag("adetsel_barcode_scanner_button")

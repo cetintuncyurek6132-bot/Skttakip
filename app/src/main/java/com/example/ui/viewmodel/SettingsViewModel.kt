@@ -256,7 +256,6 @@ class SettingsViewModel(
             onLoadingChange?.invoke(true, "Varsayılan Ürünler Yükleniyor...")
             try {
                 CloudSyncManager.setHasUserResetData(false)
-                repository.reSeedDefaultData()
             } finally {
                 onLoadingChange?.invoke(false, "")
             }
