@@ -139,7 +139,7 @@ class MainActivity : ComponentActivity() {
             android.util.Log.e("MainActivity", "CloudSyncManager init error", e)
         }
 
-        val repository = ProductRepository(db.productDao(), db.reportDao(), db.adetselDao())
+        val repository = ProductRepository(db.productDao(), db.reportDao(), db.adetselDao(), db.stockMovementDao())
         mainViewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
         inventoryViewModel = ViewModelProvider(this, InventoryViewModel.Factory(repository))[InventoryViewModel::class.java]
         adetselViewModel = ViewModelProvider(this, AdetselViewModel.Factory(repository))[AdetselViewModel::class.java]
@@ -280,6 +280,8 @@ fun SktMainApp(
     val migrationStatus by settingsViewModel.migrationStatus.collectAsStateWithLifecycle()
     val yapilacakAdetsel by adetselViewModel.yapilacakAdetselKayitlari.collectAsStateWithLifecycle()
     val yapildiAdetsel by adetselViewModel.yapildiAdetselKayitlari.collectAsStateWithLifecycle()
+    val stockMovements by inventoryViewModel.allStockMovements.collectAsStateWithLifecycle()
+    val stockLogs by inventoryViewModel.allStockLogs.collectAsStateWithLifecycle()
 
     // Bilgilendirme çubuğunu 3 saniye sonra otomatik olarak kaybet
     LaunchedEffect(migrationStatus) {
@@ -676,6 +678,8 @@ fun SktMainApp(
                 filteredProducts = filteredProducts,
                 yapilacakAdetsel = yapilacakAdetsel,
                 yapildiAdetsel = yapildiAdetsel,
+                stockMovements = stockMovements,
+                stockLogs = stockLogs,
                 searchQuery = searchQuery,
                 selectedFilter = selectedFilter,
                 selectedGroupFilter = selectedGroupFilter,

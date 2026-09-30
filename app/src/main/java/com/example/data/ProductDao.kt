@@ -34,6 +34,12 @@ interface ProductDao {
     @Update
     suspend fun updateProduct(product: Product): Int
 
+    @Update
+    suspend fun updateAllProducts(products: List<Product>): Int
+
+    @Query("UPDATE products SET kategori = :newCategory WHERE id = :productId")
+    suspend fun updateProductCategory(productId: Int, newCategory: String): Int
+
     @Query("UPDATE products SET stokAdedi = :newStok, sonKontrolTarihi = :now WHERE id = :productId")
     suspend fun updateStockAndControlDate(productId: Int, newStok: Int, now: Long = System.currentTimeMillis())
 
@@ -42,4 +48,22 @@ interface ProductDao {
 
     @Query("DELETE FROM products")
     suspend fun deleteAllProducts()
+
+    @androidx.room.Transaction
+    suspend fun reclassifyAllProductsClean(): Int {
+        val allProds = getAllProductsList()
+        var updatedCount = 0
+        val toUpdate = mutableListOf<Product>()
+        for (prod in allProds) {
+            val correctCategory = com.example.util.CategoryClassifier.classifyCategory(prod.urunAdi)
+            if (prod.kategori != correctCategory) {
+                toUpdate.add(prod.copy(kategori = correctCategory))
+                updatedCount++
+            }
+        }
+        if (toUpdate.isNotEmpty()) {
+            updateAllProducts(toUpdate)
+        }
+        return updatedCount
+    }
 }

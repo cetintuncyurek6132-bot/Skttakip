@@ -17,6 +17,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import android.media.AudioManager
+import android.media.ToneGenerator
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -109,6 +126,31 @@ fun AdetselScreen(
     var selectedResultFilter by remember { mutableStateOf("ALL") } // ALL, EKSIK, FAZLA, TAM
     var showBarcodeScanner by remember { mutableStateOf(false) }
 
+    val searchFocusRequester = remember { FocusRequester() }
+    var notFoundWarning by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(notFoundWarning) {
+        if (notFoundWarning != null) {
+            kotlinx.coroutines.delay(3500L)
+            notFoundWarning = null
+        }
+    }
+
+    // El terminali veya klavye girişi için otomatik odaklanma
+    LaunchedEffect(Unit) {
+        try {
+            searchFocusRequester.requestFocus()
+        } catch (_: Exception) {}
+    }
+
+    val playScanBeep: () -> Unit = {
+        try {
+            val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90)
+            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+        } catch (_: Exception) {}
+        HapticFeedbackHelper.triggerSuccessHaptic(context)
+    }
+
     var candidateProductToAdd by remember { mutableStateOf<Product?>(null) }
     var countingKayit by remember { mutableStateOf<AdetselKayit?>(null) }
     var initialModeForDialog by remember { mutableStateOf("TAM") } // "TAM", "EKSIK", "FAZLA"
@@ -122,6 +164,63 @@ fun AdetselScreen(
                 item.urunKodu.isNotBlank() -> "K:${item.urunKodu.trim()}_${item.productId}"
                 item.productId > 0 -> "P:${item.productId}"
                 else -> "N:${item.urunAdi.trim().lowercase()}_${item.id}"
+            }
+        }
+    }
+
+    val processBarcodeOrSearch: (String) -> Unit = { rawInput ->
+        val clean = rawInput.trim()
+        if (clean.isNotBlank()) {
+            // 1. Önce tüm ürün veritabanında ara
+            val matches = allProducts.findMatchingProducts(clean)
+            val matchedProduct = matches.firstOrNull()
+
+            if (matchedProduct != null) {
+                notFoundWarning = null
+                playScanBeep()
+                // Genel 'Ürün Düzenle' modalını KESİNLİKLE açma!
+                // Bulunan ürün doğrudan Sayım listesine eklenir veya adet artırma/onay diyaloğu açılır
+                if (onAddToAdetsel != null) {
+                    onAddToAdetsel(matchedProduct) { isSuccess ->
+                        if (isSuccess) {
+                            Toast.makeText(context, "${matchedProduct.urunAdi} sayım listesine eklendi", Toast.LENGTH_SHORT).show()
+                            selectedTab = AdetselTab.YAPILACAK
+                        } else {
+                            val existing = distinctYapilacakList.find { it.productId == matchedProduct.id || (it.barkod.isNotBlank() && it.barkod == matchedProduct.barkod) }
+                            if (existing != null) {
+                                countingKayit = existing
+                                initialModeForDialog = "TAM"
+                            } else {
+                                Toast.makeText(context, "${matchedProduct.urunAdi} zaten sayım listesinde ekli!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } else {
+                    candidateProductToAdd = matchedProduct
+                }
+                searchQuery = ""
+                try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
+            } else {
+                // 2. Mevcut adetsel listelerinde ara
+                val matchedAdetsel = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
+                    .find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                    ?: distinctYapilacakList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+                    ?: yapildiList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
+
+                if (matchedAdetsel != null) {
+                    notFoundWarning = null
+                    playScanBeep()
+                    countingKayit = matchedAdetsel
+                    initialModeForDialog = "TAM"
+                    searchQuery = ""
+                    try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
+                } else {
+                    // Ürün bulunamadı: Alt kısımda hafif kırmızı uyarı rozeti
+                    notFoundWarning = "Barkod bulunamadı: $clean"
+                    HapticFeedbackHelper.triggerWarningHaptic(context)
+                    searchQuery = ""
+                    try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
+                }
             }
         }
     }
@@ -155,7 +254,7 @@ fun AdetselScreen(
         }
     }
 
-    // BARKOD TARAYICI MODALI
+    // BARKOD TARAYICI MODALI (SAYFA İÇİ)
     if (showBarcodeScanner) {
         BarcodeScannerSheet(
             products = allProducts,
@@ -164,31 +263,8 @@ fun AdetselScreen(
             onBarcodeDetected = { scannedBarcode ->
                 val clean = scannedBarcode.trim()
                 if (clean.isNotBlank()) {
-                    HapticFeedbackHelper.triggerSuccessHaptic(context)
                     showBarcodeScanner = false
-
-                    // 1. Önce tüm ürün veritabanında ara
-                    val matches = allProducts.findMatchingProducts(clean)
-                    val matchedProduct = matches.firstOrNull()
-
-                    if (matchedProduct != null) {
-                        // Ürün bulundu -> Sayıma Ekle onay diyaloğunu aç
-                        candidateProductToAdd = matchedProduct
-                    } else {
-                        // 2. Mevcut adetsel listelerinde ara
-                        val matchedAdetsel = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
-                            .find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-                            ?: distinctYapilacakList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-                            ?: yapildiList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-
-                        if (matchedAdetsel != null) {
-                            countingKayit = matchedAdetsel
-                            initialModeForDialog = "TAM"
-                        } else {
-                            searchQuery = clean
-                            Toast.makeText(context, "Bu barkoda ait kayıtlı ürün bulunamadı.", Toast.LENGTH_SHORT).show()
-                        }
-                    }
+                    processBarcodeOrSearch(clean)
                 }
             }
         )
@@ -616,89 +692,143 @@ fun AdetselScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
-            // High Visibility Search Box
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(40.dp),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            // SAYIM İÇİ BARKOD / ÜRÜN ARAMA ALANI (OutlinedTextField)
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { input ->
+                    if (input.endsWith("\n") || input.endsWith("\r")) {
+                        processBarcodeOrSearch(input.trim())
+                    } else {
+                        searchQuery = input
+                    }
+                },
+                placeholder = {
+                    Text(
+                        text = "Barkod / Ürün Ara (El Terminali Hazır)...",
+                        fontSize = 12.5.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        contentDescription = "Ara",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Ürün adı veya barkod ara...",
-                                fontSize = 12.5.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            singleLine = true,
-                            textStyle = TextStyle(
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            cursorBrush = SolidColor(TurquoiseDark),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("adetsel_search_input")
-                        )
-                    }
-
+                },
+                trailingIcon = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = Modifier.padding(end = 4.dp)
                     ) {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(
                                 onClick = { searchQuery = "" },
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
                                     contentDescription = "Temizle",
                                     tint = Slate500,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(17.dp)
                                 )
                             }
                         }
-
                         IconButton(
                             onClick = {
-                                if (onOpenScanner != null) {
-                                    onOpenScanner(ScannerOpenMode.ADETSEL_SAYIM)
-                                } else {
-                                    showBarcodeScanner = true
-                                }
+                                // Kullanıcıyı harici sayfaya yönlendirme, sayfa içi kamera aç
+                                showBarcodeScanner = true
                             },
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(32.dp)
                                 .testTag("adetsel_barcode_scanner_button")
                         ) {
                             Icon(
                                 imageVector = Icons.Default.QrCodeScanner,
-                                contentDescription = "Barkod Oku",
+                                contentDescription = "Kamera ile Barkod Oku",
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(21.dp)
                             )
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Search,
+                    keyboardType = KeyboardType.Ascii
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = { processBarcodeOrSearch(searchQuery) },
+                    onDone = { processBarcodeOrSearch(searchQuery) }
+                ),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = TurquoiseDark,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                ),
+                textStyle = TextStyle(
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.SemiBold
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(searchFocusRequester)
+                    .testTag("adetsel_search_input")
+            )
+
+            // 3. ÜRÜN BULUNAMAZSA KIRMIZI UYARI ROZETİ
+            AnimatedVisibility(
+                visible = notFoundWarning != null,
+                enter = fadeIn() + slideInVertically { -it },
+                exit = fadeOut() + slideOutVertically { -it }
+            ) {
+                notFoundWarning?.let { warningText ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
+                        shape = RoundedCornerShape(8.dp),
+                        color = ExpiredRedDark,
+                        shadowElevation = 2.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = warningText,
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            IconButton(
+                                onClick = { notFoundWarning = null },
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Kapat",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
                     }
                 }

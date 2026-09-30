@@ -108,7 +108,14 @@ fun AddEditProductModal(
         )
     }
     var urunAdi by remember { mutableStateOf(healedProduct?.urunAdi ?: "") }
-    var kategori by remember { mutableStateOf(healedProduct?.kategori ?: "Genel") }
+    val initialCategory = remember(healedProduct) {
+        if (healedProduct != null) {
+            com.example.util.CategoryClassifier.classify(healedProduct.urunAdi, healedProduct.kategori)
+        } else {
+            "Gıda"
+        }
+    }
+    var kategori by remember { mutableStateOf(initialCategory) }
     var fiyatText by remember {
         mutableStateOf(
             healedProduct?.fiyat?.let { f ->
@@ -120,10 +127,10 @@ fun AddEditProductModal(
     }
     var isImportant by remember { mutableStateOf(healedProduct?.isImportant ?: false) }
 
-    // Sadece iki reyon kategorisi
+    // Sadece iki reyon kategorisi (Dolap ve Gıda)
     val categories = listOf(
-        "Dolap Ürünleri",
-        "Gıda Ürünleri"
+        "Dolap",
+        "Gıda"
     )
     var expandedCategoryMenu by remember { mutableStateOf(false) }
 
@@ -273,17 +280,7 @@ fun AddEditProductModal(
                             }
                             if (!shelfData.productName.isNullOrBlank()) {
                                 urunAdi = shelfData.productName
-                                val testProduct = Product(
-                                    barkod = barkod,
-                                    urunKodu = urunKodu,
-                                    urunAdi = shelfData.productName,
-                                    kategori = shelfData.productName,
-                                    sktTarihi = 0L,
-                                    stokAdedi = 0
-                                )
-                                if (testProduct.isDolapProduct()) {
-                                    kategori = "Dolap Ürünleri"
-                                }
+                                kategori = com.example.util.CategoryClassifier.classify(shelfData.productName)
                             }
                             Toast.makeText(context, "Raf etiketi okundu", Toast.LENGTH_SHORT).show()
                         }
@@ -341,7 +338,13 @@ fun AddEditProductModal(
                 // 3. ÜRÜN ADI ALANI (Kamera Trailing Icon'u ile)
                 OutlinedTextField(
                     value = urunAdi,
-                    onValueChange = { urunAdi = it.uppercase(java.util.Locale.forLanguageTag("tr-TR")) },
+                    onValueChange = {
+                        val formatted = it.uppercase(java.util.Locale.forLanguageTag("tr-TR"))
+                        urunAdi = formatted
+                        if (formatted.isNotBlank()) {
+                            kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
+                        }
+                    },
                     label = { Text("Ürün Adı") },
                     placeholder = { Text("Örn: Klasik Peynir 350g") },
                     trailingIcon = {
@@ -378,9 +381,11 @@ fun AddEditProductModal(
                     ProductNameOcrScannerDialog(
                         onDismiss = { showProductNameOcrScanner = false },
                         onProductNameDetected = { detectedName ->
-                            urunAdi = detectedName
+                            val formatted = detectedName.uppercase(java.util.Locale.forLanguageTag("tr-TR"))
+                            urunAdi = formatted
+                            kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
                             showProductNameOcrScanner = false
-                            Toast.makeText(context, "Yazı okundu: $detectedName", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Yazı okundu: $formatted", Toast.LENGTH_SHORT).show()
                         }
                     )
                 }

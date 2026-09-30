@@ -87,26 +87,10 @@ object ProductDataHealer {
     }
 
     /**
-     * Automatically classifies the product into 'Dolap Ürünleri' vs 'Gıda Ürünleri' based on product name and keywords.
+     * Automatically classifies the product into 'Dolap' vs 'Gıda' based on CategoryClassifier.
      */
-    fun detectCategory(productName: String, fallbackCategory: String = "Gıda Ürünleri"): String {
-        val lower = "${productName.lowercase(trLocale)} ${fallbackCategory.lowercase(trLocale)}"
-        
-        val isDolap = lower.contains("peynir") || lower.contains("süt") || lower.contains("sut") ||
-                lower.contains("yoğurt") || lower.contains("yogurt") || lower.contains("tereyağ") ||
-                lower.contains("tereyag") || lower.contains("kaymak") || lower.contains("şarküteri") ||
-                lower.contains("sarkuteri") || lower.contains("salam") || lower.contains("sosis") ||
-                lower.contains("sucuk") || lower.contains("pastırma") || lower.contains("pastirma") ||
-                lower.contains("kavurma") || lower.contains("tavuk") || lower.contains("piliç") ||
-                lower.contains("pilic") || lower.contains("et ") || lower.contains("kıyma") ||
-                lower.contains("kiyma") || lower.contains("dondurma") || lower.contains("krema") ||
-                lower.contains("ayran") || lower.contains("kefir") || lower.contains("lor") ||
-                lower.contains("kaşar") || lower.contains("kasar") || lower.contains("labne") ||
-                lower.contains("tulum") || lower.contains("çökelek") || lower.contains("süzme") ||
-                lower.contains("soğuk") || lower.contains("dolap") || lower.contains("yumurta") ||
-                lower.contains("helva") || lower.contains("meze")
-
-        return if (isDolap) "Dolap Ürünleri" else "Gıda Ürünleri"
+    fun detectCategory(productName: String, fallbackCategory: String = "Gıda"): String {
+        return CategoryClassifier.classifyCategory(productName)
     }
 
     /**
@@ -129,7 +113,7 @@ object ProductDataHealer {
             healedBarkod = rawUrunKodu
             healedUrunKodu = rawUrunAdi
             healedUrunAdi = rawKategori.uppercase(trLocale)
-            healedKategori = detectCategory(healedUrunAdi, "Dolap Ürünleri")
+            healedKategori = detectCategory(healedUrunAdi, "Dolap")
             return product.copy(
                 barkod = healedBarkod,
                 urunKodu = healedUrunKodu,
@@ -201,7 +185,7 @@ object ProductDataHealer {
         if (rawUrunAdi.all { it.isDigit() } && isProductName(rawKategori)) {
             healedUrunAdi = rawKategori.uppercase(trLocale)
             healedUrunKodu = rawUrunAdi
-            healedKategori = detectCategory(healedUrunAdi, "Dolap Ürünleri")
+            healedKategori = detectCategory(healedUrunAdi, "Dolap")
             return product.copy(
                 barkod = healedBarkod,
                 urunKodu = healedUrunKodu,
@@ -210,16 +194,14 @@ object ProductDataHealer {
             )
         }
 
-        // If category is a raw number (e.g. "53"), replace with real category
-        if (rawKategori.all { it.isDigit() } || rawKategori.isBlank()) {
-            healedKategori = detectCategory(healedUrunAdi, "Gıda Ürünleri")
-            return product.copy(
-                kategori = healedKategori,
-                urunAdi = healedUrunAdi.uppercase(trLocale)
-            )
-        }
-
-        return product
+        // Ensure category is classified cleanly as Dolap or Gıda
+        val classifiedCategory = CategoryClassifier.classify(healedUrunAdi, healedKategori)
+        return product.copy(
+            barkod = healedBarkod,
+            urunKodu = healedUrunKodu,
+            urunAdi = healedUrunAdi.uppercase(trLocale),
+            kategori = classifiedCategory
+        )
     }
 
     /**
@@ -324,7 +306,7 @@ object ProductDataHealer {
         val finalProductName = (foundProductName ?: "İSİMSİZ ÜRÜN").uppercase(trLocale)
         val finalBarcode = foundBarcode ?: (foundProductCode ?: "NO_BARCODE_${System.currentTimeMillis()}")
         val finalProductCode = foundProductCode ?: (if (foundBarcode != null && foundBarcode.length <= 9) foundBarcode else "2500${(1000..9999).random()}")
-        val finalCategory = detectCategory(finalProductName, foundCategory ?: "Gıda Ürünleri")
+        val finalCategory = detectCategory(finalProductName, foundCategory ?: "Gıda")
 
         val rawProduct = Product(
             barkod = finalBarcode,

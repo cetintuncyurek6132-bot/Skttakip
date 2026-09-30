@@ -172,12 +172,7 @@ fun Product.getDisplayBarcode(): String {
 }
 
 fun Product.isDolapProduct(): Boolean {
-    val cat = this.kategori.lowercase(Locale.forLanguageTag("tr-TR"))
-    return cat.contains("dolap") || cat.contains("süt") || cat.contains("sut") ||
-           cat.contains("şarküteri") || cat.contains("sarkuteri") || cat.contains("soğuk") ||
-           cat.contains("soguk") || cat.contains("peynir") || cat.contains("yoğurt") ||
-           cat.contains("yogurt") || cat.contains("dondurma") || cat.contains("et") ||
-           cat.contains("tavuk") || cat.contains("tatlı") || cat.contains("tatli")
+    return com.example.util.CategoryClassifier.isDolap(this)
 }
 
 enum class ExpiryStatus(val label: String) {

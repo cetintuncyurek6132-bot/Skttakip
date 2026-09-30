@@ -113,13 +113,13 @@ object ProductCsvImporter {
                 // Price parsing: clean "TL", "₺", change comma to dot
                 val rawPrice = parts[3].replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim()
                 val parsedPrice = rawPrice.toDoubleOrNull()?.takeIf { it >= 0.0 }
-                val parsedCategory = parts[4].ifBlank { "Genel" }
+                val finalCategory = CategoryClassifier.classifyCategory(urunAdi)
 
                 val rawProd = Product(
                     barkod = rawBarkod.ifEmpty { urunKodu },
                     urunKodu = urunKodu.ifEmpty { "0000" },
                     urunAdi = urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
-                    kategori = parsedCategory,
+                    kategori = finalCategory,
                     sktTarihi = 0L,
                     stokAdedi = 0,
                     fiyat = parsedPrice
@@ -138,13 +138,13 @@ object ProductCsvImporter {
                         parts[3].replace("₺", "").replace("TL", "", ignoreCase = true).replace(',', '.').trim()
                     } else ""
                     val parsedPrice = rawPrice.toDoubleOrNull()?.takeIf { it >= 0.0 }
-                    val parsedCategory = if (parts.size >= 4 && parsedPrice == null) parts[3].ifBlank { "Genel" } else "Genel"
+                    val finalCategory = CategoryClassifier.classifyCategory(urunAdi)
 
                     val rawProd = Product(
                         barkod = rawBarkod.ifEmpty { urunKodu },
                         urunKodu = urunKodu.ifEmpty { "0000" },
                         urunAdi = urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
-                        kategori = parsedCategory,
+                        kategori = finalCategory,
                         sktTarihi = 0L,
                         stokAdedi = 0,
                         fiyat = parsedPrice

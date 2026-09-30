@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.data.ExpiryStatus
 import com.example.data.Product
 import com.example.data.ProductRepository
+import com.example.data.StockLog
+import com.example.data.StockMovement
 import com.example.data.getTodayMidnightMillis
 import com.example.data.isDolapProduct
 import com.example.data.matchesSearchQuery
@@ -63,6 +65,20 @@ class InventoryViewModel(
 
     // All products flow from repository
     val allProducts: StateFlow<List<Product>> = repository.allProducts
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val allStockMovements: StateFlow<List<StockMovement>> = repository.allStockMovements
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val allStockLogs: StateFlow<List<StockLog>> = repository.allStockLogs
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -242,6 +258,7 @@ class InventoryViewModel(
             }
             val finalSkt = if (sktTarihi > 0L) sktTarihi else 0L
             val finalStok = if (sktTarihi > 0L) (if (stokAdedi > 0) stokAdedi else 1) else 0
+            val cleanCategory = com.example.util.CategoryClassifier.classify(urunAdi, kategori)
             val currentEditing = _editingProduct.value
 
             val savedProduct: Product = if (currentEditing != null) {
@@ -249,7 +266,7 @@ class InventoryViewModel(
                     barkod = finalBarkod,
                     urunKodu = urunKodu.trim(),
                     urunAdi = urunAdi.uppercase().trim(),
-                    kategori = kategori,
+                    kategori = cleanCategory,
                     sktTarihi = if (sktTarihi > 0L) sktTarihi else currentEditing.sktTarihi,
                     stokAdedi = if (stokAdedi > 0) stokAdedi else currentEditing.sktTarihi.let { if (it > 0L) currentEditing.stokAdedi else 0 },
                     fiyat = fiyat,
@@ -265,11 +282,12 @@ class InventoryViewModel(
                 } else emptyList()
 
                 siblings.filter { it.id != currentEditing.id }.forEach { sibling ->
+                    val siblingCat = com.example.util.CategoryClassifier.classify(sibling.urunAdi, cleanCategory)
                     val updatedSibling = sibling.copy(
                         barkod = finalBarkod,
                         urunKodu = urunKodu.trim().ifBlank { sibling.urunKodu },
                         urunAdi = urunAdi.uppercase().trim().ifBlank { sibling.urunAdi },
-                        kategori = kategori.ifBlank { sibling.kategori },
+                        kategori = siblingCat,
                         fiyat = fiyat ?: sibling.fiyat,
                         isImportant = isImportant
                     )
@@ -292,7 +310,7 @@ class InventoryViewModel(
                         stokAdedi = sameDayMatch.stokAdedi + finalStok,
                         urunKodu = urunKodu.trim().ifBlank { sameDayMatch.urunKodu },
                         urunAdi = urunAdi.uppercase().trim().ifBlank { sameDayMatch.urunAdi },
-                        kategori = kategori.ifBlank { sameDayMatch.kategori },
+                        kategori = cleanCategory,
                         fiyat = fiyat ?: sameDayMatch.fiyat,
                         isImportant = isImportant || sameDayMatch.isImportant
                     )
@@ -303,7 +321,7 @@ class InventoryViewModel(
                         barkod = finalBarkod,
                         urunKodu = urunKodu.trim(),
                         urunAdi = urunAdi.uppercase().trim(),
-                        kategori = kategori,
+                        kategori = cleanCategory,
                         sktTarihi = finalSkt,
                         stokAdedi = finalStok,
                         fiyat = fiyat,
@@ -312,6 +330,21 @@ class InventoryViewModel(
                     repository.insertOrUpdateProduct(productToSave)
                     productToSave
                 }
+            }
+
+            if (finalSkt > 0L) {
+                val daysRemaining = ((finalSkt - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                repository.insertStockLog(
+                    StockLog(
+                        barcode = finalBarkod,
+                        productName = urunAdi.uppercase().trim(),
+                        actionType = "SKT_GIRIS",
+                        quantity = finalStok,
+                        sktDate = finalSkt,
+                        daysRemaining = daysRemaining,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
             }
 
             if (_detailProduct.value != null) {
@@ -398,6 +431,21 @@ class InventoryViewModel(
                 newProd
             }
 
+            if (newSktTarihi > 0L) {
+                val daysRemaining = ((newSktTarihi - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                repository.insertStockLog(
+                    StockLog(
+                        barcode = existingProduct.barkod,
+                        productName = existingProduct.urunAdi,
+                        actionType = "SKT_GIRIS",
+                        quantity = newStokAdedi,
+                        sktDate = newSktTarihi,
+                        daysRemaining = daysRemaining,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            }
+
             if (_detailProduct.value?.barkod == existingProduct.barkod) {
                 _detailProduct.value = savedProduct
             }
@@ -417,6 +465,22 @@ class InventoryViewModel(
                 stokAdedi = newStokAdedi
             )
             repository.insertOrUpdateProduct(updatedProduct)
+
+            if (newSktTarihi > 0L) {
+                val daysRemaining = ((newSktTarihi - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                repository.insertStockLog(
+                    StockLog(
+                        barcode = item.barkod,
+                        productName = item.urunAdi,
+                        actionType = "SKT_GIRIS",
+                        quantity = newStokAdedi,
+                        sktDate = newSktTarihi,
+                        daysRemaining = daysRemaining,
+                        timestamp = System.currentTimeMillis()
+                    )
+                )
+            }
+
             if (_detailProduct.value?.barkod == item.barkod) {
                 _detailProduct.value = updatedProduct
             }
@@ -433,6 +497,36 @@ class InventoryViewModel(
         viewModelScope.launch {
             val safeAmount = if (amount <= 0) 1 else amount
             val newStock = maxOf(0, product.stokAdedi - safeAmount)
+
+            val normalizedType = when {
+                reason.contains("SAT", ignoreCase = true) -> "SATIS"
+                reason.contains("FİR", ignoreCase = true) || reason.contains("FIR", ignoreCase = true) || reason.contains("İMHA", ignoreCase = true) || reason.contains("IMHA", ignoreCase = true) -> "FIRE"
+                else -> if (reason.equals("Fire", ignoreCase = true)) "FIRE" else "SATIS"
+            }
+
+            val daysRemaining = if (product.sktTarihi > 0L) {
+                val diff = product.sktTarihi - System.currentTimeMillis()
+                (diff / (1000 * 60 * 60 * 24)).toInt()
+            } else null
+
+            repository.insertStockLog(
+                StockLog(
+                    barcode = product.barkod,
+                    productName = product.urunAdi,
+                    actionType = normalizedType,
+                    quantity = safeAmount,
+                    sktDate = if (product.sktTarihi > 0L) product.sktTarihi else null,
+                    daysRemaining = daysRemaining,
+                    timestamp = System.currentTimeMillis()
+                )
+            )
+
+            repository.logStockMovement(
+                barkod = product.barkod,
+                urunAdi = product.urunAdi,
+                adet = safeAmount,
+                islemTuru = normalizedType
+            )
 
             val existingBatches = if (product.barkod.isNotBlank() && !product.barkod.startsWith("NO_BARCODE_")) {
                 repository.getProductsByBarcode(product.barkod).ifEmpty {
