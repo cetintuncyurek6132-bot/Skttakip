@@ -52,12 +52,13 @@ fun ScannerProductDetailsSection(
             .padding(bottom = 8.dp)
     ) {
         val qrData = remember(activeBarcode) { parseShelfQrPayload(activeBarcode) }
+        val searchBarcode = qrData.barcode.ifBlank { activeBarcode.trim() }
 
         var matchingProducts by remember { mutableStateOf<List<Product>>(emptyList()) }
         var isSearching by remember { mutableStateOf(false) }
 
         LaunchedEffect(activeBarcode, products) {
-            val query = activeBarcode.trim()
+            val query = searchBarcode.trim()
             if (query.isBlank()) {
                 matchingProducts = emptyList()
                 isSearching = false
@@ -65,7 +66,14 @@ fun ScannerProductDetailsSection(
             }
             isSearching = true
             val results = withContext(Dispatchers.Default) {
-                products.findMatchingProducts(query)
+                val byClean = products.findMatchingProducts(query)
+                if (byClean.isNotEmpty()) {
+                    byClean
+                } else if (activeBarcode.isNotBlank() && activeBarcode.trim() != query) {
+                    products.findMatchingProducts(activeBarcode.trim())
+                } else {
+                    emptyList()
+                }
             }
             matchingProducts = results
             isSearching = false
@@ -77,13 +85,19 @@ fun ScannerProductDetailsSection(
         }
 
         val baseFoundProduct = selectedProductOverride
-            ?: matchingProducts.firstOrNull { it.stokAdedi > 0 }
+            ?: matchingProducts.firstOrNull { it.stokAdedi > 0 && it.urunAdi.isNotBlank() && !it.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true) }
+            ?: matchingProducts.firstOrNull { it.urunAdi.isNotBlank() && !it.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true) }
             ?: matchingProducts.firstOrNull()
+
         val foundProduct = remember(baseFoundProduct, qrData) {
-            if (baseFoundProduct != null && qrData.price != null && qrData.price > 0.0) {
-                baseFoundProduct.copy(fiyat = qrData.price)
+            if (baseFoundProduct != null && baseFoundProduct.urunAdi.isNotBlank() && !baseFoundProduct.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
+                if (qrData.price != null && qrData.price > 0.0) {
+                    baseFoundProduct.copy(fiyat = qrData.price)
+                } else {
+                    baseFoundProduct
+                }
             } else {
-                baseFoundProduct
+                null
             }
         }
 

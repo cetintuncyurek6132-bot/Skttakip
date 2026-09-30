@@ -57,9 +57,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.layout.ContentScale
-import coil.compose.SubcomposeAsyncImage
-import com.example.util.image.ProductImageManager
 import com.example.data.Product
 import com.example.data.getDisplayName
 import com.example.ui.components.detail.DeductStockDialog
@@ -275,60 +272,15 @@ fun ProductDetailModal(
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        var activeImageUrl by remember(localProduct.barkod, localProduct.resimUrl) {
-                            mutableStateOf(localProduct.resimUrl)
-                        }
-
-                        androidx.compose.runtime.LaunchedEffect(localProduct.barkod) {
-                            if (activeImageUrl.isNullOrBlank() && localProduct.barkod.isNotBlank() && !localProduct.barkod.startsWith("NO_BARCODE_")) {
-                                val fetched = ProductImageManager.getOrFetchProductImageUrl(
-                                    barcode = localProduct.barkod,
-                                    existingResimUrl = localProduct.resimUrl
-                                )
-                                if (!fetched.isNullOrBlank()) {
-                                    activeImageUrl = fetched
-                                    onUpdateImage(localProduct.barkod, fetched)
-                                }
-                            }
-                        }
-
                         Surface(
-                            modifier = Modifier
-                                .size(width = 64.dp, height = 64.dp), // Şişe ve paketlerin rahat sığması için 64x64 dp
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color.White, // Ürün resminin arkası temiz beyaz zemin olsun
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                            shadowElevation = 1.dp
+                            modifier = Modifier.size(48.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            shadowElevation = 2.dp
                         ) {
-                            if (!activeImageUrl.isNullOrBlank()) {
-                                SubcomposeAsyncImage(
-                                    model = activeImageUrl,
-                                    imageLoader = ProductImageManager.getImageLoader(context),
-                                    contentDescription = localProduct.urunAdi,
-                                    contentScale = ContentScale.Fit, // KESİNLİKLE FIT OLACAK (Hiçbir ambalaj kesilmeyecek)
-                                    alignment = Alignment.Center,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(4.dp), // Görselin kenarlara yapışmaması için nefes payı
-                                    loading = {
-                                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(16.dp),
-                                                strokeWidth = 2.dp,
-                                                color = TurquoisePrimary
-                                            )
-                                        }
-                                    },
-                                    error = {
-                                        FallbackLetterBadge(localProduct.getDisplayName())
-                                    }
-                                )
-                            } else {
-                                FallbackLetterBadge(localProduct.getDisplayName())
-                            }
+                            FallbackLetterBadge(localProduct.getDisplayName())
                         }
 
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
 
                         Column(modifier = Modifier.weight(1f)) {
                             Text(

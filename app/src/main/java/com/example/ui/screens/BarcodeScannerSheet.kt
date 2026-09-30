@@ -79,6 +79,8 @@ import com.example.ui.theme.TurquoisePrimary
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -111,8 +113,10 @@ fun BarcodeScannerSheet(
     var qrFixStoreCode by remember { mutableStateOf(com.example.sync.CloudSyncManager.getStoreCode()) }
     val qrFixHistoryList = remember { mutableStateListOf<com.example.ui.screens.scanner.QrFixHistoryItem>() }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
+    var isProcessingScan by remember { mutableStateOf(false) }
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
-    var lastScannedCode by remember { mutableStateOf<String?>(null) }
+    var lastScannedCode by remember { mutableStateOf("") }
     var lastScannedTime by remember { mutableStateOf(0L) }
     var lastScannedRisk by remember { mutableStateOf<ScanResultRisk?>(null) }
     var lastRemainingDays by remember { mutableStateOf<Long?>(null) }
@@ -208,8 +212,7 @@ fun BarcodeScannerSheet(
         )
     ) {
         val hasProductDetail = activeBarcode.isNotBlank()
-        val isScannerPaused = (isFixQrMode && qrFixResultMsg.isNotBlank())
-        val isCameraAnalysisPaused = isScannerPaused || isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
+        val isCameraAnalysisPaused = isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
         val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
         val topAreaWeight = 1.0f - bottomWeight
 
@@ -226,7 +229,7 @@ fun BarcodeScannerSheet(
                 CameraXBarcodeView(
                     isFlashOn = isFlashOn,
                     zoomRatio = zoomRatio,
-                    filterMode = ScannerFilterMode.ALL,
+                    filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ALL,
                     isBatterySaverMode = isBatterySaverMode,
                     isPaused = isCameraAnalysisPaused,
                     requireCloseDistance = !isFixQrMode,
@@ -238,73 +241,105 @@ fun BarcodeScannerSheet(
                         if (now < resumeCooldownUntil || isCooldownActive) {
                             return@CameraXBarcodeView
                         }
-                        if (isScannerPaused || (isFixQrMode && qrFixResultMsg.isNotBlank())) {
-                            return@CameraXBarcodeView
-                        }
                         val trimmedBar = barcode.trim()
-                        if (trimmedBar.isNotBlank()) {
-                            // Debounce to prevent rapid repeated scans of same barcode (1800ms)
-                            val isSameRecent = lastScannedCode == trimmedBar && (now - lastScannedTime) < 1800L
+                        if (trimmedBar.isBlank()) return@CameraXBarcodeView
 
-                            if (!isSameRecent) {
-                                val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(trimmedBar, products, todayMidnight)
-                                ScannerFeedbackHelper.playFeedback(
-                                    context = context,
-                                    toneGenerator = toneGenerator,
-                                    risk = risk
-                                )
-                                lastScannedRisk = risk
-                                lastRemainingDays = remainingDays
-                                lastScannedCode = trimmedBar
-                                lastScannedTime = now
-                                activeBarcode = trimmedBar
-                                manualBarcode = trimmedBar
-                                selectedProductOverride = null
-                                if (isSerialScanMode) {
-                                    serialScanCount++
+                        val shelfData = parseShelfQrPayload(trimmedBar)
+
+                        if (isFixQrMode) {
+                            // 1. ETİKET DÜZELTME SERİ DÖNGÜSÜ (Kamerayı dondurmaz, seri okur)
+                            if (isProcessingScan || trimmedBar == lastScannedCode) {
+                                return@CameraXBarcodeView
+                            }
+                            isProcessingScan = true
+                            lastScannedCode = trimmedBar
+                            lastScannedTime = now
+
+                            if (onFixQrScanned != null) {
+                                val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
+                                val formattedTime = timeFormat.format(Date(now))
+                                qrFixLastTime = formattedTime
+                                val sc = shelfData.storeCode
+                                if (!sc.isNullOrBlank()) {
+                                    qrFixStoreCode = sc
                                 }
-                                resumeCooldownUntil = now + 1200L
+                                val realBarcode = shelfData.barcode.ifBlank { trimmedBar }
+                                val pCode = shelfData.productCode
+                                val matchedProd = products.firstOrNull { p ->
+                                    (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
+                                    (pCode != null && pCode.isNotBlank() && p.urunKodu.equals(pCode, ignoreCase = true)) ||
+                                    p.urunKodu.equals(realBarcode, ignoreCase = true)
+                                }
+                                val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
 
-                                if (isFixQrMode && onFixQrScanned != null) {
-                                    val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                                    val formattedTime = timeFormat.format(Date(now))
-                                    qrFixLastTime = formattedTime
-                                    val shelfData = parseShelfQrPayload(trimmedBar)
-                                    val sc = shelfData.storeCode
-                                    if (!sc.isNullOrBlank()) {
-                                        qrFixStoreCode = sc
+                                onFixQrScanned(trimmedBar) { msg, isSuccess ->
+                                    qrFixLastInfo = msg
+                                    if (isSuccess) {
+                                        qrFixSuccessCount++
+                                        com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
+                                    } else {
+                                        qrFixErrorCount++
                                     }
-                                    val realBarcode = shelfData.barcode.ifBlank { trimmedBar }
-                                    val pCode = shelfData.productCode
-                                    val matchedProd = products.firstOrNull { p ->
-                                        (realBarcode.isNotBlank() && p.barkod.equals(realBarcode, ignoreCase = true)) ||
-                                        (pCode != null && pCode.isNotBlank() && p.urunKodu.equals(pCode, ignoreCase = true)) ||
-                                        p.urunKodu.equals(realBarcode, ignoreCase = true)
-                                    }
-                                    val prodName = matchedProd?.urunAdi ?: shelfData.productName ?: "Barkod: $realBarcode"
-
-                                    onFixQrScanned(trimmedBar) { msg, isSuccess ->
-                                        qrFixResultMsg = msg
-                                        qrFixLastInfo = msg
-                                        if (isSuccess) {
-                                            qrFixSuccessCount++
-                                            com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
-                                        } else {
-                                            qrFixErrorCount++
-                                        }
-                                        qrFixHistoryList.add(
-                                            0,
-                                            com.example.ui.screens.scanner.QrFixHistoryItem(
-                                                time = formattedTime,
-                                                barcode = realBarcode,
-                                                productCode = pCode ?: matchedProd?.urunKodu,
-                                                productName = prodName,
-                                                message = msg,
-                                                isSuccess = isSuccess
-                                            )
+                                    qrFixHistoryList.add(
+                                        0,
+                                        com.example.ui.screens.scanner.QrFixHistoryItem(
+                                            time = formattedTime,
+                                            barcode = realBarcode,
+                                            productCode = pCode ?: matchedProd?.urunKodu,
+                                            productName = prodName,
+                                            message = msg,
+                                            isSuccess = isSuccess
                                         )
+                                    )
+                                    // 1.5 saniye sonra yeni etiket okumaya hazır hale getir (seri akış)
+                                    coroutineScope.launch {
+                                        delay(1500L)
+                                        lastScannedCode = ""
+                                        isProcessingScan = false
                                     }
                                 }
+                            }
+                        } else {
+                            // 2. BARKOD ARA MODUNDA TEMİZ AYRIŞTIRMA (İsimsiz Ürün Hatasını Önleme)
+                            val cleanBarcode = if (shelfData.isShelfQr && shelfData.barcode.isNotBlank()) {
+                                shelfData.barcode
+                            } else {
+                                shelfData.barcode.ifBlank { trimmedBar }
+                            }
+
+                            if (isProcessingScan || (lastScannedCode == cleanBarcode && (now - lastScannedTime) < 1800L)) {
+                                return@CameraXBarcodeView
+                            }
+                            lastScannedCode = cleanBarcode
+                            lastScannedTime = now
+
+                            val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(cleanBarcode, products, todayMidnight)
+                            ScannerFeedbackHelper.playFeedback(
+                                context = context,
+                                toneGenerator = toneGenerator,
+                                risk = risk
+                            )
+                            lastScannedRisk = risk
+                            lastRemainingDays = remainingDays
+                            manualBarcode = cleanBarcode
+                            selectedProductOverride = null
+                            serialScanCount++
+                            resumeCooldownUntil = now + 1200L
+
+                            val matchedProd = products.firstOrNull { p ->
+                                (cleanBarcode.isNotBlank() && p.barkod.equals(cleanBarcode, ignoreCase = true)) ||
+                                (shelfData.productCode != null && shelfData.productCode.isNotBlank() && p.urunKodu.equals(shelfData.productCode, ignoreCase = true)) ||
+                                p.urunKodu.equals(cleanBarcode, ignoreCase = true)
+                            }
+
+                            if (matchedProd != null && matchedProd.urunAdi.isNotBlank() && !matchedProd.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
+                                // Ürün veritabanında varsa: Alt detay/SKT panelini aç
+                                activeBarcode = trimmedBar
+                            } else {
+                                // Ürün veritabanında kayıtlı değilse: Asla boş veya "İSİMSİZ ÜRÜN" detay paneli açma;
+                                // doğrudan AddEditProductModal'ı prefilledBarcode = cleanBarcode ve fiyatı dolu olarak aç
+                                activeBarcode = ""
+                                onBarcodeDetected(trimmedBar)
                             }
                         }
                     }
@@ -372,10 +407,10 @@ fun BarcodeScannerSheet(
             val viewfinderColor = when {
                 isBarcodeTooFar -> SoonYellow
                 lastScannedRisk != null -> lastScannedRisk!!.color
-                isScannerPaused -> SoonYellow
+                isProcessingScan -> TurquoisePrimary
                 else -> TurquoisePrimary
             }
-            val isViewfinderGlowing = isBarcodeTooFar || lastScannedRisk != null || isScannerPaused
+            val isViewfinderGlowing = isBarcodeTooFar || lastScannedRisk != null || isProcessingScan
 
             Box(
                 modifier = Modifier
@@ -536,6 +571,17 @@ fun BarcodeScannerSheet(
                     onModeChange = { isFixMode ->
                         isFixQrMode = isFixMode
                         qrFixResultMsg = ""
+                        manualBarcode = ""
+                        activeBarcode = ""
+                        selectedProductOverride = null
+                        lastScannedCode = ""
+                        isProcessingScan = false
+                        lastScannedTime = 0L
+                        lastScannedRisk = null
+                        lastRemainingDays = null
+                        resumeCooldownUntil = 0L
+                        isCooldownActive = false
+                        cooldownRemainingSeconds = 0
                         zoomRatio = if (isFixMode) 1.35f else 1.0f
                     },
                     onFlashToggle = { isFlashOn = !isFlashOn }
@@ -672,7 +718,8 @@ fun BarcodeScannerSheet(
                                     manualBarcode = ""
                                     activeBarcode = ""
                                     selectedProductOverride = null
-                                    lastScannedCode = null
+                                    lastScannedCode = ""
+                                    isProcessingScan = false
                                     lastScannedTime = 0L
                                     lastScannedRisk = null
                                     qrFixResultMsg = ""
@@ -703,7 +750,8 @@ fun BarcodeScannerSheet(
                                     activeBarcode = ""
                                     manualBarcode = ""
                                     selectedProductOverride = null
-                                    lastScannedCode = null
+                                    lastScannedCode = ""
+                                    isProcessingScan = false
                                     lastScannedTime = 0L
                                     lastScannedRisk = null
                                     resumeCooldownUntil = 0L

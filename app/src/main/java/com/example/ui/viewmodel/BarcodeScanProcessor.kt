@@ -86,10 +86,16 @@ object BarcodeScanProcessor {
         val scannedPrice = qrData.price
 
         val all = repository.getProductListDirect()
-        val matchingList = all.findMatchingProducts(barkod)
-        var prod: Product? = matchingList.firstOrNull()
+        val matchingList = if (queryBarcode.isNotBlank()) {
+            val byClean = all.findMatchingProducts(queryBarcode)
+            if (byClean.isNotEmpty()) byClean else all.findMatchingProducts(barkod)
+        } else {
+            all.findMatchingProducts(barkod)
+        }
+        var prod: Product? = matchingList.firstOrNull { it.urunAdi.isNotBlank() && !it.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true) }
+            ?: matchingList.firstOrNull()
 
-        if (prod != null) {
+        if (prod != null && prod.urunAdi.isNotBlank() && !prod.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
             val isProductCodeMatch = queryProductCode.isNullOrBlank() ||
                 prod.urunKodu.isBlank() ||
                 prod.urunKodu.equals(queryProductCode, ignoreCase = true)

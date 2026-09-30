@@ -59,14 +59,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.SubcomposeAsyncImage
 import com.example.data.AdetselKayit
 import com.example.data.Product
 import com.example.data.findMatchingProducts
 import com.example.data.getDisplayName
 import com.example.ui.screens.BarcodeScannerSheet
 import com.example.util.HapticFeedbackHelper
-import com.example.util.image.ProductImageManager
 import com.example.ui.screens.adetsel.AdetselFilterChip
 import com.example.ui.screens.adetsel.AdetselSayimDialog
 import com.example.ui.screens.adetsel.CompactYapilacakCard
@@ -249,57 +247,23 @@ fun AdetselScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            // Ürün Görseli / Baş Harf
+                            // Ürün Baş Harf Rozeti
                             Surface(
-                                modifier = Modifier.size(52.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                                modifier = Modifier.size(44.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                color = TurquoisePrimary.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
                             ) {
-                                if (!product.resimUrl.isNullOrBlank()) {
-                                    SubcomposeAsyncImage(
-                                        model = product.resimUrl,
-                                        imageLoader = ProductImageManager.getImageLoader(context),
-                                        contentDescription = product.urunAdi,
-                                        contentScale = ContentScale.Fit,
-                                        alignment = Alignment.Center,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(3.dp),
-                                        loading = {
-                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(14.dp),
-                                                    strokeWidth = 2.dp,
-                                                    color = TurquoisePrimary
-                                                )
-                                            }
-                                        },
-                                        error = {
-                                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Text(
-                                                    text = product.getDisplayName().take(1).uppercase(),
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 18.sp,
-                                                    color = TurquoiseDark
-                                                )
-                                            }
-                                        }
+                                Box(
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = product.getDisplayName().take(1).uppercase(),
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 18.sp,
+                                        color = TurquoiseDark
                                     )
-                                } else {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(TurquoisePrimary.copy(alpha = 0.12f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = product.getDisplayName().take(1).uppercase(),
-                                            fontWeight = FontWeight.Bold,
-                                            fontSize = 18.sp,
-                                            color = TurquoiseDark
-                                        )
-                                    }
                                 }
                             }
 
