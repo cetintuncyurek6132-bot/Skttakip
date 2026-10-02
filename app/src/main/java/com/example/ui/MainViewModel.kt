@@ -8,7 +8,6 @@ import com.example.data.InspectionReport
 import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.data.getTodayMidnightMillis
-import com.example.sync.CloudSyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

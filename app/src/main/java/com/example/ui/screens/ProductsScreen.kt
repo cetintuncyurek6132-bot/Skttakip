@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -204,25 +204,25 @@ fun ProductsScreen(
                     listState = listState
                 )
 
-                SmallFloatingActionButton(
+                FloatingActionButton(
                     onClick = {
                         isWhatsAppShareModalOpen = true
                     },
                     containerColor = Color(0xFF25D366),
                     contentColor = Color.White,
-                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 6.dp, pressedElevation = 8.dp),
                     shape = CircleShape,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(bottom = 16.dp, end = 16.dp)
-                        .size(44.dp)
+                        .padding(bottom = 76.dp, end = 16.dp)
+                        .size(56.dp)
                         .testTag("whatsapp_share_list_image_button")
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_whatsapp),
                         contentDescription = "WhatsApp Görsel Paylaş",
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(30.dp)
                     )
                 }
             }

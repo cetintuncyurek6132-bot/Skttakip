@@ -434,132 +434,160 @@ fun GroupedProductListItemCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // ÜST KISIM: Sol rozet + Orta İsim & Kod + Sağ Toplam Adet ve Parti Sayısı
-            Row(
+            // SOL ALAN: Kartın en tepesinden en altına kadar tam boy uzanan 66dp renkli durum bloğu
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Min),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxHeight()
+                    .width(66.dp)
+                    .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
+                    .background(squareBg),
+                contentAlignment = Alignment.Center
             ) {
-                // SOL ALAN: Kart boyuna sıfırlanan 66dp renkli durum bloğu
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(66.dp)
-                        .clip(RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp))
-                        .background(squareBg),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (!hasSkt) {
+                if (partyCount >= 2) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = partyCount.toString(),
+                            color = squareTextColor,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 22.sp,
+                            lineHeight = 22.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "PARTİ",
+                            color = squareTextColor.copy(alpha = 0.95f),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 0.5.sp,
+                            lineHeight = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else if (!hasSkt) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(4.dp)
+                    ) {
+                        Text(
+                            text = "SKT",
+                            color = squareTextColor,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
+                            lineHeight = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "YOK",
+                            color = squareTextColor.copy(alpha = 0.9f),
+                            fontWeight = FontWeight.Black,
+                            fontSize = 13.sp,
+                            lineHeight = 14.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else when {
+                    daysLeft < 0 -> {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.padding(4.dp)
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "SKT",
+                                text = kotlin.math.abs(daysLeft).toString(),
+                                color = squareTextColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 20.sp,
+                                lineHeight = 20.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "GÜN GEÇTİ",
+                                color = squareTextColor.copy(alpha = 0.95f),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.5.sp,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 11.sp,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    daysLeft == 0L -> {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(4.dp)) {
+                            Text(
+                                text = "SON GÜN",
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 13.sp,
-                                lineHeight = 14.sp,
                                 textAlign = TextAlign.Center
                             )
+                        }
+                    }
+                    daysLeft == 1L -> {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(4.dp)) {
                             Text(
-                                text = "YOK",
-                                color = squareTextColor.copy(alpha = 0.9f),
-                                fontWeight = FontWeight.Black,
-                                fontSize = 13.sp,
-                                lineHeight = 14.sp,
+                                text = "YARIN",
+                                color = squareTextColor,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.5.sp,
+                                letterSpacing = 0.5.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
-                    } else when {
-                        daysLeft < 0 -> {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = kotlin.math.abs(daysLeft).toString(),
-                                    color = squareTextColor,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 20.sp,
-                                    lineHeight = 20.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "GÜN GEÇTİ",
-                                    color = squareTextColor.copy(alpha = 0.95f),
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.5.sp,
-                                    letterSpacing = 0.5.sp,
-                                    lineHeight = 11.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        daysLeft == 0L -> {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(4.dp)) {
-                                Text(
-                                    text = "SON GÜN",
-                                    color = squareTextColor,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 13.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        daysLeft == 1L -> {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(4.dp)) {
-                                Text(
-                                    text = "YARIN",
-                                    color = squareTextColor,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.5.sp,
-                                    letterSpacing = 0.5.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                        else -> {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center,
-                                modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = daysLeft.toString(),
-                                    color = squareTextColor,
-                                    fontWeight = FontWeight.Black,
-                                    fontSize = 20.sp,
-                                    lineHeight = 20.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text(
-                                    text = "GÜN KALDI",
-                                    color = squareTextColor.copy(alpha = 0.9f),
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 10.5.sp,
-                                    letterSpacing = 0.5.sp,
-                                    lineHeight = 11.sp,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                    }
+                    else -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = daysLeft.toString(),
+                                color = squareTextColor,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 20.sp,
+                                lineHeight = 20.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "GÜN KALDI",
+                                color = squareTextColor.copy(alpha = 0.9f),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.5.sp,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 11.sp,
+                                textAlign = TextAlign.Center
+                            )
                         }
                     }
                 }
+            }
 
-                // ORTA VE SAĞ ALAN: Ürün Adı, Kod, Fiyat ve Adet
+            // SAĞ ALAN (Column): Üst satır (İsim, Kod, Fiyat, Toplam) + Alt satır (Parti çipleri)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // ÜST SATIR: Ürün Adı, Kod, Fiyat ve Toplam Adet & Parti Rozeti
                 Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // ORTA ALAN: Ürün Adı ve Kod
@@ -619,144 +647,135 @@ fun GroupedProductListItemCard(
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(TurquoisePrimary.copy(alpha = 0.15f))
                                 .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 8.dp, vertical = 5.dp)
                         ) {
-                            Column(horizontalAlignment = Alignment.End) {
-                                Text(
-                                    text = "Toplam $totalStock Adet",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = TurquoiseDark,
-                                    maxLines = 1
-                                )
-                                Text(
-                                    text = "$partyCount Parti",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate500,
-                                    maxLines = 1
-                                )
-                            }
+                            Text(
+                                text = "Toplam $totalStock Adet",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
-            }
 
-            // ALT KISIM (Kaydırmalı Partiler): Kompakt, şık yatay kayan çipler
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                sortedList.forEach { item ->
-                    val itemHasSkt = item.sktTarihi > 0L
-                    val itemDaysLeft = if (itemHasSkt) item.getRemainingDays(todayMidnight) else 9999L
-                    val itemStatus = if (itemHasSkt) item.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
+                // ALT SATIR (Kaydırmalı Partiler): Kompakt, şık yatay kayan çipler
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(start = 12.dp, end = 10.dp, top = 2.dp, bottom = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    sortedList.forEach { item ->
+                        val itemHasSkt = item.sktTarihi > 0L
+                        val itemDaysLeft = if (itemHasSkt) item.getRemainingDays(todayMidnight) else 9999L
+                        val itemStatus = if (itemHasSkt) item.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
 
-                    val (chipBgColor, chipBorderColor, badgeBg, badgeTextColor, badgeLabel) = when {
-                        !itemHasSkt -> arrayOf(
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                            Slate500,
-                            Color.White,
-                            "SKT YOK"
-                        )
-                        itemStatus == ExpiryStatus.EXPIRED -> arrayOf(
-                            ExpiredRedContainer,
-                            ExpiredRedBorder,
-                            ExpiredRed,
-                            Color.White,
-                            if (itemDaysLeft < 0) "${kotlin.math.abs(itemDaysLeft)} GÜN GEÇTİ" else "SON GÜN"
-                        )
-                        itemStatus == ExpiryStatus.CRITICAL -> arrayOf(
-                            CriticalOrangeContainer,
-                            CriticalOrangeBorder,
-                            CriticalOrange,
-                            Color.White,
-                            when {
-                                itemDaysLeft == 0L -> "SON GÜN"
-                                itemDaysLeft == 1L -> "YARIN"
-                                else -> "$itemDaysLeft GÜN KALDI"
-                            }
-                        )
-                        itemStatus == ExpiryStatus.SOON -> arrayOf(
-                            SoonYellowContainer,
-                            SoonYellowBorder,
-                            SoonYellow,
-                            Color.White,
-                            "$itemDaysLeft GÜN KALDI"
-                        )
-                        itemStatus == ExpiryStatus.WARNING -> arrayOf(
-                            WarningBlueContainer,
-                            WarningBlueBorder,
-                            WarningBlue,
-                            Color.White,
-                            "$itemDaysLeft GÜN KALDI"
-                        )
-                        else -> arrayOf(
-                            NormalGreenContainer,
-                            NormalGreenBorder,
-                            NormalGreen,
-                            Color.White,
-                            "$itemDaysLeft GÜN KALDI"
-                        )
-                    }
+                        val (chipBgColor, chipBorderColor, badgeBg, badgeTextColor, badgeLabel) = when {
+                            !itemHasSkt -> arrayOf(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                                Slate500,
+                                Color.White,
+                                "SKT YOK"
+                            )
+                            itemStatus == ExpiryStatus.EXPIRED -> arrayOf(
+                                ExpiredRedContainer,
+                                ExpiredRedBorder,
+                                ExpiredRed,
+                                Color.White,
+                                if (itemDaysLeft < 0) "${kotlin.math.abs(itemDaysLeft)} GÜN GEÇTİ" else "SON GÜN"
+                            )
+                            itemStatus == ExpiryStatus.CRITICAL -> arrayOf(
+                                CriticalOrangeContainer,
+                                CriticalOrangeBorder,
+                                CriticalOrange,
+                                Color.White,
+                                when {
+                                    itemDaysLeft == 0L -> "SON GÜN"
+                                    itemDaysLeft == 1L -> "YARIN"
+                                    else -> "$itemDaysLeft GÜN KALDI"
+                                }
+                            )
+                            itemStatus == ExpiryStatus.SOON -> arrayOf(
+                                SoonYellowContainer,
+                                SoonYellowBorder,
+                                SoonYellow,
+                                Color.White,
+                                "$itemDaysLeft GÜN KALDI"
+                            )
+                            itemStatus == ExpiryStatus.WARNING -> arrayOf(
+                                WarningBlueContainer,
+                                WarningBlueBorder,
+                                WarningBlue,
+                                Color.White,
+                                "$itemDaysLeft GÜN KALDI"
+                            )
+                            else -> arrayOf(
+                                NormalGreenContainer,
+                                NormalGreenBorder,
+                                NormalGreen,
+                                Color.White,
+                                "$itemDaysLeft GÜN KALDI"
+                            )
+                        }
 
-                    val chipShape = RoundedCornerShape(8.dp)
-                    Box(
-                        modifier = Modifier
-                            .height(36.dp)
-                            .clip(chipShape)
-                            .background(chipBgColor as Color)
-                            .border(BorderStroke(1.dp, chipBorderColor as Color), chipShape)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true)
-                            ) { onClick(item) }
-                            .padding(horizontal = 8.dp)
-                            .testTag("skt_chip_${item.id}"),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        val chipShape = RoundedCornerShape(8.dp)
+                        Box(
+                            modifier = Modifier
+                                .height(36.dp)
+                                .clip(chipShape)
+                                .background(chipBgColor as Color)
+                                .border(BorderStroke(1.dp, chipBorderColor as Color), chipShape)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true)
+                                ) { onClick(item) }
+                                .padding(horizontal = 8.dp)
+                                .testTag("skt_chip_${item.id}"),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .background(badgeBg as Color)
-                                    .padding(horizontal = 5.dp, vertical = 2.dp),
-                                contentAlignment = Alignment.Center
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(5.dp))
+                                        .background(badgeBg as Color)
+                                        .padding(horizontal = 5.dp, vertical = 2.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = badgeLabel as String,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = badgeTextColor as Color
+                                    )
+                                }
+
+                                val sktStr = if (itemHasSkt) {
+                                    synchronized(sharedSktDateFormat) {
+                                        sharedSktDateFormat.format(Date(item.sktTarihi))
+                                    }
+                                } else "SKT Girilmedi"
                                 Text(
-                                    text = badgeLabel as String,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = badgeTextColor as Color
+                                    text = "📅 $sktStr",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                Text(
+                                    text = "${item.stokAdedi} Adet",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark
                                 )
                             }
-
-                            val sktStr = if (itemHasSkt) {
-                                synchronized(sharedSktDateFormat) {
-                                    sharedSktDateFormat.format(Date(item.sktTarihi))
-                                }
-                            } else "SKT Girilmedi"
-                            Text(
-                                text = "📅 $sktStr",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Text(
-                                text = "${item.stokAdedi} Adet",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = TurquoiseDark
-                            )
                         }
                     }
                 }

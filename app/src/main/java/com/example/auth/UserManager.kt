@@ -2,7 +2,6 @@ package com.example.auth
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.example.sync.CloudSyncManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,20 +50,15 @@ object UserManager {
             val matched = _usersList.value.find { it.username.equals(savedUsername, ignoreCase = true) }
             if (matched != null) {
                 _currentUser.value = matched
-                CloudSyncManager.setUserName(matched.fullName)
             } else {
                 val defaultUser = _usersList.value.firstOrNull()
                 _currentUser.value = defaultUser
-                if (defaultUser != null) {
-                    CloudSyncManager.setUserName(defaultUser.fullName)
-                }
             }
         } else {
             val defaultUser = _usersList.value.firstOrNull()
             if (defaultUser != null) {
                 _currentUser.value = defaultUser
                 prefs?.edit()?.putString(KEY_LOGGED_IN_USER, defaultUser.username)?.apply()
-                CloudSyncManager.setUserName(defaultUser.fullName)
             }
         }
     }
@@ -129,7 +123,6 @@ object UserManager {
         return if (user != null) {
             _currentUser.value = user
             prefs?.edit()?.putString(KEY_LOGGED_IN_USER, user.username)?.apply()
-            CloudSyncManager.setUserName(user.fullName)
             true
         } else {
             false
@@ -151,7 +144,6 @@ object UserManager {
 
             if (_currentUser.value?.username.equals(updatedUser.username, ignoreCase = true)) {
                 _currentUser.value = updatedUser
-                CloudSyncManager.setUserName(updatedUser.fullName)
             }
         }
     }

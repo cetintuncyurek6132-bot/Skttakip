@@ -9,7 +9,6 @@ import com.example.data.BackupRestoreResult
 import com.example.data.DataMigrationManager
 import com.example.data.MigrationStatus
 import com.example.data.ProductRepository
-import com.example.sync.CloudSyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -251,7 +250,6 @@ class SettingsViewModel(
         viewModelScope.launch {
             onLoadingChange?.invoke(true, "Veritabanı Sıfırlanıyor...")
             try {
-                CloudSyncManager.setHasUserResetData(true)
                 repository.resetAllData()
             } finally {
                 onLoadingChange?.invoke(false, "")
@@ -263,7 +261,7 @@ class SettingsViewModel(
         viewModelScope.launch {
             onLoadingChange?.invoke(true, "Varsayılan Ürünler Yükleniyor...")
             try {
-                CloudSyncManager.setHasUserResetData(false)
+                // Yerel veritabanı sıfırlama işlemi tamamlandı
             } finally {
                 onLoadingChange?.invoke(false, "")
             }

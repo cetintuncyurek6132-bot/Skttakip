@@ -1,7 +1,6 @@
 package com.example.data
 
 import android.content.Context
-import com.example.sync.CloudSyncManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
@@ -114,9 +113,7 @@ class ProductRepository(
     suspend fun updateProduct(product: Product): Int {
         val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi)
         val toUpdate = if (product.kategori != cleanCategory) product.copy(kategori = cleanCategory) else product
-        val count = productDao.updateProduct(toUpdate)
-        CloudSyncManager.syncProductToCloud(toUpdate)
-        return count
+        return productDao.updateProduct(toUpdate)
     }
 
     suspend fun reclassifyAllProducts(): Int {
@@ -133,9 +130,6 @@ class ProductRepository(
         }
         if (toUpdate.isNotEmpty()) {
             productDao.updateAllProducts(toUpdate)
-            for (up in toUpdate) {
-                CloudSyncManager.syncProductToCloud(up)
-            }
         }
         return updatedCount
     }
@@ -144,7 +138,6 @@ class ProductRepository(
         val safeStok = maxOf(0, newStok)
         val updated = product.copy(stokAdedi = safeStok, sonKontrolTarihi = System.currentTimeMillis())
         productDao.updateProduct(updated)
-        CloudSyncManager.syncProductToCloud(updated)
     }
 
     suspend fun updateProductStock(productId: Int, newStok: Int) {
@@ -154,7 +147,6 @@ class ProductRepository(
         if (prod != null) {
             val updated = prod.copy(stokAdedi = safeStok, sonKontrolTarihi = now)
             productDao.updateProduct(updated)
-            CloudSyncManager.syncProductToCloud(updated)
         } else {
             productDao.updateStockAndControlDate(productId, safeStok, now)
         }
@@ -173,18 +165,13 @@ class ProductRepository(
         } else {
             productDao.insertProduct(productToSave)
         }
-        val insertedProd = productToSave.copy(id = id.toInt())
-        CloudSyncManager.syncProductToCloud(insertedProd)
         return id
     }
 
     suspend fun insertNewSktForBarcode(product: Product): Long {
         val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi)
         val productToSave = if (product.kategori != cleanCategory) product.copy(kategori = cleanCategory) else product
-        val id = productDao.insertProduct(productToSave.copy(id = 0))
-        val insertedProd = productToSave.copy(id = id.toInt())
-        CloudSyncManager.syncProductToCloud(insertedProd)
-        return id
+        return productDao.insertProduct(productToSave.copy(id = 0))
     }
 
     suspend fun insertProductsBatch(products: List<Product>) {
@@ -198,7 +185,6 @@ class ProductRepository(
 
     suspend fun deleteProduct(product: Product) {
         productDao.deleteProduct(product)
-        CloudSyncManager.deleteProductFromCloud(product.id)
     }
 
     suspend fun resetAllData() {
@@ -206,7 +192,6 @@ class ProductRepository(
         adetselDao?.deleteAllAdetselKayitlar()
         stockMovementDao?.deleteAllMovements()
         stockLogDao?.deleteAllLogs()
-        CloudSyncManager.clearAllCloudData()
     }
 
     suspend fun insertReport(report: InspectionReport): Long {

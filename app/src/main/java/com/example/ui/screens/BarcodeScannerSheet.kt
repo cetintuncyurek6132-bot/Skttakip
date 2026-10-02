@@ -115,7 +115,7 @@ fun BarcodeScannerSheet(
     var qrFixErrorCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixLastTime by remember { mutableStateOf("") }
     var qrFixLastInfo by remember { mutableStateOf<String?>(null) }
-    var qrFixStoreCode by remember { mutableStateOf(com.example.sync.CloudSyncManager.getStoreCode()) }
+    var qrFixStoreCode by remember { mutableStateOf("Ana Depo") }
     val qrFixHistoryList = remember { mutableStateListOf<com.example.ui.screens.scanner.QrFixHistoryItem>() }
     var selectedProductOverride by remember { mutableStateOf<Product?>(null) }
     var isProcessingScan by remember { mutableStateOf(false) }

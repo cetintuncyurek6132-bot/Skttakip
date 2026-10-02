@@ -133,12 +133,6 @@ class MainActivity : ComponentActivity() {
             android.util.Log.e("MainActivity", "UserManager init error", e)
         }
 
-        try {
-            com.example.sync.CloudSyncManager.initialize(applicationContext, db.productDao())
-        } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "CloudSyncManager init error", e)
-        }
-
         val repository = ProductRepository(
             db.productDao(),
             db.reportDao(),
@@ -201,26 +195,6 @@ class MainActivity : ComponentActivity() {
             pendingNavigationRoute.value = deepLinkRoute
         }
     }
-
-    override fun onResume() {
-        super.onResume()
-        com.example.sync.CloudSyncManager.startRealtimeListeners()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        com.example.sync.CloudSyncManager.stopRealtimeListeners()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        com.example.sync.CloudSyncManager.startRealtimeListeners()
-    }
-
-    override fun onStop() {
-        super.onStop()
-        com.example.sync.CloudSyncManager.stopRealtimeListeners()
-    }
 }
 
 @Composable
@@ -269,8 +243,7 @@ fun SktMainApp(
 
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val loadingMessage by mainViewModel.loadingMessage.collectAsStateWithLifecycle()
-    val syncState by com.example.sync.CloudSyncManager.syncState.collectAsStateWithLifecycle()
-    val isSyncingOrLoading = isLoading || syncState == com.example.sync.SyncState.SYNCING
+    val isSyncingOrLoading = isLoading
 
     val dashboardState by mainViewModel.dashboardState.collectAsStateWithLifecycle()
     val filteredProducts by inventoryViewModel.filteredProducts.collectAsStateWithLifecycle()
