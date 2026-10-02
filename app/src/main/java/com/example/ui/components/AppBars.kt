@@ -186,25 +186,87 @@ fun SktTopAppBar(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // SKT Logo Badge
-            Row(
+            // SKT Özel Grafik Logo Rozeti
+            Surface(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (isDark) Color(0xFF1E293B) else Color.White)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "SKT",
-                    color = if (isDark) Color(0xFF2DD4BF) else TurquoiseDark,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 17.sp,
-                    letterSpacing = 0.5.sp,
-                    modifier = Modifier.graphicsLayer {
+                    .height(32.dp)
+                    .graphicsLayer {
                         this.rotationY = rotationY.value
                         cameraDistance = 12f * density
+                    },
+                shape = RoundedCornerShape(8.dp),
+                color = Color(0xFF0F172A),
+                border = BorderStroke(1.dp, Color(0xFF14B8A6).copy(alpha = 0.6f)),
+                shadowElevation = 2.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = "S",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 17.sp,
+                        color = Color.White
+                    )
+
+                    // K Harfi (Özel Barkod/Lazer Vurgusu & Mikro Parlama)
+                    Box(
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Mikro parlama etkisi (Glow)
+                        Box(
+                            modifier = Modifier
+                                .width(14.dp)
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            Color(0x80EF4444),
+                                            Color(0xB3FF7170),
+                                            Color(0x80EF4444),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+
+                        Text(
+                            text = "K",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 17.sp,
+                            color = Color(0xFF2DD4BF)
+                        )
+
+                        // Yatay lazer tarama çizgisi (1.5.dp yükseklik, 12.dp genişlik)
+                        Box(
+                            modifier = Modifier
+                                .width(12.dp)
+                                .height(1.5.dp)
+                                .clip(RoundedCornerShape(1.dp))
+                                .background(
+                                    Brush.horizontalGradient(
+                                        listOf(
+                                            Color(0xFFEF4444),
+                                            Color(0xFFFEF08A),
+                                            Color(0xFFEF4444)
+                                        )
+                                    )
+                                )
+                        )
                     }
-                )
+
+                    Text(
+                        text = "T",
+                        fontWeight = FontWeight.Black,
+                        fontSize = 17.sp,
+                        color = Color.White
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
 
