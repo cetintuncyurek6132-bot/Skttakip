@@ -168,62 +168,6 @@ fun AdetselScreen(
         }
     }
 
-    val processBarcodeOrSearch: (String) -> Unit = { rawInput ->
-        val clean = rawInput.trim()
-        if (clean.isNotBlank()) {
-            keyboardController?.hide()
-            focusManager.clearFocus()
-            // 1. Önce tüm ürün veritabanında ara
-            val matches = allProducts.findMatchingProducts(clean)
-            val matchedProduct = matches.firstOrNull()
-
-            if (matchedProduct != null) {
-                notFoundWarning = null
-                playScanBeep()
-                // Genel 'Ürün Düzenle' modalını KESİNLİKLE açma!
-                // Bulunan ürün doğrudan Sayım listesine eklenir veya adet artırma/onay diyaloğu açılır
-                if (onAddToAdetsel != null) {
-                    onAddToAdetsel(matchedProduct) { isSuccess ->
-                        if (isSuccess) {
-                            Toast.makeText(context, "${matchedProduct.urunAdi} sayım listesine eklendi", Toast.LENGTH_SHORT).show()
-                            selectedTab = AdetselTab.YAPILACAK
-                        } else {
-                            val existing = distinctYapilacakList.find { it.productId == matchedProduct.id || (it.barkod.isNotBlank() && it.barkod == matchedProduct.barkod) }
-                            if (existing != null) {
-                                countingKayit = existing
-                                initialModeForDialog = "TAM"
-                            } else {
-                                Toast.makeText(context, "${matchedProduct.urunAdi} zaten sayım listesinde ekli!", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                } else {
-                    candidateProductToAdd = matchedProduct
-                }
-                searchQuery = ""
-            } else {
-                // 2. Mevcut adetsel listelerinde ara
-                val matchedAdetsel = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
-                    .find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-                    ?: distinctYapilacakList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-                    ?: yapildiList.find { it.barkod.equals(clean, ignoreCase = true) || it.urunKodu.equals(clean, ignoreCase = true) }
-
-                if (matchedAdetsel != null) {
-                    notFoundWarning = null
-                    playScanBeep()
-                    countingKayit = matchedAdetsel
-                    initialModeForDialog = "TAM"
-                    searchQuery = ""
-                } else {
-                    // Ürün bulunamadı: Alt kısımda hafif kırmızı uyarı rozeti
-                    notFoundWarning = "Barkod bulunamadı: $clean"
-                    HapticFeedbackHelper.triggerWarningHaptic(context)
-                    searchQuery = ""
-                }
-            }
-        }
-    }
-
     val filteredYapilacak = remember(distinctYapilacakList, searchQuery) {
         val q = searchQuery.trim().lowercase()
         if (q.isEmpty()) distinctYapilacakList else {
@@ -704,19 +648,15 @@ fun AdetselScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
-            // SAYIM İÇİ BARKOD / ÜRÜN ARAMA ALANI (OutlinedTextField)
+            // SAYIM İÇİ ARAMA VE LİSTE FİLTRELEME ALANI (OutlinedTextField)
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { input ->
-                    if (input.endsWith("\n") || input.endsWith("\r")) {
-                        processBarcodeOrSearch(input.trim())
-                    } else {
-                        searchQuery = input
-                    }
+                    searchQuery = input.replace("\n", "").replace("\r", "")
                 },
                 placeholder = {
                     Text(
-                        text = "Barkod / Ürün Ara (El Terminali Hazır)...",
+                        text = "Sayım listesinde ara (isim veya barkod)...",
                         fontSize = 12.5.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -773,11 +713,17 @@ fun AdetselScreen(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(
                     imeAction = ImeAction.Search,
-                    keyboardType = KeyboardType.Ascii
+                    keyboardType = KeyboardType.Text
                 ),
                 keyboardActions = KeyboardActions(
-                    onSearch = { processBarcodeOrSearch(searchQuery) },
-                    onDone = { processBarcodeOrSearch(searchQuery) }
+                    onSearch = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    },
+                    onDone = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                    }
                 ),
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(

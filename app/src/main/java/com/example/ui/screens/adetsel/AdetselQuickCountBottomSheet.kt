@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -29,6 +33,7 @@ import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
@@ -55,6 +60,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -67,6 +74,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.data.findMatchingProducts
 import com.example.ui.screens.scanner.CameraXBarcodeView
+import com.example.ui.screens.scanner.ScannerFilterMode
 import com.example.ui.theme.ExpiredRedDark
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
@@ -82,6 +90,7 @@ import com.google.accompanist.permissions.rememberPermissionState
 /**
  * Sayfa İçi Hızlı Sayım Penceresi (ModalBottomSheet).
  * Yalnızca stok ve adet sayımına odaklanır; SKT ve tarih içermez.
+ * Kullanıcı isterse kameradan barkod okutur, isterse arama kutusuna isim/barkod yazar.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
@@ -91,6 +100,8 @@ fun AdetselQuickCountBottomSheet(
     onSaveCount: (product: Product, countedQty: Int) -> Unit
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
 
@@ -102,8 +113,10 @@ fun AdetselQuickCountBottomSheet(
 
     var isFlashOn by remember { mutableStateOf(false) }
     var lastScannedBarcode by remember { mutableStateOf("") }
+    var manualSearchQuery by remember { mutableStateOf("") }
     var scannedProduct by remember { mutableStateOf<Product?>(null) }
     var isProductNotFound by remember { mutableStateOf(false) }
+    var notFoundQuery by remember { mutableStateOf("") }
     var countQuantityText by remember { mutableStateOf("") }
 
     val playScanBeep: () -> Unit = {
@@ -112,6 +125,34 @@ fun AdetselQuickCountBottomSheet(
             tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
         } catch (_: Exception) {}
         HapticFeedbackHelper.triggerSuccessHaptic(context)
+    }
+
+    // Ürün seçildiğinde (kamera okuması veya arama kutusundan seçim) tetiklenen merkezi fonksiyon
+    val selectProduct: (Product) -> Unit = { prod ->
+        playScanBeep()
+        scannedProduct = prod
+        isProductNotFound = false
+        notFoundQuery = ""
+        manualSearchQuery = "" // Arama kutusunu temizleyerek öneri listesini kapat
+        keyboardController?.hide()
+        focusManager.clearFocus()
+
+        // Veritabanındaki o anki mevcut stok adedi (currentStock) otomatik kutunun içine yazılır
+        val currentStock = allProducts.filter {
+            (prod.barkod.isNotBlank() && it.barkod == prod.barkod) ||
+            (prod.urunKodu.isNotBlank() && it.urunKodu == prod.urunKodu)
+        }.sumOf { it.stokAdedi }.let { if (it > 0) it else prod.stokAdedi }
+
+        countQuantityText = currentStock.toString()
+    }
+
+    // Dinamik Arama Sonuçları (Kullanıcı yazdıkça anlık eşleşenler)
+    val searchResults = remember(manualSearchQuery, allProducts) {
+        val q = manualSearchQuery.trim()
+        if (q.isBlank()) emptyList()
+        else {
+            allProducts.findMatchingProducts(q).take(6)
+        }
     }
 
     ModalBottomSheet(
@@ -124,8 +165,10 @@ fun AdetselQuickCountBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
+                .padding(bottom = 28.dp)
         ) {
             // Başlık Çubuğu
             Row(
@@ -177,25 +220,20 @@ fun AdetselQuickCountBottomSheet(
                     CameraXBarcodeView(
                         isFlashOn = isFlashOn,
                         zoomRatio = 1.0f,
+                        filterMode = ScannerFilterMode.ALL,
+                        requireCloseDistance = false,
                         onBarcodeScanned = { barcode ->
                             val clean = barcode.trim()
                             if (clean.isNotBlank() && clean != lastScannedBarcode) {
                                 lastScannedBarcode = clean
                                 val matched = allProducts.findMatchingProducts(clean).firstOrNull()
                                 if (matched != null) {
-                                    playScanBeep()
-                                    scannedProduct = matched
-                                    isProductNotFound = false
-                                    // Veritabanındaki o anki mevcut stok adedi otomatik kutunun içine yazılır
-                                    val currentStock = allProducts.filter {
-                                        (matched.barkod.isNotBlank() && it.barkod == matched.barkod) ||
-                                        (matched.urunKodu.isNotBlank() && it.urunKodu == matched.urunKodu)
-                                    }.sumOf { it.stokAdedi }.let { if (it > 0) it else matched.stokAdedi }
-                                    countQuantityText = currentStock.toString()
+                                    selectProduct(matched)
                                 } else {
                                     HapticFeedbackHelper.triggerWarningHaptic(context)
                                     scannedProduct = null
                                     isProductNotFound = true
+                                    notFoundQuery = clean
                                     countQuantityText = ""
                                 }
                             }
@@ -260,9 +298,178 @@ fun AdetselQuickCountBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. ORTA KISIM (ÜRÜN BİLGİSİ VE STOK ADEDİ)
+            // 2. DİNAMİK ARAMA KUTUSU (OutlinedTextField)
+            // Kamera vizörünün altındaki bekleme metni yerine doğrudan burası gelir
+            OutlinedTextField(
+                value = manualSearchQuery,
+                onValueChange = { newVal ->
+                    manualSearchQuery = newVal
+                    if (newVal.isNotBlank() && isProductNotFound) {
+                        isProductNotFound = false
+                    }
+                },
+                placeholder = {
+                    Text(
+                        text = "Ürün adı veya barkod ile ara...",
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Ara",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (manualSearchQuery.isNotEmpty()) {
+                        IconButton(
+                            onClick = {
+                                manualSearchQuery = ""
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Temizle",
+                                tint = Slate500,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    imeAction = ImeAction.Search,
+                    keyboardType = KeyboardType.Text
+                ),
+                keyboardActions = KeyboardActions(
+                    onSearch = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
+                        val firstMatch = searchResults.firstOrNull()
+                        if (firstMatch != null) {
+                            selectProduct(firstMatch)
+                        } else if (manualSearchQuery.isNotBlank()) {
+                            HapticFeedbackHelper.triggerWarningHaptic(context)
+                            isProductNotFound = true
+                            notFoundQuery = manualSearchQuery.trim()
+                            scannedProduct = null
+                            countQuantityText = ""
+                        }
+                    }
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("quick_count_search_field"),
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = TurquoiseDark,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                ),
+                textStyle = TextStyle(
+                    fontSize = 13.5.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            )
+
+            // Dinamik Anlık Arama Sonuçları Listesi
+            if (manualSearchQuery.isNotBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
+                ) {
+                    if (searchResults.isNotEmpty()) {
+                        Column(modifier = Modifier.padding(6.dp)) {
+                            searchResults.forEach { product ->
+                                Surface(
+                                    onClick = { selectProduct(product) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 3.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surface
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = product.urunAdi,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.5.sp,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Spacer(modifier = Modifier.height(2.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                if (product.barkod.isNotBlank()) {
+                                                    Text(
+                                                        text = "Barkod: ${product.barkod}",
+                                                        fontSize = 11.5.sp,
+                                                        color = Slate700
+                                                    )
+                                                }
+                                                if (product.urunKodu.isNotBlank()) {
+                                                    Text(
+                                                        text = "Kod: ${product.urunKodu}",
+                                                        fontSize = 11.5.sp,
+                                                        color = Slate700
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = TurquoisePrimary.copy(alpha = 0.15f),
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        ) {
+                                            Text(
+                                                text = "Stok: ${product.stokAdedi}",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = TurquoiseDark,
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Aramanızla eşleşen ürün bulunamadı",
+                                fontSize = 12.5.sp,
+                                color = Slate500
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // 3. ORTA KISIM (ÜRÜN BİLGİSİ VE STOK ADEDİ)
             if (scannedProduct != null) {
                 val prod = scannedProduct!!
                 Surface(
@@ -403,7 +610,7 @@ fun AdetselQuickCountBottomSheet(
                     }
                 }
             } else if (isProductNotFound) {
-                // 3. HATA DURUMU: "Ürün sistemde kayıtlı değil"
+                // HATA DURUMU: "Ürün sistemde kayıtlı değil"
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
@@ -428,10 +635,11 @@ fun AdetselQuickCountBottomSheet(
                                 fontSize = 14.sp,
                                 color = ExpiredRedDark
                             )
-                            if (lastScannedBarcode.isNotBlank()) {
+                            val queryDisplay = notFoundQuery.ifBlank { lastScannedBarcode }
+                            if (queryDisplay.isNotBlank()) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Okunan Barkod: $lastScannedBarcode",
+                                    text = "Aranan/Okunan: $queryDisplay",
                                     fontSize = 12.sp,
                                     color = Slate700
                                 )
@@ -439,39 +647,11 @@ fun AdetselQuickCountBottomSheet(
                         }
                     }
                 }
-            } else {
-                // Henüz okutulmadıysa bekleme rehberi
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = null,
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Barkodu kameraya gösterin...",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Slate700
-                        )
-                    }
-                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // 3. ALT KISIM (BUTONLAR)
+            // 4. ALT KISIM (BUTONLAR)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -495,7 +675,7 @@ fun AdetselQuickCountBottomSheet(
                 }
 
                 // "Sayıma Ekle" butonu: Kutuda yazan adedi doğrudan sayım listesine ekler/günceller, modalı kapatır.
-                // Okunan barkod sistemde yoksa: Sayıma Ekle butonu pasif kalır.
+                // Okunan barkod veya aranan ürün sistemde yoksa: Sayıma Ekle butonu pasif kalır.
                 val isSaveEnabled = scannedProduct != null && !isProductNotFound && countQuantityText.toIntOrNull() != null
                 Button(
                     onClick = {

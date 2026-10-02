@@ -1,10 +1,14 @@
 package com.example.ui.screens.scanner
 
 import android.annotation.SuppressLint
+import android.graphics.Bitmap
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
 import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
@@ -34,7 +38,10 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 enum class ScannerFilterMode {
     ALL,
@@ -65,7 +72,7 @@ fun CameraXBarcodeView(
     val currentFilterMode by rememberUpdatedState(filterMode)
     val currentRequireCloseDistance by rememberUpdatedState(requireCloseDistance)
     val currentIsBatterySaverMode by rememberUpdatedState(isBatterySaverMode)
-    val isPausedAtomic = remember { java.util.concurrent.atomic.AtomicBoolean(isPaused) }
+    val isPausedAtomic = remember { AtomicBoolean(isPaused) }
     isPausedAtomic.set(isPaused)
 
     val lastEmittedRef = remember { java.util.concurrent.atomic.AtomicReference<Pair<String, Long>>(Pair("", 0L)) }
@@ -73,12 +80,40 @@ fun CameraXBarcodeView(
     val pendingRunnableRef = remember { java.util.concurrent.atomic.AtomicReference<Runnable?>(null) }
     val lastAnalyzedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
     val lastFarDetectedTimeRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
-    val currentDistanceStateRef = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
+    val currentDistanceStateRef = remember { AtomicBoolean(false) }
     val scanCooldownUntilRef = remember { java.util.concurrent.atomic.AtomicLong(0L) }
 
     val previewViewRef = remember { mutableStateOf<PreviewView?>(null) }
     val previewUseCaseRef = remember { mutableStateOf<Preview?>(null) }
     val imageAnalysisRef = remember { mutableStateOf<ImageAnalysis?>(null) }
+
+    fun triggerAutoFocus(pointX: Float? = null, pointY: Float? = null) {
+        val pv = previewViewRef.value ?: return
+        val cam = cameraRef.value ?: return
+        try {
+            val w = pv.width.toFloat().takeIf { it > 0f } ?: return
+            val h = pv.height.toFloat().takeIf { it > 0f } ?: return
+            val factory = pv.meteringPointFactory
+            val x = pointX ?: (w / 2f)
+            val y = pointY ?: (h / 2f)
+            val point = factory.createPoint(x, y)
+            val action = FocusMeteringAction.Builder(
+                point,
+                FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE
+            ).setAutoCancelDuration(2, java.util.concurrent.TimeUnit.SECONDS).build()
+            cam.cameraControl.startFocusAndMetering(action)
+        } catch (_: Exception) {}
+    }
+
+    // 3. SÜREKLİ ODAK (CONTINUOUS AUTO-FOCUS)
+    LaunchedEffect(isPaused) {
+        if (!isPaused) {
+            while (isActive) {
+                delay(2600L)
+                triggerAutoFocus()
+            }
+        }
+    }
 
     fun rebindCamera() {
         val provider = cameraProviderRef.value ?: return
@@ -95,6 +130,9 @@ fun CameraXBarcodeView(
             cameraRef.value = camera
             camera.cameraControl.enableTorch(isFlashOn)
             camera.cameraControl.setZoomRatio(zoomRatio)
+            previewViewRef.value?.post {
+                triggerAutoFocus()
+            }
         } catch (e: Exception) {
             android.util.Log.e("CameraXBarcodeView", "Camera rebind failed", e)
         }
@@ -111,24 +149,46 @@ fun CameraXBarcodeView(
         }
     }
 
-    val barcodeScanner = remember {
+    // 1. ML KIT BARKOD FORMATINI ETİKET MODUNDA KİLİTLE
+    val barcodeScanner = remember(filterMode) {
         val builder = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(
-                Barcode.FORMAT_EAN_13,
-                Barcode.FORMAT_EAN_8,
-                Barcode.FORMAT_UPC_A,
-                Barcode.FORMAT_UPC_E,
-                Barcode.FORMAT_CODE_128,
-                Barcode.FORMAT_CODE_39,
-                Barcode.FORMAT_CODE_93,
-                Barcode.FORMAT_ITF,
-                Barcode.FORMAT_QR_CODE,
-                Barcode.FORMAT_DATA_MATRIX,
-                Barcode.FORMAT_AZTEC,
-                Barcode.FORMAT_PDF417,
-                Barcode.FORMAT_CODABAR
-            )
+        when (filterMode) {
+            ScannerFilterMode.ONLY_QR_CODE -> {
+                // Etiket Düzeltme Modu: Sadece Barcode.FORMAT_QR_CODE arayarak işlemciyi yormaz
+                builder.setBarcodeFormats(Barcode.FORMAT_QR_CODE)
+            }
+            ScannerFilterMode.ONLY_1D_BARCODE -> {
+                builder.setBarcodeFormats(
+                    Barcode.FORMAT_EAN_13,
+                    Barcode.FORMAT_EAN_8,
+                    Barcode.FORMAT_UPC_A,
+                    Barcode.FORMAT_UPC_E,
+                    Barcode.FORMAT_CODE_128,
+                    Barcode.FORMAT_CODE_39
+                )
+            }
+            ScannerFilterMode.ALL -> {
+                // Normal barkod modunda standart EAN/UPC ve perakende formatları
+                builder.setBarcodeFormats(
+                    Barcode.FORMAT_EAN_13,
+                    Barcode.FORMAT_EAN_8,
+                    Barcode.FORMAT_UPC_A,
+                    Barcode.FORMAT_UPC_E,
+                    Barcode.FORMAT_CODE_128,
+                    Barcode.FORMAT_CODE_39,
+                    Barcode.FORMAT_QR_CODE
+                )
+            }
+        }
         BarcodeScanning.getClient(builder.build())
+    }
+
+    DisposableEffect(barcodeScanner) {
+        onDispose {
+            try {
+                barcodeScanner.close()
+            } catch (_: Exception) {}
+        }
     }
 
     LaunchedEffect(isFlashOn) {
@@ -189,11 +249,6 @@ fun CameraXBarcodeView(
                 e.printStackTrace()
             }
             try {
-                barcodeScanner.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            try {
                 executor.shutdown()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -222,24 +277,11 @@ fun CameraXBarcodeView(
                 }
             )
 
-            // Tap-to-Focus and Pinch-to-Zoom support
+            // Tap-to-Focus and Pinch-to-Zoom support (Dokunulan noktaya anında odaklanma)
             previewView.setOnTouchListener { v, event ->
                 scaleGestureDetector.onTouchEvent(event)
                 if (event.action == android.view.MotionEvent.ACTION_UP && !scaleGestureDetector.isInProgress) {
-                    val camera = cameraRef.value
-                    if (camera != null) {
-                        try {
-                            val factory = previewView.meteringPointFactory
-                            val point = factory.createPoint(event.x, event.y)
-                            val action = androidx.camera.core.FocusMeteringAction.Builder(
-                                point,
-                                androidx.camera.core.FocusMeteringAction.FLAG_AF or androidx.camera.core.FocusMeteringAction.FLAG_AE
-                            ).setAutoCancelDuration(3, java.util.concurrent.TimeUnit.SECONDS).build()
-                            camera.cameraControl.startFocusAndMetering(action)
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
-                    }
+                    triggerAutoFocus(event.x, event.y)
                     v.performClick()
                 }
                 true
@@ -256,17 +298,15 @@ fun CameraXBarcodeView(
                     }
                     previewUseCaseRef.value = preview
 
-                    val targetResolutionSize = if (currentIsBatterySaverMode) {
-                        android.util.Size(1280, 720) // 720p Eko Mod (İşlemci ve pil tasarrufu)
-                    } else {
-                        android.util.Size(1920, 1080) // 1080p Standart Mod
-                    }
+                    // 2. OPTİMAL ANALİZ ÇÖZÜNÜRLÜĞÜ VE STRATEJİ:
+                    // 720p (1280x720) en yüksek okuma hızı ve düşük işlemci yükü için
+                    val targetResolutionSize = android.util.Size(1280, 720)
 
-                    val resolutionSelector = androidx.camera.core.resolutionselector.ResolutionSelector.Builder()
+                    val resolutionSelector = ResolutionSelector.Builder()
                         .setResolutionStrategy(
-                            androidx.camera.core.resolutionselector.ResolutionStrategy(
+                            ResolutionStrategy(
                                 targetResolutionSize,
-                                androidx.camera.core.resolutionselector.ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
                             )
                         )
                         .build()
@@ -278,122 +318,136 @@ fun CameraXBarcodeView(
                     imageAnalysisRef.value = imageAnalysis
 
                     imageAnalysis.setAnalyzer(executor) { imageProxy ->
-                        if (isPausedAtomic.get()) {
-                            pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
-                            pendingScanRef.set(null)
-                            imageProxy.close()
-                            return@setAnalyzer
+                        val isProxyClosed = AtomicBoolean(false)
+                        fun safeClose() {
+                            if (isProxyClosed.compareAndSet(false, true)) {
+                                try {
+                                    imageProxy.close()
+                                } catch (_: Exception) {}
+                            }
                         }
 
-                        val currentTime = System.currentTimeMillis()
-                        // Stop analyzing frames if cooldown active after successful detection
-                        if (currentTime < scanCooldownUntilRef.get()) {
-                            imageProxy.close()
-                            return@setAnalyzer
-                        }
+                        try {
+                            if (isPausedAtomic.get()) {
+                                pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
+                                pendingScanRef.set(null)
+                                safeClose()
+                                return@setAnalyzer
+                            }
 
-                        val minFrameIntervalMs = if (currentIsBatterySaverMode) 380L else 220L
-                        val lastAnalyzed = lastAnalyzedTimeRef.get()
-                        if (currentTime - lastAnalyzed < minFrameIntervalMs) {
-                            imageProxy.close()
-                            return@setAnalyzer
-                        }
-                        lastAnalyzedTimeRef.set(currentTime)
+                            val currentTime = System.currentTimeMillis()
+                            // Cooldown süresince gecikmeli kareleri analiz etme
+                            if (currentTime < scanCooldownUntilRef.get()) {
+                                safeClose()
+                                return@setAnalyzer
+                            }
 
-                        processImageProxy(
-                            barcodeScanner = barcodeScanner,
-                            filterMode = currentFilterMode,
-                            requireCloseDistance = currentRequireCloseDistance,
-                            imageProxy = imageProxy,
-                            onDistanceFeedback = { isTooFar ->
-                                if (isPausedAtomic.get()) return@processImageProxy
-                                val now = System.currentTimeMillis()
-                                if (isTooFar) {
-                                    lastFarDetectedTimeRef.set(now)
-                                    if (currentDistanceStateRef.compareAndSet(false, true)) {
-                                        mainHandler.post {
-                                            if (!isPausedAtomic.get()) {
-                                                currentOnDistanceStateChanged?.invoke(true)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    if (now - lastFarDetectedTimeRef.get() > 350L) {
-                                        if (currentDistanceStateRef.compareAndSet(true, false)) {
+                            val minFrameIntervalMs = if (currentIsBatterySaverMode) 150L else 65L
+                            val lastAnalyzed = lastAnalyzedTimeRef.get()
+                            if (currentTime - lastAnalyzed < minFrameIntervalMs) {
+                                safeClose()
+                                return@setAnalyzer
+                            }
+                            lastAnalyzedTimeRef.set(currentTime)
+
+                            processImageProxy(
+                                barcodeScanner = barcodeScanner,
+                                filterMode = currentFilterMode,
+                                requireCloseDistance = currentRequireCloseDistance,
+                                imageProxy = imageProxy,
+                                onCloseProxy = { safeClose() },
+                                onDistanceFeedback = { isTooFar ->
+                                    if (isPausedAtomic.get()) return@processImageProxy
+                                    val now = System.currentTimeMillis()
+                                    if (isTooFar) {
+                                        lastFarDetectedTimeRef.set(now)
+                                        if (currentDistanceStateRef.compareAndSet(false, true)) {
                                             mainHandler.post {
                                                 if (!isPausedAtomic.get()) {
-                                                    currentOnDistanceStateChanged?.invoke(false)
+                                                    currentOnDistanceStateChanged?.invoke(true)
+                                                }
+                                            }
+                                        }
+                                    } else {
+                                        if (now - lastFarDetectedTimeRef.get() > 350L) {
+                                            if (currentDistanceStateRef.compareAndSet(true, false)) {
+                                                mainHandler.post {
+                                                    if (!isPausedAtomic.get()) {
+                                                        currentOnDistanceStateChanged?.invoke(false)
+                                                    }
                                                 }
                                             }
                                         }
                                     }
                                 }
-                            }
-                        ) { barcodes ->
-                            lastFarDetectedTimeRef.set(0L)
-                            if (currentDistanceStateRef.compareAndSet(true, false)) {
-                                mainHandler.post {
-                                    currentOnDistanceStateChanged?.invoke(false)
+                            ) { barcodes ->
+                                lastFarDetectedTimeRef.set(0L)
+                                if (currentDistanceStateRef.compareAndSet(true, false)) {
+                                    mainHandler.post {
+                                        currentOnDistanceStateChanged?.invoke(false)
+                                    }
                                 }
-                            }
-                            if (isPausedAtomic.get()) {
-                                return@processImageProxy
-                            }
-                            val raw = barcodes.firstNotNullOfOrNull { b ->
-                                (b.rawValue ?: b.displayValue)?.trim()
-                            }
-                            if (!raw.isNullOrBlank()) {
                                 if (isPausedAtomic.get()) {
                                     return@processImageProxy
                                 }
-                                val now = System.currentTimeMillis()
-                                val (lastEmittedCode, lastEmittedTime) = lastEmittedRef.get()
-
-                                // 1) Rate limit identical barcode within 1200ms to avoid re-trigger stutter
-                                if (lastEmittedCode == raw && (now - lastEmittedTime) < 1200L) {
-                                    return@processImageProxy
+                                val raw = barcodes.firstNotNullOfOrNull { b ->
+                                    (b.rawValue ?: b.displayValue)?.trim()
                                 }
-
-                                // 2) Minimal interval between any distinct scans (200ms)
-                                if ((now - lastEmittedTime) < 200L) {
-                                    return@processImageProxy
-                                }
-
-                                // 3) Stabilization buffer (60ms) to upgrade any partial frame scan to full length
-                                val currentPending = pendingScanRef.get()
-                                if (currentPending != null) {
-                                    val (pCode, _) = currentPending
-                                    if (raw.length > pCode.length && (raw.contains(pCode) || pCode.contains(raw))) {
-                                        pendingScanRef.set(Pair(raw, now))
+                                if (!raw.isNullOrBlank()) {
+                                    if (isPausedAtomic.get()) {
+                                        return@processImageProxy
                                     }
-                                } else {
-                                    pendingScanRef.set(Pair(raw, now))
-                                    val runnable = Runnable {
-                                        if (isPausedAtomic.get()) {
-                                            pendingScanRef.set(null)
-                                            return@Runnable
+                                    val now = System.currentTimeMillis()
+                                    val (lastEmittedCode, lastEmittedTime) = lastEmittedRef.get()
+
+                                    // 1) Rate limit identical barcode within 1200ms to avoid re-trigger stutter
+                                    if (lastEmittedCode == raw && (now - lastEmittedTime) < 1200L) {
+                                        return@processImageProxy
+                                    }
+
+                                    // 2) Minimal interval between any distinct scans (180ms)
+                                    if ((now - lastEmittedTime) < 180L) {
+                                        return@processImageProxy
+                                    }
+
+                                    // 3) Stabilization buffer (45ms) to upgrade any partial frame scan to full length
+                                    val currentPending = pendingScanRef.get()
+                                    if (currentPending != null) {
+                                        val (pCode, _) = currentPending
+                                        if (raw.length > pCode.length && (raw.contains(pCode) || pCode.contains(raw))) {
+                                            pendingScanRef.set(Pair(raw, now))
                                         }
-                                        val finalPending = pendingScanRef.getAndSet(null)
-                                        if (finalPending != null) {
+                                    } else {
+                                        pendingScanRef.set(Pair(raw, now))
+                                        val runnable = Runnable {
                                             if (isPausedAtomic.get()) {
+                                                pendingScanRef.set(null)
                                                 return@Runnable
                                             }
-                                            val (finalCode, finalTime) = finalPending
-                                            val (lCode, lTime) = lastEmittedRef.get()
+                                            val finalPending = pendingScanRef.getAndSet(null)
+                                            if (finalPending != null) {
+                                                if (isPausedAtomic.get()) {
+                                                    return@Runnable
+                                                }
+                                                val (finalCode, finalTime) = finalPending
+                                                val (lCode, lTime) = lastEmittedRef.get()
 
-                                            if (lCode != finalCode || (finalTime - lTime) >= 1200L) {
-                                                lastEmittedRef.set(Pair(finalCode, finalTime))
-                                                // Throttle subsequent frame analysis for 800ms to conserve power
-                                                scanCooldownUntilRef.set(finalTime + 800L)
-                                                currentOnBarcodeScanned(finalCode)
+                                                if (lCode != finalCode || (finalTime - lTime) >= 800L) {
+                                                    lastEmittedRef.set(Pair(finalCode, finalTime))
+                                                    scanCooldownUntilRef.set(finalTime + 480L)
+                                                    currentOnBarcodeScanned(finalCode)
+                                                }
                                             }
                                         }
+                                        pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
+                                        pendingRunnableRef.set(runnable)
+                                        mainHandler.postDelayed(runnable, 45L)
                                     }
-                                    pendingRunnableRef.get()?.let { mainHandler.removeCallbacks(it) }
-                                    pendingRunnableRef.set(runnable)
-                                    mainHandler.postDelayed(runnable, 60L)
                                 }
                             }
+                        } catch (e: Exception) {
+                            android.util.Log.e("CameraXBarcodeView", "Analyzer execution error", e)
+                            safeClose()
                         }
                     }
 
@@ -407,6 +461,9 @@ fun CameraXBarcodeView(
                     cameraRef.value = camera
                     camera.cameraControl.enableTorch(isFlashOn)
                     camera.cameraControl.setZoomRatio(zoomRatio)
+                    previewView.post {
+                        triggerAutoFocus()
+                    }
                 } catch (e: Exception) {
                     android.util.Log.e("CameraXBarcodeView", "Camera binding failed", e)
                 }
@@ -424,96 +481,142 @@ private fun processImageProxy(
     filterMode: ScannerFilterMode,
     requireCloseDistance: Boolean,
     imageProxy: ImageProxy,
+    onCloseProxy: () -> Unit,
     onDistanceFeedback: (isTooFar: Boolean) -> Unit,
     onSuccess: (List<Barcode>) -> Unit
 ) {
-    val mediaImage = imageProxy.image
-    if (mediaImage != null) {
+    var isAsyncDispatched = false
+    var bitmapToRecycle: Bitmap? = null
+
+    try {
+        val mediaImage = imageProxy.image
+        if (mediaImage == null) {
+            onCloseProxy()
+            return
+        }
+
         val rotation = imageProxy.imageInfo.rotationDegrees
-        val image = InputImage.fromMediaImage(mediaImage, rotation)
-        barcodeScanner.process(image)
-            .addOnSuccessListener { barcodes ->
-                val validBarcodes = barcodes.filter { b ->
-                    when (filterMode) {
-                        ScannerFilterMode.ONLY_1D_BARCODE -> {
-                            b.format != Barcode.FORMAT_QR_CODE &&
-                            b.format != Barcode.FORMAT_DATA_MATRIX &&
-                            b.format != Barcode.FORMAT_AZTEC &&
-                            b.format != Barcode.FORMAT_PDF417
-                        }
-                        ScannerFilterMode.ONLY_QR_CODE -> {
-                            b.format == Barcode.FORMAT_QR_CODE ||
-                            b.format == Barcode.FORMAT_DATA_MATRIX ||
-                            b.format == Barcode.FORMAT_AZTEC ||
-                            b.format == Barcode.FORMAT_PDF417
-                        }
-                        ScannerFilterMode.ALL -> true
+
+        // 4. GÖRÜNTÜ ALANI KIRPMA (REGION OF INTEREST - ROI):
+        // Tüm kamera görüntüsü yerine hedef vizör çerçevesinin denk geldiği merkez alanı kırparak tara.
+        // Bu sayede küçük ve parlayan etiket QR'ları çok daha uzaktan ve anında yakalanır.
+        val inputImage: InputImage = if (filterMode == ScannerFilterMode.ONLY_QR_CODE) {
+            try {
+                val fullBitmap = imageProxy.toBitmap()
+                val sW = fullBitmap.width
+                val sH = fullBitmap.height
+
+                // Merkezdeki vizör çerçevesi koordinatları
+                val roiW = (sW * 0.55f).toInt()
+                val roiH = (sH * 0.60f).toInt()
+                val cropX = ((sW - roiW) / 2).coerceIn(0, sW - 10)
+                val cropY = ((sH - roiH) / 2).coerceIn(0, sH - 10)
+                val finalW = roiW.coerceIn(10, sW - cropX)
+                val finalH = roiH.coerceIn(10, sH - cropY)
+
+                val cropped = Bitmap.createBitmap(fullBitmap, cropX, cropY, finalW, finalH)
+                if (cropped != fullBitmap) {
+                    fullBitmap.recycle()
+                }
+                bitmapToRecycle = cropped
+                InputImage.fromBitmap(cropped, rotation)
+            } catch (e: Exception) {
+                bitmapToRecycle?.let { try { it.recycle() } catch (_: Exception) {} }
+                bitmapToRecycle = null
+                InputImage.fromMediaImage(mediaImage, rotation)
+            }
+        } else {
+            InputImage.fromMediaImage(mediaImage, rotation)
+        }
+
+        val task = barcodeScanner.process(inputImage)
+        isAsyncDispatched = true
+
+        task.addOnSuccessListener { barcodes ->
+            val validBarcodes = barcodes.filter { b ->
+                when (filterMode) {
+                    ScannerFilterMode.ONLY_1D_BARCODE -> {
+                        b.format != Barcode.FORMAT_QR_CODE &&
+                        b.format != Barcode.FORMAT_DATA_MATRIX &&
+                        b.format != Barcode.FORMAT_AZTEC &&
+                        b.format != Barcode.FORMAT_PDF417
                     }
-                }
-
-                if (validBarcodes.isEmpty()) {
-                    onDistanceFeedback(false)
-                    return@addOnSuccessListener
-                }
-
-                if (!requireCloseDistance) {
-                    onDistanceFeedback(false)
-                    onSuccess(validBarcodes)
-                    return@addOnSuccessListener
-                }
-
-                // Rotated frame dimensions
-                val rotatedW = if (rotation == 90 || rotation == 270) imageProxy.height else imageProxy.width
-                val rotatedH = if (rotation == 90 || rotation == 270) imageProxy.width else imageProxy.height
-                val minFrameDim = minOf(rotatedW, rotatedH).toFloat()
-
-                // Filter by proximity (close distance threshold)
-                val closeBarcodes = validBarcodes.filter { b ->
-                    val box = b.boundingBox ?: return@filter false
-                    val boxW = kotlin.math.abs(box.width()).toFloat()
-                    val boxH = kotlin.math.abs(box.height()).toFloat()
-                    val maxBoxDim = maxOf(boxW, boxH)
-                    val minBoxDim = minOf(boxW, boxH)
-
-                    val is2D = b.format == Barcode.FORMAT_QR_CODE ||
-                               b.format == Barcode.FORMAT_DATA_MATRIX ||
-                               b.format == Barcode.FORMAT_AZTEC ||
-                               b.format == Barcode.FORMAT_PDF417
-
-                    // Center region alignment check (broad & forgiving)
-                    val centerX = box.centerX().toFloat()
-                    val centerY = box.centerY().toFloat()
-                    val isCentered = (centerX in (rotatedW * 0.02f)..(rotatedW * 0.98f)) &&
-                                     (centerY in (rotatedH * 0.02f)..(rotatedH * 0.98f))
-
-                    // Proximity criteria:
-                    // 1D Barcode: Length at least 3.5% of minFrameDim (scans reliably from distance)
-                    // 2D QR Code: Side length at least 1.8% of minFrameDim - effortlessly scans small shelf labels from standing distance
-                    val hasRequiredSize = if (is2D) {
-                        minBoxDim >= minFrameDim * 0.018f
-                    } else {
-                        maxBoxDim >= minFrameDim * 0.035f
+                    ScannerFilterMode.ONLY_QR_CODE -> {
+                        b.format == Barcode.FORMAT_QR_CODE
                     }
-
-                    (isCentered || maxBoxDim >= minFrameDim * 0.12f) && hasRequiredSize
+                    ScannerFilterMode.ALL -> true
                 }
+            }
 
-                if (closeBarcodes.isNotEmpty()) {
-                    onDistanceFeedback(false)
-                    onSuccess(closeBarcodes)
+            if (validBarcodes.isEmpty()) {
+                onDistanceFeedback(false)
+                return@addOnSuccessListener
+            }
+
+            // QR modunda görüntü zaten vizöre kırpıldığı için doğrudan kabul edilir
+            if (!requireCloseDistance || filterMode == ScannerFilterMode.ONLY_QR_CODE) {
+                onDistanceFeedback(false)
+                onSuccess(validBarcodes)
+                return@addOnSuccessListener
+            }
+
+            // Rotated frame dimensions
+            val rotatedW = if (rotation == 90 || rotation == 270) imageProxy.height else imageProxy.width
+            val rotatedH = if (rotation == 90 || rotation == 270) imageProxy.width else imageProxy.height
+            val minFrameDim = minOf(rotatedW, rotatedH).toFloat()
+
+            // Proximity & centering check for 1D barcodes
+            val closeBarcodes = validBarcodes.filter { b ->
+                val box = b.boundingBox ?: return@filter false
+                val boxW = kotlin.math.abs(box.width()).toFloat()
+                val boxH = kotlin.math.abs(box.height()).toFloat()
+                val maxBoxDim = maxOf(boxW, boxH)
+                val minBoxDim = minOf(boxW, boxH)
+
+                val is2D = b.format == Barcode.FORMAT_QR_CODE ||
+                           b.format == Barcode.FORMAT_DATA_MATRIX ||
+                           b.format == Barcode.FORMAT_AZTEC ||
+                           b.format == Barcode.FORMAT_PDF417
+
+                val centerX = box.centerX().toFloat()
+                val centerY = box.centerY().toFloat()
+                val isCentered = (centerX in (rotatedW * 0.02f)..(rotatedW * 0.98f)) &&
+                                 (centerY in (rotatedH * 0.02f)..(rotatedH * 0.98f))
+
+                val hasRequiredSize = if (is2D) {
+                    minBoxDim >= minFrameDim * 0.018f
                 } else {
-                    // Barcode is visible in camera frame, but phone is held too far away
-                    onDistanceFeedback(true)
+                    maxBoxDim >= minFrameDim * 0.035f
                 }
+
+                (isCentered || maxBoxDim >= minFrameDim * 0.12f) && hasRequiredSize
             }
-            .addOnFailureListener {
-                // Ignore transient frame analysis errors to prevent audit rate limit and logcat flooding
+
+            if (closeBarcodes.isNotEmpty()) {
+                onDistanceFeedback(false)
+                onSuccess(closeBarcodes)
+            } else {
+                onDistanceFeedback(true)
             }
-            .addOnCompleteListener {
-                imageProxy.close()
+        }.addOnFailureListener {
+            // Ignore transient frame analysis errors
+        }.addOnCompleteListener {
+            bitmapToRecycle?.let {
+                try { it.recycle() } catch (_: Exception) {}
             }
-    } else {
-        imageProxy.close()
+            // 5. ANALYZER KAPATMA VE TEMİZLİK
+            onCloseProxy()
+        }
+    } catch (e: Exception) {
+        android.util.Log.e("CameraXBarcodeView", "processImageProxy failed", e)
+    } finally {
+        if (!isAsyncDispatched) {
+            bitmapToRecycle?.let {
+                try { it.recycle() } catch (_: Exception) {}
+            }
+            // 5. ANALYZER KAPATMA VE TEMİZLİK
+            onCloseProxy()
+        }
     }
 }
 

@@ -924,57 +924,61 @@ fun AnalyticsScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // 1. Kart Başlığı
-                    Row(
+                    // 1. Kart Başlığı ve Bilgi Rozeti (Dikey Düzen)
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        // ÜSTTE: İkon, Tek ve Net Başlık + (Varsa) Başarı Rozeti
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column {
-                                Text(
-                                    text = "SKT Çıkış ve Fire Performansı",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 15.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f, fill = false)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(22.dp)
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "SKT Performans Analizi (Satış vs Fire)",
-                                    fontSize = 11.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.5.sp,
+                                    lineHeight = 22.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
                                 )
+                            }
+
+                            if (hasRealLogs) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = EmeraldSuccess.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f))
+                                ) {
+                                    Text(
+                                        text = "%$savedPercentage Başarı",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = EmeraldSuccess,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
                             }
                         }
 
-                        if (hasRealLogs) {
+                        // ALTINDA: Bilgi Rozeti (Küçük, zarif ve tek bir satırda başlığın hemen altında)
+                        if (!hasRealLogs) {
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = EmeraldSuccess.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f))
-                            ) {
-                                Text(
-                                    text = "%$savedPercentage Başarı",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = EmeraldSuccess,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                )
-                            }
-                        } else {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = TurquoisePrimary.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f))
+                                color = TurquoisePrimary.copy(alpha = 0.10f),
+                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.25f))
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -986,12 +990,13 @@ fun AnalyticsScreen(
                                         tint = TurquoiseDark,
                                         modifier = Modifier.size(13.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = "Kayıtlar bu güncellemeden itibaren takip ediliyor",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TurquoiseDark
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = TurquoiseDark,
+                                        maxLines = 1
                                     )
                                 }
                             }
@@ -1038,12 +1043,6 @@ fun AnalyticsScreen(
                                     fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                                Text(
-                                    text = "Satılan / Kurtarılan",
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
                             }
                         }
 
@@ -1081,12 +1080,6 @@ fun AnalyticsScreen(
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Black,
                                     color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "Fire / İmha Edilen",
-                                    fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }

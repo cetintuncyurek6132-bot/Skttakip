@@ -323,9 +323,9 @@ fun BarcodeScannerSheet(
                                             isSuccess = isSuccess
                                         )
                                     )
-                                    // 1.5 saniye sonra yeni etiket okumaya hazır hale getir (seri akış)
+                                    // Seri okuma akış bekleme süresi: 1500ms'den 850ms'ye düşürüldü (1 tık daha seri)
                                     coroutineScope.launch {
-                                        delay(1500L)
+                                        delay(850L)
                                         lastScannedCode = ""
                                         isProcessingScan = false
                                     }
@@ -477,93 +477,9 @@ fun BarcodeScannerSheet(
                     Column(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .padding(top = 52.dp, bottom = 4.dp),
+                            .padding(top = 40.dp, bottom = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Status / Proximity Guidance Badge
-                        if (isCooldownActive && cooldownRemainingSeconds > 0) {
-                            Surface(
-                                onClick = {
-                                    resumeCooldownUntil = 0L
-                                    isCooldownActive = false
-                                    cooldownRemainingSeconds = 0
-                                },
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFF0F172A).copy(alpha = 0.90f),
-                                border = BorderStroke(1.dp, TurquoisePrimary),
-                                shadowElevation = 6.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "⏳ Bekleme: ${cooldownRemainingSeconds}sn (Dokun: Hemen Oku)",
-                                        color = TurquoisePrimary,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-                            }
-                        } else if (isBarcodeTooFar) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = SoonYellow.copy(alpha = 0.95f),
-                                shadowElevation = 6.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "📏 Barkoda Yaklaşın",
-                                        color = Color(0xFF1A1A1A),
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-                            }
-                        } else if (lastScannedRisk != null) {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = lastScannedRisk!!.color,
-                                shadowElevation = 6.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = lastScannedRisk!!.title + (if (lastRemainingDays != null && lastRemainingDays!! >= 0) " (${lastRemainingDays} Gün)" else ""),
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Black
-                                    )
-                                }
-                            }
-                        } else {
-                            Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = NormalGreen.copy(alpha = 0.90f),
-                                shadowElevation = 4.dp
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = if (isFixQrMode) "🎯 Tekli QR Okuma Modu" else if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "📋 Sayım Barkod Modu" else "⚡ Seri Tarama Modu",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
                         // Unobstructed Clean Viewfinder Frame
                         Box(
                             modifier = Modifier

@@ -1,5 +1,11 @@
 package com.example.ui.screens.scanner
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -89,9 +95,55 @@ fun QrFixSummaryPanel(
             .fillMaxWidth()
             .wrapContentHeight()
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // 1. ÜST BAŞLIK VE SAĞ ÜSTTEKİ KÜÇÜK DİKDÖRTGEN "TOPLAM" KARTI
+        // 1. EN ÜST: SON İŞLEM BİLGİ ROZETİ (AnimatedContent ile dikey kayma ve solma geçişi)
+        AnimatedContent(
+            targetState = lastProcessedInfo,
+            transitionSpec = {
+                (slideInVertically { height -> -height } + fadeIn()) togetherWith
+                (slideOutVertically { height -> height } + fadeOut())
+            },
+            label = "LastProcessedInfoAnimation"
+        ) { infoText ->
+            if (!infoText.isNullOrBlank()) {
+                val isSuccess = !infoText.startsWith("⚠️") && !infoText.startsWith("❌")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (isSuccess) NormalGreenContainer.copy(alpha = 0.90f) else CriticalOrange.copy(alpha = 0.15f),
+                    border = BorderStroke(
+                        1.dp,
+                        if (isSuccess) NormalGreen.copy(alpha = 0.55f) else CriticalOrange.copy(alpha = 0.45f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Warning,
+                            contentDescription = null,
+                            tint = if (isSuccess) NormalGreen else CriticalOrange,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = infoText,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+
+        // 2. ÜST BAŞLIK VE SAĞ ÜSTTEKİ KÜÇÜK DİKDÖRTGEN "TOPLAM" KARTI
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -135,43 +187,6 @@ fun QrFixSummaryPanel(
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = TurquoiseDark
-                    )
-                }
-            }
-        }
-
-        // 2. SON İŞLEM BİLGİ ÇİPİ (İnce, yeşil/turuncu tek satır onay/uyarı çipi)
-        if (!lastProcessedInfo.isNullOrBlank()) {
-            val isSuccess = !lastProcessedInfo.startsWith("⚠️") && !lastProcessedInfo.startsWith("❌")
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                color = if (isSuccess) NormalGreenContainer.copy(alpha = 0.85f) else CriticalOrange.copy(alpha = 0.15f),
-                border = BorderStroke(
-                    1.dp,
-                    if (isSuccess) NormalGreen.copy(alpha = 0.5f) else CriticalOrange.copy(alpha = 0.4f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (isSuccess) Icons.Default.CheckCircle else Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = if (isSuccess) NormalGreen else CriticalOrange,
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Spacer(modifier = Modifier.width(5.dp))
-                    Text(
-                        text = lastProcessedInfo,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
