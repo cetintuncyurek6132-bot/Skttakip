@@ -70,6 +70,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -81,6 +83,8 @@ import com.example.data.Product
 import com.example.data.findMatchingProducts
 import com.example.data.getDisplayName
 import com.example.ui.screens.BarcodeScannerSheet
+import com.example.ui.screens.adetsel.AdetselQuickCountBottomSheet
+import com.example.ui.viewmodel.AdetselViewModel
 import com.example.util.HapticFeedbackHelper
 import com.example.ui.screens.adetsel.AdetselFilterChip
 import com.example.ui.screens.adetsel.AdetselSayimDialog
@@ -111,6 +115,7 @@ fun AdetselScreen(
     yapilacakList: List<AdetselKayit>,
     yapildiList: List<AdetselKayit>,
     allProducts: List<Product> = emptyList(),
+    adetselViewModel: AdetselViewModel? = null,
     onAddToAdetsel: ((Product, ((Boolean) -> Unit)?) -> Unit)? = null,
     onSaveSayim: (kayit: AdetselKayit, sonuc: String, fark: Int, notlar: String) -> Unit,
     onUndoSayim: (AdetselKayit) -> Unit,
@@ -121,6 +126,8 @@ fun AdetselScreen(
     onBackClick: () -> Unit = onNavigateToProducts
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     var selectedTab by remember { mutableStateOf(AdetselTab.YAPILACAK) }
     var searchQuery by remember { mutableStateOf("") }
     var selectedResultFilter by remember { mutableStateOf("ALL") } // ALL, EKSIK, FAZLA, TAM
@@ -134,13 +141,6 @@ fun AdetselScreen(
             kotlinx.coroutines.delay(3500L)
             notFoundWarning = null
         }
-    }
-
-    // El terminali veya klavye girişi için otomatik odaklanma
-    LaunchedEffect(Unit) {
-        try {
-            searchFocusRequester.requestFocus()
-        } catch (_: Exception) {}
     }
 
     val playScanBeep: () -> Unit = {
@@ -171,6 +171,8 @@ fun AdetselScreen(
     val processBarcodeOrSearch: (String) -> Unit = { rawInput ->
         val clean = rawInput.trim()
         if (clean.isNotBlank()) {
+            keyboardController?.hide()
+            focusManager.clearFocus()
             // 1. Önce tüm ürün veritabanında ara
             val matches = allProducts.findMatchingProducts(clean)
             val matchedProduct = matches.firstOrNull()
@@ -199,7 +201,6 @@ fun AdetselScreen(
                     candidateProductToAdd = matchedProduct
                 }
                 searchQuery = ""
-                try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
             } else {
                 // 2. Mevcut adetsel listelerinde ara
                 val matchedAdetsel = (if (selectedTab == AdetselTab.YAPILACAK) distinctYapilacakList else yapildiList)
@@ -213,13 +214,11 @@ fun AdetselScreen(
                     countingKayit = matchedAdetsel
                     initialModeForDialog = "TAM"
                     searchQuery = ""
-                    try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
                 } else {
                     // Ürün bulunamadı: Alt kısımda hafif kırmızı uyarı rozeti
                     notFoundWarning = "Barkod bulunamadı: $clean"
                     HapticFeedbackHelper.triggerWarningHaptic(context)
                     searchQuery = ""
-                    try { searchFocusRequester.requestFocus() } catch (_: Exception) {}
                 }
             }
         }
@@ -254,17 +253,30 @@ fun AdetselScreen(
         }
     }
 
-    // BARKOD TARAYICI MODALI (SAYFA İÇİ)
+    // HIZLI SAYIM MODAL BOTTOM SHEET (SAYFA İÇİ)
     if (showBarcodeScanner) {
-        BarcodeScannerSheet(
-            products = allProducts,
-            openMode = ScannerOpenMode.ADETSEL_SAYIM,
+        AdetselQuickCountBottomSheet(
+            allProducts = allProducts,
             onDismiss = { showBarcodeScanner = false },
-            onBarcodeDetected = { scannedBarcode ->
-                val clean = scannedBarcode.trim()
-                if (clean.isNotBlank()) {
-                    showBarcodeScanner = false
-                    processBarcodeOrSearch(clean)
+            onSaveCount = { product, countedQty ->
+                if (adetselViewModel != null) {
+                    adetselViewModel.saveDirectCount(product, countedQty) {
+                        Toast.makeText(context, "${product.urunAdi} sayıma eklendi (Adet: $countedQty)", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    val existing = distinctYapilacakList.find { it.productId == product.id || (it.barkod.isNotBlank() && it.barkod == product.barkod) }
+                        ?: yapildiList.find { it.productId == product.id || (it.barkod.isNotBlank() && it.barkod == product.barkod) }
+                    if (existing != null) {
+                        val fark = countedQty - existing.beklenenAdet
+                        val sonuc = when {
+                            fark == 0 -> "TAM"
+                            fark < 0 -> "EKSIK"
+                            else -> "FAZLA"
+                        }
+                        onSaveSayim(existing, sonuc, fark, "")
+                    } else {
+                        onAddToAdetsel?.invoke(product) { _ -> }
+                    }
                 }
             }
         )
@@ -725,7 +737,11 @@ fun AdetselScreen(
                     ) {
                         if (searchQuery.isNotEmpty()) {
                             IconButton(
-                                onClick = { searchQuery = "" },
+                                onClick = {
+                                    searchQuery = ""
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                },
                                 modifier = Modifier.size(28.dp)
                             ) {
                                 Icon(

@@ -2,7 +2,10 @@ package com.example.data
 
 import android.content.Context
 import com.example.sync.CloudSyncManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class ProductRepository(
@@ -12,38 +15,38 @@ class ProductRepository(
     val stockMovementDao: StockMovementDao? = null,
     val stockLogDao: StockLogDao? = null
 ) {
-    val allProducts: Flow<List<Product>> = productDao.getAllProducts()
-    val allReports: Flow<List<InspectionReport>> = reportDao.getAllReports()
-    val allAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getAllAdetselKayitlari() ?: kotlinx.coroutines.flow.emptyFlow()
-    val yapilacakAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getYapilacakKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()
-    val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()
-    val allStockMovements: Flow<List<StockMovement>> = stockMovementDao?.getAllStockMovements() ?: kotlinx.coroutines.flow.emptyFlow()
-    val allStockLogs: Flow<List<StockLog>> = stockLogDao?.getAllLogs() ?: kotlinx.coroutines.flow.emptyFlow()
-    val totalSoldQuantity: Flow<Int> = stockLogDao?.getTotalSoldQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)
-    val totalFireQuantity: Flow<Int> = stockLogDao?.getTotalFireQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)
+    val allProducts: Flow<List<Product>> = productDao.getAllProducts().flowOn(Dispatchers.IO)
+    val allReports: Flow<List<InspectionReport>> = reportDao.getAllReports().flowOn(Dispatchers.IO)
+    val allAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getAllAdetselKayitlari() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    val yapilacakAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapilacakKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    val allStockMovements: Flow<List<StockMovement>> = (stockMovementDao?.getAllStockMovements() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    val allStockLogs: Flow<List<StockLog>> = (stockLogDao?.getAllLogs() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    val totalSoldQuantity: Flow<Int> = (stockLogDao?.getTotalSoldQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)).flowOn(Dispatchers.IO)
+    val totalFireQuantity: Flow<Int> = (stockLogDao?.getTotalFireQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)).flowOn(Dispatchers.IO)
 
-    suspend fun insertStockLog(log: StockLog): Long {
-        return stockLogDao?.insertLog(log) ?: 0L
+    suspend fun insertStockLog(log: StockLog): Long = withContext(Dispatchers.IO) {
+        stockLogDao?.insertLog(log) ?: 0L
     }
 
-    suspend fun insertStockLogs(logs: List<StockLog>) {
+    suspend fun insertStockLogs(logs: List<StockLog>) = withContext(Dispatchers.IO) {
         stockLogDao?.insertAll(logs)
     }
 
-    suspend fun getTotalSoldQuantityDirect(): Int {
-        return stockLogDao?.getTotalSoldQuantity() ?: 0
+    suspend fun getTotalSoldQuantityDirect(): Int = withContext(Dispatchers.IO) {
+        stockLogDao?.getTotalSoldQuantity() ?: 0
     }
 
-    suspend fun getTotalFireQuantityDirect(): Int {
-        return stockLogDao?.getTotalFireQuantity() ?: 0
+    suspend fun getTotalFireQuantityDirect(): Int = withContext(Dispatchers.IO) {
+        stockLogDao?.getTotalFireQuantity() ?: 0
     }
 
-    suspend fun getSktEntryCountForBarcode(code: String): Int {
-        return stockLogDao?.getSktEntryCountForBarcode(code) ?: 0
+    suspend fun getSktEntryCountForBarcode(code: String): Int = withContext(Dispatchers.IO) {
+        stockLogDao?.getSktEntryCountForBarcode(code) ?: 0
     }
 
-    suspend fun getAllStockLogsDirect(): List<StockLog> {
-        return stockLogDao?.getAllLogsList() ?: emptyList()
+    suspend fun getAllStockLogsDirect(): List<StockLog> = withContext(Dispatchers.IO) {
+        stockLogDao?.getAllLogsList() ?: emptyList()
     }
 
     suspend fun logStockMovement(
@@ -90,6 +93,10 @@ class ProductRepository(
 
     suspend fun getPendingAdetselKayitlarList(): List<AdetselKayit> {
         return adetselDao?.getPendingKayitlarList() ?: emptyList()
+    }
+
+    suspend fun getAllAdetselKayitlarList(): List<AdetselKayit> {
+        return adetselDao?.getAllAdetselKayitlariDirect() ?: emptyList()
     }
 
     suspend fun getProductByBarcode(barkod: String): Product? {

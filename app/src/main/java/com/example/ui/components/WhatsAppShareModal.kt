@@ -689,7 +689,7 @@ fun WhatsAppShareModal(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // ACTIONS: [ Geri Dön ] [ WhatsApp'ta Paylaş ]
+                    // ACTIONS: [ Geri Dön ] [ Paylaş ]
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -702,7 +702,8 @@ fun WhatsAppShareModal(
                                 .height(46.dp)
                                 .testTag("share_back_button"),
                             shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.2.dp, TurquoisePrimary)
+                            border = BorderStroke(1.2.dp, TurquoisePrimary),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -715,7 +716,8 @@ fun WhatsAppShareModal(
                                 text = "Geri Dön",
                                 fontWeight = FontWeight.Bold,
                                 color = TurquoiseDark,
-                                fontSize = 13.sp
+                                fontSize = 13.sp,
+                                maxLines = 1
                             )
                         }
 
@@ -729,11 +731,12 @@ fun WhatsAppShareModal(
                             },
                             enabled = generatedBitmaps.isNotEmpty(),
                             modifier = Modifier
-                                .weight(1.3f)
+                                .weight(1.2f)
                                 .height(46.dp)
                                 .testTag("share_to_whatsapp_button"),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366))
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_whatsapp),
@@ -743,10 +746,11 @@ fun WhatsAppShareModal(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "WhatsApp'ta Paylaş",
+                                text = "Paylaş",
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Color.White,
-                                fontSize = 13.sp
+                                fontSize = 14.sp,
+                                maxLines = 1
                             )
                         }
                     }

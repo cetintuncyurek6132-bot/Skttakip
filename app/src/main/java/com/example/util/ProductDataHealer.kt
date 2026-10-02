@@ -97,30 +97,31 @@ object ProductDataHealer {
      * Inspects a single Product entity and returns a healed, corrected version if any column shift or swap is detected.
      */
     fun autoHealProduct(product: Product): Product {
-        val rawBarkod = product.barkod.trim()
-        val rawUrunKodu = product.urunKodu.trim()
-        val rawUrunAdi = product.urunAdi.trim()
-        val rawKategori = product.kategori.trim()
+        return try {
+            val rawBarkod = product.barkod.trim()
+            val rawUrunKodu = product.urunKodu.trim()
+            val rawUrunAdi = product.urunAdi.trim()
+            val rawKategori = product.kategori.trim()
 
-        var healedBarkod = rawBarkod
-        var healedUrunKodu = rawUrunKodu
-        var healedUrunAdi = rawUrunAdi
-        var healedKategori = rawKategori
+            var healedBarkod = rawBarkod
+            var healedUrunKodu = rawUrunKodu
+            var healedUrunAdi = rawUrunAdi
+            var healedKategori = rawKategori
 
-        // Case 1: Standard 1-Step Right Shift (Reyon in Barkod, 13-digit EAN in UrunKodu, 8-digit Code in UrunAdi, Name in Kategori)
-        // Example: Barkod="53", UrunKodu="8690158124264", UrunAdi="12003631", Kategori="BEYAZ PEYNİR 900 G TEKSÜT"
-        if (isReyonOrRowNumber(rawBarkod) && is13DigitEan(rawUrunKodu) && (isProductCode(rawUrunAdi) || rawUrunAdi.all { it.isDigit() }) && isProductName(rawKategori)) {
-            healedBarkod = rawUrunKodu
-            healedUrunKodu = rawUrunAdi
-            healedUrunAdi = rawKategori.uppercase(trLocale)
-            healedKategori = detectCategory(healedUrunAdi, "Dolap")
-            return product.copy(
-                barkod = healedBarkod,
-                urunKodu = healedUrunKodu,
-                urunAdi = healedUrunAdi,
-                kategori = healedKategori
-            )
-        }
+            // Case 1: Standard 1-Step Right Shift (Reyon in Barkod, 13-digit EAN in UrunKodu, 8-digit Code in UrunAdi, Name in Kategori)
+            // Example: Barkod="53", UrunKodu="8690158124264", UrunAdi="12003631", Kategori="BEYAZ PEYNİR 900 G TEKSÜT"
+            if (isReyonOrRowNumber(rawBarkod) && is13DigitEan(rawUrunKodu) && (isProductCode(rawUrunAdi) || rawUrunAdi.all { it.isDigit() }) && isProductName(rawKategori)) {
+                healedBarkod = rawUrunKodu
+                healedUrunKodu = rawUrunAdi
+                healedUrunAdi = rawKategori.uppercase(trLocale)
+                healedKategori = detectCategory(healedUrunAdi, "Dolap")
+                return product.copy(
+                    barkod = healedBarkod,
+                    urunKodu = healedUrunKodu,
+                    urunAdi = healedUrunAdi,
+                    kategori = healedKategori
+                )
+            }
 
         // Case 2: 13-digit EAN is in UrunKodu and Barkod has short code or reyon number, and Name is in UrunAdi
         if (is13DigitEan(rawUrunKodu) && (isReyonOrRowNumber(rawBarkod) || isProductCode(rawBarkod))) {
@@ -196,13 +197,17 @@ object ProductDataHealer {
 
         // Ensure category is classified cleanly as Dolap or Gıda
         val classifiedCategory = CategoryClassifier.classify(healedUrunAdi, healedKategori)
-        return product.copy(
+        product.copy(
             barkod = healedBarkod,
             urunKodu = healedUrunKodu,
             urunAdi = healedUrunAdi.uppercase(trLocale),
             kategori = classifiedCategory
         )
+    } catch (t: Throwable) {
+        android.util.Log.e("ProductDataHealer", "SafeStartup: autoHealProduct failed safely: ${t.message}", t)
+        product
     }
+}
 
     /**
      * Intelligently parses an imported raw line (CSV, XLSX, TSV) by inspecting cell contents and types,

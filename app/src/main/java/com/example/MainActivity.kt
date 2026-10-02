@@ -139,7 +139,13 @@ class MainActivity : ComponentActivity() {
             android.util.Log.e("MainActivity", "CloudSyncManager init error", e)
         }
 
-        val repository = ProductRepository(db.productDao(), db.reportDao(), db.adetselDao(), db.stockMovementDao())
+        val repository = ProductRepository(
+            db.productDao(),
+            db.reportDao(),
+            db.adetselDao(),
+            db.stockMovementDao(),
+            db.stockLogDao()
+        )
         mainViewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
         inventoryViewModel = ViewModelProvider(this, InventoryViewModel.Factory(repository))[InventoryViewModel::class.java]
         adetselViewModel = ViewModelProvider(this, AdetselViewModel.Factory(repository))[AdetselViewModel::class.java]
@@ -151,7 +157,11 @@ class MainActivity : ComponentActivity() {
             android.util.Log.e("MainActivity", "Worker schedule error", e)
         }
 
-        settingsViewModel.runStartupDataProtection(applicationContext)
+        try {
+            settingsViewModel.runStartupDataProtection(applicationContext)
+        } catch (t: Throwable) {
+            android.util.Log.e("MainActivity", "SafeStartup: runStartupDataProtection suppressed error: ${t.message}", t)
+        }
 
         setContent {
             val isDarkMode by settingsViewModel.isDarkMode.collectAsStateWithLifecycle()

@@ -25,7 +25,7 @@ object DataMigrationManager {
     private const val KEY_LAST_UPDATE_TIME = "app_last_data_protection_check"
 
     const val CURRENT_DATA_VERSION = 4
-    private const val KEY_CATEGORY_CLEANED_V2 = "has_reclassified_categories_clean_v2"
+    private const val KEY_CATEGORY_CLEANED_V3 = "has_reclassified_categories_clean_v3"
 
     private val _migrationStatus = MutableStateFlow<MigrationStatus?>(null)
     val migrationStatus: StateFlow<MigrationStatus?> = _migrationStatus.asStateFlow()
@@ -62,21 +62,29 @@ object DataMigrationManager {
 
             if (hasExistingUserData) {
                 // 1. Existing user data detected! First, take a safety auto-backup
-                DataBackupManager.saveAutoBackupToStorage(
-                    context = context,
-                    productDao = productDao,
-                    reportDao = reportDao,
-                    adetselDao = adetselDao,
-                    tag = "protection_v${CURRENT_DATA_VERSION}"
-                )
+                try {
+                    DataBackupManager.saveAutoBackupToStorage(
+                        context = context,
+                        productDao = productDao,
+                        reportDao = reportDao,
+                        adetselDao = adetselDao,
+                        tag = "protection_v${CURRENT_DATA_VERSION}"
+                    )
+                } catch (t: Throwable) {
+                    Log.e(TAG, "SafeStartup: auto-backup skipped due to error: ${t.message}", t)
+                }
 
                 // 2. Perform safe non-destructive migration / healing for all products if version upgraded
                 if (storedVersion < CURRENT_DATA_VERSION) {
                     // Heal any inconsistent columns without dropping data
                     for (prod in existingProducts) {
-                        val healed = com.example.util.ProductDataHealer.autoHealProduct(prod)
-                        if (healed != prod) {
-                            productDao.updateProduct(healed)
+                        try {
+                            val healed = com.example.util.ProductDataHealer.autoHealProduct(prod)
+                            if (healed != prod) {
+                                productDao.updateProduct(healed)
+                            }
+                        } catch (t: Throwable) {
+                            Log.e(TAG, "SafeStartup: error healing product id=${prod.id}: ${t.message}", t)
                         }
                     }
 
@@ -91,23 +99,32 @@ object DataMigrationManager {
                 }
 
                 // 3. Tek seferlik tarama: Veritabanındaki mevcut ürünlerin kategorilerini temiz kurallara göre "Dolap" ve "Gıda" olarak güncelle
-                val hasReclassified = prefs.getBoolean(KEY_CATEGORY_CLEANED_V2, false)
+                val hasReclassified = prefs.getBoolean(KEY_CATEGORY_CLEANED_V3, false)
                 if (!hasReclassified) {
                     var reclassifiedCount = 0
-                    val currentProds = productDao.getAllProductsList()
-                    val toUpdate = mutableListOf<Product>()
-                    for (prod in currentProds) {
-                        val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(prod.urunAdi)
-                        if (prod.kategori != cleanCategory) {
-                            toUpdate.add(prod.copy(kategori = cleanCategory))
-                            reclassifiedCount++
+                    try {
+                        val currentProds = productDao.getAllProductsList()
+                        val toUpdate = mutableListOf<Product>()
+                        for (prod in currentProds) {
+                            try {
+                                val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(prod.urunAdi)
+                                if (prod.kategori != cleanCategory) {
+                                    toUpdate.add(prod.copy(kategori = cleanCategory))
+                                    reclassifiedCount++
+                                }
+                            } catch (t: Throwable) {
+                                Log.e(TAG, "SafeStartup: error classifying product id=${prod.id}: ${t.message}", t)
+                            }
                         }
+                        if (toUpdate.isNotEmpty()) {
+                            productDao.updateAllProducts(toUpdate)
+                        }
+                        prefs.edit().putBoolean(KEY_CATEGORY_CLEANED_V3, true).apply()
+                        Log.i(TAG, "Clean category reclassification scan finished. Updated $reclassifiedCount products to Dolap/Gıda.")
+                    } catch (t: Throwable) {
+                        Log.e(TAG, "SafeStartup: reclassification batch skipped: ${t.message}", t)
+                        prefs.edit().putBoolean(KEY_CATEGORY_CLEANED_V3, true).apply()
                     }
-                    if (toUpdate.isNotEmpty()) {
-                        productDao.updateAllProducts(toUpdate)
-                    }
-                    prefs.edit().putBoolean(KEY_CATEGORY_CLEANED_V2, true).apply()
-                    Log.i(TAG, "Clean category reclassification scan finished. Updated $reclassifiedCount products to Dolap/Gıda.")
                 }
             } else {
                 // Brand new installation: mark current version
@@ -119,8 +136,8 @@ object DataMigrationManager {
                         .apply()
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error in data protection check", e)
+        } catch (t: Throwable) {
+            Log.e(TAG, "SafeStartup: General error in data protection check suppressed", t)
         }
     }
 }

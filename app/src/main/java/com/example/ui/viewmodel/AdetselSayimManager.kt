@@ -153,4 +153,70 @@ class AdetselSayimManager(
             repository.clearCompletedAdetselKayitlar()
         }
     }
+
+    /**
+     * Directly adds or updates a product count with the specified quantity in the sayım list.
+     */
+    fun saveDirectCount(
+        product: Product,
+        countedQty: Int,
+        onComplete: (() -> Unit)? = null
+    ) {
+        scope.launch(Dispatchers.IO) {
+            val allProds = repository.productDao.getAllProductsList()
+            val totalStok = allProds.filter {
+                (product.barkod.isNotBlank() && it.barkod == product.barkod) ||
+                (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu)
+            }.sumOf { it.stokAdedi }.let { if (it > 0) it else product.stokAdedi }
+
+            val allKayitlar = repository.getAllAdetselKayitlarList()
+            val existingKayit = allKayitlar.find { existing ->
+                (product.id > 0 && existing.productId == product.id) ||
+                (product.barkod.isNotBlank() && existing.barkod.equals(product.barkod, ignoreCase = true)) ||
+                (product.urunKodu.isNotBlank() && existing.urunKodu.equals(product.urunKodu, ignoreCase = true)) ||
+                (product.urunAdi.isNotBlank() && existing.urunAdi.trim().equals(product.urunAdi.trim(), ignoreCase = true))
+            }
+
+            val beklenenAdet = if (existingKayit != null && existingKayit.beklenenAdet > 0) existingKayit.beklenenAdet else totalStok
+            val fark = countedQty - beklenenAdet
+            val sonuc = when {
+                fark == 0 -> "TAM"
+                fark < 0 -> "EKSIK"
+                else -> "FAZLA"
+            }
+
+            if (existingKayit != null) {
+                val updated = existingKayit.copy(
+                    yapildiMi = true,
+                    sayimSonucu = sonuc,
+                    sayilanAdet = countedQty,
+                    farkAdet = fark,
+                    beklenenAdet = beklenenAdet,
+                    islemTarihi = System.currentTimeMillis()
+                )
+                repository.updateAdetselKayit(updated)
+            } else {
+                val code = if (product.urunKodu.isNotBlank()) product.urunKodu else product.barkod
+                val newKayit = AdetselKayit(
+                    productId = product.id,
+                    urunAdi = product.urunAdi,
+                    urunKodu = code,
+                    barkod = product.barkod,
+                    kategori = product.kategori,
+                    eklenmeTarihi = System.currentTimeMillis(),
+                    yapildiMi = true,
+                    sayimSonucu = sonuc,
+                    sayilanAdet = countedQty,
+                    farkAdet = fark,
+                    beklenenAdet = beklenenAdet,
+                    islemTarihi = System.currentTimeMillis()
+                )
+                repository.insertAdetselKayit(newKayit)
+            }
+
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
+        }
+    }
 }

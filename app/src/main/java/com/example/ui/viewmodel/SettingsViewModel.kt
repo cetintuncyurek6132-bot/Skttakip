@@ -96,14 +96,22 @@ class SettingsViewModel(
     }
 
     fun runStartupDataProtection(context: Context) {
-        initializePreferences(context)
-        viewModelScope.launch(Dispatchers.IO) {
-            DataMigrationManager.performStartupDataProtectionCheck(
-                context = context,
-                productDao = repository.productDao,
-                reportDao = repository.reportDao,
-                adetselDao = repository.adetselDao
-            )
+        try {
+            initializePreferences(context)
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    DataMigrationManager.performStartupDataProtectionCheck(
+                        context = context,
+                        productDao = repository.productDao,
+                        reportDao = repository.reportDao,
+                        adetselDao = repository.adetselDao
+                    )
+                } catch (t: Throwable) {
+                    android.util.Log.e("SafeStartup", "Suppressed error in runStartupDataProtection coroutine: ${t.message}", t)
+                }
+            }
+        } catch (t: Throwable) {
+            android.util.Log.e("SafeStartup", "Suppressed error in runStartupDataProtection: ${t.message}", t)
         }
     }
 

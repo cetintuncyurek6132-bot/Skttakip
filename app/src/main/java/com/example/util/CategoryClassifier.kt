@@ -48,29 +48,39 @@ object CategoryClassifier {
     fun classifyCategory(productName: String?): String {
         if (productName.isNullOrBlank()) return CATEGORY_GIDA
 
-        val trLocale = Locale("tr", "TR")
-        val cleanName = productName.lowercase(trLocale)
+        return try {
+            val trLocale = Locale("tr", "TR")
+            val cleanName = productName.lowercase(trLocale)
 
-        // Özel kontrol: "dana eti", "tavuk eti" gibi et tamlamaları (Eti markası değil)
-        for (meatPhrase in meatEtiPhrases) {
-            if (cleanName.contains(meatPhrase)) return CATEGORY_DOLAP
+            // Özel kontrol: "dana eti", "tavuk eti" gibi et tamlamaları (Eti markası değil)
+            for (meatPhrase in meatEtiPhrases) {
+                if (cleanName.contains(meatPhrase)) return CATEGORY_DOLAP
+            }
+
+            // Noktalama işaretlerini boşluğa çevirip kelimeleri ayır (Regex olmadan güvenli ve hızlı)
+            val sb = StringBuilder(cleanName.length)
+            for (i in 0 until cleanName.length) {
+                val c = cleanName[i]
+                if (c.isLetterOrDigit()) {
+                    sb.append(c)
+                } else {
+                    sb.append(' ')
+                }
+            }
+            val words = sb.toString().split(' ').filter { it.isNotBlank() }.toSet()
+
+            // 1. ÖNCELİKLİ GIDA İSTİSNALARI (Tam kelime veya içerik):
+            if (words.any { it in gidaWords }) return CATEGORY_GIDA
+            if (gidaContains.any { cleanName.contains(it) }) return CATEGORY_GIDA
+
+            // 2. DOLAP / SOĞUK ZİNCİR KELİMELERİ:
+            if (words.any { it in dolapWords }) return CATEGORY_DOLAP
+            if (dolapContains.any { cleanName.contains(it) }) return CATEGORY_DOLAP
+
+            CATEGORY_GIDA
+        } catch (t: Throwable) {
+            CATEGORY_GIDA
         }
-
-        // Noktalama işaretlerini boşluğa çevirip kelimeleri ayır
-        val words = cleanName.replace(Regex("[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]"), " ")
-            .split("\\s+".toRegex())
-            .filter { it.isNotBlank() }
-            .toSet()
-
-        // 1. ÖNCELİKLİ GIDA İSTİSNALARI (Tam kelime veya içerik):
-        if (words.any { it in gidaWords }) return CATEGORY_GIDA
-        if (gidaContains.any { cleanName.contains(it) }) return CATEGORY_GIDA
-
-        // 2. DOLAP / SOĞUK ZİNCİR KELİMELERİ:
-        if (words.any { it in dolapWords }) return CATEGORY_DOLAP
-        if (dolapContains.any { cleanName.contains(it) }) return CATEGORY_DOLAP
-
-        return CATEGORY_GIDA
     }
 
     /**
@@ -91,6 +101,6 @@ object CategoryClassifier {
      * Checks if a Product belongs to the "Dolap" category.
      */
     fun isDolap(product: Product): Boolean {
-        return classifyCategory(product.urunAdi) == CATEGORY_DOLAP
+        return product.kategori.equals(CATEGORY_DOLAP, ignoreCase = true)
     }
 }

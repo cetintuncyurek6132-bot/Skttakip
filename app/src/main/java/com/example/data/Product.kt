@@ -172,7 +172,7 @@ fun Product.getDisplayBarcode(): String {
 }
 
 fun Product.isDolapProduct(): Boolean {
-    return com.example.util.CategoryClassifier.isDolap(this)
+    return kategori.equals("Dolap", ignoreCase = true)
 }
 
 enum class ExpiryStatus(val label: String) {

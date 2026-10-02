@@ -9,6 +9,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 
@@ -26,6 +27,7 @@ class AnalyticsViewModel(
 ) : ViewModel() {
 
     val allStockLogs: StateFlow<List<StockLog>> = repository.allStockLogs
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -33,6 +35,7 @@ class AnalyticsViewModel(
         )
 
     val totalSoldQuantity: StateFlow<Int> = repository.totalSoldQuantity
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -40,6 +43,7 @@ class AnalyticsViewModel(
         )
 
     val totalFireQuantity: StateFlow<Int> = repository.totalFireQuantity
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -72,7 +76,9 @@ class AnalyticsViewModel(
                 hasRealLogs = false
             )
         }
-    }.stateIn(
+    }
+        .distinctUntilChanged()
+        .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = PerformanceMetrics()

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -65,6 +66,7 @@ class InventoryViewModel(
 
     // All products flow from repository
     val allProducts: StateFlow<List<Product>> = repository.allProducts
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -72,6 +74,7 @@ class InventoryViewModel(
         )
 
     val allStockMovements: StateFlow<List<StockMovement>> = repository.allStockMovements
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -79,6 +82,7 @@ class InventoryViewModel(
         )
 
     val allStockLogs: StateFlow<List<StockLog>> = repository.allStockLogs
+        .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -169,6 +173,7 @@ class InventoryViewModel(
         result
     }
     .flowOn(Dispatchers.Default)
+    .distinctUntilChanged()
     .stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),

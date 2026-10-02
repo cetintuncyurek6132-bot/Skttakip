@@ -207,6 +207,7 @@ fun AppNavHost(
                 yapilacakList = yapilacakAdetsel,
                 yapildiList = yapildiAdetsel,
                 allProducts = allProducts,
+                adetselViewModel = adetselViewModel,
                 onAddToAdetsel = { prod, onComplete ->
                     adetselViewModel.addToAdetsel(prod, onComplete)
                 },
