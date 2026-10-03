@@ -52,7 +52,7 @@ object AppUpdateChecker {
             val rawTagName = json.optString("tag_name", "")
             val cleanTagName = rawTagName.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
             val rawReleaseNotes = json.optString("body", "")
-            val releaseNotes = formatReleaseNotesTurkish(rawReleaseNotes)
+            val releaseNotes = ReleaseNotesTranslator.formatAsBulletsString(rawReleaseNotes, cleanTagName)
 
             var downloadUrl = ""
             val assetsArray = json.optJSONArray("assets")
@@ -88,134 +88,10 @@ object AppUpdateChecker {
 
     /**
      * GitHub Releases veya commit geçmişinden gelen güncelleme notlarını
-     * Türkçeleştirir, temizler ve anlaşılır madde imleri halinde formatlar.
+     * ReleaseNotesTranslator ile Türkçeleştirir, temizler ve anlaşılır madde imleri halinde formatlar.
      */
     fun formatReleaseNotesTurkish(rawNotes: String): String {
-        val trimmed = rawNotes.trim()
-        val lower = trimmed.lowercase()
-        if (trimmed.isBlank() ||
-            lower.contains("add files via upload") ||
-            lower.contains("merge") ||
-            lower.contains("commit") ||
-            lower.contains("github")
-        ) {
-            return "• Performans ve kararlılık iyileştirmeleri yapıldı."
-        }
-
-        // Markdown linkleri, PR numaraları ve GitHub kullanıcı etiketlerini temizle
-        val lines = rawNotes
-            .replace(Regex("https?://\\S+"), "")
-            .replace(Regex("#\\d+"), "")
-            .replace(Regex("@[a-zA-Z0-9_-]+"), "")
-            .lines()
-            .map { it.trim().removePrefix("*").removePrefix("-").removePrefix("#").trim() }
-            .filter { line ->
-                line.isNotBlank() &&
-                !line.startsWith("Full Changelog", ignoreCase = true) &&
-                !line.startsWith("What's Changed", ignoreCase = true) &&
-                !line.startsWith("See the assets", ignoreCase = true) &&
-                !line.startsWith("Compare", ignoreCase = true)
-            }
-
-        if (lines.isEmpty()) {
-            return "• Performans iyileştirmeleri ve hata düzeltmeleri yapıldı.\n• Barkod tarama ve veri işleme hızlandırıldı.\n• Arayüz kararlılığı ve kullanıcı deneyimi artırıldı."
-        }
-
-        val turkishBullets = lines.mapNotNull { line ->
-            translateOrCleanLine(line)
-        }.distinct()
-
-        return if (turkishBullets.isNotEmpty()) {
-            turkishBullets.joinToString("\n") { if (it.startsWith("•")) it else "• $it" }
-        } else {
-            "• Performans iyileştirmeleri ve hata düzeltmeleri yapıldı.\n• Barkod tarama ve veri işleme hızlandırıldı.\n• Arayüz kararlılığı ve kullanıcı deneyimi artırıldı."
-        }
-    }
-
-    private fun translateOrCleanLine(line: String): String? {
-        val trimmed = line.trim().removePrefix("•").trim()
-        if (trimmed.isBlank()) return null
-
-        val lower = trimmed.lowercase()
-
-        // Sık karşılaşılan İngilizce kalıpları Türkçeleştir
-        return when {
-            lower.contains("merge pull request") || lower.contains("merge branch") ->
-                "Sistem güncellemeleri ve yeni geliştirmeler birleştirildi."
-            lower.contains("bump version") ->
-                "Sürüm numarası güncellendi ve optimize edildi."
-            lower.contains("fix package conflict") || lower.contains("keystore") || lower.contains("signing") ->
-                "APK imzalama ve paket güncelleme altyapısı kalıcı olarak düzeltildi."
-            lower.startsWith("fix") || lower.contains("bug fix") || lower.contains("hata") -> {
-                var cleaned = trimmed.replace(Regex("^(fix:|fix\\b|fixes\\b|fixed\\b)", RegexOption.IGNORE_CASE), "").trim()
-                cleaned = translateKeywords(cleaned)
-                "$cleaned düzeltildi."
-            }
-            lower.startsWith("add") || lower.startsWith("feat") || lower.contains("feature") || lower.contains("ekle") -> {
-                var cleaned = trimmed.replace(Regex("^(add:|feat:|feature:|added\\b|adds\\b)", RegexOption.IGNORE_CASE), "").trim()
-                cleaned = translateKeywords(cleaned)
-                "$cleaned eklendi."
-            }
-            lower.startsWith("update") || lower.contains("güncelle") -> {
-                var cleaned = trimmed.replace(Regex("^(update:|updated\\b|updates\\b)", RegexOption.IGNORE_CASE), "").trim()
-                cleaned = translateKeywords(cleaned)
-                "$cleaned güncellendi."
-            }
-            lower.startsWith("improve") || lower.startsWith("optimize") || lower.contains("performance") -> {
-                var cleaned = trimmed.replace(Regex("^(improve:|optimize:|improved\\b|optimized\\b)", RegexOption.IGNORE_CASE), "").trim()
-                cleaned = translateKeywords(cleaned)
-                "$cleaned iyileştirildi ve hızlandırıldı."
-            }
-            lower.startsWith("refactor") || lower.startsWith("cleanup") || lower.startsWith("clean") -> {
-                var cleaned = trimmed.replace(Regex("^(refactor:|cleanup:|cleaned\\b)", RegexOption.IGNORE_CASE), "").trim()
-                cleaned = translateKeywords(cleaned)
-                "$cleaned kod yapısı modernize edildi."
-            }
-            lower.startsWith("remove") || lower.startsWith("delete") -> {
-                var cleaned = trimmed.replace(Regex("^(remove:|delete:|removed\\b|deleted\\b)", RegexOption.IGNORE_CASE), "").trim()
-                cleaned = translateKeywords(cleaned)
-                "$cleaned kaldırıldı."
-            }
-            else -> {
-                val translated = translateKeywords(trimmed)
-                if (!translated.endsWith(".") && !translated.endsWith("!")) "$translated." else translated
-            }
-        }
-    }
-
-    private fun translateKeywords(text: String): String {
-        var t = text
-        val map = mapOf(
-            "barcode scanner" to "Barkod tarayıcı",
-            "barcode" to "Barkod",
-            "scanner" to "Barkod okuyucu",
-            "camera" to "Kamera",
-            "haptic feedback" to "Titreşimli geri bildirim",
-            "dark mode" to "Karanlık tema",
-            "light mode" to "Aydınlık tema",
-            "settings" to "Ayarlar",
-            "analytics" to "Analiz ve grafikler",
-            "csv export" to "CSV dışa aktarma",
-            "csv import" to "CSV içe aktarma",
-            "backup" to "Yedekleme",
-            "restore" to "Geri yükleme",
-            "notification" to "Bildirimler",
-            "performance" to "Performans",
-            "database" to "Veritabanı",
-            "product list" to "Ürün listesi",
-            "products" to "Ürünler",
-            "expiry date" to "Son kullanma tarihi",
-            "calendar" to "Takvim",
-            "dialog" to "Pencere",
-            "modal" to "Pencere",
-            "ui" to "Arayüz",
-            "crash" to "Kapanma sorunu",
-            "build" to "Derleme"
-        )
-        for ((en, tr) in map) {
-            t = t.replace(Regex("(?i)\\b$en\\b"), tr)
-        }
-        return t.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        return ReleaseNotesTranslator.formatAsBulletsString(rawNotes)
     }
 
     /**
@@ -367,6 +243,183 @@ object AppUpdateChecker {
             context.startActivity(installIntent)
         } catch (e: Exception) {
             Log.e(TAG, "APK kurulum intent hatası: ${e.message}", e)
+        }
+    }
+}
+
+/**
+ * GitHub Release ve Commit geçmişinden gelen metinleri dinamik olarak analiz eden,
+ * yazılım terimlerini Türkçeleştiren ve gerçek değişiklik maddelerini listeyen motor.
+ */
+object ReleaseNotesTranslator {
+
+    /**
+     * Ham notları satır satır inceler, markdown ve teknik sembolleri temizler,
+     * terimleri Türkçeleştirip liste döner. Asla sabit/uydurma metin eklemez.
+     */
+    fun translateToBulletPoints(rawNotes: String, versionName: String = ""): List<String> {
+        val trimmed = rawNotes.trim()
+        if (trimmed.isBlank() || trimmed.equals("null", ignoreCase = true)) {
+            return if (versionName.isNotBlank()) {
+                listOf("v$versionName sürüm güncellemesi.")
+            } else {
+                emptyList()
+            }
+        }
+
+        // Markdown URL, hash, commit referansı ve kullanıcı etiketlerini temizle
+        val lines = trimmed
+            .replace(Regex("https?://\\S+"), "")
+            .replace(Regex("\\b[0-9a-f]{7,40}\\b", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("#\\d+"), "")
+            .replace(Regex("@[a-zA-Z0-9_-]+"), "")
+            .lines()
+            .map { it.trim() }
+            .filter { line ->
+                line.isNotBlank() &&
+                !line.startsWith("Full Changelog", ignoreCase = true) &&
+                !line.startsWith("What's Changed", ignoreCase = true) &&
+                !line.startsWith("See the assets", ignoreCase = true) &&
+                !line.startsWith("Compare", ignoreCase = true) &&
+                !line.startsWith("Assets", ignoreCase = true) &&
+                !line.startsWith("```") &&
+                line != "---"
+            }
+
+        val resultList = mutableListOf<String>()
+
+        for (rawLine in lines) {
+            val cleaned = rawLine
+                .removePrefix("####")
+                .removePrefix("###")
+                .removePrefix("##")
+                .removePrefix("#")
+                .removePrefix("*")
+                .removePrefix("-")
+                .removePrefix("•")
+                .removePrefix("+")
+                .trim()
+
+            if (cleaned.isBlank()) continue
+
+            val translated = translateSingleLine(cleaned)
+            if (translated.isNotBlank()) {
+                resultList.add(translated)
+            }
+        }
+
+        val distinctList = resultList.distinct()
+        if (distinctList.isNotEmpty()) {
+            return distinctList
+        }
+
+        return if (versionName.isNotBlank()) {
+            listOf("v$versionName sürüm güncellemesi.")
+        } else {
+            emptyList()
+        }
+    }
+
+    fun formatAsBulletsString(rawNotes: String, versionName: String = ""): String {
+        val items = translateToBulletPoints(rawNotes, versionName)
+        return items.joinToString("\n") { "• $it" }
+    }
+
+    private fun translateSingleLine(line: String): String {
+        var text = line
+            .replace("**", "")
+            .replace("__", "")
+            .replace("`", "")
+            .trim()
+
+        if (text.isBlank()) return ""
+
+        // Eğer metin zaten Türkçe yazılmışsa (örneğin commit Türkçe atılmışsa) kelimelerini bozma
+        val turkishWords = listOf(
+            "ve", "ile", "için", "yapıldı", "eklendi", "düzeltildi", "güncellendi",
+            "düzeltme", "hata", "buton", "sayfa", "ürün", "ekranı", "tasarımı",
+            "ayarlar", "bildirim", "stok", "fire", "satış", "tarihi", "skt",
+            "kayıt", "arama", "tarayıcı", "yenilendi", "geliştirildi", "kaldırıldı",
+            "iyileştirildi", "kod", "düzenlendi", "öngörü", "tahmin", "yeni", "modülü",
+            "hatırlatıcı", "rapor", "sayım", "reyon", "raf", "kullanıcı"
+        )
+        val hasTurkishChar = text.any { it in "çğıöşüÇĞİÖŞÜ" }
+        val lower = text.lowercase()
+        val isAlreadyTurkish = hasTurkishChar || turkishWords.any { lower.contains(it) }
+
+        if (isAlreadyTurkish) {
+            return text.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+
+        // Yazılım geliştirme terimlerine ait aksiyon ön ekleri
+        var actionPrefix = ""
+        val prefixRules = listOf(
+            Regex("^(bug fix|bugfix|bug-fix|bug_fix|fix|fixed|resolve|resolved)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Düzeltildi: ",
+            Regex("^(add|added|feature|feat|new)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Eklendi: ",
+            Regex("^(update|updated|improve|improved|enhancement|enhance|enhanced)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "İyileştirildi: ",
+            Regex("^(remove|removed|delete|deleted)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Kaldırıldı: ",
+            Regex("^(refactor|refactored|optimize|optimized|perf)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Optimize Edildi: "
+        )
+
+        for ((regex, prefix) in prefixRules) {
+            if (regex.containsMatchIn(text)) {
+                actionPrefix = prefix
+                text = text.replace(regex, "").trim()
+                break
+            }
+        }
+
+        // Terim sözlüğü
+        val dictionary = listOf(
+            Regex("(?i)\\bduplicate\\b") to "mükerrer",
+            Regex("(?i)\\bbadge\\b") to "rozet",
+            Regex("(?i)\\bwaste\\b") to "fire",
+            Regex("(?i)\\bspoilage\\b") to "fire",
+            Regex("(?i)\\banalytics\\b") to "analiz ve tahminleme",
+            Regex("(?i)\\bdashboard\\b") to "ana sayfa gösterge paneli",
+            Regex("(?i)\\bscanner\\b") to "barkod tarayıcı",
+            Regex("(?i)\\bbarcode\\b") to "barkod",
+            Regex("(?i)\\bbackup\\b") to "yedekleme",
+            Regex("(?i)\\brestore\\b") to "geri yükleme",
+            Regex("(?i)\\breminders\\b") to "hatırlatıcılar",
+            Regex("(?i)\\breminder\\b") to "hatırlatıcı",
+            Regex("(?i)\\bcategory\\b") to "reyon/kategori",
+            Regex("(?i)\\bcategories\\b") to "reyon/kategoriler",
+            Regex("(?i)\\bcamera\\b") to "kamera",
+            Regex("(?i)\\bnotification\\b") to "bildirim",
+            Regex("(?i)\\bnotifications\\b") to "bildirimler",
+            Regex("(?i)\\bhaptic feedback\\b") to "titreşimli geri bildirim",
+            Regex("(?i)\\bdark mode\\b") to "karanlık tema",
+            Regex("(?i)\\blight mode\\b") to "aydınlık tema",
+            Regex("(?i)\\bsettings\\b") to "ayarlar",
+            Regex("(?i)\\bproduct\\b") to "ürün",
+            Regex("(?i)\\bproducts\\b") to "ürünler",
+            Regex("(?i)\\bexpiry date\\b") to "son kullanma tarihi",
+            Regex("(?i)\\bexpiration date\\b") to "son kullanma tarihi",
+            Regex("(?i)\\bcalendar\\b") to "takvim",
+            Regex("(?i)\\bdialog\\b") to "pencere",
+            Regex("(?i)\\bmodal\\b") to "pencere",
+            Regex("(?i)\\bui\\b") to "arayüz",
+            Regex("(?i)\\bperformance\\b") to "performans",
+            Regex("(?i)\\bdatabase\\b") to "veritabanı",
+            Regex("(?i)\\bcrash\\b") to "kapanma sorunu",
+            Regex("(?i)\\bbug\\b") to "hata",
+            Regex("(?i)\\bbutton\\b") to "buton",
+            Regex("(?i)\\bhistory\\b") to "geçmiş",
+            Regex("(?i)\\bexport\\b") to "dışa aktarma",
+            Regex("(?i)\\bimport\\b") to "içe aktarma"
+        )
+
+        for ((regex, replacement) in dictionary) {
+            text = text.replace(regex, replacement)
+        }
+
+        text = text.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+
+        return if (actionPrefix.isNotEmpty()) {
+            "$actionPrefix$text"
+        } else {
+            text
         }
     }
 }

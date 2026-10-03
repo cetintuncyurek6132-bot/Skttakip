@@ -214,7 +214,7 @@ fun ProductsScreen(
                     shape = CircleShape,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(bottom = 76.dp, end = 16.dp)
+                        .padding(bottom = 16.dp, end = 16.dp)
                         .size(56.dp)
                         .testTag("whatsapp_share_list_image_button")
                 ) {

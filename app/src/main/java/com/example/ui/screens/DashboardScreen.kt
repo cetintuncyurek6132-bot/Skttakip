@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AssignmentLate
+import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
@@ -655,6 +656,63 @@ fun DashboardScreen(
                             )
                             Text(
                                 text = "SKT risk grafikleri ve son 30 gün analizi",
+                                fontSize = 11.5.sp,
+                                color = Slate600
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Detay",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            // Hatırlatıcılar ve Mağaza Notları Butonu
+            Surface(
+                onClick = { onQuickActionClick("reminders") },
+                shape = RoundedCornerShape(14.dp),
+                color = Color(0xFFF0FDFA),
+                border = BorderStroke(1.dp, Color(0xFF99F6E4)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("dashboard_reminders_button")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.15f),
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.EditNote,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Hatırlatıcılar ve Mağaza Notları",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark
+                            )
+                            Text(
+                                text = "Vardiya teslim notları, kritik reyon uyarıları ve görevler",
                                 fontSize = 11.5.sp,
                                 color = Slate600
                             )

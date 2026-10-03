@@ -51,6 +51,7 @@ import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
 import com.example.util.AppUpdateInfo
+import com.example.util.ReleaseNotesTranslator
 
 @Composable
 fun AppUpdateDialog(
@@ -60,36 +61,21 @@ fun AppUpdateDialog(
     onConfirmUpdate: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val filteredNotes = remember(updateInfo.releaseNotes) {
-        val raw = updateInfo.releaseNotes.trim()
-        val lower = raw.lowercase()
-        if (raw.isBlank() ||
-            raw.equals("null", ignoreCase = true) ||
-            lower == "release" ||
-            lower.contains("add files via upload")
-        ) {
-            "• Performans ve kararlılık iyileştirmeleri yapıldı."
-        } else {
-            raw
-        }
-    }
-
-    val noteItems = remember(filteredNotes) {
-        filteredNotes.lines()
-            .map { it.trim() }
-            .filter { it.isNotBlank() }
-            .map { line ->
-                line.removePrefix("•")
-                    .removePrefix("-")
-                    .removePrefix("*")
-                    .trim()
-            }
-            .filter { it.isNotBlank() }
-            .ifEmpty { listOf("Performans ve kararlılık iyileştirmeleri yapıldı.") }
-    }
-
     val cleanVer = remember(updateInfo.latestVersionName) {
         updateInfo.latestVersionName.replace(Regex("(?i)beta|v|sürüm|\\:"), "").trim()
+    }
+
+    val noteItems = remember(updateInfo.releaseNotes, cleanVer) {
+        val parsed = ReleaseNotesTranslator.translateToBulletPoints(updateInfo.releaseNotes, cleanVer)
+        if (parsed.isNotEmpty()) {
+            parsed
+        } else {
+            if (cleanVer.isNotBlank()) {
+                listOf("v$cleanVer sürümüne ait sistem güncellemeleri yayınlandı.")
+            } else {
+                listOf("Yeni sürüm güncellemeleri yayınlandı.")
+            }
+        }
     }
 
     Dialog(
@@ -185,7 +171,7 @@ fun AppUpdateDialog(
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 180.dp)
+                        .heightIn(min = 50.dp, max = 240.dp)
                 ) {
                     Column(
                         modifier = Modifier
