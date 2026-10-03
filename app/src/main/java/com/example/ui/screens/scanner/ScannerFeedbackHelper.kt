@@ -112,12 +112,15 @@ object ScannerFeedbackHelper {
 
             if (tg != null) {
                 try {
+                    val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+                    val barcodeToneId = prefs.getInt("scanner_sound_barcode", 1)
+                    val barcodeTone = com.example.util.SoundToneManager.getToneOptionById(barcodeToneId)
+
                     when (risk) {
-                        ScanResultRisk.SAFE -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                        ScanResultRisk.SAFE, ScanResultRisk.NO_SKT -> tg.startTone(barcodeTone.toneType, barcodeTone.durationMs)
                         ScanResultRisk.WARNING -> tg.startTone(ToneGenerator.TONE_PROP_BEEP2, 140)
                         ScanResultRisk.CRITICAL, ScanResultRisk.EXPIRED -> tg.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200)
                         ScanResultRisk.NOT_FOUND -> tg.startTone(ToneGenerator.TONE_PROP_NACK, 160)
-                        ScanResultRisk.NO_SKT -> tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
                     }
                 } catch (e: Exception) {
                     // Ignore audio playback error

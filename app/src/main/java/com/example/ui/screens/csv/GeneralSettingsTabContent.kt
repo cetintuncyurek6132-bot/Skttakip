@@ -1,8 +1,10 @@
 package com.example.ui.screens.csv
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,8 +19,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.auth.UserAccount
 import com.example.ui.theme.*
 import kotlinx.coroutines.launch
@@ -37,9 +42,47 @@ fun GeneralSettingsTabContent(
     onEditProfileClick: () -> Unit,
     onOpenQrFixMode: () -> Unit,
     onFixAndRepairDatabase: (onResult: (Int, String) -> Unit) -> Unit,
-    onRepairResult: (String) -> Unit
+    onRepairResult: (String) -> Unit,
+    barcodeSoundId: Int = 1,
+    onUpdateBarcodeSound: (Int) -> Unit = {},
+    labelFixSoundId: Int = 2,
+    onUpdateLabelFixSound: (Int) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val prefs = remember { context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE) }
+
+    var currentBarcodeSoundId by remember(barcodeSoundId) {
+        mutableIntStateOf(if (barcodeSoundId in 1..5) barcodeSoundId else prefs.getInt("scanner_sound_barcode", 1))
+    }
+    var currentLabelFixSoundId by remember(labelFixSoundId) {
+        mutableIntStateOf(if (labelFixSoundId in 1..5) labelFixSoundId else prefs.getInt("scanner_sound_label_fix", 2))
+    }
+    var showSoundCustomizerDialog by remember { mutableStateOf(false) }
+
+    val currentVersion = remember { com.example.BuildConfig.VERSION_NAME }
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var hasUpdateAvailable by remember { mutableStateOf(false) }
+    var latestVersionName by remember { mutableStateOf("") }
+    var updateInfoDialog by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
+    var isManualDownloading by remember { mutableStateOf(false) }
+    var manualDownloadPercent by remember { mutableIntStateOf(0) }
+    var manualDownloadedBytes by remember { mutableLongStateOf(0L) }
+    var manualTotalBytes by remember { mutableLongStateOf(0L) }
+
+    // Otomatik Sessiz Kontrol: Ekran ilk açıldığında arka planda çalışsın
+    LaunchedEffect(Unit) {
+        isCheckingUpdate = true
+        val result = com.example.util.AppUpdateChecker.checkForUpdates()
+        isCheckingUpdate = false
+        result.onSuccess { info ->
+            hasUpdateAvailable = info.hasUpdate
+            latestVersionName = info.latestVersionName
+        }.onFailure {
+            hasUpdateAvailable = false
+        }
+    }
+
     var isRepairing by remember { mutableStateOf(false) }
     // 1. KULLANICI PROFİL KARTI (EN ÜSTTE)
     val user = currentUser
@@ -208,7 +251,12 @@ fun GeneralSettingsTabContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { showSoundCustomizerDialog = true }
+                ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                         contentDescription = null,
@@ -217,10 +265,31 @@ fun GeneralSettingsTabContent(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text("Barkod Okumada Ses Efekti (Bip)", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                        Text("Ürün tarandığında sesli onay verir", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Barkod Okumada Ses Efekti", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(4.dp),
+                                color = TurquoisePrimary.copy(alpha = 0.12f),
+                                modifier = Modifier.clickable { showSoundCustomizerDialog = true }
+                            ) {
+                                Text(
+                                    text = "Tonu Değiştir ⚙️",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark,
+                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Barkod: ${com.example.util.SoundToneManager.getToneOptionById(currentBarcodeSoundId).title} • Etiket: ${com.example.util.SoundToneManager.getToneOptionById(currentLabelFixSoundId).title}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
+                Spacer(modifier = Modifier.width(8.dp))
                 Switch(
                     checked = soundEffectsEnabled,
                     onCheckedChange = { onToggleSoundEffects() }
@@ -496,28 +565,28 @@ fun GeneralSettingsTabContent(
         Spacer(modifier = Modifier.height(14.dp))
 
         // 5. UYGULAMA SÜRÜMÜ & GÜNCELLEME KONTROLÜ
-        var isCheckingUpdate by remember { mutableStateOf(false) }
-        val coroutineScope = rememberCoroutineScope()
-        var updateInfoDialog by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
-        var isManualDownloading by remember { mutableStateOf(false) }
-        var manualDownloadPercent by remember { mutableIntStateOf(0) }
-
         if (updateInfoDialog != null) {
             com.example.ui.components.AppUpdateDialog(
                 updateInfo = updateInfoDialog!!,
                 isDownloading = isManualDownloading,
                 downloadProgress = manualDownloadPercent,
+                downloadedBytes = manualDownloadedBytes,
+                totalBytes = manualTotalBytes,
                 onConfirmUpdate = {
                     val downloadUrl = updateInfoDialog?.downloadUrl.orEmpty()
                     if (downloadUrl.isNotBlank()) {
                         isManualDownloading = true
                         manualDownloadPercent = 0
+                        manualDownloadedBytes = 0L
+                        manualTotalBytes = 0L
                         coroutineScope.launch {
                             val downloadResult = com.example.util.AppUpdateChecker.downloadApk(
                                 context = context,
                                 downloadUrl = downloadUrl,
-                                onProgress = { progress ->
+                                onProgress = { progress, downloaded, total ->
                                     manualDownloadPercent = progress
+                                    manualDownloadedBytes = downloaded
+                                    manualTotalBytes = total
                                 }
                             )
                             isManualDownloading = false
@@ -552,7 +621,7 @@ fun GeneralSettingsTabContent(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
                                 .background(TurquoisePrimary.copy(alpha = 0.15f)),
                             contentAlignment = Alignment.Center
@@ -572,12 +641,83 @@ fun GeneralSettingsTabContent(
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                            Text(
-                                text = "Mevcut Sürüm: v${com.example.BuildConfig.VERSION_NAME}",
-                                fontSize = 11.sp,
-                                color = TurquoiseDark,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = "Sürüm: v$currentVersion",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+
+                                // Dinamik Durum Rozeti:
+                                if (isCheckingUpdate) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFE2E8F0)
+                                    ) {
+                                        Text(
+                                            text = "Denetleniyor...",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Slate600,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                } else if (hasUpdateAvailable) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFFEF2F2),
+                                        border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.5f))
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .background(Color(0xFFEF4444), CircleShape)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = "Yeni Sürüm Var (v$latestVersionName)",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = Color(0xFFB91C1C)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = Color(0xFFECFDF5),
+                                        border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.4f))
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = Color(0xFF059669),
+                                                modifier = Modifier.size(12.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text(
+                                                text = "Güncel",
+                                                fontSize = 10.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF059669)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -625,10 +765,12 @@ fun GeneralSettingsTabContent(
                             val result = com.example.util.AppUpdateChecker.checkForUpdates()
                             isCheckingUpdate = false
                             result.onSuccess { info ->
+                                hasUpdateAvailable = info.hasUpdate
+                                latestVersionName = info.latestVersionName
                                 if (info.hasUpdate) {
                                     updateInfoDialog = info
                                 } else {
-                                    Toast.makeText(context, "✅ Uygulamanız güncel (v${com.example.BuildConfig.VERSION_NAME})", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "✅ Uygulamanız güncel (v$currentVersion)", Toast.LENGTH_SHORT).show()
                                 }
                             }.onFailure { err ->
                                 Toast.makeText(context, "Güncelleme kontrolü başarısız: ${err.localizedMessage}", Toast.LENGTH_LONG).show()
@@ -663,6 +805,217 @@ fun GeneralSettingsTabContent(
                             fontSize = 12.sp,
                             color = Color.White
                         )
+                    }
+                }
+            }
+        }
+
+        // 6. TARAMA SESLERİ ÖZELLEŞTİRME DİYALOĞU
+        if (showSoundCustomizerDialog) {
+            var selectedTab by remember { mutableIntStateOf(0) } // 0: Barkod, 1: Etiket Düzeltme
+            Dialog(
+                onDismissRequest = { showSoundCustomizerDialog = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth(0.92f)
+                        .wrapContentHeight()
+                        .padding(vertical = 16.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 10.dp
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = TurquoisePrimary.copy(alpha = 0.15f),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.MusicNote,
+                                            contentDescription = null,
+                                            tint = TurquoiseDark,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "Tarama Sesleri",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = "İşlem geri bildirim tonlarını özelleştirin",
+                                        fontSize = 11.5.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                            IconButton(
+                                onClick = { showSoundCustomizerDialog = false },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Kapat",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Üst Sekmeler: [ 🔍 Barkod Tarama Sesi ] | [ 🏷️ Etiket Düzeltme Sesi ]
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(4.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (selectedTab == 0) TurquoisePrimary else Color.Transparent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { selectedTab = 0 }
+                                ) {
+                                    Text(
+                                        text = "🔍 Barkod Tarama",
+                                        fontSize = 12.sp,
+                                        fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (selectedTab == 0) Color.White else MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (selectedTab == 1) TurquoisePrimary else Color.Transparent,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clickable { selectedTab = 1 }
+                                ) {
+                                    Text(
+                                        text = "🏷️ Etiket Düzeltme",
+                                        fontSize = 12.sp,
+                                        fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (selectedTab == 1) Color.White else MaterialTheme.colorScheme.onSurface,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        // 5 Seçilebilir Ses Tonu Listesi
+                        val activeToneId = if (selectedTab == 0) currentBarcodeSoundId else currentLabelFixSoundId
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            com.example.util.SoundToneManager.TONES.forEach { option ->
+                                val isSelected = option.id == activeToneId
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (isSelected) TurquoisePrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                    border = BorderStroke(1.dp, if (isSelected) TurquoisePrimary else Color.Transparent),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            if (selectedTab == 0) {
+                                                currentBarcodeSoundId = option.id
+                                                onUpdateBarcodeSound(option.id)
+                                                prefs.edit().putInt("scanner_sound_barcode", option.id).apply()
+                                            } else {
+                                                currentLabelFixSoundId = option.id
+                                                onUpdateLabelFixSound(option.id)
+                                                prefs.edit().putInt("scanner_sound_label_fix", option.id).apply()
+                                            }
+                                            com.example.util.SoundToneManager.playTonePreview(context, option.id)
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            RadioButton(
+                                                selected = isSelected,
+                                                onClick = {
+                                                    if (selectedTab == 0) {
+                                                        currentBarcodeSoundId = option.id
+                                                        onUpdateBarcodeSound(option.id)
+                                                        prefs.edit().putInt("scanner_sound_barcode", option.id).apply()
+                                                    } else {
+                                                        currentLabelFixSoundId = option.id
+                                                        onUpdateLabelFixSound(option.id)
+                                                        prefs.edit().putInt("scanner_sound_label_fix", option.id).apply()
+                                                    }
+                                                    com.example.util.SoundToneManager.playTonePreview(context, option.id)
+                                                },
+                                                colors = RadioButtonDefaults.colors(selectedColor = TurquoiseDark)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Column {
+                                                Text(
+                                                    text = option.title,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                    fontSize = 13.sp,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = "${option.durationMs}ms süre",
+                                                    fontSize = 10.5.sp,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                com.example.util.SoundToneManager.playTonePreview(context, option.id)
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.VolumeUp,
+                                                contentDescription = "Dinle",
+                                                tint = TurquoiseDark,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Button(
+                            onClick = { showSoundCustomizerDialog = false },
+                            modifier = Modifier.fillMaxWidth().height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                        ) {
+                            Text("Tamam", fontWeight = FontWeight.Bold, color = Color.White)
+                        }
                     }
                 }
             }

@@ -279,14 +279,21 @@ class InventoryViewModel(
                 )
                 repository.insertOrUpdateProduct(productToSave)
 
-                // Sync sibling items of same barcode / urunKodu
-                val siblings = if (currentEditing.barkod.isNotBlank()) {
-                    repository.getProductsByBarcode(currentEditing.barkod)
-                } else if (currentEditing.urunKodu.isNotBlank()) {
-                    allProducts.value.filter { it.urunKodu == currentEditing.urunKodu }
-                } else emptyList()
+                // Sync sibling items of same barcode / urunKodu / product name
+                val oldBarkod = currentEditing.barkod.trim()
+                val oldUrunKodu = currentEditing.urunKodu.trim()
+                val oldUrunAdi = currentEditing.urunAdi.trim()
 
-                siblings.filter { it.id != currentEditing.id }.forEach { sibling ->
+                val allCurrentProducts = repository.getProductListDirect()
+                val siblings = allCurrentProducts.filter { prod ->
+                    prod.id != currentEditing.id && (
+                        (oldBarkod.isNotBlank() && prod.barkod.equals(oldBarkod, ignoreCase = true)) ||
+                        (oldUrunKodu.isNotBlank() && prod.urunKodu.equals(oldUrunKodu, ignoreCase = true)) ||
+                        (oldUrunAdi.isNotBlank() && prod.urunAdi.equals(oldUrunAdi, ignoreCase = true))
+                    )
+                }
+
+                siblings.forEach { sibling ->
                     val siblingCat = com.example.util.CategoryClassifier.classify(sibling.urunAdi, cleanCategory)
                     val updatedSibling = sibling.copy(
                         barkod = finalBarkod,

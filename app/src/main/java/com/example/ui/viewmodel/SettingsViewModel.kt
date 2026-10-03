@@ -57,6 +57,12 @@ class SettingsViewModel(
     private val _soundEffectsEnabled = MutableStateFlow(true)
     val soundEffectsEnabled: StateFlow<Boolean> = _soundEffectsEnabled.asStateFlow()
 
+    private val _barcodeSoundId = MutableStateFlow(1)
+    val barcodeSoundId: StateFlow<Int> = _barcodeSoundId.asStateFlow()
+
+    private val _labelFixSoundId = MutableStateFlow(2)
+    val labelFixSoundId: StateFlow<Int> = _labelFixSoundId.asStateFlow()
+
     private val _vibrationEnabled = MutableStateFlow(true)
     val vibrationEnabled: StateFlow<Boolean> = _vibrationEnabled.asStateFlow()
 
@@ -71,6 +77,8 @@ class SettingsViewModel(
         _criticalSktAlertEnabled.value = prefs.getBoolean("critical_alert", true)
         _highStockAlertEnabled.value = prefs.getBoolean("high_stock_alert", true)
         _soundEffectsEnabled.value = prefs.getBoolean("sound_effects", true)
+        _barcodeSoundId.value = prefs.getInt("scanner_sound_barcode", 1)
+        _labelFixSoundId.value = prefs.getInt("scanner_sound_label_fix", 2)
         _vibrationEnabled.value = prefs.getBoolean("vibration_effects", true)
         _userName.value = prefs.getString("user_name", "Kullanıcı") ?: "Kullanıcı"
         _userBranch.value = prefs.getString("user_branch", "") ?: ""
@@ -81,6 +89,10 @@ class SettingsViewModel(
 
     private fun persistBoolean(key: String, value: Boolean) {
         sharedPrefs?.edit()?.putBoolean(key, value)?.apply()
+    }
+
+    private fun persistInt(key: String, value: Int) {
+        sharedPrefs?.edit()?.putInt(key, value)?.apply()
     }
 
     private fun persistString(key: String, value: String) {
@@ -195,6 +207,16 @@ class SettingsViewModel(
         val next = !_soundEffectsEnabled.value
         _soundEffectsEnabled.value = next
         persistBoolean("sound_effects", next)
+    }
+
+    fun updateBarcodeSound(toneId: Int) {
+        _barcodeSoundId.value = toneId
+        persistInt("scanner_sound_barcode", toneId)
+    }
+
+    fun updateLabelFixSound(toneId: Int) {
+        _labelFixSoundId.value = toneId
+        persistInt("scanner_sound_label_fix", toneId)
     }
 
     fun toggleVibration() {

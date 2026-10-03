@@ -290,51 +290,49 @@ fun AddEditProductModal(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Yeni ürün ekleme modunda barkod ve kod giriş alanları
-                if (product == null) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = barkod,
-                            onValueChange = { barkod = it },
-                            label = { Text("Barkod") },
-                            modifier = Modifier
-                                .weight(1.1f)
-                                .testTag("input_barkod"),
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                focusedBorderColor = TurquoisePrimary,
-                                focusedLabelColor = TurquoiseDark,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            )
+                // Barkod ve Ürün Kodu giriş ve düzenleme alanları (Yeni eklemede ve düzenleme modunda her zaman görünür ve düzenlenebilir)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = barkod,
+                        onValueChange = { barkod = it },
+                        label = { Text("Barkod") },
+                        modifier = Modifier
+                            .weight(1.1f)
+                            .testTag("input_barkod"),
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = TurquoisePrimary,
+                            focusedLabelColor = TurquoiseDark,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
                         )
-                        OutlinedTextField(
-                            value = urunKodu,
-                            onValueChange = { urunKodu = it },
-                            label = { Text("Ürün Kodu") },
-                            modifier = Modifier.weight(0.9f),
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                focusedBorderColor = TurquoisePrimary,
-                                focusedLabelColor = TurquoiseDark,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            )
+                    )
+                    OutlinedTextField(
+                        value = urunKodu,
+                        onValueChange = { urunKodu = it },
+                        label = { Text("Ürün Kodu") },
+                        modifier = Modifier.weight(0.9f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(10.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                            focusedBorderColor = TurquoisePrimary,
+                            focusedLabelColor = TurquoiseDark,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
                         )
-                    }
-                    Spacer(modifier = Modifier.height(10.dp))
+                    )
                 }
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // 3. ÜRÜN ADI ALANI (Kamera Trailing Icon'u ile)
                 OutlinedTextField(

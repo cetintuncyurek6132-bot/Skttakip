@@ -403,23 +403,31 @@ fun ProfileSheet(
                         var profileUpdateInfoDialog by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
                         var isProfileDownloading by remember { mutableStateOf(false) }
                         var profileDownloadPercent by remember { mutableIntStateOf(0) }
+                        var profileDownloadedBytes by remember { mutableLongStateOf(0L) }
+                        var profileTotalBytes by remember { mutableLongStateOf(0L) }
 
                         if (profileUpdateInfoDialog != null) {
                             com.example.ui.components.AppUpdateDialog(
                                 updateInfo = profileUpdateInfoDialog!!,
                                 isDownloading = isProfileDownloading,
                                 downloadProgress = profileDownloadPercent,
+                                downloadedBytes = profileDownloadedBytes,
+                                totalBytes = profileTotalBytes,
                                 onConfirmUpdate = {
                                     val downloadUrl = profileUpdateInfoDialog?.downloadUrl.orEmpty()
                                     if (downloadUrl.isNotBlank()) {
                                         isProfileDownloading = true
                                         profileDownloadPercent = 0
+                                        profileDownloadedBytes = 0L
+                                        profileTotalBytes = 0L
                                         coroutineScope.launch {
                                             val downloadResult = com.example.util.AppUpdateChecker.downloadApk(
                                                 context = context,
                                                 downloadUrl = downloadUrl,
-                                                onProgress = { progress ->
+                                                onProgress = { progress, downloaded, total ->
                                                     profileDownloadPercent = progress
+                                                    profileDownloadedBytes = downloaded
+                                                    profileTotalBytes = total
                                                 }
                                             )
                                             isProfileDownloading = false

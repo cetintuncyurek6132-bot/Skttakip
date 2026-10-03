@@ -43,7 +43,7 @@ data class DashboardState(
     val attentionProducts: List<Product> = emptyList(),
     val removeProducts: List<Product> = emptyList(),
     val nearExpiryProducts: List<Product> = emptyList(),
-    val unreadNotificationCount: Int = 3
+    val unreadNotificationCount: Int = 0
 )
 
 class MainViewModel(
@@ -145,7 +145,7 @@ class MainViewModel(
         }
 
         val activeAlertsCount = expired + critical
-        val unreadCount = if (isRead) 0 else (if (activeAlertsCount > 0) activeAlertsCount else 1)
+        val unreadCount = if (isRead) 0 else activeAlertsCount
 
         DashboardState(
             totalCount = sktEnteredCount,

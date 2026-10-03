@@ -1,21 +1,20 @@
 package com.example
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,11 +23,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -42,9 +43,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
@@ -57,38 +58,29 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.auth.UserManager
 import com.example.data.AppDatabase
-import com.example.data.Product
 import com.example.data.ProductRepository
+import com.example.navigation.AppNavHost
 import com.example.ui.MainViewModel
-import com.example.ui.ProductFilter
-import com.example.ui.components.AddEditProductModal
-import com.example.ui.components.AddSktModal
-import com.example.ui.components.AppUpdateDialog
-import com.example.ui.components.ProductDetailModal
+import com.example.ui.components.GlobalModalHost
+import com.example.ui.components.ProfessionalLoadingOverlay
 import com.example.ui.components.SktBottomNavBar
 import com.example.ui.components.SktTopAppBar
-import com.example.ui.screens.AdetselScreen
+import com.example.ui.components.TopBarLoadingBar
 import com.example.ui.screens.AppSplashScreen
-import com.example.ui.screens.BarcodeScannerSheet
-import com.example.ui.screens.CsvScreen
-import com.example.ui.screens.DashboardScreen
-import com.example.ui.screens.NotificationSheet
-import com.example.ui.screens.ProfileSheet
-import com.example.ui.screens.ProductsScreen
-import com.example.ui.screens.RemindersScreen
-import com.example.ui.screens.TakipScreen
+import com.example.ui.screens.scanner.ScannerOpenMode
+import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.MyApplicationTheme
+import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.viewmodel.AdetselViewModel
 import com.example.ui.viewmodel.InventoryViewModel
 import com.example.ui.viewmodel.SettingsViewModel
-import com.example.ui.screens.scanner.ScannerOpenMode
-import com.example.data.findMatchingProducts
 import com.example.worker.MorningCheckWorker
+import java.util.Locale
 
 class MainActivity : ComponentActivity() {
 
@@ -99,11 +91,11 @@ class MainActivity : ComponentActivity() {
 
     private var pendingNavigationRoute = mutableStateOf<String?>(null)
 
-    override fun attachBaseContext(newBase: android.content.Context) {
+    override fun attachBaseContext(newBase: Context) {
         try {
-            val trLocale = java.util.Locale.forLanguageTag("tr-TR")
-            java.util.Locale.setDefault(trLocale)
-            val config = android.content.res.Configuration(newBase.resources.configuration)
+            val trLocale = Locale.forLanguageTag("tr-TR")
+            Locale.setDefault(trLocale)
+            val config = Configuration(newBase.resources.configuration)
             config.setLocale(trLocale)
             super.attachBaseContext(newBase.createConfigurationContext(config))
         } catch (e: Exception) {
@@ -120,18 +112,11 @@ class MainActivity : ComponentActivity() {
             pendingNavigationRoute.value = deepLinkRoute
         }
 
-        try {
-            val trLocale = java.util.Locale.forLanguageTag("tr-TR")
-            java.util.Locale.setDefault(trLocale)
-        } catch (e: Exception) {
-            android.util.Log.w("MainActivity", "Locale setup fallback: ${e.message}")
-        }
-
         val db = AppDatabase.getDatabase(applicationContext)
         try {
-            com.example.auth.UserManager.initialize(applicationContext)
+            UserManager.initialize(applicationContext)
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "UserManager init error", e)
+            Log.e("MainActivity", "UserManager init error", e)
         }
 
         val repository = ProductRepository(
@@ -149,13 +134,13 @@ class MainActivity : ComponentActivity() {
         try {
             MorningCheckWorker.scheduleDailyMorningCheck(applicationContext)
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Worker schedule error", e)
+            Log.e("MainActivity", "Worker schedule error", e)
         }
 
         try {
             settingsViewModel.runStartupDataProtection(applicationContext)
         } catch (t: Throwable) {
-            android.util.Log.e("MainActivity", "SafeStartup: runStartupDataProtection suppressed error: ${t.message}", t)
+            Log.e("MainActivity", "SafeStartup error: ${t.message}", t)
         }
 
         setContent {
@@ -171,17 +156,11 @@ class MainActivity : ComponentActivity() {
                         adetselViewModel = adetselViewModel,
                         settingsViewModel = settingsViewModel,
                         pendingNavigationRoute = pendingRoute,
-                        onPendingNavigationConsumed = {
-                            pendingNavigationRoute.value = null
-                        }
+                        onPendingNavigationConsumed = { pendingNavigationRoute.value = null }
                     )
 
                     if (isSplashVisible) {
-                        AppSplashScreen(
-                            onSplashFinished = {
-                                isSplashVisible = false
-                            }
-                        )
+                        AppSplashScreen(onSplashFinished = { isSplashVisible = false })
                     }
                 }
             }
@@ -208,18 +187,40 @@ fun SktMainApp(
     onPendingNavigationConsumed: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 4 })
+    val tabRoutes = remember { listOf("panel", "products", "takip", "adetsel") }
+
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: "panel"
+    val currentNavRoute = navBackStackEntry?.destination?.route ?: "main"
+
+    val activeRoute = if (currentNavRoute == "main") {
+        tabRoutes.getOrElse(pagerState.currentPage) { "panel" }
+    } else {
+        currentNavRoute
+    }
 
     val navigateToTab: (String) -> Unit = { target ->
-        if (target != currentRoute) {
-            navController.navigate(target) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+        val resolved = when (target) {
+            "reports" -> "takip"
+            else -> target
+        }
+        val targetPageIndex = tabRoutes.indexOf(resolved)
+        if (targetPageIndex != -1) {
+            if (currentNavRoute != "main") {
+                navController.popBackStack("main", inclusive = false)
+            }
+            coroutineScope.launch {
+                pagerState.animateScrollToPage(targetPageIndex)
+            }
+        } else {
+            if (currentNavRoute != resolved) {
+                navController.navigate(resolved) {
+                    popUpTo("main") { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
                 }
-                launchSingleTop = true
-                restoreState = true
             }
         }
     }
@@ -227,9 +228,7 @@ fun SktMainApp(
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
-        if (isGranted) {
-            android.util.Log.d("MainActivity", "Notification permission granted")
-        }
+        if (isGranted) Log.d("MainActivity", "Notification permission granted")
     }
 
     LaunchedEffect(Unit) {
@@ -240,13 +239,11 @@ fun SktMainApp(
         }
     }
 
-    val currentUser by com.example.auth.UserManager.currentUser.collectAsStateWithLifecycle()
-
+    val currentUser by UserManager.currentUser.collectAsStateWithLifecycle()
     val isLoading by mainViewModel.isLoading.collectAsStateWithLifecycle()
     val loadingMessage by mainViewModel.loadingMessage.collectAsStateWithLifecycle()
-    val isSyncingOrLoading = isLoading
-
     val dashboardState by mainViewModel.dashboardState.collectAsStateWithLifecycle()
+
     val filteredProducts by inventoryViewModel.filteredProducts.collectAsStateWithLifecycle()
     val allProducts by inventoryViewModel.allProducts.collectAsStateWithLifecycle()
     val searchQuery by inventoryViewModel.searchQuery.collectAsStateWithLifecycle()
@@ -267,14 +264,6 @@ fun SktMainApp(
     val stockMovements by inventoryViewModel.allStockMovements.collectAsStateWithLifecycle()
     val stockLogs by inventoryViewModel.allStockLogs.collectAsStateWithLifecycle()
 
-    // Bilgilendirme çubuğunu 3 saniye sonra otomatik olarak kaybet
-    LaunchedEffect(migrationStatus) {
-        if (migrationStatus != null && migrationStatus?.isVisible == true) {
-            kotlinx.coroutines.delay(3000L)
-            settingsViewModel.dismissMigrationStatus()
-        }
-    }
-
     val userName by settingsViewModel.userName.collectAsStateWithLifecycle()
     val userBranch by settingsViewModel.userBranch.collectAsStateWithLifecycle()
     val userRole by settingsViewModel.userRole.collectAsStateWithLifecycle()
@@ -294,269 +283,19 @@ fun SktMainApp(
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
 
-    // GitHub Güncelleme Kontrolü
-    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
-    var updateInfoState by remember { mutableStateOf<com.example.util.AppUpdateInfo?>(null) }
-    var showUpdateDialog by remember { mutableStateOf(false) }
-    var isDownloadingApk by remember { mutableStateOf(false) }
-    var downloadProgressPercent by remember { mutableIntStateOf(0) }
-
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(2000L) // Uygulama açılıp arayüz oturduktan 2 saniye sonra sorgula
-        val updateResult = com.example.util.AppUpdateChecker.checkForUpdates()
-        updateResult.onSuccess { info ->
-            if (info.hasUpdate) {
-                updateInfoState = info
-                showUpdateDialog = true
-            }
+    // Auto-dismiss migration bar after 3 seconds
+    LaunchedEffect(migrationStatus) {
+        if (migrationStatus?.isVisible == true) {
+            kotlinx.coroutines.delay(3000L)
+            settingsViewModel.dismissMigrationStatus()
         }
     }
 
-    if (showUpdateDialog && updateInfoState != null) {
-        AppUpdateDialog(
-            updateInfo = updateInfoState!!,
-            isDownloading = isDownloadingApk,
-            downloadProgress = downloadProgressPercent,
-            onConfirmUpdate = {
-                val downloadUrl = updateInfoState?.downloadUrl.orEmpty()
-                if (downloadUrl.isNotBlank()) {
-                    isDownloadingApk = true
-                    downloadProgressPercent = 0
-                    coroutineScope.launch {
-                        val downloadResult = com.example.util.AppUpdateChecker.downloadApk(
-                            context = context,
-                            downloadUrl = downloadUrl,
-                            onProgress = { progress ->
-                                downloadProgressPercent = progress
-                            }
-                        )
-                        isDownloadingApk = false
-                        downloadResult.onSuccess { apkFile ->
-                            showUpdateDialog = false
-                            com.example.util.AppUpdateChecker.installApk(context, apkFile)
-                        }.onFailure { e ->
-                            Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
-            },
-            onDismiss = {
-                isDownloadingApk = false
-                showUpdateDialog = false
-            }
-        )
-    }
-
-    // NOTIFICATIONS DIALOG (Geliştirilmiş Bildirim & Aksiyon Merkezi)
-    if (isNotificationDialogOpen) {
-        NotificationSheet(
-            dashboardState = dashboardState,
-            allProducts = allProducts,
-            morningReminderEnabled = morningReminderEnabled,
-            criticalAlertEnabled = criticalAlertEnabled,
-            highStockAlertEnabled = highStockAlertEnabled,
-            onDismiss = { isNotificationDialogOpen = false },
-            onFilterSelected = { filter -> inventoryViewModel.onFilterSelected(filter) },
-            onNavigate = { route -> navigateToTab(route) },
-            onMarkAllAsRead = { mainViewModel.markNotificationsAsRead() },
-            onToggleMorningReminder = { settingsViewModel.toggleMorningCheckReminder() },
-            onToggleCriticalAlert = { settingsViewModel.toggleCriticalSktAlert() },
-            onToggleHighStockAlert = { settingsViewModel.toggleHighStockAlert() },
-            onRemoveFromShelf = { prod -> inventoryViewModel.removeProductFromShelf(prod) },
-            onRemoveMultipleFromShelf = { list -> inventoryViewModel.removeMultipleProductsFromShelf(list) },
-            onAddToAdetsel = { prod ->
-                adetselViewModel.addToAdetsel(prod) { isSuccess ->
-                    if (isSuccess) {
-                        Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onOpenProductDetail = { prod -> inventoryViewModel.openProductDetailModal(prod) }
-        )
-    }
-
-    // USER PROFILE DIALOG (Geliştirilmiş Personel Profili & Reyon Sayfası)
-    if (isProfileDialogOpen) {
-        ProfileSheet(
-            userName = currentUser?.fullName ?: userName,
-            userBranch = userBranch,
-            userRole = currentUser?.let { "${it.roleTitle} (${it.role})" } ?: userRole,
-            userDepartment = currentUser?.department ?: userDepartment,
-            userDutyStatus = userDutyStatus,
-            soundEffectsEnabled = soundEffectsEnabled,
-            vibrationEnabled = vibrationEnabled,
-            isBatterySaverMode = isBatterySaverMode,
-            dashboardState = dashboardState,
-            onDismiss = { isProfileDialogOpen = false },
-            onUpdateProfile = { name, branch, role, dept ->
-                settingsViewModel.updateUserProfile(name, branch, role, dept)
-            },
-            onUpdateDutyStatus = { status -> settingsViewModel.updateDutyStatus(status) },
-            onToggleSoundEffects = { settingsViewModel.toggleSoundEffects() },
-            onToggleVibration = { settingsViewModel.toggleVibration() },
-            onToggleBatterySaverMode = { settingsViewModel.toggleBatterySaverMode() },
-            onNavigateToCsv = { navigateToTab("csv") }
-        )
-    }
-
-    // ADD / EDIT PRODUCT MODAL
-    if (isAddEditModalOpen) {
-        AddEditProductModal(
-            product = editingProduct,
-            prefilledBarcode = prefilledBarcode,
-            onDismiss = { inventoryViewModel.closeAddEditModal() },
-            onSave = { barkod, urunKodu, urunAdi, kategori, sktTarihi, stokAdedi, isNewSkt, fiyat, isImportant ->
-                if (isNewSkt && editingProduct != null) {
-                    inventoryViewModel.addSktToExistingProduct(editingProduct!!, sktTarihi, stokAdedi) {
-                        inventoryViewModel.closeAddEditModal()
-                    }
-                } else {
-                    inventoryViewModel.saveProduct(barkod, urunKodu, urunAdi, kategori, sktTarihi, stokAdedi, fiyat, isImportant)
-                    if (currentRoute == "adetsel") {
-                        val newProduct = Product(
-                            barkod = barkod.trim(),
-                            urunKodu = urunKodu.trim(),
-                            urunAdi = urunAdi.uppercase().trim(),
-                            kategori = kategori,
-                            sktTarihi = sktTarihi,
-                            stokAdedi = stokAdedi,
-                            fiyat = fiyat
-                        )
-                        adetselViewModel.addToAdetsel(newProduct) { isSuccess ->
-                            if (isSuccess) {
-                                Toast.makeText(context, "${newProduct.urunAdi} sayım listesine eklendi.", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    }
-                }
-            },
-            onDelete = if (editingProduct != null) {
-                { prod -> inventoryViewModel.deleteProductWithAllBatches(prod) }
-            } else null
-        )
-    }
-
-    // PRODUCT DETAIL MODAL (Ürün Detay Sayfası)
-    if (detailProduct != null) {
-        val allMatchingProducts = remember(detailProduct, allProducts) {
-            allProducts.filter {
-                it.barkod.equals(detailProduct!!.barkod.trim(), ignoreCase = true) ||
-                (detailProduct!!.urunKodu.isNotBlank() && it.urunKodu.equals(detailProduct!!.urunKodu.trim(), ignoreCase = true))
-            }.sortedBy { it.sktTarihi }
+    // Android sistem geri tuşunda ana sayfaya (page 0) dön
+    BackHandler(enabled = currentNavRoute == "main" && pagerState.currentPage != 0) {
+        coroutineScope.launch {
+            pagerState.animateScrollToPage(0)
         }
-
-        ProductDetailModal(
-            product = detailProduct,
-            matchingProducts = allMatchingProducts.ifEmpty { listOf(detailProduct!!) },
-            stockLogs = stockLogs,
-            onDismiss = { inventoryViewModel.closeProductDetailModal() },
-            onEditClick = { prod ->
-                inventoryViewModel.openEditProductModal(prod)
-            },
-            onAddNewSktClick = { prod ->
-                inventoryViewModel.openAddSktModal(prod)
-            },
-            onEditSktItem = { item, newSkt, newCount ->
-                inventoryViewModel.updateSktItem(item, newSkt, newCount)
-            },
-            onDeleteSkt = { prod ->
-                inventoryViewModel.deleteProduct(prod)
-            },
-            onUpdatePrice = { prod, newPrice ->
-                inventoryViewModel.updateProductPrice(prod, newPrice)
-            },
-            onAddToAdetsel = { prod ->
-                adetselViewModel.addToAdetsel(prod) { isSuccess ->
-                    if (isSuccess) {
-                        Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            },
-            onDeductStock = { prod, amount, reason ->
-                inventoryViewModel.deductProductStock(prod, amount, reason)
-            }
-        )
-    }
-
-    // ADD DEDICATED SKT MODAL
-    if (addSktProduct != null) {
-        AddSktModal(
-            product = addSktProduct!!,
-            onDismiss = { inventoryViewModel.closeAddSktModal() },
-            onSaveSkt = { prod, sktTarihi, stokAdedi ->
-                inventoryViewModel.addSktToExistingProduct(prod, sktTarihi, stokAdedi)
-            }
-        )
-    }
-
-    // CAMERA OR MANUAL BARCODE SCANNER SHEET
-    if (isBarcodeScannerOpen) {
-        BarcodeScannerSheet(
-            products = allProducts,
-            userName = currentUser?.fullName ?: userName,
-            openMode = scannerOpenMode,
-            startInFixQrMode = (scannerOpenMode == ScannerOpenMode.LABEL_FIX),
-            isBatterySaverMode = isBatterySaverMode,
-            soundEffectsEnabled = soundEffectsEnabled,
-            vibrationEnabled = vibrationEnabled,
-            onDismiss = {
-                isBarcodeScannerOpen = false
-            },
-            onFixQrScanned = { rawQr, onResult ->
-                inventoryViewModel.fixProductBarcodeAndPriceFromQr(rawQr, onResult)
-            },
-            onBarcodeDetected = { scannedRaw ->
-                if (scannerOpenMode == ScannerOpenMode.ADETSEL_SAYIM) {
-                    val clean = scannedRaw.trim()
-                    if (clean.isNotBlank()) {
-                        val matches = allProducts.findMatchingProducts(clean)
-                        val matchedProduct = matches.firstOrNull()
-                        if (matchedProduct != null) {
-                            adetselViewModel.addToAdetsel(matchedProduct) { isSuccess ->
-                                if (isSuccess) {
-                                    Toast.makeText(context, "${matchedProduct.urunAdi} sayım listesine eklendi", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "${matchedProduct.urunAdi} zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        } else {
-                            val notFoundClean = com.example.data.parseShelfQrPayload(clean).barcode.ifBlank { clean }
-                            Toast.makeText(context, "Ürün veritabanında bulunamadı. Yeni ürün ekleme ekranı açılıyor...", Toast.LENGTH_SHORT).show()
-                            isBarcodeScannerOpen = false
-                            inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
-                        }
-                    }
-                } else {
-                    inventoryViewModel.handleBarcodeScanned(
-                        barkod = scannedRaw,
-                        onFound = { productFound ->
-                            isBarcodeScannerOpen = false
-                            inventoryViewModel.openEditProductModal(productFound)
-                        },
-                        onNotFound = { barcodeNotFound ->
-                            val notFoundClean = com.example.data.parseShelfQrPayload(barcodeNotFound).barcode.ifBlank { barcodeNotFound }
-                            isBarcodeScannerOpen = false
-                            inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
-                        }
-                    )
-                }
-            },
-            onAddSkt = { product, sktMillis, count ->
-                inventoryViewModel.addSktToExistingProduct(product, sktMillis, count)
-            },
-            onDeductStock = { product, amount, reason ->
-                inventoryViewModel.deductProductStock(product, amount, reason)
-            }
-        )
-    }
-
-    // Android sistem geri tuşunda her zaman ana sayfaya dön
-    BackHandler(enabled = currentRoute != "panel") {
-        navigateToTab("panel")
     }
 
     // Bildirim veya harici intent ile gelen sekmeye yönlendir
@@ -577,68 +316,60 @@ fun SktMainApp(
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
-            contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             containerColor = MaterialTheme.colorScheme.background,
             bottomBar = {
                 SktBottomNavBar(
-                    currentRoute = currentRoute,
-                    onNavigate = { target ->
-                        navigateToTab(target)
-                    },
+                    currentRoute = activeRoute,
+                    onNavigate = { target -> navigateToTab(target) },
                     onScanClick = {
-                        scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
+                        scannerOpenMode = if (activeRoute == "adetsel") ScannerOpenMode.ADETSEL_SAYIM else ScannerOpenMode.BARCODE_SEARCH
                         isBarcodeScannerOpen = true
                     },
                     userRoleCode = currentUser?.role ?: "MS"
                 )
             },
             topBar = {
-                if (currentRoute in listOf("panel", "products", "takip", "adetsel", "csv")) {
+                if (currentNavRoute == "main") {
                     Column {
                         SktTopAppBar(
                             searchQuery = searchQuery,
-                            onSearchQueryChange = { query ->
-                                inventoryViewModel.onSearchQueryChanged(query)
-                            },
+                            onSearchQueryChange = { query -> inventoryViewModel.onSearchQueryChanged(query) },
                             allProducts = allProducts,
-                            onProductClick = { prod ->
-                                inventoryViewModel.openProductDetailModal(prod)
-                            },
-                            onAddNewProductClick = {
-                                inventoryViewModel.openAddProductModal()
-                            },
+                            onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
+                            onAddNewProductClick = { inventoryViewModel.openAddProductModal() },
                             onOpenScanner = {
-                                scannerOpenMode = if (currentRoute == "adetsel") ScannerOpenMode.ADETSEL_SAYIM else ScannerOpenMode.BARCODE_SEARCH
+                                scannerOpenMode = if (activeRoute == "adetsel") ScannerOpenMode.ADETSEL_SAYIM else ScannerOpenMode.BARCODE_SEARCH
                                 isBarcodeScannerOpen = true
                             },
                             onBellClick = { isNotificationDialogOpen = true },
                             unreadCount = dashboardState.unreadNotificationCount,
                             onAvatarClick = { navigateToTab("reminders") },
                             onSettingsClick = { navigateToTab("csv") },
-                            showHomeButton = currentRoute != "panel",
-                            onHomeClick = { navigateToTab("panel") }
+                            showHomeButton = activeRoute != "panel",
+                            onHomeClick = {
+                                coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                            }
                         )
-                        com.example.ui.components.TopBarLoadingBar(isLoading = isSyncingOrLoading)
+                        TopBarLoadingBar(isLoading = isLoading)
 
                         AnimatedVisibility(
-                            visible = migrationStatus != null && migrationStatus?.isVisible == true,
+                            visible = migrationStatus?.isVisible == true,
                             enter = fadeIn() + expandVertically(),
                             exit = fadeOut() + shrinkVertically()
                         ) {
                             migrationStatus?.let { status ->
                                 Surface(
-                                    color = if (status.isSuccess) com.example.ui.theme.EmeraldSuccess else com.example.ui.theme.TurquoisePrimary,
+                                    color = if (status.isSuccess) EmeraldSuccess else TurquoisePrimary,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(horizontal = 16.dp, vertical = 8.dp),
-                                         verticalAlignment = Alignment.CenterVertically
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = if (status.isSuccess) Icons.Default.Check else Icons.Default.Info,
@@ -673,9 +404,10 @@ fun SktMainApp(
                 }
             }
         ) { innerPadding ->
-            com.example.navigation.AppNavHost(
+            AppNavHost(
                 navController = navController,
                 innerPadding = innerPadding,
+                pagerState = pagerState,
                 context = context,
                 dashboardState = dashboardState,
                 allProducts = allProducts,
@@ -706,9 +438,46 @@ fun SktMainApp(
                 onOpenNotifications = { isNotificationDialogOpen = true }
             )
         }
+
+        // TÜM GLOBAL DİYALOG VE MODAL YÖNETİMİ
+        GlobalModalHost(
+            mainViewModel = mainViewModel,
+            inventoryViewModel = inventoryViewModel,
+            adetselViewModel = adetselViewModel,
+            settingsViewModel = settingsViewModel,
+            currentUser = currentUser,
+            allProducts = allProducts,
+            stockLogs = stockLogs,
+            dashboardState = dashboardState,
+            currentRoute = activeRoute,
+            isNotificationDialogOpen = isNotificationDialogOpen,
+            onDismissNotificationDialog = { isNotificationDialogOpen = false },
+            isProfileDialogOpen = isProfileDialogOpen,
+            onDismissProfileDialog = { isProfileDialogOpen = false },
+            isBarcodeScannerOpen = isBarcodeScannerOpen,
+            scannerOpenMode = scannerOpenMode,
+            onDismissBarcodeScanner = { isBarcodeScannerOpen = false },
+            isAddEditModalOpen = isAddEditModalOpen,
+            editingProduct = editingProduct,
+            detailProduct = detailProduct,
+            addSktProduct = addSktProduct,
+            prefilledBarcode = prefilledBarcode,
+            userName = userName,
+            userBranch = userBranch,
+            userRole = userRole,
+            userDepartment = userDepartment,
+            userDutyStatus = userDutyStatus,
+            morningReminderEnabled = morningReminderEnabled,
+            criticalAlertEnabled = criticalAlertEnabled,
+            highStockAlertEnabled = highStockAlertEnabled,
+            soundEffectsEnabled = soundEffectsEnabled,
+            vibrationEnabled = vibrationEnabled,
+            isBatterySaverMode = isBatterySaverMode,
+            navigateToTab = { tab -> navigateToTab(tab) }
+        )
     }
 
-    com.example.ui.components.ProfessionalLoadingOverlay(
+    ProfessionalLoadingOverlay(
         isLoading = isLoading,
         title = "İşlem Yapılıyor",
         message = loadingMessage

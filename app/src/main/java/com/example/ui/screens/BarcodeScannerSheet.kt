@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.content.Context
 import android.media.AudioManager
 import android.media.ToneGenerator
 import androidx.compose.animation.core.animateDpAsState
@@ -27,6 +28,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -106,7 +109,9 @@ fun BarcodeScannerSheet(
 ) {
     var manualBarcode by remember { mutableStateOf("") }
     var activeBarcode by remember { mutableStateOf("") }
-    var isFixQrMode by remember { mutableStateOf(openMode == ScannerOpenMode.LABEL_FIX || startInFixQrMode) }
+    val initialPage = if (openMode == ScannerOpenMode.LABEL_FIX || startInFixQrMode) 1 else 0
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 2 })
+    val isFixQrMode = pagerState.currentPage == 1
     val isSerialScanMode = !isFixQrMode
     var isBarcodeTooFar by remember { mutableStateOf(false) }
     var serialScanCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -299,16 +304,20 @@ fun BarcodeScannerSheet(
                                         }
                                         qrFixSuccessCount++
                                         if (vibrationEnabled) {
-                                            com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = soundEffectsEnabled)
-                                        } else if (soundEffectsEnabled) {
-                                            com.example.util.HapticFeedbackHelper.playSuccessTone()
+                                            com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = false)
+                                        }
+                                        if (soundEffectsEnabled) {
+                                            val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+                                            val labelFixToneId = prefs.getInt("scanner_sound_label_fix", 2)
+                                            com.example.util.SoundToneManager.playTone(labelFixToneId)
                                         }
                                     } else {
                                         qrFixLastInfo = null
                                         qrFixErrorCount++
                                         if (vibrationEnabled) {
-                                            com.example.util.HapticFeedbackHelper.triggerWarningHaptic(context, playSound = soundEffectsEnabled)
-                                        } else if (soundEffectsEnabled) {
+                                            com.example.util.HapticFeedbackHelper.triggerWarningHaptic(context, playSound = false)
+                                        }
+                                        if (soundEffectsEnabled) {
                                             com.example.util.HapticFeedbackHelper.playWarningTone()
                                         }
                                     }
@@ -349,9 +358,12 @@ fun BarcodeScannerSheet(
                                 isProcessingScan = true
                                 serialScanCount++
                                 if (vibrationEnabled) {
-                                    com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = soundEffectsEnabled)
-                                } else if (soundEffectsEnabled) {
-                                    com.example.util.HapticFeedbackHelper.playSuccessTone()
+                                    com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = false)
+                                }
+                                if (soundEffectsEnabled) {
+                                    val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
+                                    val barcodeToneId = prefs.getInt("scanner_sound_barcode", 1)
+                                    com.example.util.SoundToneManager.playTone(barcodeToneId)
                                 }
                                 onBarcodeDetected(cleanBarcode)
                                 coroutineScope.launch {
@@ -543,7 +555,9 @@ fun BarcodeScannerSheet(
                 isFlashOn = isFlashOn,
                 onCloseClick = safeDismiss,
                 onModeChange = { isFixMode ->
-                    isFixQrMode = isFixMode
+                    coroutineScope.launch {
+                        pagerState.animateScrollToPage(if (isFixMode) 1 else 0)
+                    }
                     qrFixResultMsg = ""
                     manualBarcode = ""
                     activeBarcode = ""
@@ -563,44 +577,48 @@ fun BarcodeScannerSheet(
             )
 
             // =========================================================================
-            // 3. ALT BEYAZ KART: ARKA PLANDAN ŞEFFAF, DOĞRUDAN CANLI KAMERA ÜZERİNDE
+            // 3. ALT BEYAZ KART: HORIZONTAL PAGER İLE SAĞA/SOLA KAYDIRILABİLİR
             // =========================================================================
-            if (isFixQrMode) {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(bottomWeight)
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding(),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 16.dp
-                ) {
-                    QrFixSummaryPanel(
-                        storeCode = qrFixStoreCode,
-                        userName = userName,
-                        lastProcessTime = qrFixLastTime,
-                        totalScannedCount = qrFixSuccessCount + qrFixErrorCount,
-                        successCount = qrFixSuccessCount,
-                        errorCount = qrFixErrorCount,
-                        lastProcessedInfo = qrFixLastInfo,
-                        historyList = qrFixHistoryList,
-                        onClearHistory = { qrFixHistoryList.clear() },
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(bottomWeight)
+                    .align(Alignment.BottomCenter),
+                beyondViewportPageCount = 1
+            ) { page ->
+                if (page == 1) {
+                    Surface(
                         modifier = Modifier
-                            .fillMaxWidth()
                             .fillMaxSize()
-                    )
-                }
-            } else {
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(bottomWeight)
-                        .align(Alignment.BottomCenter),
-                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 16.dp
-                ) {
+                            .navigationBarsPadding(),
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 16.dp
+                    ) {
+                        QrFixSummaryPanel(
+                            storeCode = qrFixStoreCode,
+                            userName = userName,
+                            lastProcessTime = qrFixLastTime,
+                            totalScannedCount = qrFixSuccessCount + qrFixErrorCount,
+                            successCount = qrFixSuccessCount,
+                            errorCount = qrFixErrorCount,
+                            lastProcessedInfo = qrFixLastInfo,
+                            historyList = qrFixHistoryList,
+                            onClearHistory = { qrFixHistoryList.clear() },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxSize()
+                        )
+                    }
+                } else {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        shadowElevation = 16.dp
+                    ) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -739,5 +757,6 @@ fun BarcodeScannerSheet(
             }
         }
     }
+}
 
 

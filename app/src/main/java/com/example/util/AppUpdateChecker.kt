@@ -20,12 +20,28 @@ data class AppUpdateInfo(
     val latestVersionName: String,
     val downloadUrl: String,
     val releaseNotes: String = "",
-    val hasUpdate: Boolean = false
+    val hasUpdate: Boolean = false,
+    val apkSizeBytes: Long = 0L,
+    val apkSizeFormatted: String = ""
 )
 
 object AppUpdateChecker {
     private const val TAG = "AppUpdateChecker"
     private const val GITHUB_API_URL = "https://api.github.com/repos/cetintuncyurek6132-bot/Skttakip/releases/latest"
+
+    /**
+     * Bayt boyutunu okunabilir MB/KB metnine çevirir.
+     */
+    fun formatBytes(bytes: Long): String {
+        if (bytes <= 0L) return "0 MB"
+        val mb = bytes.toDouble() / (1024.0 * 1024.0)
+        return if (mb >= 1.0) {
+            String.format(java.util.Locale.US, "%.1f MB", mb)
+        } else {
+            val kb = bytes.toDouble() / 1024.0
+            String.format(java.util.Locale.US, "%.0f KB", kb)
+        }
+    }
 
     /**
      * GitHub Releases API üzerinden en son sürümü sorgular ve mevcut sürümle karşılaştırır.
@@ -55,6 +71,8 @@ object AppUpdateChecker {
             val releaseNotes = ReleaseNotesTranslator.formatAsBulletsString(rawReleaseNotes, cleanTagName)
 
             var downloadUrl = ""
+            var apkSizeBytes = 0L
+            var apkSizeFormatted = ""
             val assetsArray = json.optJSONArray("assets")
             if (assetsArray != null) {
                 for (i in 0 until assetsArray.length()) {
@@ -62,6 +80,10 @@ object AppUpdateChecker {
                     val name = asset.optString("name", "")
                     if (name.endsWith(".apk", ignoreCase = true)) {
                         downloadUrl = asset.optString("browser_download_url", "")
+                        apkSizeBytes = asset.optLong("size", 0L)
+                        if (apkSizeBytes > 0L) {
+                            apkSizeFormatted = formatBytes(apkSizeBytes)
+                        }
                         break
                     }
                 }
@@ -70,14 +92,16 @@ object AppUpdateChecker {
             val currentVersion = BuildConfig.VERSION_NAME.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
             val isNewer = isVersionNewer(cleanTagName, currentVersion)
 
-            Log.d(TAG, "Mevcut: $currentVersion | GitHub: $cleanTagName | Güncelleme Var mı: $isNewer | URL: $downloadUrl")
+            Log.d(TAG, "Mevcut: $currentVersion | GitHub: $cleanTagName | Güncelleme Var mı: $isNewer | Boyut: $apkSizeFormatted | URL: $downloadUrl")
 
             Result.success(
                 AppUpdateInfo(
                     latestVersionName = cleanTagName.ifBlank { rawTagName },
                     downloadUrl = downloadUrl,
                     releaseNotes = releaseNotes,
-                    hasUpdate = isNewer && downloadUrl.isNotBlank()
+                    hasUpdate = isNewer && downloadUrl.isNotBlank(),
+                    apkSizeBytes = apkSizeBytes,
+                    apkSizeFormatted = apkSizeFormatted
                 )
             )
         } catch (e: Exception) {
@@ -134,7 +158,7 @@ object AppUpdateChecker {
     suspend fun downloadApk(
         context: Context,
         downloadUrl: String,
-        onProgress: (progressPercent: Int) -> Unit
+        onProgress: (percent: Int, downloadedBytes: Long, totalBytes: Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         var currentUrl = downloadUrl
         var connection: HttpURLConnection? = null
@@ -185,7 +209,7 @@ object AppUpdateChecker {
             }
 
             val finalConn = connection ?: return@withContext Result.failure(Exception("Bağlantı kurulamadı"))
-            val fileLength = finalConn.contentLength
+            val fileLength = finalConn.contentLength.toLong()
             val apkFile = File(context.cacheDir, "update.apk")
             if (apkFile.exists()) {
                 apkFile.delete()
@@ -198,10 +222,12 @@ object AppUpdateChecker {
                     var count: Int
                     while (input.read(data).also { count = it } != -1) {
                         total += count
-                        if (fileLength > 0) {
-                            val percent = ((total * 100) / fileLength).toInt()
-                            onProgress(percent.coerceIn(0, 100))
+                        val percent = if (fileLength > 0L) {
+                            ((total * 100) / fileLength).toInt().coerceIn(0, 100)
+                        } else {
+                            0
                         }
+                        onProgress(percent, total, if (fileLength > 0L) fileLength else total)
                         output.write(data, 0, count)
                     }
                     output.flush()
@@ -218,6 +244,12 @@ object AppUpdateChecker {
             } catch (_: Exception) {}
         }
     }
+
+    suspend fun downloadApk(
+        context: Context,
+        downloadUrl: String,
+        onProgressPercent: (progressPercent: Int) -> Unit
+    ): Result<File> = downloadApk(context, downloadUrl) { percent, _, _ -> onProgressPercent(percent) }
 
     /**
      * İndirilen APK dosyasını Android PackageInstaller üzerinden kurmak üzere intent başlatır.
@@ -247,179 +279,3 @@ object AppUpdateChecker {
     }
 }
 
-/**
- * GitHub Release ve Commit geçmişinden gelen metinleri dinamik olarak analiz eden,
- * yazılım terimlerini Türkçeleştiren ve gerçek değişiklik maddelerini listeyen motor.
- */
-object ReleaseNotesTranslator {
-
-    /**
-     * Ham notları satır satır inceler, markdown ve teknik sembolleri temizler,
-     * terimleri Türkçeleştirip liste döner. Asla sabit/uydurma metin eklemez.
-     */
-    fun translateToBulletPoints(rawNotes: String, versionName: String = ""): List<String> {
-        val trimmed = rawNotes.trim()
-        if (trimmed.isBlank() || trimmed.equals("null", ignoreCase = true)) {
-            return if (versionName.isNotBlank()) {
-                listOf("v$versionName sürüm güncellemesi.")
-            } else {
-                emptyList()
-            }
-        }
-
-        // Markdown URL, hash, commit referansı ve kullanıcı etiketlerini temizle
-        val lines = trimmed
-            .replace(Regex("https?://\\S+"), "")
-            .replace(Regex("\\b[0-9a-f]{7,40}\\b", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("#\\d+"), "")
-            .replace(Regex("@[a-zA-Z0-9_-]+"), "")
-            .lines()
-            .map { it.trim() }
-            .filter { line ->
-                line.isNotBlank() &&
-                !line.startsWith("Full Changelog", ignoreCase = true) &&
-                !line.startsWith("What's Changed", ignoreCase = true) &&
-                !line.startsWith("See the assets", ignoreCase = true) &&
-                !line.startsWith("Compare", ignoreCase = true) &&
-                !line.startsWith("Assets", ignoreCase = true) &&
-                !line.startsWith("```") &&
-                line != "---"
-            }
-
-        val resultList = mutableListOf<String>()
-
-        for (rawLine in lines) {
-            val cleaned = rawLine
-                .removePrefix("####")
-                .removePrefix("###")
-                .removePrefix("##")
-                .removePrefix("#")
-                .removePrefix("*")
-                .removePrefix("-")
-                .removePrefix("•")
-                .removePrefix("+")
-                .trim()
-
-            if (cleaned.isBlank()) continue
-
-            val translated = translateSingleLine(cleaned)
-            if (translated.isNotBlank()) {
-                resultList.add(translated)
-            }
-        }
-
-        val distinctList = resultList.distinct()
-        if (distinctList.isNotEmpty()) {
-            return distinctList
-        }
-
-        return if (versionName.isNotBlank()) {
-            listOf("v$versionName sürüm güncellemesi.")
-        } else {
-            emptyList()
-        }
-    }
-
-    fun formatAsBulletsString(rawNotes: String, versionName: String = ""): String {
-        val items = translateToBulletPoints(rawNotes, versionName)
-        return items.joinToString("\n") { "• $it" }
-    }
-
-    private fun translateSingleLine(line: String): String {
-        var text = line
-            .replace("**", "")
-            .replace("__", "")
-            .replace("`", "")
-            .trim()
-
-        if (text.isBlank()) return ""
-
-        // Eğer metin zaten Türkçe yazılmışsa (örneğin commit Türkçe atılmışsa) kelimelerini bozma
-        val turkishWords = listOf(
-            "ve", "ile", "için", "yapıldı", "eklendi", "düzeltildi", "güncellendi",
-            "düzeltme", "hata", "buton", "sayfa", "ürün", "ekranı", "tasarımı",
-            "ayarlar", "bildirim", "stok", "fire", "satış", "tarihi", "skt",
-            "kayıt", "arama", "tarayıcı", "yenilendi", "geliştirildi", "kaldırıldı",
-            "iyileştirildi", "kod", "düzenlendi", "öngörü", "tahmin", "yeni", "modülü",
-            "hatırlatıcı", "rapor", "sayım", "reyon", "raf", "kullanıcı"
-        )
-        val hasTurkishChar = text.any { it in "çğıöşüÇĞİÖŞÜ" }
-        val lower = text.lowercase()
-        val isAlreadyTurkish = hasTurkishChar || turkishWords.any { lower.contains(it) }
-
-        if (isAlreadyTurkish) {
-            return text.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-        }
-
-        // Yazılım geliştirme terimlerine ait aksiyon ön ekleri
-        var actionPrefix = ""
-        val prefixRules = listOf(
-            Regex("^(bug fix|bugfix|bug-fix|bug_fix|fix|fixed|resolve|resolved)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Düzeltildi: ",
-            Regex("^(add|added|feature|feat|new)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Eklendi: ",
-            Regex("^(update|updated|improve|improved|enhancement|enhance|enhanced)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "İyileştirildi: ",
-            Regex("^(remove|removed|delete|deleted)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Kaldırıldı: ",
-            Regex("^(refactor|refactored|optimize|optimized|perf)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Optimize Edildi: "
-        )
-
-        for ((regex, prefix) in prefixRules) {
-            if (regex.containsMatchIn(text)) {
-                actionPrefix = prefix
-                text = text.replace(regex, "").trim()
-                break
-            }
-        }
-
-        // Terim sözlüğü
-        val dictionary = listOf(
-            Regex("(?i)\\bduplicate\\b") to "mükerrer",
-            Regex("(?i)\\bbadge\\b") to "rozet",
-            Regex("(?i)\\bwaste\\b") to "fire",
-            Regex("(?i)\\bspoilage\\b") to "fire",
-            Regex("(?i)\\banalytics\\b") to "analiz ve tahminleme",
-            Regex("(?i)\\bdashboard\\b") to "ana sayfa gösterge paneli",
-            Regex("(?i)\\bscanner\\b") to "barkod tarayıcı",
-            Regex("(?i)\\bbarcode\\b") to "barkod",
-            Regex("(?i)\\bbackup\\b") to "yedekleme",
-            Regex("(?i)\\brestore\\b") to "geri yükleme",
-            Regex("(?i)\\breminders\\b") to "hatırlatıcılar",
-            Regex("(?i)\\breminder\\b") to "hatırlatıcı",
-            Regex("(?i)\\bcategory\\b") to "reyon/kategori",
-            Regex("(?i)\\bcategories\\b") to "reyon/kategoriler",
-            Regex("(?i)\\bcamera\\b") to "kamera",
-            Regex("(?i)\\bnotification\\b") to "bildirim",
-            Regex("(?i)\\bnotifications\\b") to "bildirimler",
-            Regex("(?i)\\bhaptic feedback\\b") to "titreşimli geri bildirim",
-            Regex("(?i)\\bdark mode\\b") to "karanlık tema",
-            Regex("(?i)\\blight mode\\b") to "aydınlık tema",
-            Regex("(?i)\\bsettings\\b") to "ayarlar",
-            Regex("(?i)\\bproduct\\b") to "ürün",
-            Regex("(?i)\\bproducts\\b") to "ürünler",
-            Regex("(?i)\\bexpiry date\\b") to "son kullanma tarihi",
-            Regex("(?i)\\bexpiration date\\b") to "son kullanma tarihi",
-            Regex("(?i)\\bcalendar\\b") to "takvim",
-            Regex("(?i)\\bdialog\\b") to "pencere",
-            Regex("(?i)\\bmodal\\b") to "pencere",
-            Regex("(?i)\\bui\\b") to "arayüz",
-            Regex("(?i)\\bperformance\\b") to "performans",
-            Regex("(?i)\\bdatabase\\b") to "veritabanı",
-            Regex("(?i)\\bcrash\\b") to "kapanma sorunu",
-            Regex("(?i)\\bbug\\b") to "hata",
-            Regex("(?i)\\bbutton\\b") to "buton",
-            Regex("(?i)\\bhistory\\b") to "geçmiş",
-            Regex("(?i)\\bexport\\b") to "dışa aktarma",
-            Regex("(?i)\\bimport\\b") to "içe aktarma"
-        )
-
-        for ((regex, replacement) in dictionary) {
-            text = text.replace(regex, replacement)
-        }
-
-        text = text.trim().replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
-
-        return if (actionPrefix.isNotEmpty()) {
-            "$actionPrefix$text"
-        } else {
-            text
-        }
-    }
-}

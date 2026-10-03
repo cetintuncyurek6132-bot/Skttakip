@@ -19,11 +19,13 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -112,8 +114,9 @@ fun ProductDetailModal(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.95f)
-                .fillMaxHeight(0.88f)
-                .padding(vertical = 8.dp)
+                .heightIn(min = 280.dp, max = 680.dp)
+                .wrapContentHeight()
+                .padding(vertical = 12.dp)
                 .imePadding()
                 .navigationBarsPadding()
                 .clip(RoundedCornerShape(22.dp)),
@@ -124,7 +127,8 @@ fun ProductDetailModal(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
+                    .wrapContentHeight()
                     .padding(16.dp)
             ) {
                 // 1. KOMPAKT VE TEMİZ BAŞLIK ÇUBUĞU
@@ -349,8 +353,8 @@ fun ProductDetailModal(
                 // 4. SEKME İÇERİKLERİ (Scrollable Body)
                 Box(
                     modifier = Modifier
-                        .weight(1f)
                         .fillMaxWidth()
+                        .wrapContentHeight()
                         .verticalScroll(rememberScrollState())
                 ) {
                     AnimatedContent(

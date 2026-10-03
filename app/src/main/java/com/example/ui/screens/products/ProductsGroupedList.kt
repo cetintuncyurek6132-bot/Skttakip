@@ -56,7 +56,7 @@ fun ProductsGroupedList(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp),
-        contentPadding = PaddingValues(top = 4.dp, bottom = 120.dp),
+        contentPadding = PaddingValues(top = 4.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         item {

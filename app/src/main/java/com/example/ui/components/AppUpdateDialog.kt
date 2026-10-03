@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -50,6 +51,7 @@ import com.example.ui.theme.Slate700
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
+import com.example.util.AppUpdateChecker
 import com.example.util.AppUpdateInfo
 import com.example.util.ReleaseNotesTranslator
 
@@ -58,6 +60,8 @@ fun AppUpdateDialog(
     updateInfo: AppUpdateInfo,
     isDownloading: Boolean,
     downloadProgress: Int,
+    downloadedBytes: Long = 0L,
+    totalBytes: Long = 0L,
     onConfirmUpdate: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -131,21 +135,42 @@ fun AppUpdateDialog(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Sürüm Rozeti
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = TurquoiseLight,
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f))
+                // Sürüm ve Boyut Rozetleri
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Sürüm: v$cleanVer",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TurquoiseDark,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = TurquoiseLight,
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f))
+                    ) {
+                        Text(
+                            text = "Sürüm: v$cleanVer",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+
+                    if (updateInfo.apkSizeFormatted.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFF1F5F9),
+                            border = BorderStroke(1.dp, Color(0xFFCBD5E1))
+                        ) {
+                            Text(
+                                text = "Boyut: ${updateInfo.apkSizeFormatted}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate700,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
@@ -224,13 +249,23 @@ fun AppUpdateDialog(
                     }
                 }
 
-                // 3. İndirme Durumu (Progress Bar)
+                // 3. İndirme Durumu (Progress Bar & Canlı MB Takibi)
                 if (isDownloading) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        val sizeText = if (downloadedBytes > 0L) {
+                            val totalFormatted = if (totalBytes > 0L) AppUpdateChecker.formatBytes(totalBytes) else updateInfo.apkSizeFormatted.ifBlank { AppUpdateChecker.formatBytes(downloadedBytes) }
+                            "${AppUpdateChecker.formatBytes(downloadedBytes)} / $totalFormatted"
+                        } else if (updateInfo.apkSizeFormatted.isNotBlank()) {
+                            val estimatedBytes = (downloadProgress * (updateInfo.apkSizeBytes.takeIf { it > 0L } ?: (40 * 1024 * 1024L))) / 100
+                            "${AppUpdateChecker.formatBytes(estimatedBytes)} / ${updateInfo.apkSizeFormatted}"
+                        } else {
+                            "%$downloadProgress"
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -243,8 +278,8 @@ fun AppUpdateDialog(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = "%$downloadProgress",
-                                fontSize = 12.5.sp,
+                                text = sizeText,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TurquoiseDark
                             )
@@ -275,9 +310,10 @@ fun AppUpdateDialog(
                         onClick = onDismiss,
                         enabled = !isDownloading,
                         modifier = Modifier
-                            .weight(0.9f)
+                            .weight(0.95f)
                             .height(44.dp)
                             .testTag("app_update_dismiss_button"),
+                        contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
                             contentColor = Slate600
@@ -286,7 +322,7 @@ fun AppUpdateDialog(
                     ) {
                         Text(
                             text = "Daha Sonra",
-                            fontSize = 13.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1
                         )

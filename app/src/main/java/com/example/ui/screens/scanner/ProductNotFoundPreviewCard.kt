@@ -237,7 +237,7 @@ fun ProductNotFoundPreviewCard(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "YENİ ÜRÜN OLARAK EKLE",
+                        text = "YENİ ÜRÜN EKLE",
                         fontWeight = FontWeight.Black,
                         color = Color.White,
                         fontSize = 12.5.sp,

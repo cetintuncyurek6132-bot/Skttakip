@@ -729,7 +729,7 @@ fun DashboardScreen(
             }
         }
 
-        // 6. Tasarım ve Ergonomi: Yüzen alt bar için geniş boşluk
-        Spacer(modifier = Modifier.height(100.dp))
+        // 6. Tasarım ve Ergonomi: Alt bar ile doğal ve şık mesafe
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
