@@ -85,6 +85,7 @@ fun AddSktModal(
     var selectedDateMillis by remember(initialDateMillis) { mutableStateOf(initialDateMillis) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showOcrScanner by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
 
@@ -506,11 +507,15 @@ fun AddSktModal(
                     if (!isEditMode) {
                         Button(
                             onClick = {
+                                if (isSaving) return@Button
+                                isSaving = true
                                 val count = stokAdedi.toIntOrNull() ?: 1
                                 onSaveSkt(product, selectedDateMillis, count)
                                 Toast.makeText(context, "SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
                                 stokAdedi = "1"
+                                isSaving = false
                             },
+                            enabled = !isSaving,
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp)
@@ -532,12 +537,15 @@ fun AddSktModal(
 
                     Button(
                         onClick = {
+                            if (isSaving) return@Button
+                            isSaving = true
                             val count = stokAdedi.toIntOrNull() ?: 1
                             onSaveSkt(product, selectedDateMillis, count)
                             val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
                             Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                             onDismiss()
                         },
+                        enabled = !isSaving,
                         modifier = Modifier
                             .weight(1f)
                             .height(42.dp)

@@ -169,6 +169,7 @@ fun AppNavHost(
                         if (isLoading) mainViewModel.showLoading(msg) else mainViewModel.hideLoading()
                     }
                     com.example.data.DepoIadeManager.clearAllRecords(context)
+                    context.getSharedPreferences("depo_iade_takip_prefs", Context.MODE_PRIVATE).edit().clear().apply()
                     // Clear all temporary calendar and search caches from SharedPreferences
                     listOf(
                         "morning_routine_prefs",

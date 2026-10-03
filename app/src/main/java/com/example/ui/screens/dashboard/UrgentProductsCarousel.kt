@@ -148,7 +148,7 @@ fun UrgentProductsCarousel(
                             bgColor = Color(0xFFD97706),
                             textColor = Color.White,
                             numberText = daysLeft.toString(),
-                            labelText = "$daysLeft GÜN"
+                            labelText = "GÜN KALDI"
                         )
                     }
                 }

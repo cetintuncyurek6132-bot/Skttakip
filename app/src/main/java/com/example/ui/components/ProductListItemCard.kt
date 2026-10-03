@@ -398,9 +398,10 @@ fun GroupedProductListItemCard(
     val status = remember(nearestWithSkt.sktTarihi, todayMidnight) {
         if (hasSkt) nearestWithSkt.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
     }
-    val totalStock = remember(productList) { productList.sumOf { it.stokAdedi } }
-    val partyCount = remember(validBatches, productList) {
-        if (validBatches.isNotEmpty()) validBatches.size else productList.size
+    val activeBatches = remember(productList) { productList.filter { it.stokAdedi > 0 } }
+    val totalStock = remember(activeBatches) { activeBatches.sumOf { it.stokAdedi } }
+    val partyCount = remember(validBatches, activeBatches, productList) {
+        if (validBatches.isNotEmpty()) validBatches.size else if (activeBatches.isNotEmpty()) activeBatches.size else productList.size
     }
 
     val squareBg: Color = remember(hasSkt, status) {

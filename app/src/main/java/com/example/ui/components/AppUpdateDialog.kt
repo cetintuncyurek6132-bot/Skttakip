@@ -64,12 +64,11 @@ fun AppUpdateDialog(
         val raw = updateInfo.releaseNotes.trim()
         val lower = raw.lowercase()
         if (raw.isBlank() ||
-            lower.contains("add files via upload") ||
-            lower.contains("merge") ||
-            lower.contains("commit") ||
-            lower.contains("github")
+            raw.equals("null", ignoreCase = true) ||
+            lower == "release" ||
+            lower.contains("add files via upload")
         ) {
-            "Performans ve kararlılık iyileştirmeleri yapıldı."
+            "• Performans ve kararlılık iyileştirmeleri yapıldı."
         } else {
             raw
         }

@@ -136,6 +136,7 @@ fun AddEditProductModal(
 
     var showFullQrScanner by remember { mutableStateOf(false) }
     var showProductNameOcrScanner by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -511,7 +512,12 @@ fun AddEditProductModal(
                 ) {
                     if (product != null && onDelete != null) {
                         TextButton(
-                            onClick = { onDelete(product) },
+                            onClick = {
+                                if (isSaving) return@TextButton
+                                isSaving = true
+                                onDelete(product)
+                            },
+                            enabled = !isSaving,
                             colors = ButtonDefaults.textButtonColors(contentColor = ExpiredRed),
                             shape = RoundedCornerShape(10.dp),
                             modifier = Modifier
@@ -530,17 +536,20 @@ fun AddEditProductModal(
 
                     Button(
                         onClick = {
+                            if (isSaving) return@Button
                             val enteredName = urunAdi.trim()
                             val enteredBarkod = barkod.trim()
                             val enteredCode = urunKodu.trim()
                             val enteredCategory = kategori.trim()
 
-                            // Fiyat Girişi: Boş bırakıldığında veya silindiğinde null olarak kaydet
+                            // Fiyat Girişi: 2 basamağa yuvarlayarak IEEE 754 sapmalarını engelle
                             val trimmedFiyat = fiyatText.trim().replace(',', '.')
                             val validFiyat = if (trimmedFiyat.isNotBlank()) {
-                                trimmedFiyat.toDoubleOrNull()?.takeIf { it > 0.0 }
+                                trimmedFiyat.toDoubleOrNull()?.takeIf { it > 0.0 }?.let { parsedDouble ->
+                                    (Math.round(parsedDouble * 100.0) / 100.0)
+                                }
                             } else {
-                                null // Kullanıcı kutuyu bilerek boş bıraktıysa veya sildiyse null olarak kaydet
+                                null
                             }
 
                             val candidate = Product(
@@ -557,6 +566,7 @@ fun AddEditProductModal(
                             val finalHealed = ProductDataHealer.autoHealProduct(candidate)
 
                             if (finalHealed.urunAdi.isNotBlank()) {
+                                isSaving = true
                                 onSave(
                                     finalHealed.barkod,
                                     finalHealed.urunKodu,
@@ -572,6 +582,7 @@ fun AddEditProductModal(
                                 Toast.makeText(context, "Lütfen ürün adını girin", Toast.LENGTH_SHORT).show()
                             }
                         },
+                        enabled = !isSaving,
                         modifier = Modifier
                             .weight(1.3f)
                             .height(44.dp)

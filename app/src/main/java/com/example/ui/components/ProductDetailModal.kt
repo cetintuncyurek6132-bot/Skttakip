@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
+import com.example.data.StockLog
 import com.example.data.getDisplayName
 import com.example.ui.components.detail.DeductStockDialog
 import com.example.ui.components.detail.ProductDetailPriceInfoTabContent
@@ -78,6 +79,7 @@ enum class ProductDetailTab(val title: String, val emoji: String) {
 fun ProductDetailModal(
     product: Product?,
     matchingProducts: List<Product>,
+    stockLogs: List<StockLog> = emptyList(),
     onDismiss: () -> Unit,
     onEditClick: (Product) -> Unit,
     onAddNewSktClick: (Product) -> Unit,
@@ -361,6 +363,7 @@ fun ProductDetailModal(
                                 ProductDetailSktTabContent(
                                     product = localProduct,
                                     matchingProducts = localMatchingProducts,
+                                    stockLogs = stockLogs,
                                     onAddNewSktClick = { onAddNewSktClick(localProduct) },
                                     onEditSktItem = { editingSktItem = it },
                                     onDeleteSkt = { prod ->

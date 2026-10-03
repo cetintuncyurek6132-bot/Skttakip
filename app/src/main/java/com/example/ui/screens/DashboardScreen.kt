@@ -170,7 +170,13 @@ fun DashboardScreen(
         depoRecords.filter { it.durum == IadeDurumu.REDDEDILDI }
     }
     val missingDocDepoRecords = remember(depoRecords) {
-        depoRecords.filter { it.durum == IadeDurumu.DEVAM_EDIYOR && !it.hasGorsel }
+        depoRecords.filter {
+            it.durum == IadeDurumu.DEVAM_EDIYOR && !it.hasGorsel &&
+                (it.redNedeni.contains("eksik", ignoreCase = true) ||
+                 it.redNedeni.contains("belge", ignoreCase = true) ||
+                 it.redNedeni.contains("irsaliye", ignoreCase = true) ||
+                 it.aciklama.contains("eksik", ignoreCase = true))
+        }
     }
     val ongoingDepoRecords = remember(depoRecords) {
         depoRecords.filter { it.durum == IadeDurumu.DEVAM_EDIYOR }

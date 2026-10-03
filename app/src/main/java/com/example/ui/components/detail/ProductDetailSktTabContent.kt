@@ -47,6 +47,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
+import com.example.data.StockLog
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.CriticalOrangeContainer
@@ -80,6 +81,7 @@ enum class SktRiskFilter {
 fun ProductDetailSktTabContent(
     product: Product,
     matchingProducts: List<Product>,
+    stockLogs: List<StockLog> = emptyList(),
     onAddNewSktClick: () -> Unit,
     onEditSktItem: (Product) -> Unit,
     onDeleteSkt: (Product) -> Unit,
@@ -89,6 +91,21 @@ fun ProductDetailSktTabContent(
     val allValidSktProducts = remember(matchingProducts) {
         matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }.sortedBy { it.sktTarihi }
     }
+
+    // Geçmiş StockLog'lara dayalı Akıllı Fire / Satış Öngörüsü
+    val prodLogs = remember(product.barkod, stockLogs) {
+        val cleanBarcode = product.barkod.trim()
+        if (cleanBarcode.isNotBlank()) {
+            stockLogs.filter { it.barcode.equals(cleanBarcode, ignoreCase = true) }
+        } else emptyList()
+    }
+    val pastSold = remember(prodLogs) { prodLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity } }
+    val pastFire = remember(prodLogs) { prodLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity } }
+    val totalHistorical = pastSold + pastFire
+    val hasPastData = totalHistorical > 0 && pastFire > 0
+    val firePercent = if (hasPastData) Math.round((pastFire.toDouble() / totalHistorical.toDouble()) * 100).toInt() else 0
+    val totalActiveStock = remember(allValidSktProducts) { allValidSktProducts.sumOf { it.stokAdedi } }
+    val estimatedFire = if (hasPastData) Math.round(totalActiveStock * (pastFire.toDouble() / totalHistorical.toDouble())).toInt() else 0
 
     var selectedRiskFilter by remember { mutableStateOf(SktRiskFilter.ALL) }
 
@@ -163,6 +180,44 @@ fun ProductDetailSktTabContent(
                     selectedRiskFilter = if (selectedRiskFilter == SktRiskFilter.SAFE) SktRiskFilter.ALL else SktRiskFilter.SAFE
                 }
             )
+        }
+
+        // 1.5. GEÇMİŞ VERİYE DAYALI AKILLI FİRE TAHMİNİ (TIP CARD)
+        if (hasPastData) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("product_detail_fire_prediction_tip"),
+                shape = RoundedCornerShape(12.dp),
+                color = if (firePercent >= 40) Color(0xFFFEF2F2) else Color(0xFFFFFBEB),
+                border = BorderStroke(1.dp, if (firePercent >= 40) Color(0xFFFECACA) else Color(0xFFFDE68A))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(text = "💡", fontSize = 20.sp)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Geçmiş Veri & Fire Öngörüsü",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = if (firePercent >= 40) ExpiredRedDark else Color(0xFFB45309)
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Bu ürünün önceki partilerinde %$firePercent fire verildi. Yeni girilen ${if (totalActiveStock > 0) "$totalActiveStock adedin" else "ürünlerin"} yaklaşık ${if (estimatedFire > 0) "$estimatedFire adedi" else "bir kısmı"} fire riski taşıyor.",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (firePercent >= 40) Color(0xFF991B1B) else Color(0xFF92400E),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
         }
 
         // 2. YENİ SKT EKLE BUTONU

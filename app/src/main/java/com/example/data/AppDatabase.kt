@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
+import androidx.room.withTransaction
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +82,14 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun stockMovementDao(): StockMovementDao
     abstract fun stockLogDao(): StockLogDao
     fun reportDao(): InspectionReportDao = inspectionReportDao()
+
+    /**
+     * Executes the given block in an atomic database transaction.
+     * Automatically rolls back all changes if any exception occurs.
+     */
+    suspend fun <R> runInTransaction(block: suspend () -> R): R {
+        return withTransaction(block)
+    }
 
     companion object {
         @Volatile

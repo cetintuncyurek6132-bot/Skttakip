@@ -388,50 +388,107 @@ object DataBackupManager {
                 }
             }
 
-            // Perform Save / Merge
-            if (!mergeWithExisting) {
-                productDao.deleteAllProducts()
-                adetselDao?.deleteAllAdetselKayitlar()
-                stockLogDao?.deleteAllLogs()
-                DepoIadeManager.clearAllRecords(context)
-            }
+            // Perform Save / Merge within an atomic Room transaction
+            val db = AppDatabase.getDatabase(context)
 
-            // 1. Ürünler ve SKT / Adetlerini Yükle
-            if (parsedProducts.isNotEmpty()) {
+            db.runInTransaction {
                 if (!mergeWithExisting) {
-                    productDao.insertAll(parsedProducts.map { it.copy(id = 0) })
-                    productsRestored = parsedProducts.size
-                } else {
-                    val existing = productDao.getAllProductsList()
-                    val existingMap = existing.associateBy {
-                        when {
-                            it.barkod.isNotBlank() -> "B:${it.barkod.trim()}_${it.sktTarihi}"
-                            it.urunKodu.isNotBlank() -> "K:${it.urunKodu.trim()}_${it.sktTarihi}"
-                            else -> "N:${it.urunAdi.trim().lowercase(Locale.forLanguageTag("tr-TR"))}_${it.sktTarihi}"
+                    productDao.deleteAllProducts()
+                    adetselDao?.deleteAllAdetselKayitlar()
+                    stockLogDao?.deleteAllLogs()
+                }
+
+                // 1. Ürünler ve SKT / Adetlerini Yükle
+                if (parsedProducts.isNotEmpty()) {
+                    if (!mergeWithExisting) {
+                        productDao.insertAll(parsedProducts.map { it.copy(id = 0) })
+                        productsRestored = parsedProducts.size
+                    } else {
+                        val existing = productDao.getAllProductsList()
+                        val existingMap = existing.associateBy {
+                            when {
+                                it.barkod.isNotBlank() -> "B:${it.barkod.trim()}_${it.sktTarihi}"
+                                it.urunKodu.isNotBlank() -> "K:${it.urunKodu.trim()}_${it.sktTarihi}"
+                                else -> "N:${it.urunAdi.trim().lowercase(Locale.forLanguageTag("tr-TR"))}_${it.sktTarihi}"
+                            }
+                        }
+
+                        for (prod in parsedProducts) {
+                            val key = when {
+                                prod.barkod.isNotBlank() -> "B:${prod.barkod.trim()}_${prod.sktTarihi}"
+                                prod.urunKodu.isNotBlank() -> "K:${prod.urunKodu.trim()}_${prod.sktTarihi}"
+                                else -> "N:${prod.urunAdi.trim().lowercase(Locale.forLanguageTag("tr-TR"))}_${prod.sktTarihi}"
+                            }
+                            val match = existingMap[key]
+                            if (match != null) {
+                                val mergedPrice = prod.fiyat ?: match.fiyat
+                                productDao.updateProduct(prod.copy(id = match.id, fiyat = mergedPrice))
+                            } else {
+                                productDao.insertProduct(prod.copy(id = 0))
+                            }
+                            productsRestored++
                         }
                     }
+                }
 
-                    for (prod in parsedProducts) {
-                        val key = when {
-                            prod.barkod.isNotBlank() -> "B:${prod.barkod.trim()}_${prod.sktTarihi}"
-                            prod.urunKodu.isNotBlank() -> "K:${prod.urunKodu.trim()}_${prod.sktTarihi}"
-                            else -> "N:${prod.urunAdi.trim().lowercase(Locale.forLanguageTag("tr-TR"))}_${prod.sktTarihi}"
+                // 2. Adetsel Sayfası Kayıtlarını Yükle
+                if (adetselDao != null && parsedAdetselKayitlar.isNotEmpty()) {
+                    if (!mergeWithExisting) {
+                        adetselDao.insertAdetselKayitlarBatch(parsedAdetselKayitlar.map { it.copy(id = 0) })
+                        adetselRestored = parsedAdetselKayitlar.size
+                    } else {
+                        val existingAdetsel = adetselDao.getAllAdetselKayitlariDirect()
+                        val existingKeys = existingAdetsel.map {
+                            "${it.barkod.trim()}_${it.urunKodu.trim()}_${it.yapildiMi}_${it.islemTarihi}"
+                        }.toSet()
+
+                        val toInsert = mutableListOf<AdetselKayit>()
+                        for (ak in parsedAdetselKayitlar) {
+                            val key = "${ak.barkod.trim()}_${ak.urunKodu.trim()}_${ak.yapildiMi}_${ak.islemTarihi}"
+                            if (!existingKeys.contains(key)) {
+                                toInsert.add(ak.copy(id = 0))
+                                adetselRestored++
+                            }
                         }
-                        val match = existingMap[key]
-                        if (match != null) {
-                            val mergedPrice = prod.fiyat ?: match.fiyat
-                            productDao.updateProduct(prod.copy(id = match.id, fiyat = mergedPrice))
-                        } else {
-                            productDao.insertProduct(prod.copy(id = 0))
+                        if (toInsert.isNotEmpty()) {
+                            adetselDao.insertAdetselKayitlarBatch(toInsert)
                         }
-                        productsRestored++
+                    }
+                }
+
+                // 3. Inspection Reports
+                for (ir in parsedReports) {
+                    reportDao.insertReport(ir.copy(id = 0))
+                    inspectionRestored++
+                }
+
+                // 4. Stok Hareketleri (StockLog / Satış / Fire)
+                if (stockLogDao != null && parsedStockLogs.isNotEmpty()) {
+                    if (!mergeWithExisting) {
+                        stockLogDao.insertAll(parsedStockLogs.map { it.copy(id = 0) })
+                        stockLogsRestored = parsedStockLogs.size
+                    } else {
+                        val existingLogs = stockLogDao.getAllLogsList()
+                        val existingKeys = existingLogs.map { "${it.barcode}_${it.actionType}_${it.timestamp}" }.toSet()
+                        val toInsert = mutableListOf<StockLog>()
+                        for (log in parsedStockLogs) {
+                            val key = "${log.barcode}_${log.actionType}_${log.timestamp}"
+                            if (!existingKeys.contains(key)) {
+                                toInsert.add(log.copy(id = 0))
+                                stockLogsRestored++
+                            }
+                        }
+                        if (toInsert.isNotEmpty()) {
+                            stockLogDao.insertAll(toInsert)
+                        }
                     }
                 }
             }
 
-            // 2. Takip Sayfası Kayıtlarını Yükle
-            if (parsedDepoRecords.isNotEmpty()) {
+            // 5. Takip Sayfası Kayıtlarını Yükle (Sadece veritabanı işlemi başarıyla bittikten sonra)
+            if (parsedDepoRecords.isNotEmpty() || !mergeWithExisting) {
                 if (!mergeWithExisting) {
+                    DepoIadeManager.clearAllRecords(context)
                     DepoIadeManager.saveRecords(context, parsedDepoRecords)
                     depoRestored = parsedDepoRecords.size
                 } else {
@@ -447,59 +504,6 @@ object DataBackupManager {
                         depoRestored++
                     }
                     DepoIadeManager.saveRecords(context, existingDepo)
-                }
-            }
-
-            // 3. Adetsel Sayfası Kayıtlarını Yükle
-            if (adetselDao != null && parsedAdetselKayitlar.isNotEmpty()) {
-                if (!mergeWithExisting) {
-                    adetselDao.insertAdetselKayitlarBatch(parsedAdetselKayitlar.map { it.copy(id = 0) })
-                    adetselRestored = parsedAdetselKayitlar.size
-                } else {
-                    val existingAdetsel = adetselDao.getAllAdetselKayitlariDirect()
-                    val existingKeys = existingAdetsel.map {
-                        "${it.barkod.trim()}_${it.urunKodu.trim()}_${it.yapildiMi}_${it.islemTarihi}"
-                    }.toSet()
-
-                    val toInsert = mutableListOf<AdetselKayit>()
-                    for (ak in parsedAdetselKayitlar) {
-                        val key = "${ak.barkod.trim()}_${ak.urunKodu.trim()}_${ak.yapildiMi}_${ak.islemTarihi}"
-                        if (!existingKeys.contains(key)) {
-                            toInsert.add(ak.copy(id = 0))
-                            adetselRestored++
-                        }
-                    }
-                    if (toInsert.isNotEmpty()) {
-                        adetselDao.insertAdetselKayitlarBatch(toInsert)
-                    }
-                }
-            }
-
-            // 4. Inspection Reports
-            for (ir in parsedReports) {
-                reportDao.insertReport(ir.copy(id = 0))
-                inspectionRestored++
-            }
-
-            // 5. Stok Hareketleri (StockLog / Satış / Fire)
-            if (stockLogDao != null && parsedStockLogs.isNotEmpty()) {
-                if (!mergeWithExisting) {
-                    stockLogDao.insertAll(parsedStockLogs.map { it.copy(id = 0) })
-                    stockLogsRestored = parsedStockLogs.size
-                } else {
-                    val existingLogs = stockLogDao.getAllLogsList()
-                    val existingKeys = existingLogs.map { "${it.barcode}_${it.actionType}_${it.timestamp}" }.toSet()
-                    val toInsert = mutableListOf<StockLog>()
-                    for (log in parsedStockLogs) {
-                        val key = "${log.barcode}_${log.actionType}_${log.timestamp}"
-                        if (!existingKeys.contains(key)) {
-                            toInsert.add(log.copy(id = 0))
-                            stockLogsRestored++
-                        }
-                    }
-                    if (toInsert.isNotEmpty()) {
-                        stockLogDao.insertAll(toInsert)
-                    }
                 }
             }
 

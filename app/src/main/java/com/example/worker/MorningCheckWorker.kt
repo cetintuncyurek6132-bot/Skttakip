@@ -1,5 +1,6 @@
 package com.example.worker
 
+import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -158,9 +159,13 @@ class MorningCheckWorker(
         }
 
         /**
-         * Schedules WorkManager periodic check for günü gelen/yaklaşan SKT notifications.
+         * Schedules WorkManager periodic check and AlarmManager exact alarm for 09:10 SKT notifications.
          */
         fun scheduleDailyMorningCheck(context: Context) {
+            // 1. Exact AlarmManager (Doze-mode resilient 09:10 alarm)
+            scheduleExactAlarm(context)
+
+            // 2. WorkManager backup check
             try {
                 val constraints = Constraints.Builder()
                     .setRequiresBatteryNotLow(false)
@@ -168,8 +173,8 @@ class MorningCheckWorker(
 
                 val now = Calendar.getInstance()
                 val target = Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 8)
-                    set(Calendar.MINUTE, 30)
+                    set(Calendar.HOUR_OF_DAY, 9)
+                    set(Calendar.MINUTE, 10)
                     set(Calendar.SECOND, 0)
                     set(Calendar.MILLISECOND, 0)
                 }
@@ -197,7 +202,67 @@ class MorningCheckWorker(
         }
 
         fun scheduleExactAlarm(context: Context) {
-            // Deprecated: WorkManager handles periodic background checks cleanly without alarm manager overhead
+            try {
+                val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager ?: return
+                val intent = Intent(context, AlarmReceiver::class.java).apply {
+                    action = "com.example.action.DAILY_SKT_CHECK"
+                }
+                val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                } else {
+                    PendingIntent.FLAG_UPDATE_CURRENT
+                }
+                val pendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    ALARM_REQUEST_CODE,
+                    intent,
+                    flags
+                )
+
+                val now = Calendar.getInstance()
+                val target = Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 9)
+                    set(Calendar.MINUTE, 10)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                if (target.before(now) || target.equals(now)) {
+                    target.add(Calendar.DAY_OF_MONTH, 1)
+                }
+
+                val triggerTimeMillis = target.timeInMillis
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if (alarmManager.canScheduleExactAlarms()) {
+                        alarmManager.setExactAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            triggerTimeMillis,
+                            pendingIntent
+                        )
+                    } else {
+                        alarmManager.setAndAllowWhileIdle(
+                            AlarmManager.RTC_WAKEUP,
+                            triggerTimeMillis,
+                            pendingIntent
+                        )
+                    }
+                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTimeMillis,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTimeMillis,
+                        pendingIntent
+                    )
+                }
+                Log.i("MorningCheckWorker", "Exact alarm scheduled for 09:10 at ${target.time}")
+            } catch (e: Exception) {
+                Log.w("MorningCheckWorker", "Failed to schedule exact alarm: ${e.message}")
+            }
         }
 
         /**

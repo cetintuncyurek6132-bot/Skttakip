@@ -79,6 +79,7 @@ fun DeductStockDialog(
     var deductAmountText by remember {
         mutableStateOf(if (batch.stokAdedi > 0) "1" else "0")
     }
+    var isSaving by remember { mutableStateOf(false) }
 
     Dialog(
         onDismissRequest = onDismiss,

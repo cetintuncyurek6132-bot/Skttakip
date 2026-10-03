@@ -102,12 +102,13 @@ jobs:
       - name: Guncelleme Notunu Hazirla
         id: notes
         run: |
-          LAST_MSG="• Performans ve hız optimizasyonları yapıldı.\n• Raf etiketi QR ve barkod tarama motoru kararlı hale getirildi.\n• Mobil veri tasarrufu sağlandı ve arayüz iyileştirildi."
-          {
-            echo "NOTES<<EOF"
-            echo -e "$LAST_MSG"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          COMMIT_MSG=$(git log -1 --pretty=%B | grep -v '^$' | head -n 5)
+          if [ -z "$COMMIT_MSG" ]; then
+            COMMIT_MSG="• Performans ve kararlılık iyileştirmeleri yapıldı."
+          fi
+          echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: GitHub Release Olarak Yayinla
         uses: softprops/action-gh-release@v2

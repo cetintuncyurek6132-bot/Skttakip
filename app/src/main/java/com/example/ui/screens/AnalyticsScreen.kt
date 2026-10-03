@@ -83,6 +83,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
+import com.example.data.isDolapProduct
 import com.example.data.StockLog
 import com.example.data.StockMovement
 import com.example.data.getTodayMidnightMillis
@@ -132,6 +133,20 @@ enum class ChartDisplayMode(val label: String) {
     EXPIRED_ONLY("Süresi Dolanlar"),
     UPCOMING("Yaklaşan SKT'ler")
 }
+
+data class ProductPrediction(
+    val product: Product,
+    val barcode: String,
+    val productName: String,
+    val currentStock: Int,
+    val pastSold: Int,
+    val pastFire: Int,
+    val pastFireRate: Double,
+    val pastSaleRate: Double,
+    val predictedSales: Int,
+    val predictedFire: Int,
+    val firePercent: Int
+)
 
 @Composable
 fun AnalyticsScreen(
@@ -257,16 +272,88 @@ fun AnalyticsScreen(
     val last30DaysExpiredCount = last30DaysExpiredProducts.size
     val last30DaysExpiredStock = remember(last30DaysExpiredProducts) { last30DaysExpiredProducts.sumOf { it.stokAdedi } }
 
-    // 4. Category Breakdown
-    val categoryBreakdown = remember(validProducts, todayMidnight) {
-        validProducts.groupBy { it.kategori.ifBlank { "Diğer" } }
-            .map { (cat, list) ->
-                val atRisk = list.count { it.getRemainingDays(todayMidnight) <= 7L }
-                val totalStock = list.sumOf { it.stokAdedi }
-                val riskStock = list.filter { it.getRemainingDays(todayMidnight) <= 7L }.sumOf { it.stokAdedi }
-                Triple(cat, list.size, Pair(atRisk, totalStock))
+    // 4. SKT Giriş & Akıbet Dağılımı Hesaplamaları (7 / 30 / 60 Gün)
+    var akibetTimeframe by remember { mutableStateOf(AnalyticsTimeframe.LAST_30_DAYS) }
+
+    val akibetCutoffTime = remember(akibetTimeframe) {
+        System.currentTimeMillis() - (akibetTimeframe.days.toLong() * 86400000L)
+    }
+
+    val periodStockLogs = remember(stockLogs, akibetCutoffTime) {
+        stockLogs.filter { it.timestamp >= akibetCutoffTime }
+    }
+
+    val periodSoldQty = remember(periodStockLogs) {
+        periodStockLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
+    }
+
+    val periodFireQty = remember(periodStockLogs) {
+        periodStockLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
+    }
+
+    val currentRaftaQty = remember(validProducts) {
+        validProducts.sumOf { it.stokAdedi }
+    }
+
+    val totalAkibetQty = remember(periodSoldQty, periodFireQty, currentRaftaQty) {
+        periodSoldQty + periodFireQty + currentRaftaQty
+    }
+
+    val soldRatio = if (totalAkibetQty > 0) periodSoldQty.toDouble() / totalAkibetQty.toDouble() else 0.0
+    val fireRatio = if (totalAkibetQty > 0) periodFireQty.toDouble() / totalAkibetQty.toDouble() else 0.0
+    val raftaRatio = if (totalAkibetQty > 0) currentRaftaQty.toDouble() / totalAkibetQty.toDouble() else 0.0
+
+    val soldPercent = Math.round(soldRatio * 100).toInt()
+    val firePercent = Math.round(fireRatio * 100).toInt()
+    val raftaPercent = if (totalAkibetQty > 0) (100 - soldPercent - firePercent).coerceAtLeast(0) else 0
+
+    // 5. Ürün Bazlı Satış & Fire Öngörüsü (Riskli Ürün Öngörüleri - İlk 5 Ürün)
+    val productPredictions = remember(validProducts, stockLogs) {
+        val activeByBarcode = validProducts
+            .filter { it.barkod.isNotBlank() && it.stokAdedi > 0 }
+            .groupBy { it.barkod.trim() }
+
+        val predictions = mutableListOf<ProductPrediction>()
+
+        activeByBarcode.forEach { (barcode, productList) ->
+            val sampleProduct = productList.first()
+            val currentStock = productList.sumOf { it.stokAdedi }
+            val logs = stockLogs.filter { it.barcode.equals(barcode, ignoreCase = true) }
+            val pastSold = logs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
+            val pastFire = logs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
+            val totalFinished = pastSold + pastFire
+
+            if (totalFinished > 0) {
+                val fRate = pastFire.toDouble() / totalFinished.toDouble()
+                val sRate = pastSold.toDouble() / totalFinished.toDouble()
+                val predictedSales = Math.round(currentStock * sRate).toInt()
+                val predictedFire = Math.round(currentStock * fRate).toInt()
+                val fPercent = Math.round(fRate * 100).toInt()
+
+                predictions.add(
+                    ProductPrediction(
+                        product = sampleProduct,
+                        barcode = barcode,
+                        productName = sampleProduct.urunAdi,
+                        currentStock = currentStock,
+                        pastSold = pastSold,
+                        pastFire = pastFire,
+                        pastFireRate = fRate,
+                        pastSaleRate = sRate,
+                        predictedSales = predictedSales,
+                        predictedFire = predictedFire,
+                        firePercent = fPercent
+                    )
+                )
             }
-            .sortedByDescending { it.third.first }
+        }
+
+        // Fire riski en yüksek olandan başlayarak sırala, ilk 5 ürünü al
+        predictions.sortedWith(
+            compareByDescending<ProductPrediction> { it.pastFireRate }
+                .thenByDescending { it.predictedFire }
+                .thenByDescending { it.currentStock }
+        ).take(5)
     }
 
     Column(
@@ -726,193 +813,12 @@ fun AnalyticsScreen(
             }
 
             // -----------------------------------------------------------------
-            // SKT RISK DAĞILIMI (SEGMENTED PROGRESS METER)
-            // -----------------------------------------------------------------
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.PieChart,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "SKT Risk ve Adet Dağılımı",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Text(
-                            text = "Toplam $totalVarietyCount Ürün",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate600
-                        )
-                    }
-
-                    // Segmented Visual Bar
-                    SegmentedRiskProgressBar(
-                        expiredCount = expiredProducts.size,
-                        criticalCount = criticalProducts.size,
-                        soonCount = soonProducts.size,
-                        safeCount = safeProducts.size,
-                        totalCount = totalVarietyCount
-                    )
-
-                    // Breakdown Badges
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        RiskBadgeItem(
-                            label = "Süresi Geçen",
-                            count = expiredProducts.size,
-                            color = ExpiredRed,
-                            modifier = Modifier.weight(1f)
-                        )
-                        RiskBadgeItem(
-                            label = "Kritik (0-3 G)",
-                            count = criticalProducts.size,
-                            color = CriticalOrange,
-                            modifier = Modifier.weight(1f)
-                        )
-                        RiskBadgeItem(
-                            label = "Yaklaşan (4-7 G)",
-                            count = soonProducts.size,
-                            color = SoonYellowDark,
-                            modifier = Modifier.weight(1f)
-                        )
-                        RiskBadgeItem(
-                            label = "Güvenli (8+ G)",
-                            count = safeProducts.size,
-                            color = EmeraldSuccess,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
-            }
-
-            // -----------------------------------------------------------------
-            // KATEGORİ BAZLI RİSK ANALİZİ
-            // -----------------------------------------------------------------
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Category,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Kategori Bazlı Risk ve Adet",
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 15.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Text(
-                            text = "${categoryBreakdown.size} Kategori",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate600
-                        )
-                    }
-
-                    categoryBreakdown.take(8).forEach { (catName, varietyCount, riskInfo) ->
-                        val (atRiskCount, totalStock) = riskInfo
-                        val riskRatio = if (varietyCount > 0) atRiskCount.toFloat() / varietyCount.toFloat() else 0f
-
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = catName,
-                                    fontSize = 12.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = "$varietyCount Çeşit • $totalStock Adet • $atRiskCount Riskli",
-                                    fontSize = 11.5.sp,
-                                    color = if (atRiskCount > 0) ExpiredRed else Slate600,
-                                    fontWeight = if (atRiskCount > 0) FontWeight.Bold else FontWeight.Normal
-                                )
-                            }
-
-                            // Progress bar
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(6.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(Slate200)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(riskRatio.coerceIn(0.04f, 1f))
-                                        .fillMaxHeight()
-                                        .background(
-                                            if (riskRatio > 0.3f) ExpiredRed else if (riskRatio > 0f) CriticalOrange else EmeraldSuccess
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // -----------------------------------------------------------------
-            // SKT KURTARMA & SATIŞ/FİRE ANALİZ KARTI (PERFORMANS MODÜLÜ)
+            // YENİ KART 1: SKT GİRİŞLERİNİN SATIŞ VE FİRE DÖNÜŞÜM GRAFİĞİ
             // -----------------------------------------------------------------
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("analytics_skt_performance_card"),
+                    .testTag("analytics_akibet_card"),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
@@ -924,195 +830,67 @@ fun AnalyticsScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // 1. Kart Başlığı ve Bilgi Rozeti (Dikey Düzen)
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        // ÜSTTE: İkon, Tek ve Net Başlık + (Varsa) Başarı Rozeti
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f, fill = false)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "SKT Performans Analizi (Satış vs Fire)",
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 15.5.sp,
-                                    lineHeight = 22.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            if (hasRealLogs) {
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = EmeraldSuccess.copy(alpha = 0.12f),
-                                    border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f))
-                                ) {
-                                    Text(
-                                        text = "%$savedPercentage Başarı",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = EmeraldSuccess,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-                        }
-
-                        // ALTINDA: Bilgi Rozeti (Küçük, zarif ve tek bir satırda başlığın hemen altında)
-                        if (!hasRealLogs) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = TurquoisePrimary.copy(alpha = 0.10f),
-                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.25f))
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        tint = TurquoiseDark,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = "Kayıtlar bu güncellemeden itibaren takip ediliyor",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TurquoiseDark,
-                                        maxLines = 1
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // 2. Yan yana 2 adet gösterge kutusu
+                    // Header: Başlık ve 7/30/60 Gün Seçim Hapları
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Kutu 1: Satılan / Kurtarılan
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = EmeraldSuccess.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
                         ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Satılan / Kurtarılan",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = EmeraldSuccess
-                                    )
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                                        contentDescription = null,
-                                        tint = EmeraldSuccess,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
+                            Icon(
+                                imageVector = Icons.Default.PieChart,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
                                 Text(
-                                    text = "$savedStock Adet (%$savedPercentage)",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Black,
+                                    text = "SKT Giriş & Akıbet Dağılımı",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp,
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
-                            }
-                        }
-
-                        // Kutu 2: Fire / İmha
-                        Surface(
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            color = ExpiredRed.copy(alpha = 0.08f),
-                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.35f))
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Fire / İmha",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ExpiredRed
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Default.TrendingDown,
-                                        contentDescription = null,
-                                        tint = ExpiredRed,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
                                 Text(
-                                    text = "$fireStock Adet (%$firePercentage)",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
-
-                    if (!hasRealLogs) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            color = Slate100,
-                            border = BorderStroke(1.dp, Slate200)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = Slate600,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Henüz Satış veya Fire kaydı girilmedi. Ürün detayından stok düşerken seçeceğiniz 'Satıldı' veya 'Fire' nedenleri burada anlık olarak raporlanır.",
+                                    text = "Dönem: ${akibetTimeframe.label}",
                                     fontSize = 11.sp,
-                                    color = Slate700
+                                    color = Slate500
                                 )
+                            }
+                        }
+
+                        // 7/30/60 Gün Pill Selector
+                        Row(
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                                .padding(2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            AnalyticsTimeframe.values().forEach { tf ->
+                                val isSel = akibetTimeframe == tf
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(if (isSel) TurquoiseDark else Color.Transparent)
+                                        .clickable { akibetTimeframe = tf }
+                                        .padding(horizontal = 7.dp, vertical = 4.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${tf.days}G",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSel) Color.White else Slate600
+                                    )
+                                }
                             }
                         }
                     }
 
-                    // 3. İki Renkli Yatay Dağılım Çubuğu (Linear Progress Bar)
+                    // Tek bir şık yatay segmentli ilerleme çubuğu (Linear Segmented Bar)
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -1120,26 +898,43 @@ fun AnalyticsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(12.dp)
-                                .clip(RoundedCornerShape(6.dp))
+                                .height(14.dp)
+                                .clip(RoundedCornerShape(7.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                             horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            if (savedStock > 0 || (savedStock == 0 && fireStock == 0)) {
+                            if (totalAkibetQty == 0) {
                                 Box(
                                     modifier = Modifier
-                                        .weight((savedPercentage.toFloat() / 100f).coerceAtLeast(0.04f))
+                                        .fillMaxWidth()
                                         .fillMaxHeight()
-                                        .background(EmeraldSuccess)
+                                        .background(Slate200)
                                 )
-                            }
-                            if (fireStock > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .weight((firePercentage.toFloat() / 100f).coerceAtLeast(0.04f))
-                                        .fillMaxHeight()
-                                        .background(ExpiredRed)
-                                )
+                            } else {
+                                if (periodSoldQty > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(soldRatio.toFloat().coerceAtLeast(0.04f))
+                                            .fillMaxHeight()
+                                            .background(EmeraldSuccess)
+                                    )
+                                }
+                                if (periodFireQty > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(fireRatio.toFloat().coerceAtLeast(0.04f))
+                                            .fillMaxHeight()
+                                            .background(ExpiredRed)
+                                    )
+                                }
+                                if (currentRaftaQty > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .weight(raftaRatio.toFloat().coerceAtLeast(0.04f))
+                                            .fillMaxHeight()
+                                            .background(Color(0xFF0EA5E9))
+                                    )
+                                }
                             }
                         }
 
@@ -1149,70 +944,406 @@ fun AnalyticsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(EmeraldSuccess))
+                                Text(text = "Satılan (%$soldPercent)", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(ExpiredRed))
+                                Text(text = "Fire (%$firePercent)", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF0EA5E9)))
+                                Text(text = "Rafta (%$raftaPercent)", fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = Slate700)
+                            }
+                        }
+                    }
+
+                    // Altında 3 adet temiz özet kutusu
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Kutu 1: Satılan / Kurtarılan
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = EmeraldSuccess.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(EmeraldSuccess)
+                                Text(
+                                    text = "Satılan / Kurtarılan",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = EmeraldSuccess,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Kurtarılan / Satılan (%$savedPercentage)",
+                                    text = "$periodSoldQty Adet",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "%$soldPercent Oran",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = EmeraldSuccess
                                 )
                             }
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        }
+
+                        // Kutu 2: Fire / İmha Edilen
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = ExpiredRed.copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.35f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(7.dp)
-                                        .clip(CircleShape)
-                                        .background(ExpiredRed)
+                                Text(
+                                    text = "Fire / İmha",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ExpiredRed,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = "Fire / İmha (%$firePercentage)",
+                                    text = "$periodFireQty Adet",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "%$firePercent Kayıp",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = ExpiredRed
+                                )
+                            }
+                        }
+
+                        // Kutu 3: Rafta Satışta Olan
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFF0EA5E9).copy(alpha = 0.08f),
+                            border = BorderStroke(1.dp, Color(0xFF0EA5E9).copy(alpha = 0.35f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Text(
+                                    text = "Rafta Satışta",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF0284C7),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "$currentRaftaQty Adet",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "%$raftaPercent Aktif",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF0284C7)
                                 )
                             }
                         }
                     }
 
-                    // 4. Kısa Operasyonel Özet Metni
+                    // Alt Özet Bilgisi
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        shape = RoundedCornerShape(8.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                         modifier = Modifier.fillMaxWidth()
                     ) {
+                        Text(
+                            text = "Toplam Sisteme Girilen SKT Adedi: $totalAkibetQty Adet (${akibetTimeframe.label})",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Slate600,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
+            // -----------------------------------------------------------------
+            // YENİ KART 2: GEÇMİŞE DAYALI AKILLI FİRE & SATIŞ TAHMİNİ (ÖNGÖRÜ ANALİZİ)
+            // -----------------------------------------------------------------
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("analytics_predictions_card"),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Header
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            modifier = Modifier.weight(1f)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Info,
+                                imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                                 contentDescription = null,
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(20.dp)
                             )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Ürün Bazlı Satış & Fire Öngörüsü",
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "Riskli Ürün Öngörüleri (İlk 5 Ürün)",
+                                    fontSize = 11.sp,
+                                    color = Slate500
+                                )
+                            }
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.12f),
+                            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
+                        ) {
                             Text(
-                                text = "Süresi yaklaşan ürünlerin %$savedPercentage'i başarıyla satılarak reyondan eritildi, %$firePercentage fire kaydedildi.",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                lineHeight = 16.sp
+                                text = "Akıllı Projeksiyon",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
+                        }
+                    }
+
+                    if (productPredictions.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Slate100,
+                            border = BorderStroke(1.dp, Slate200),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(text = "💡", fontSize = 22.sp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Henüz Yeterli Geçmiş Kayıt Yok",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate900
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = "Ürün detayından stok düşerken 'Satıldı' veya 'Fire' nedenleri seçildikçe, sistem ürünlerin geçmiş eğilimlerini analiz ederek yeni partiler için tahmini fire ve satış riskini burada listeleyecektir.",
+                                        fontSize = 11.5.sp,
+                                        color = Slate600,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            productPredictions.forEachIndexed { index, item ->
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .clickable { onProductClick(item.product) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (item.firePercent >= 40) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (item.firePercent >= 40) Color(0xFFFECACA) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        // 1. Satır: Sıra + Ürün Adı + Rozet
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.weight(1f)
+                                            ) {
+                                                Text(
+                                                    text = "#${index + 1}",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = if (item.firePercent >= 40) ExpiredRed else TurquoiseDark
+                                                )
+                                                Spacer(modifier = Modifier.width(6.dp))
+                                                Text(
+                                                    text = item.productName,
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.width(8.dp))
+
+                                            // Uyarı Rozeti: %40+ Fire Beklentisi
+                                            if (item.firePercent >= 40) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = ExpiredRed.copy(alpha = 0.12f),
+                                                    border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.4f))
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Warning,
+                                                            contentDescription = null,
+                                                            tint = ExpiredRed,
+                                                            modifier = Modifier.size(11.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text(
+                                                            text = "%${item.firePercent}+ Fire Beklentisi",
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = ExpiredRed
+                                                        )
+                                                    }
+                                                }
+                                            } else if (item.firePercent in 20..39) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = CriticalOrange.copy(alpha = 0.12f),
+                                                    border = BorderStroke(1.dp, CriticalOrange.copy(alpha = 0.4f))
+                                                ) {
+                                                    Text(
+                                                        text = "%${item.firePercent} Fire Riski",
+                                                        fontSize = 10.5.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = CriticalOrangeDark,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            } else {
+                                                Surface(
+                                                    shape = RoundedCornerShape(6.dp),
+                                                    color = EmeraldSuccess.copy(alpha = 0.12f),
+                                                    border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.4f))
+                                                ) {
+                                                    Text(
+                                                        text = "%${item.firePercent} Düşük Fire",
+                                                        fontSize = 10.5.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = EmeraldSuccess,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        // 2. Satır: 3 Metrik (Mevcut Stok, Tahmini Satacak, Olası Fire Riski)
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column {
+                                                Text(text = "Mevcut Stok", fontSize = 10.sp, color = Slate500)
+                                                Text(text = "${item.currentStock} Adet", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                            }
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(text = "Tahmini Satacak", fontSize = 10.sp, color = EmeraldSuccess)
+                                                Text(text = "~${item.predictedSales} Adet", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = EmeraldSuccess)
+                                            }
+                                            Column(horizontalAlignment = Alignment.End) {
+                                                Text(text = "Olası Fire Riski", fontSize = 10.sp, color = if (item.firePercent >= 40) ExpiredRed else CriticalOrange)
+                                                Text(
+                                                    text = "~${item.predictedFire} Adet (%${item.firePercent})",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = if (item.firePercent >= 40) ExpiredRed else CriticalOrangeDark
+                                                )
+                                            }
+                                        }
+
+                                        // Mini görsel bar
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(5.dp)
+                                                .clip(RoundedCornerShape(2.5.dp))
+                                                .background(Slate200),
+                                            horizontalArrangement = Arrangement.spacedBy(1.dp)
+                                        ) {
+                                            if (item.predictedSales > 0) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(item.pastSaleRate.toFloat().coerceAtLeast(0.05f))
+                                                        .fillMaxHeight()
+                                                        .background(EmeraldSuccess)
+                                                )
+                                            }
+                                            if (item.predictedFire > 0) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .weight(item.pastFireRate.toFloat().coerceAtLeast(0.05f))
+                                                        .fillMaxHeight()
+                                                        .background(if (item.firePercent >= 40) ExpiredRed else CriticalOrange)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

@@ -62,6 +62,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.data.AppDatabase
+import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.ui.MainViewModel
 import com.example.ui.ProductFilter
@@ -413,6 +414,22 @@ fun SktMainApp(
                     }
                 } else {
                     inventoryViewModel.saveProduct(barkod, urunKodu, urunAdi, kategori, sktTarihi, stokAdedi, fiyat, isImportant)
+                    if (currentRoute == "adetsel") {
+                        val newProduct = Product(
+                            barkod = barkod.trim(),
+                            urunKodu = urunKodu.trim(),
+                            urunAdi = urunAdi.uppercase().trim(),
+                            kategori = kategori,
+                            sktTarihi = sktTarihi,
+                            stokAdedi = stokAdedi,
+                            fiyat = fiyat
+                        )
+                        adetselViewModel.addToAdetsel(newProduct) { isSuccess ->
+                            if (isSuccess) {
+                                Toast.makeText(context, "${newProduct.urunAdi} sayım listesine eklendi.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 }
             },
             onDelete = if (editingProduct != null) {
@@ -433,6 +450,7 @@ fun SktMainApp(
         ProductDetailModal(
             product = detailProduct,
             matchingProducts = allMatchingProducts.ifEmpty { listOf(detailProduct!!) },
+            stockLogs = stockLogs,
             onDismiss = { inventoryViewModel.closeProductDetailModal() },
             onEditClick = { prod ->
                 inventoryViewModel.openEditProductModal(prod)
@@ -506,7 +524,10 @@ fun SktMainApp(
                                 }
                             }
                         } else {
-                            Toast.makeText(context, "Barkod ($clean) kayıtlı ürünlerde bulunamadı", Toast.LENGTH_SHORT).show()
+                            val notFoundClean = com.example.data.parseShelfQrPayload(clean).barcode.ifBlank { clean }
+                            Toast.makeText(context, "Ürün veritabanında bulunamadı. Yeni ürün ekleme ekranı açılıyor...", Toast.LENGTH_SHORT).show()
+                            isBarcodeScannerOpen = false
+                            inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
                         }
                     }
                 } else {
