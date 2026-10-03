@@ -166,14 +166,16 @@ fun DashboardScreen(
 
     // 4. Depo İade & Eksik İrsaliye Durumu
     val depoRecords = remember(context) { DepoIadeManager.loadRecords(context) }
-    val pendingDepoRecords = remember(depoRecords) {
-        depoRecords.filter {
-            it.durum == IadeDurumu.DEVAM_EDIYOR ||
-            it.durum == IadeDurumu.REDDEDILDI ||
-            it.irsaliyeGorselPath.isNullOrBlank()
-        }
+    val rejectedDepoRecords = remember(depoRecords) {
+        depoRecords.filter { it.durum == IadeDurumu.REDDEDILDI }
     }
-    val pendingDepoCount = pendingDepoRecords.size
+    val missingDocDepoRecords = remember(depoRecords) {
+        depoRecords.filter { it.durum == IadeDurumu.DEVAM_EDIYOR && !it.hasGorsel }
+    }
+    val ongoingDepoRecords = remember(depoRecords) {
+        depoRecords.filter { it.durum == IadeDurumu.DEVAM_EDIYOR }
+    }
+    val pendingDepoCount = rejectedDepoRecords.size + missingDocDepoRecords.size + ongoingDepoRecords.size
 
     // 5. Sabah Açılış Rutini (SharedPreferences tabanlı günlük 4 maddelik checklist)
     val routineItems = remember {
@@ -250,10 +252,19 @@ fun DashboardScreen(
             sb.append("✅ *Adetsel Sayım:* Bekleyen sayım görevi yok, liste güncel.\n")
         }
 
-        if (pendingDepoCount > 0) {
-            sb.append("📦 *Depo İade / İrsaliye:* $pendingDepoCount adet iade işlemi onay bekliyor.\n")
-        } else {
-            sb.append("✅ *Depo İade:* Açık iade evrakı bulunmuyor.\n")
+        when {
+            rejectedDepoRecords.isNotEmpty() -> {
+                sb.append("🚨 *Depo İade Alarmı:* ${rejectedDepoRecords.size} kayıt onaylanmadı (Depo Reddi).\n")
+            }
+            missingDocDepoRecords.isNotEmpty() -> {
+                sb.append("⚠️ *Depo İade Alarmı:* ${missingDocDepoRecords.size} kayıtta eksik irsaliye belgesi var.\n")
+            }
+            ongoingDepoRecords.isNotEmpty() -> {
+                sb.append("📦 *Depo İade Takibi:* ${ongoingDepoRecords.size} kayıt süreçte (${ongoingDepoRecords.first().redNedeni}).\n")
+            }
+            else -> {
+                sb.append("✅ *Depo İade:* Açık iade evrakı bulunmuyor.\n")
+            }
         }
 
         val completedRoutine = checkedStates.count { it }
@@ -314,7 +325,7 @@ fun DashboardScreen(
         // 3. DÜNDEN DEVREDENLER & BEKLEYEN İŞLER (Adetsel Sayım)
         // =====================================================================
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(14.dp),
             color = Color.White,
             border = BorderStroke(1.dp, if (pendingAdetselCount > 0) Color(0xFFFDBA74) else Slate200),
             shadowElevation = 1.dp,
@@ -323,13 +334,13 @@ fun DashboardScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(if (pendingAdetselCount > 0) Color(0xFFFFEDD5) else Color(0xFFDCFCE7)),
                     contentAlignment = Alignment.Center
@@ -338,17 +349,17 @@ fun DashboardScreen(
                         imageVector = if (pendingAdetselCount > 0) Icons.Default.AssignmentLate else Icons.Default.CheckCircle,
                         contentDescription = null,
                         tint = if (pendingAdetselCount > 0) Color(0xFFEA580C) else EmeraldSuccess,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     Text(
                         text = "Adetsel Sayım Kontrolü",
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
                     )
@@ -356,7 +367,7 @@ fun DashboardScreen(
                         text = if (pendingAdetselCount > 0)
                             "Dünden kalan $pendingAdetselCount kalem sayım tamamlanmadı"
                         else
-                            "Bekleyen sayım görevi yok, liste güncel.",
+                            "Sayım: Güncel",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
                         color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Slate500
@@ -369,77 +380,120 @@ fun DashboardScreen(
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA580C)),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(34.dp)
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Text("Sayıma Git", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("İncele", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
         }
 
         // =====================================================================
-        // 4. DEPO İADE & EKSİK İRSALİYE ALARMI KARTI
+        // 4. DEPO İADE & TAKİP KARTI (Dinamik Gerçek Durum)
         // =====================================================================
+        val isDepoRedAlert = rejectedDepoRecords.isNotEmpty() || missingDocDepoRecords.isNotEmpty()
+        val hasOngoingDepo = ongoingDepoRecords.isNotEmpty()
+        val hasAnyDepoAction = isDepoRedAlert || hasOngoingDepo
+
+        val depoCardTitle = if (isDepoRedAlert) "Depo İade Alarmı" else "Depo İade Takibi"
+        val depoCardSubtitle = when {
+            rejectedDepoRecords.isNotEmpty() -> {
+                val first = rejectedDepoRecords.first()
+                "${rejectedDepoRecords.size} Kayıt Reddedildi (Depo Reddi) • ${first.redNedeni}"
+            }
+            missingDocDepoRecords.isNotEmpty() -> {
+                val first = missingDocDepoRecords.first()
+                "${missingDocDepoRecords.size} Kayıtta Eksik Belge (Eksik Belge) • ${first.urunAdi}"
+            }
+            ongoingDepoRecords.isNotEmpty() -> {
+                val first = ongoingDepoRecords.first()
+                "${ongoingDepoRecords.size} Kayıt Süreçte • ${first.redNedeni}"
+            }
+            else -> "Depoya sevk edilecek açık iade evrakı bulunmuyor."
+        }
+
+        val depoBorderColor = when {
+            isDepoRedAlert -> ExpiredRedBorder
+            hasOngoingDepo -> Color(0xFFFDBA74)
+            else -> Slate200
+        }
+        val depoIconBg = when {
+            isDepoRedAlert -> ExpiredRedContainer
+            hasOngoingDepo -> Color(0xFFFFEDD5)
+            else -> Color(0xFFDCFCE7)
+        }
+        val depoIconTint = when {
+            isDepoRedAlert -> ExpiredRed
+            hasOngoingDepo -> Color(0xFFEA580C)
+            else -> EmeraldSuccess
+        }
+        val depoTextColor = when {
+            isDepoRedAlert -> ExpiredRedDark
+            hasOngoingDepo -> Color(0xFFC2410C)
+            else -> Slate500
+        }
+        val depoButtonColor = when {
+            isDepoRedAlert -> ExpiredRed
+            hasOngoingDepo -> Color(0xFFEA580C)
+            else -> TurquoisePrimary
+        }
+
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            onClick = { onQuickActionClick("takip") },
+            shape = RoundedCornerShape(14.dp),
             color = Color.White,
-            border = BorderStroke(1.dp, if (pendingDepoCount > 0) ExpiredRedBorder else Slate200),
+            border = BorderStroke(1.dp, depoBorderColor),
             shadowElevation = 1.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(14.dp),
+                    .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
-                        .background(if (pendingDepoCount > 0) ExpiredRedContainer else Color(0xFFDCFCE7)),
+                        .background(depoIconBg),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = if (pendingDepoCount > 0) Icons.Default.LocalShipping else Icons.Default.CheckCircle,
+                        imageVector = if (hasAnyDepoAction) Icons.Default.LocalShipping else Icons.Default.CheckCircle,
                         contentDescription = null,
-                        tint = if (pendingDepoCount > 0) ExpiredRed else EmeraldSuccess,
-                        modifier = Modifier.size(22.dp)
+                        tint = depoIconTint,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
                 ) {
                     Text(
-                        text = "Depo İade & Eksik İrsaliye Alarmı",
-                        fontSize = 14.sp,
+                        text = depoCardTitle,
+                        fontSize = 13.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate900
                     )
                     Text(
-                        text = if (pendingDepoCount > 0)
-                            "$pendingDepoCount adet iade işlemi onay bekliyor (Depo Reddi / Eksik Belge)"
-                        else
-                            "Depoya sevk edilecek açık iade evrakı bulunmuyor.",
+                        text = depoCardSubtitle,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
-                        color = if (pendingDepoCount > 0) ExpiredRedDark else Slate500
+                        color = depoTextColor
                     )
                 }
 
-                if (pendingDepoCount > 0) {
-                    Button(
-                        onClick = { onQuickActionClick("takip") },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Text("Takip Sayfasına Git", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                    }
+                Button(
+                    onClick = { onQuickActionClick("takip") },
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = depoButtonColor),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(32.dp)
+                ) {
+                    Text("İncele", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }

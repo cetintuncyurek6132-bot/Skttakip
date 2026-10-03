@@ -58,8 +58,6 @@ fun SktBottomNavBar(
     onScanClick: () -> Unit,
     userRoleCode: String = "MS"
 ) {
-    val isReportsRestricted = userRoleCode !in listOf("MS", "MSY")
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -134,7 +132,6 @@ fun SktBottomNavBar(
                         if (currentRoute == "takip" || currentRoute == "reports") return@BottomNavItem
                         onNavigate("takip")
                     },
-                    isRestricted = isReportsRestricted,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -198,17 +195,14 @@ fun BottomNavItem(
     inactiveIcon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isRestricted: Boolean = false
+    modifier: Modifier = Modifier
 ) {
-    val alpha = if (isRestricted) 0.45f else 1.0f
-    val itemColor = if (selected) TurquoisePrimary else Slate500.copy(alpha = alpha)
+    val itemColor = if (selected) TurquoisePrimary else Slate500
 
     Column(
         modifier = modifier
             .fillMaxHeight()
             .clickable(
-                enabled = !isRestricted,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true)
             ) { onClick() }

@@ -9,6 +9,10 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import androidx.core.content.FileProvider
+import com.example.data.AdetselKayit
+import com.example.data.DepoIadeKaydi
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -16,22 +20,26 @@ import java.util.Locale
 
 object BackupExportHelper {
 
-    fun generateBackupFileName(prefix: String = "skt_takip_yedek"): String {
+    fun generateBackupFileName(prefix: String = "Skttakip_Yedek", extension: String = "json"): String {
         val timeStamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
-        return "${prefix}_$timeStamp.json"
+        return "${prefix}_$timeStamp.$extension"
     }
 
     /**
-     * Saves JSON backup string directly to the device's public Downloads directory.
+     * Saves text/json/csv content directly to device's public Downloads directory.
      * Uses MediaStore on Android 10+ (API 29+) and direct File in Environment.DIRECTORY_DOWNLOADS on older devices.
-     * Returns a Result containing the display path or file name.
      */
-    fun saveJsonToDownloads(context: Context, jsonString: String, fileName: String): Result<String> {
+    fun saveFileToDownloads(
+        context: Context,
+        content: String,
+        fileName: String,
+        mimeType: String = "text/plain"
+    ): Result<String> {
         return try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 val contentValues = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-                    put(MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
                     put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
@@ -40,7 +48,7 @@ object BackupExportHelper {
                     ?: return Result.failure(Exception("Downloads klasöründe dosya oluşturulamadı."))
 
                 resolver.openOutputStream(uri, "wt")?.use { os ->
-                    os.write(jsonString.toByteArray(Charsets.UTF_8))
+                    os.write(content.toByteArray(Charsets.UTF_8))
                     os.flush()
                 }
 
@@ -55,11 +63,11 @@ object BackupExportHelper {
                     downloadsDir.mkdirs()
                 }
                 val targetFile = File(downloadsDir, fileName)
-                targetFile.writeText(jsonString, Charsets.UTF_8)
+                targetFile.writeText(content, Charsets.UTF_8)
                 MediaScannerConnection.scanFile(
                     context,
                     arrayOf(targetFile.absolutePath),
-                    arrayOf("application/json"),
+                    arrayOf(mimeType),
                     null
                 )
                 Result.success("İndirilenler/$fileName")
@@ -70,8 +78,12 @@ object BackupExportHelper {
         }
     }
 
+    fun saveJsonToDownloads(context: Context, jsonString: String, fileName: String): Result<String> {
+        return saveFileToDownloads(context, jsonString, fileName, "application/json")
+    }
+
     /**
-     * Writes JSON string to a Uri obtained from ActivityResultContracts.CreateDocument.
+     * Writes string content to a Uri obtained from ActivityResultContracts.CreateDocument.
      */
     fun writeJsonToUri(context: Context, uri: Uri, jsonString: String): Result<Unit> {
         return try {
@@ -87,12 +99,19 @@ object BackupExportHelper {
     }
 
     /**
-     * Shares JSON backup file via Android Share Chooser (FileProvider).
+     * Shares a file via Android Share Chooser (FileProvider).
      */
-    fun shareJsonBackup(context: Context, jsonString: String, fileName: String): Result<Unit> {
+    fun shareFile(
+        context: Context,
+        content: String,
+        fileName: String,
+        mimeType: String = "text/plain",
+        subject: String = "Veri Dışa Aktarımı",
+        bodyText: String = ""
+    ): Result<Unit> {
         return try {
             val cacheFile = File(context.cacheDir, fileName)
-            cacheFile.writeText(jsonString, Charsets.UTF_8)
+            cacheFile.writeText(content, Charsets.UTF_8)
 
             val contentUri = FileProvider.getUriForFile(
                 context,
@@ -101,17 +120,16 @@ object BackupExportHelper {
             )
 
             val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "application/json"
+                type = mimeType
                 putExtra(Intent.EXTRA_STREAM, contentUri)
-                putExtra(Intent.EXTRA_SUBJECT, "SKT Takip Tam Sistem Yedeği ($fileName)")
-                putExtra(
-                    Intent.EXTRA_TEXT,
-                    "SKT Takip uygulaması tam veri yedeği (Ürünler, SKT'ler, Fiyatlar, Takip ve Sayımlar)."
-                )
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                if (bodyText.isNotBlank()) {
+                    putExtra(Intent.EXTRA_TEXT, bodyText)
+                }
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
 
-            val chooser = Intent.createChooser(shareIntent, "Yedeği Paylaş / Dışa Aktar")
+            val chooser = Intent.createChooser(shareIntent, "Dosyayı Paylaş / Dışa Aktar")
             chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             context.startActivity(chooser)
             Result.success(Unit)
@@ -119,5 +137,184 @@ object BackupExportHelper {
             e.printStackTrace()
             Result.failure(e)
         }
+    }
+
+    fun shareJsonBackup(context: Context, jsonString: String, fileName: String): Result<Unit> {
+        return shareFile(
+            context = context,
+            content = jsonString,
+            fileName = fileName,
+            mimeType = "application/json",
+            subject = "SKT Takip Tam Sistem Yedeği ($fileName)",
+            bodyText = "SKT Takip uygulaması tam veri yedeği (Ürünler, SKT'ler, Fiyatlar, Takip ve Sayımlar)."
+        )
+    }
+
+    // ==========================================
+    // İADE VE DEPO TAKİP EXPORT METOTLARI
+    // ==========================================
+
+    fun exportIadeTakipToCsv(records: List<DepoIadeKaydi>): String {
+        val sb = StringBuilder()
+        // UTF-8 BOM for Excel compatibility with Turkish characters
+        sb.append('\uFEFF')
+        sb.append("Sıra;Ürün Adı;Ürün Kodu;Durum;Öncelik;İade Tarihi;Red / İade Nedeni;Açıklama;Takip Tarihi;İrsaliye Görseli\n")
+
+        records.forEachIndexed { index, r ->
+            val urunAdiEscaped = r.urunAdi.replace("\"", "\"\"")
+            val urunKoduEscaped = (r.urunKodu ?: "").replace("\"", "\"\"")
+            val durumEscaped = r.durum.displayName.replace("\"", "\"\"")
+            val oncelikEscaped = r.oncelik.displayName.replace("\"", "\"\"")
+            val iadeTarihiEscaped = r.iadeTarihi.replace("\"", "\"\"")
+            val redNedeniEscaped = r.redNedeni.replace("\"", "\"\"")
+            val aciklamaEscaped = r.aciklama.replace("\"", "\"\"")
+            val takipTarihiEscaped = r.hatirlatmaTarihi.replace("\"", "\"\"")
+            val hasGorsel = if (!r.irsaliyeGorselPath.isNullOrBlank()) "Mevcut" else "Yok"
+
+            sb.append("${index + 1};")
+            sb.append("\"$urunAdiEscaped\";")
+            sb.append("\"$urunKoduEscaped\";")
+            sb.append("\"$durumEscaped\";")
+            sb.append("\"$oncelikEscaped\";")
+            sb.append("\"$iadeTarihiEscaped\";")
+            sb.append("\"$redNedeniEscaped\";")
+            sb.append("\"$aciklamaEscaped\";")
+            sb.append("\"$takipTarihiEscaped\";")
+            sb.append("\"$hasGorsel\"\n")
+        }
+        return sb.toString()
+    }
+
+    fun exportIadeTakipToJson(records: List<DepoIadeKaydi>): String {
+        val root = JSONObject()
+        root.put("module", "iade_depo_takip")
+        root.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
+        root.put("totalRecords", records.size)
+
+        val array = JSONArray()
+        records.forEach { r ->
+            val obj = JSONObject()
+            obj.put("id", r.id)
+            obj.put("urunAdi", r.urunAdi)
+            if (!r.urunKodu.isNullOrBlank()) obj.put("urunKodu", r.urunKodu)
+            obj.put("durum", r.durum.name)
+            obj.put("durumText", r.durum.displayName)
+            obj.put("oncelik", r.oncelik.name)
+            obj.put("oncelikText", r.oncelik.displayName)
+            obj.put("iadeTarihi", r.iadeTarihi)
+            obj.put("iadeTarihiMillis", r.iadeTarihiMillis)
+            obj.put("redNedeni", r.redNedeni)
+            obj.put("aciklama", r.aciklama)
+            obj.put("hatirlatmaTarihi", r.hatirlatmaTarihi)
+            if (r.hatirlatmaTarihiMillis != null) obj.put("hatirlatmaTarihiMillis", r.hatirlatmaTarihiMillis)
+            if (!r.irsaliyeGorselPath.isNullOrBlank()) obj.put("irsaliyeGorselPath", r.irsaliyeGorselPath)
+            obj.put("olusturmaTarihiMillis", r.olusturmaTarihiMillis)
+            obj.put("guncellemeTarihiMillis", r.guncellemeTarihiMillis)
+            array.put(obj)
+        }
+        root.put("iadeTakipList", array)
+        return root.toString(2)
+    }
+
+    // ==========================================
+    // ADETSEL SAYIM EXPORT METOTLARI
+    // ==========================================
+
+    fun exportAdetselSayimToCsv(records: List<AdetselKayit>): String {
+        val sb = StringBuilder()
+        // UTF-8 BOM
+        sb.append('\uFEFF')
+        sb.append("Sıra;Barkod;Ürün Kodu;Ürün Adı;Sistem Stoğu;Sayılan;Fark;Durum;Sayım Sonucu;Notlar;İşlem Tarihi\n")
+
+        val dateFmt = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR"))
+
+        records.forEachIndexed { index, r ->
+            val durumText = if (r.yapildiMi) "TAMAMLANDI" else "YAPILACAK"
+            val barkodEsc = r.barkod.replace("\"", "\"\"")
+            val kodEsc = r.urunKodu.replace("\"", "\"\"")
+            val adEsc = r.urunAdi.replace("\"", "\"\"")
+            val sonucEsc = r.sayimSonucu.replace("\"", "\"\"")
+            val notEsc = r.notlar.replace("\"", "\"\"")
+            val islemDateStr = if (r.islemTarihi > 0) dateFmt.format(Date(r.islemTarihi)) else "-"
+
+            sb.append("${index + 1};")
+            sb.append("\"$barkodEsc\";")
+            sb.append("\"$kodEsc\";")
+            sb.append("\"$adEsc\";")
+            sb.append("${r.beklenenAdet};")
+            sb.append("${r.sayilanAdet};")
+            sb.append("${r.farkAdet};")
+            sb.append("\"$durumText\";")
+            sb.append("\"$sonucEsc\";")
+            sb.append("\"$notEsc\";")
+            sb.append("\"$islemDateStr\"\n")
+        }
+        return sb.toString()
+    }
+
+    fun exportAdetselSayimToTxt(records: List<AdetselKayit>): String {
+        val sb = StringBuilder()
+        val timeStamp = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR")).format(Date())
+        sb.append("=================================================================\n")
+        sb.append("                     MAĞAZA ADETSEL SAYIM RAPORU                 \n")
+        sb.append("Tarih: $timeStamp\n")
+        sb.append("Toplam: ${records.size} Ürün | Yapılan: ${records.count { it.yapildiMi }} | Bekleyen: ${records.count { !it.yapildiMi }}\n")
+        sb.append("=================================================================\n")
+        sb.append(String.format(Locale.getDefault(), "%-4s | %-14s | %-24s | %-7s | %-7s | %-6s\n", "NO", "BARKOD", "ÜRÜN ADI", "SİSTEM", "SAYILAN", "FARK"))
+        sb.append("-----------------------------------------------------------------\n")
+
+        records.forEachIndexed { index, r ->
+            val shortName = if (r.urunAdi.length > 24) r.urunAdi.take(21) + "..." else r.urunAdi
+            val barcode = if (r.barkod.isNotBlank()) r.barkod else r.urunKodu.ifBlank { "-" }
+            val shortBarcode = if (barcode.length > 14) barcode.take(14) else barcode
+            sb.append(
+                String.format(
+                    Locale.getDefault(),
+                    "%-4d | %-14s | %-24s | %-7d | %-7d | %-+6d\n",
+                    index + 1,
+                    shortBarcode,
+                    shortName,
+                    r.beklenenAdet,
+                    r.sayilanAdet,
+                    r.farkAdet
+                )
+            )
+            if (r.notlar.isNotBlank()) {
+                sb.append("     Not: ${r.notlar}\n")
+            }
+        }
+        sb.append("=================================================================\n")
+        return sb.toString()
+    }
+
+    fun exportAdetselSayimToJson(records: List<AdetselKayit>): String {
+        val root = JSONObject()
+        root.put("module", "adetsel_sayim")
+        root.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
+        root.put("totalRecords", records.size)
+        root.put("completedCount", records.count { it.yapildiMi })
+        root.put("pendingCount", records.count { !it.yapildiMi })
+
+        val array = JSONArray()
+        records.forEach { r ->
+            val obj = JSONObject()
+            obj.put("id", r.id)
+            obj.put("productId", r.productId)
+            obj.put("barkod", r.barkod)
+            obj.put("urunKodu", r.urunKodu)
+            obj.put("urunAdi", r.urunAdi)
+            obj.put("kategori", r.kategori)
+            obj.put("yapildiMi", r.yapildiMi)
+            obj.put("beklenenAdet", r.beklenenAdet)
+            obj.put("sayilanAdet", r.sayilanAdet)
+            obj.put("farkAdet", r.farkAdet)
+            obj.put("sayimSonucu", r.sayimSonucu)
+            obj.put("notlar", r.notlar)
+            obj.put("eklenmeTarihi", r.eklenmeTarihi)
+            obj.put("islemTarihi", r.islemTarihi)
+            array.put(obj)
+        }
+        root.put("sayimList", array)
+        return root.toString(2)
     }
 }

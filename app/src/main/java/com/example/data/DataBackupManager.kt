@@ -35,6 +35,7 @@ data class BackupRestoreResult(
     val depoRecordsRestored: Int = 0,
     val adetselRecordsRestored: Int = 0,
     val inspectionReportsRestored: Int = 0,
+    val stockLogsRestored: Int = 0,
     val remindersRestored: Boolean = false
 )
 
@@ -74,7 +75,8 @@ object DataBackupManager {
         context: Context,
         productDao: ProductDao,
         reportDao: InspectionReportDao,
-        adetselDao: AdetselDao? = null
+        adetselDao: AdetselDao? = null,
+        stockLogDao: StockLogDao? = null
     ): String = withContext(Dispatchers.IO) {
         val root = JSONObject()
         val now = System.currentTimeMillis()
@@ -84,6 +86,7 @@ object DataBackupManager {
         root.put("appName", "SKT & Mağaza Takip")
         root.put("exportDate", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date(now)))
         root.put("exportTimestamp", now)
+        root.put("backupDate", now)
 
         // 2. Products (Ürünler, SKT tarihleri ve stok adetleri)
         val products = productDao.getAllProductsList()
@@ -128,6 +131,7 @@ object DataBackupManager {
             depoArray.put(dObj)
         }
         root.put("depoIadeKayitlari", depoArray)
+        root.put("iadeTakipList", depoArray)
 
         // 4. Adetsel Sayfası Kayıtları (Yapılacak ve Yapıldı Adetsel Sayım Kayıtları)
         val adetselList = adetselDao?.getAllAdetselKayitlariDirect() ?: emptyList()
@@ -151,8 +155,26 @@ object DataBackupManager {
             adetselArray.put(aObj)
         }
         root.put("adetselKayitlar", adetselArray)
+        root.put("sayimList", adetselArray)
 
-        // 5. Reminders Notes & Settings
+        // 5. Stok Hareketleri (StockLog / Satış / Fire / SKT Giriş)
+        val stockLogs = stockLogDao?.getAllLogsList() ?: emptyList()
+        val stockLogArray = JSONArray()
+        for (log in stockLogs) {
+            val lObj = JSONObject()
+            lObj.put("id", log.id)
+            lObj.put("barcode", log.barcode)
+            lObj.put("productName", log.productName)
+            lObj.put("actionType", log.actionType)
+            lObj.put("quantity", log.quantity)
+            if (log.sktDate != null) lObj.put("sktDate", log.sktDate)
+            if (log.daysRemaining != null) lObj.put("daysRemaining", log.daysRemaining)
+            lObj.put("timestamp", log.timestamp)
+            stockLogArray.put(lObj)
+        }
+        root.put("stockLogs", stockLogArray)
+
+        // 6. Reminders Notes & Settings
         val reminderPrefs = getSettingsPrefs(context)
         val reminderNotes = reminderPrefs.getString("store_reminders_notes", "") ?: ""
         root.put("remindersNotes", reminderNotes)
@@ -168,10 +190,11 @@ object DataBackupManager {
         productDao: ProductDao,
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
+        stockLogDao: StockLogDao? = null,
         tag: String = "auto"
     ): File? {
         return try {
-            val jsonContent = createUnifiedBackupJson(context, productDao, reportDao, adetselDao)
+            val jsonContent = createUnifiedBackupJson(context, productDao, reportDao, adetselDao, stockLogDao)
             val dir = getBackupDirectory(context)
             val timestampStr = fileDateFormat.format(Date())
             val fileName = "backup_${tag}_$timestampStr.json"
@@ -255,6 +278,7 @@ object DataBackupManager {
         productDao: ProductDao,
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
+        stockLogDao: StockLogDao? = null,
         mergeWithExisting: Boolean = true
     ): BackupRestoreResult = withContext(Dispatchers.IO) {
         try {
@@ -267,12 +291,14 @@ object DataBackupManager {
             var depoRestored = 0
             var adetselRestored = 0
             var inspectionRestored = 0
+            var stockLogsRestored = 0
             var remindersRestored = false
 
             val parsedProducts = mutableListOf<Product>()
             val parsedDepoRecords = mutableListOf<DepoIadeKaydi>()
             val parsedAdetselKayitlar = mutableListOf<AdetselKayit>()
             val parsedReports = mutableListOf<InspectionReport>()
+            val parsedStockLogs = mutableListOf<StockLog>()
 
             if (trimmed.startsWith("[")) {
                 // Legacy / Direct array of products
@@ -297,8 +323,9 @@ object DataBackupManager {
                     }
                 }
 
-                // 2. Takip Sayfası Kayıtları (handles "depoIadeKayitlari", "depoKayitlari", "iadeKayitlari", "takipKayitlari")
+                // 2. Takip Sayfası Kayıtları (handles "depoIadeKayitlari", "iadeTakipList", "depoKayitlari", "iadeKayitlari", "takipKayitlari")
                 val depoArr = root.optJSONArray("depoIadeKayitlari")
+                    ?: root.optJSONArray("iadeTakipList")
                     ?: root.optJSONArray("depoKayitlari")
                     ?: root.optJSONArray("iadeKayitlari")
                     ?: root.optJSONArray("takipKayitlari")
@@ -310,8 +337,9 @@ object DataBackupManager {
                     }
                 }
 
-                // 3. Adetsel Sayfası Kayıtları (handles "adetselKayitlar", "adetsel", "adetselSayimlar")
+                // 3. Adetsel Sayfası Kayıtları (handles "adetselKayitlar", "sayimList", "adetsel", "adetselSayimlar")
                 val adetselArr = root.optJSONArray("adetselKayitlar")
+                    ?: root.optJSONArray("sayimList")
                     ?: root.optJSONArray("adetsel")
                     ?: root.optJSONArray("adetselSayimlar")
 
@@ -331,7 +359,27 @@ object DataBackupManager {
                     }
                 }
 
-                // 5. Reminders Notes
+                // 5. Stock Logs (Satış / Fire / SKT Giriş)
+                val stockLogArr = root.optJSONArray("stockLogs")
+                if (stockLogArr != null) {
+                    for (i in 0 until stockLogArr.length()) {
+                        val sObj = stockLogArr.getJSONObject(i)
+                        parsedStockLogs.add(
+                            StockLog(
+                                id = 0,
+                                barcode = sObj.optString("barcode", ""),
+                                productName = sObj.optString("productName", ""),
+                                actionType = sObj.optString("actionType", "SATIS"),
+                                quantity = sObj.optInt("quantity", 1),
+                                sktDate = if (sObj.has("sktDate") && !sObj.isNull("sktDate")) sObj.optLong("sktDate") else null,
+                                daysRemaining = if (sObj.has("daysRemaining") && !sObj.isNull("daysRemaining")) sObj.optInt("daysRemaining") else null,
+                                timestamp = sObj.optLong("timestamp", System.currentTimeMillis())
+                            )
+                        )
+                    }
+                }
+
+                // 6. Reminders Notes
                 val notes = root.optString("remindersNotes", "")
                 if (notes.isNotBlank()) {
                     val reminderPrefs = getSettingsPrefs(context)
@@ -344,6 +392,7 @@ object DataBackupManager {
             if (!mergeWithExisting) {
                 productDao.deleteAllProducts()
                 adetselDao?.deleteAllAdetselKayitlar()
+                stockLogDao?.deleteAllLogs()
                 DepoIadeManager.clearAllRecords(context)
             }
 
@@ -432,6 +481,28 @@ object DataBackupManager {
                 inspectionRestored++
             }
 
+            // 5. Stok Hareketleri (StockLog / Satış / Fire)
+            if (stockLogDao != null && parsedStockLogs.isNotEmpty()) {
+                if (!mergeWithExisting) {
+                    stockLogDao.insertAll(parsedStockLogs.map { it.copy(id = 0) })
+                    stockLogsRestored = parsedStockLogs.size
+                } else {
+                    val existingLogs = stockLogDao.getAllLogsList()
+                    val existingKeys = existingLogs.map { "${it.barcode}_${it.actionType}_${it.timestamp}" }.toSet()
+                    val toInsert = mutableListOf<StockLog>()
+                    for (log in parsedStockLogs) {
+                        val key = "${log.barcode}_${log.actionType}_${log.timestamp}"
+                        if (!existingKeys.contains(key)) {
+                            toInsert.add(log.copy(id = 0))
+                            stockLogsRestored++
+                        }
+                    }
+                    if (toInsert.isNotEmpty()) {
+                        stockLogDao.insertAll(toInsert)
+                    }
+                }
+            }
+
             val sktWithDateCount = parsedProducts.count { it.sktTarihi > 0L }
             val message = buildString {
                 append("Yedek başarıyla geri yüklendi!\n")
@@ -441,7 +512,11 @@ object DataBackupManager {
                 }
                 append("\n")
                 append("• $depoRestored takip kaydı\n")
-                append("• $adetselRestored adetsel sayım kaydı aktarıldı.")
+                append("• $adetselRestored adetsel sayım kaydı")
+                if (stockLogsRestored > 0) {
+                    append("\n• $stockLogsRestored stok hareketi (satış/fire)")
+                }
+                append(" aktarıldı.")
             }
 
             BackupRestoreResult(
@@ -452,6 +527,7 @@ object DataBackupManager {
                 depoRecordsRestored = depoRestored,
                 adetselRecordsRestored = adetselRestored,
                 inspectionReportsRestored = inspectionRestored,
+                stockLogsRestored = stockLogsRestored,
                 remindersRestored = remindersRestored
             )
         } catch (e: Exception) {

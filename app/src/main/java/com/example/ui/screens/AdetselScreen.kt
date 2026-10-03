@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ClearAll
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
@@ -156,6 +157,7 @@ fun AdetselScreen(
     var initialModeForDialog by remember { mutableStateOf("TAM") } // "TAM", "EKSIK", "FAZLA"
     var itemToDelete by remember { mutableStateOf<AdetselKayit?>(null) }
     var showClearCompletedConfirm by remember { mutableStateOf(false) }
+    var showExportModal by remember { mutableStateOf(false) }
 
     val distinctYapilacakList = remember(yapilacakList) {
         yapilacakList.distinctBy { item ->
@@ -540,18 +542,37 @@ fun AdetselScreen(
                         )
                     }
 
-                    if (selectedTab == AdetselTab.YAPILDI && yapildiList.isNotEmpty()) {
-                        OutlinedButton(
-                            onClick = { showClearCompletedConfirm = true },
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.5f)),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                            modifier = Modifier.height(28.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        IconButton(
+                            onClick = { showExportModal = true },
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(TurquoisePrimary.copy(alpha = 0.12f), CircleShape)
                         ) {
-                            Icon(imageVector = Icons.Default.ClearAll, contentDescription = null, modifier = Modifier.size(13.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("Temizle", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Icon(
+                                imageVector = Icons.Default.FileDownload,
+                                contentDescription = "Sayım Sonucunu Dışa Aktar (Excel/CSV)",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        if (selectedTab == AdetselTab.YAPILDI && yapildiList.isNotEmpty()) {
+                            OutlinedButton(
+                                onClick = { showClearCompletedConfirm = true },
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed),
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(28.dp)
+                            ) {
+                                Icon(imageVector = Icons.Default.ClearAll, contentDescription = null, modifier = Modifier.size(13.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
+                                Text("Temizle", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -979,5 +1000,111 @@ fun AdetselScreen(
                 }
             }
         }
+    }
+
+    if (showExportModal) {
+        val allSayimRecords = distinctYapilacakList + yapildiList
+        com.example.ui.components.ModuleExportDialog(
+            title = "Sayım Sonucunu Dışa Aktar",
+            subtitle = "Mağaza sayım sonuçlarını (Barkod, Ürün Adı, Sistem Stoğu, Sayılan, Fark) dışa aktarın.",
+            recordCountText = "${allSayimRecords.size} Sayım Kaydı (${distinctYapilacakList.size} Yapılacak, ${yapildiList.size} Yapıldı)",
+            onExportCsvDownload = {
+                if (allSayimRecords.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val csv = com.example.util.BackupExportHelper.exportAdetselSayimToCsv(allSayimRecords)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("adetsel_sayim_listesi", "csv")
+                    val res = com.example.util.BackupExportHelper.saveFileToDownloads(context, csv, fileName, "text/csv")
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "✅ CSV dosyası İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+                    showExportModal = false
+                }
+            },
+            onExportCsvShare = {
+                if (allSayimRecords.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val csv = com.example.util.BackupExportHelper.exportAdetselSayimToCsv(allSayimRecords)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("adetsel_sayim_listesi", "csv")
+                    com.example.util.BackupExportHelper.shareFile(
+                        context = context,
+                        content = csv,
+                        fileName = fileName,
+                        mimeType = "text/csv",
+                        subject = "Adetsel Sayım Listesi (CSV)",
+                        bodyText = "Ekli CSV dosyasında ${allSayimRecords.size} adet sayım kaydı bulunmaktadır."
+                    )
+                    showExportModal = false
+                }
+            },
+            onExportTxtDownload = {
+                if (allSayimRecords.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val txt = com.example.util.BackupExportHelper.exportAdetselSayimToTxt(allSayimRecords)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("adetsel_sayim_raporu", "txt")
+                    val res = com.example.util.BackupExportHelper.saveFileToDownloads(context, txt, fileName, "text/plain")
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "✅ Metin raporu İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+                    showExportModal = false
+                }
+            },
+            onExportTxtShare = {
+                if (allSayimRecords.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val txt = com.example.util.BackupExportHelper.exportAdetselSayimToTxt(allSayimRecords)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("adetsel_sayim_raporu", "txt")
+                    com.example.util.BackupExportHelper.shareFile(
+                        context = context,
+                        content = txt,
+                        fileName = fileName,
+                        mimeType = "text/plain",
+                        subject = "Adetsel Sayım Raporu (.txt)",
+                        bodyText = "Ekli metin raporunda mağaza sayım sonuçları (Barkod, Ürün Adı, Sistem Stoğu, Sayılan, Fark) yer almaktadır."
+                    )
+                    showExportModal = false
+                }
+            },
+            onExportJsonDownload = {
+                if (allSayimRecords.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val json = com.example.util.BackupExportHelper.exportAdetselSayimToJson(allSayimRecords)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("adetsel_sayim_listesi", "json")
+                    val res = com.example.util.BackupExportHelper.saveFileToDownloads(context, json, fileName, "application/json")
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "✅ JSON yedeği İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+                    showExportModal = false
+                }
+            },
+            onExportJsonShare = {
+                if (allSayimRecords.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val json = com.example.util.BackupExportHelper.exportAdetselSayimToJson(allSayimRecords)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("adetsel_sayim_listesi", "json")
+                    com.example.util.BackupExportHelper.shareFile(
+                        context = context,
+                        content = json,
+                        fileName = fileName,
+                        mimeType = "application/json",
+                        subject = "Adetsel Sayım Listesi JSON Yedeği",
+                        bodyText = "Ekli JSON dosyasında ${allSayimRecords.size} adet sayım kaydı bulunmaktadır."
+                    )
+                    showExportModal = false
+                }
+            },
+            onDismiss = { showExportModal = false }
+        )
     }
 }

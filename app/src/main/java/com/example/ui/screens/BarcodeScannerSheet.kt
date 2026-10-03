@@ -556,7 +556,7 @@ fun BarcodeScannerSheet(
                     resumeCooldownUntil = 0L
                     isCooldownActive = false
                     cooldownRemainingSeconds = 0
-                    zoomRatio = if (isFixMode) 1.35f else 1.0f
+                    zoomRatio = 1.0f
                 },
                 onFlashToggle = { isFlashOn = !isFlashOn },
                 modifier = Modifier.align(Alignment.TopCenter)

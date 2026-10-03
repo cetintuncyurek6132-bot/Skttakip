@@ -199,11 +199,11 @@ class ProductRepository(
     }
 
     suspend fun createUnifiedBackupJson(context: Context): String {
-        return DataBackupManager.createUnifiedBackupJson(context, productDao, reportDao, adetselDao)
+        return DataBackupManager.createUnifiedBackupJson(context, productDao, reportDao, adetselDao, stockLogDao)
     }
 
     suspend fun saveLocalBackup(context: Context, tag: String = "manual"): File? {
-        return DataBackupManager.saveAutoBackupToStorage(context, productDao, reportDao, adetselDao, tag)
+        return DataBackupManager.saveAutoBackupToStorage(context, productDao, reportDao, adetselDao, stockLogDao, tag)
     }
 
     fun getLocalBackups(context: Context): List<BackupMetadata> {
@@ -211,6 +211,6 @@ class ProductRepository(
     }
 
     suspend fun restoreFromJson(context: Context, jsonString: String, merge: Boolean = true): BackupRestoreResult {
-        return DataBackupManager.restoreFromJson(context, jsonString, productDao, reportDao, adetselDao, merge)
+        return DataBackupManager.restoreFromJson(context, jsonString, productDao, reportDao, adetselDao, stockLogDao, merge)
     }
 }

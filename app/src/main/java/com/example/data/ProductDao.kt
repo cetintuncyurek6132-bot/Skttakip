@@ -10,19 +10,22 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ProductDao {
-    @Query("SELECT * FROM products ORDER BY sktTarihi ASC")
+    @Query("SELECT * FROM products WHERE isDeleted = 0 ORDER BY sktTarihi ASC")
     fun getAllProducts(): Flow<List<Product>>
 
-    @Query("SELECT * FROM products ORDER BY sktTarihi ASC")
+    @Query("SELECT * FROM products WHERE isDeleted = 0 ORDER BY sktTarihi ASC")
     suspend fun getAllProductsList(): List<Product>
 
-    @Query("SELECT * FROM products WHERE barkod = :barkod LIMIT 1")
+    @Query("SELECT * FROM products ORDER BY sktTarihi ASC")
+    suspend fun getAllProductsIncludingDeleted(): List<Product>
+
+    @Query("SELECT * FROM products WHERE barkod = :barkod AND isDeleted = 0 LIMIT 1")
     suspend fun getProductByBarcode(barkod: String): Product?
 
     @Query("SELECT * FROM products WHERE id = :productId LIMIT 1")
     suspend fun getProductById(productId: Int): Product?
 
-    @Query("SELECT * FROM products WHERE barkod = :barkod ORDER BY sktTarihi ASC")
+    @Query("SELECT * FROM products WHERE barkod = :barkod AND isDeleted = 0 ORDER BY sktTarihi ASC")
     suspend fun getProductsByBarcode(barkod: String): List<Product>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -43,8 +46,15 @@ interface ProductDao {
     @Query("UPDATE products SET stokAdedi = :newStok, sonKontrolTarihi = :now WHERE id = :productId")
     suspend fun updateStockAndControlDate(productId: Int, newStok: Int, now: Long = System.currentTimeMillis())
 
+    @Query("UPDATE products SET isDeleted = 1 WHERE id = :productId")
+    suspend fun softDeleteProduct(productId: Int): Int
+
+    suspend fun deleteProduct(product: Product): Int {
+        return softDeleteProduct(product.id)
+    }
+
     @Delete
-    suspend fun deleteProduct(product: Product): Int
+    suspend fun hardDeleteProduct(product: Product): Int
 
     @Query("DELETE FROM products")
     suspend fun deleteAllProducts()

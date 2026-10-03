@@ -186,7 +186,7 @@ fun SktTopAppBar(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // SKT Özel Grafik Logo Rozeti
+            // SKT Özel Grafik Logo Rozeti (Ferah Beyaz Kapsül & Kurumsal Terminal Tasarımı)
             Surface(
                 modifier = Modifier
                     .height(32.dp)
@@ -194,41 +194,41 @@ fun SktTopAppBar(
                         this.rotationY = rotationY.value
                         cameraDistance = 12f * density
                     },
-                shape = RoundedCornerShape(8.dp),
-                color = Color(0xFF0F172A),
-                border = BorderStroke(1.dp, Color(0xFF14B8A6).copy(alpha = 0.6f)),
+                shape = RoundedCornerShape(10.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.25f)),
                 shadowElevation = 2.dp
             ) {
                 Row(
                     modifier = Modifier
-                        .padding(horizontal = 8.dp, vertical = 3.dp),
+                        .padding(horizontal = 11.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Text(
                         text = "S",
                         fontWeight = FontWeight.Black,
-                        fontSize = 17.sp,
-                        color = Color.White
+                        fontSize = 15.5.sp,
+                        color = Color(0xFF0F766E)
                     )
 
-                    // K Harfi (Özel Barkod/Lazer Vurgusu & Mikro Parlama)
+                    // K Harfi (Özel Çizgili Vurgu & Lazer Tarayıcı Etkisi)
                     Box(
                         contentAlignment = Alignment.Center
                     ) {
-                        // Mikro parlama etkisi (Glow)
+                        // Hafif turuncu ışıltı (Glow)
                         Box(
                             modifier = Modifier
-                                .width(14.dp)
-                                .height(4.dp)
+                                .width(13.dp)
+                                .height(3.5.dp)
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(
                                     Brush.horizontalGradient(
                                         listOf(
                                             Color.Transparent,
-                                            Color(0x80EF4444),
-                                            Color(0xB3FF7170),
-                                            Color(0x80EF4444),
+                                            Color(0x40F97316),
+                                            Color(0x80F97316),
+                                            Color(0x40F97316),
                                             Color.Transparent
                                         )
                                     )
@@ -238,22 +238,24 @@ fun SktTopAppBar(
                         Text(
                             text = "K",
                             fontWeight = FontWeight.Black,
-                            fontSize = 17.sp,
-                            color = Color(0xFF2DD4BF)
+                            fontSize = 15.5.sp,
+                            color = Color(0xFF0D9488)
                         )
 
-                        // Yatay lazer tarama çizgisi (1.5.dp yükseklik, 12.dp genişlik)
+                        // Ortasından geçen canlı mercan/turuncu lazer tarama çizgisi
                         Box(
                             modifier = Modifier
-                                .width(12.dp)
+                                .width(11.dp)
                                 .height(1.5.dp)
                                 .clip(RoundedCornerShape(1.dp))
                                 .background(
                                     Brush.horizontalGradient(
                                         listOf(
-                                            Color(0xFFEF4444),
-                                            Color(0xFFFEF08A),
-                                            Color(0xFFEF4444)
+                                            Color(0xFFEA580C),
+                                            Color(0xFFF97316),
+                                            Color(0xFFFDBA74),
+                                            Color(0xFFF97316),
+                                            Color(0xFFEA580C)
                                         )
                                     )
                                 )
@@ -263,8 +265,8 @@ fun SktTopAppBar(
                     Text(
                         text = "T",
                         fontWeight = FontWeight.Black,
-                        fontSize = 17.sp,
-                        color = Color.White
+                        fontSize = 15.5.sp,
+                        color = Color(0xFF0F766E)
                     )
                 }
             }

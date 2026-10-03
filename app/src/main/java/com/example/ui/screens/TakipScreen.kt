@@ -35,6 +35,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.data.*
 import com.example.ui.screens.takip.AddEditTakipModal
+import com.example.ui.screens.takip.IadeSharePreviewModal
 import com.example.ui.screens.takip.TakipKaydiCard
 import com.example.ui.screens.takip.TakipStatCard
 import com.example.ui.theme.*
@@ -61,6 +62,9 @@ fun TakipScreen(
     var editingRecord by remember { mutableStateOf<DepoIadeKaydi?>(null) }
     var previewImagePath by remember { mutableStateOf<String?>(null) }
     var recordToDelete by remember { mutableStateOf<DepoIadeKaydi?>(null) }
+    var sharePreviewRecords by remember { mutableStateOf<List<DepoIadeKaydi>?>(null) }
+    var sharePreviewTextMessage by remember { mutableStateOf("") }
+    var showExportModal by remember { mutableStateOf(false) }
 
     fun refreshRecords() {
         records = DepoIadeManager.loadRecords(context)
@@ -104,7 +108,7 @@ fun TakipScreen(
         )
     }
 
-    fun shareRecordOnWhatsApp(record: DepoIadeKaydi) {
+    fun openSharePreview(record: DepoIadeKaydi) {
         val message = buildString {
             append("📦 *DEPO / İADE RED TAKİP BİLDİRİMİ*\n\n")
             append("• *Ürün:* ${record.urunAdi}\n")
@@ -122,38 +126,22 @@ fun TakipScreen(
                 append("• *İrsaliye Görseli:* Mevcut\n")
             }
         }
-
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, message)
-            `package` = "com.whatsapp"
-        }
-        try {
-            context.startActivity(sendIntent)
-        } catch (e: Exception) {
-            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, message)
-            }
-            try {
-                context.startActivity(Intent.createChooser(fallbackIntent, "Takip Kaydını Paylaş"))
-            } catch (ex: Exception) {
-                Toast.makeText(context, "Paylaşım uygulaması açılamadı.", Toast.LENGTH_SHORT).show()
-            }
-        }
+        sharePreviewRecords = listOf(record)
+        sharePreviewTextMessage = message
     }
 
-    fun shareAllRecordsOnWhatsApp() {
-        if (records.isEmpty()) {
+    fun openShareAllPreview() {
+        val targetList = if (filteredRecords.isNotEmpty()) filteredRecords else records
+        if (targetList.isEmpty()) {
             Toast.makeText(context, "Paylaşılacak takip kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
             return
         }
         val message = buildString {
             append("📋 *İADE VE DEPO RED TAKİP LİSTESİ*\n")
             append("Tarih: ${SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR")).format(Date())}\n")
-            append("Toplam: ${records.size} Kayıt | Devam Eden: ${stats.devamEdenSayisi} | Onaylanan: ${stats.onaylananSayisi} | Red: ${stats.reddedilenSayisi}\n\n")
+            append("Toplam: ${targetList.size} Kayıt | Devam Eden: ${stats.devamEdenSayisi} | Onaylanan: ${stats.onaylananSayisi} | Red: ${stats.reddedilenSayisi}\n\n")
 
-            records.forEachIndexed { index, r ->
+            targetList.forEachIndexed { index, r ->
                 val emoji = when (r.durum) {
                     IadeDurumu.DEVAM_EDIYOR -> "⏳"
                     IadeDurumu.ONAYLANDI -> "✅"
@@ -169,25 +157,8 @@ fun TakipScreen(
                 append("\n\n")
             }
         }
-
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-            putExtra(Intent.EXTRA_TEXT, message)
-            `package` = "com.whatsapp"
-        }
-        try {
-            context.startActivity(sendIntent)
-        } catch (e: Exception) {
-            val fallbackIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, message)
-            }
-            try {
-                context.startActivity(Intent.createChooser(fallbackIntent, "Takip Listesini Paylaş"))
-            } catch (ex: Exception) {
-                Toast.makeText(context, "Paylaşım uygulaması açılamadı.", Toast.LENGTH_SHORT).show()
-            }
-        }
+        sharePreviewRecords = targetList
+        sharePreviewTextMessage = message
     }
 
     Column(
@@ -230,7 +201,21 @@ fun TakipScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     IconButton(
-                        onClick = { shareAllRecordsOnWhatsApp() },
+                        onClick = { showExportModal = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(TurquoisePrimary.copy(alpha = 0.12f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = "İadeleri Dışa Aktar (CSV / JSON)",
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { openShareAllPreview() },
                         modifier = Modifier
                             .size(36.dp)
                             .background(Color(0xFFE8F5E9), CircleShape)
@@ -508,7 +493,7 @@ fun TakipScreen(
                             recordToDelete = record
                         },
                         onShareClick = {
-                            shareRecordOnWhatsApp(record)
+                            openSharePreview(record)
                         },
                         onImageClick = { imgPath ->
                             previewImagePath = imgPath
@@ -623,6 +608,92 @@ fun TakipScreen(
                 }
             }
         }
+    }
+
+    if (sharePreviewRecords != null) {
+        IadeSharePreviewModal(
+            records = sharePreviewRecords!!,
+            stats = stats,
+            formattedTextMessage = sharePreviewTextMessage,
+            onDismiss = {
+                sharePreviewRecords = null
+                sharePreviewTextMessage = ""
+            }
+        )
+    }
+
+    if (showExportModal) {
+        val targetList = if (filteredRecords.isNotEmpty()) filteredRecords else records
+        com.example.ui.components.ModuleExportDialog(
+            title = "İadeleri Dışa Aktar",
+            subtitle = "İade ve depo takip kayıtlarınızı cihazınıza aktarın veya paylaşın.",
+            recordCountText = "${targetList.size} Takip Kaydı",
+            onExportCsvDownload = {
+                if (targetList.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak iade kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val csv = com.example.util.BackupExportHelper.exportIadeTakipToCsv(targetList)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("iade_takip_listesi", "csv")
+                    val res = com.example.util.BackupExportHelper.saveFileToDownloads(context, csv, fileName, "text/csv")
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "✅ CSV dosyası İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+                    showExportModal = false
+                }
+            },
+            onExportCsvShare = {
+                if (targetList.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak iade kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val csv = com.example.util.BackupExportHelper.exportIadeTakipToCsv(targetList)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("iade_takip_listesi", "csv")
+                    com.example.util.BackupExportHelper.shareFile(
+                        context = context,
+                        content = csv,
+                        fileName = fileName,
+                        mimeType = "text/csv",
+                        subject = "İade ve Depo Takip Listesi (CSV)",
+                        bodyText = "Ekli CSV dosyasında ${targetList.size} adet iade ve depo takip kaydı bulunmaktadır."
+                    )
+                    showExportModal = false
+                }
+            },
+            onExportJsonDownload = {
+                if (targetList.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak iade kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val json = com.example.util.BackupExportHelper.exportIadeTakipToJson(targetList)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("iade_takip_listesi", "json")
+                    val res = com.example.util.BackupExportHelper.saveFileToDownloads(context, json, fileName, "application/json")
+                    if (res.isSuccess) {
+                        Toast.makeText(context, "✅ JSON yedeği İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                    }
+                    showExportModal = false
+                }
+            },
+            onExportJsonShare = {
+                if (targetList.isEmpty()) {
+                    Toast.makeText(context, "Dışa aktarılacak iade kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val json = com.example.util.BackupExportHelper.exportIadeTakipToJson(targetList)
+                    val fileName = com.example.util.BackupExportHelper.generateBackupFileName("iade_takip_listesi", "json")
+                    com.example.util.BackupExportHelper.shareFile(
+                        context = context,
+                        content = json,
+                        fileName = fileName,
+                        mimeType = "application/json",
+                        subject = "İade ve Depo Takip Listesi JSON Yedeği",
+                        bodyText = "Ekli JSON dosyasında ${targetList.size} adet iade takip kaydı bulunmaktadır."
+                    )
+                    showExportModal = false
+                }
+            },
+            onDismiss = { showExportModal = false }
+        )
     }
 }
 

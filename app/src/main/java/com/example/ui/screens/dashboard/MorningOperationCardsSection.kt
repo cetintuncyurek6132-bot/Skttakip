@@ -40,7 +40,6 @@ import com.example.ui.theme.CriticalOrangeDark
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedDark
-import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SoonYellowBorder
 import com.example.ui.theme.SoonYellowDark
@@ -61,17 +60,16 @@ fun MorningOperationCardsSection(
     ) {
         Text(
             text = "Sabah Operasyon Görevleri",
-            fontSize = 15.5.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
             color = Slate900
         )
 
         // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçen)
         MorningOperationCard(
-            title = "Raftan Çekilecekler (Tarihi Geçen)",
+            title = "Raftan Çekilecekler",
             varietyCount = expiredVariety,
             totalStockCount = expiredTotalStock,
-            description = "Raftan toplayıp iade veya fireye ayırın.",
             badgeColor = ExpiredRed,
             bgColor = Color(0xFFFFF5F5),
             borderColor = ExpiredRedBorder,
@@ -81,12 +79,11 @@ fun MorningOperationCardsSection(
             onClick = { onFilterSelectAndNavigate(ProductFilter.EXPIRED) }
         )
 
-        // 🟠 Kart 2: Sıcak Satışa Al (Son 1-2 Gün)
+        // 🟠 Kart 2: Sıcak Satış (1-2 Gün)
         MorningOperationCard(
-            title = "Sıcak Satışa Al (Son 1-2 Gün)",
+            title = "Sıcak Satış (1-2 Gün)",
             varietyCount = criticalVariety,
             totalStockCount = criticalTotalStock,
-            description = "Sarı etiketle kasa veya reyon önüne çekip indirim uygulayın.",
             badgeColor = CriticalOrange,
             bgColor = Color(0xFFFFF9F2),
             borderColor = CriticalOrangeBorder,
@@ -96,12 +93,11 @@ fun MorningOperationCardsSection(
             onClick = { onFilterSelectAndNavigate(ProductFilter.CRITICAL) }
         )
 
-        // 🟡 Kart 3: Yakın Takip (3 - 7 Gün Kalanlar)
+        // 🟡 Kart 3: Yakın Takip (3-7 Gün)
         MorningOperationCard(
-            title = "Yakın Takip (3 - 7 Gün Kalanlar)",
+            title = "Yakın Takip (3-7 Gün)",
             varietyCount = soonVariety,
             totalStockCount = soonTotalStock,
-            description = "Haftalık tüketim ve sipariş planlamasına alın.",
             badgeColor = SoonYellowDark,
             bgColor = Color(0xFFFEFDF0),
             borderColor = SoonYellowBorder,
@@ -118,7 +114,6 @@ fun MorningOperationCard(
     title: String,
     varietyCount: Int,
     totalStockCount: Int,
-    description: String,
     badgeColor: Color,
     bgColor: Color,
     borderColor: Color,
@@ -129,7 +124,7 @@ fun MorningOperationCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = bgColor,
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = 1.dp,
@@ -140,14 +135,14 @@ fun MorningOperationCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .background(badgeColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -155,7 +150,7 @@ fun MorningOperationCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = badgeColor,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
@@ -164,7 +159,7 @@ fun MorningOperationCard(
             ) {
                 Text(
                     text = title,
-                    fontSize = 13.5.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate900,
                     maxLines = 1,
@@ -173,24 +168,16 @@ fun MorningOperationCard(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "$varietyCount Çeşit • $totalStockCount Adet",
-                    fontSize = 17.5.sp,
+                    fontSize = 16.5.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = textColor,
                     letterSpacing = (-0.3).sp
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Slate600,
-                    lineHeight = 14.5.sp
                 )
             }
 
             Box(
                 modifier = Modifier
-                    .size(28.dp)
+                    .size(26.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.85f))
                     .border(1.dp, borderColor.copy(alpha = 0.6f), CircleShape),
@@ -200,7 +187,7 @@ fun MorningOperationCard(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = "İncele",
                     tint = textColor,
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(13.dp)
                 )
             }
         }

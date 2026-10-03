@@ -77,7 +77,8 @@ data class Product(
     val isImportant: Boolean = false,
     val sonKontrolTarihi: Long = 0L,
     val fiyat: Double? = null,
-    val resimUrl: String? = null
+    val resimUrl: String? = null,
+    val isDeleted: Boolean = false
 ) {
     fun getFormattedPrice(): String? {
         val f = fiyat ?: return null
@@ -89,24 +90,37 @@ data class Product(
         val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
         return sdf.format(java.util.Date(sktTarihi))
     }
-    fun getRemainingDays(todayMidnight: Long = getTodayMidnightMillis()): Long {
+
+    /**
+     * java.time.LocalDate ve ChronoUnit.DAYS.between standardı ile hassas ve net takvim günü hesabı.
+     * Saat, dakika veya zaman dilimi sapması olmadan gün farkı hesaplar.
+     */
+    fun getRemainingDays(todayDate: java.time.LocalDate = java.time.LocalDate.now()): Long {
         if (sktTarihi <= 0L) return 9999L
-        val sktCal = Calendar.getInstance().apply {
-            timeInMillis = sktTarihi
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+        return try {
+            val sktLocalDate = java.time.Instant.ofEpochMilli(sktTarihi)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
+            java.time.temporal.ChronoUnit.DAYS.between(todayDate, sktLocalDate)
+        } catch (_: Exception) {
+            val diff = sktTarihi - System.currentTimeMillis()
+            diff / (1000L * 60 * 60 * 24)
         }
-        val todayCal = Calendar.getInstance().apply {
-            timeInMillis = todayMidnight
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
+    }
+
+    fun getRemainingDays(todayMidnight: Long): Long {
+        if (sktTarihi <= 0L) return 9999L
+        return try {
+            val todayLocalDate = java.time.Instant.ofEpochMilli(todayMidnight)
+                .atZone(java.time.ZoneId.systemDefault())
+                .toLocalDate()
+            getRemainingDays(todayLocalDate)
+        } catch (_: Exception) {
+            val sktCal = Calendar.getInstance().apply { timeInMillis = sktTarihi }
+            val todayCal = Calendar.getInstance().apply { timeInMillis = todayMidnight }
+            val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
+            diffMillis / (1000L * 60 * 60 * 24)
         }
-        val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
-        return diffMillis / (1000L * 60 * 60 * 24)
     }
 
     fun getExpiryStatus(todayMidnight: Long = getTodayMidnightMillis()): ExpiryStatus {
