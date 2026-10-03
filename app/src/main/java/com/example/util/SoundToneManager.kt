@@ -30,6 +30,8 @@ object SoundToneManager {
         return TONES.find { it.id == id } ?: TONES[0]
     }
 
+    fun getOptionById(id: Int): SoundToneOption = getToneOptionById(id)
+
     @Volatile
     private var cachedToneGenerator: ToneGenerator? = null
 

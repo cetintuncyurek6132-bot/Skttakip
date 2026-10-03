@@ -151,6 +151,37 @@ object BackupExportHelper {
     }
 
     // ==========================================
+    // TÜM ÜRÜNLER & STOK EXPORT METOTLARI
+    // ==========================================
+
+    fun exportProductsToCsv(products: List<com.example.data.Product>): String {
+        val sb = StringBuilder()
+        // UTF-8 BOM for Excel compatibility with Turkish characters
+        sb.append('\uFEFF')
+        sb.append("Sıra;Barkod;Ürün Kodu;Ürün Adı;Kategori;Fiyat;SKT Tarihi;Stok Adet\n")
+
+        products.forEachIndexed { index, p ->
+            val barkod = p.barkod.replace("\"", "\"\"")
+            val kod = p.urunKodu.replace("\"", "\"\"")
+            val ad = p.urunAdi.replace("\"", "\"\"")
+            val kat = p.kategori.replace("\"", "\"\"")
+            val fiyat = p.fiyat ?: 0.0
+            val skt = p.getFormattedSkt().replace("\"", "\"\"")
+            val stok = p.stokAdedi
+
+            sb.append("${index + 1};")
+            sb.append("\"$barkod\";")
+            sb.append("\"$kod\";")
+            sb.append("\"$ad\";")
+            sb.append("\"$kat\";")
+            sb.append("$fiyat;")
+            sb.append("\"$skt\";")
+            sb.append("$stok\n")
+        }
+        return sb.toString()
+    }
+
+    // ==========================================
     // İADE VE DEPO TAKİP EXPORT METOTLARI
     // ==========================================
 

@@ -158,6 +158,25 @@ fun CsvScreen(
         }
     }
 
+    // Storage Access Framework: CSV Import Launcher
+    val csvImportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { fileUri ->
+            try {
+                val lines = context.contentResolver.openInputStream(fileUri)?.bufferedReader(Charsets.UTF_8)?.useLines { it.toList() } ?: emptyList()
+                if (lines.isNotEmpty()) {
+                    val result = onImportLines(lines)
+                    Toast.makeText(context, "✅ CSV İçe Aktarıldı: ${result.productsToInsert.size} ürün işlendi.", Toast.LENGTH_LONG).show()
+                } else {
+                    Toast.makeText(context, "Seçilen dosya boş!", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "CSV aktarım hatası: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = if (isDarkMode) Color(0xFF0F172A) else MaterialTheme.colorScheme.background,
@@ -282,6 +301,29 @@ fun CsvScreen(
                     },
                     onTriggerJsonImport = {
                         jsonImportLauncher.launch(arrayOf("application/json", "text/*", "*/*"))
+                    },
+                    onTriggerJsonShare = {
+                        onExportJsonBackup { json ->
+                            val fileName = BackupExportHelper.generateBackupFileName("SKT_Tam_Yedek", "json")
+                            BackupExportHelper.shareJsonBackup(context, json, fileName)
+                        }
+                    },
+                    onTriggerCsvExport = {
+                        if (products.isEmpty()) {
+                            Toast.makeText(context, "Dışa aktarılacak ürün bulunamadı.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val csvContent = BackupExportHelper.exportProductsToCsv(products)
+                            val fileName = BackupExportHelper.generateBackupFileName("SKT_Urun_Stok_Raporu", "csv")
+                            val res = BackupExportHelper.saveFileToDownloads(context, csvContent, fileName, "text/csv")
+                            if (res.isSuccess) {
+                                Toast.makeText(context, "✅ CSV Raporu İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onTriggerCsvImport = {
+                        csvImportLauncher.launch(arrayOf("text/comma-separated-values", "text/csv", "text/plain", "*/*"))
                     },
                     isRestoringBackup = isRestoringBackup,
                     onSelectBackupToRestore = { backup ->

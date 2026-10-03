@@ -9,12 +9,18 @@ import android.util.Log
 import androidx.core.content.FileProvider
 import com.example.BuildConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
+import java.net.ConnectException
 import java.net.HttpURLConnection
+import java.net.SocketTimeoutException
 import java.net.URL
+import java.net.UnknownHostException
+import java.util.concurrent.TimeoutException
 
 data class AppUpdateInfo(
     val latestVersionName: String,
@@ -28,6 +34,10 @@ data class AppUpdateInfo(
 object AppUpdateChecker {
     private const val TAG = "AppUpdateChecker"
     private const val GITHUB_API_URL = "https://api.github.com/repos/cetintuncyurek6132-bot/Skttakip/releases/latest"
+    private const val USER_AGENT = "SKT-Takip-App-Android"
+    private const val ACCEPT_HEADER = "application/vnd.github.v3+json"
+    private const val CONNECT_TIMEOUT_MS = 30000 // 30 saniye
+    private const val READ_TIMEOUT_MS = 30000 // 30 saniye
 
     /**
      * Bayt boyutunu okunabilir MB/KB metnine çevirir.
@@ -45,69 +55,119 @@ object AppUpdateChecker {
 
     /**
      * GitHub Releases API üzerinden en son sürümü sorgular ve mevcut sürümle karşılaştırır.
+     * Ağ kesintileri ve zaman aşımı (timeout) durumlarında 1 saniye sonra 1 kez otomatik retry uygular.
      */
     suspend fun checkForUpdates(): Result<AppUpdateInfo> = withContext(Dispatchers.IO) {
-        try {
-            val url = URL(GITHUB_API_URL)
-            val connection = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/vnd.github.v3+json")
-                setRequestProperty("User-Agent", "SKT-Takip-App")
-                connectTimeout = 8000
-                readTimeout = 8000
-            }
+        var lastException: Throwable? = null
+        val maxAttempts = 2
 
-            val responseCode = connection.responseCode
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                return@withContext Result.failure(Exception("GitHub API Yanıt Kodu: $responseCode"))
-            }
-
-            val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
-            val json = JSONObject(responseBody)
-
-            val rawTagName = json.optString("tag_name", "")
-            val cleanTagName = rawTagName.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
-            val rawReleaseNotes = json.optString("body", "")
-            val releaseNotes = ReleaseNotesTranslator.formatAsBulletsString(rawReleaseNotes, cleanTagName)
-
-            var downloadUrl = ""
-            var apkSizeBytes = 0L
-            var apkSizeFormatted = ""
-            val assetsArray = json.optJSONArray("assets")
-            if (assetsArray != null) {
-                for (i in 0 until assetsArray.length()) {
-                    val asset = assetsArray.getJSONObject(i)
-                    val name = asset.optString("name", "")
-                    if (name.endsWith(".apk", ignoreCase = true)) {
-                        downloadUrl = asset.optString("browser_download_url", "")
-                        apkSizeBytes = asset.optLong("size", 0L)
-                        if (apkSizeBytes > 0L) {
-                            apkSizeFormatted = formatBytes(apkSizeBytes)
-                        }
-                        break
-                    }
+        for (attempt in 1..maxAttempts) {
+            var connection: HttpURLConnection? = null
+            try {
+                val url = URL(GITHUB_API_URL)
+                connection = (url.openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    setRequestProperty("User-Agent", USER_AGENT)
+                    setRequestProperty("Accept", ACCEPT_HEADER)
+                    connectTimeout = CONNECT_TIMEOUT_MS
+                    readTimeout = READ_TIMEOUT_MS
+                    useCaches = false
                 }
+
+                val responseCode = connection.responseCode
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    val responseBody = connection.inputStream.bufferedReader().use { it.readText() }
+                    val json = JSONObject(responseBody)
+
+                    val rawTagName = json.optString("tag_name", "")
+                    val cleanTagName = rawTagName.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
+                    val rawReleaseNotes = json.optString("body", "")
+                    val releaseNotes = ReleaseNotesTranslator.formatAsBulletsString(rawReleaseNotes, cleanTagName)
+
+                    var downloadUrl = ""
+                    var apkSizeBytes = 0L
+                    var apkSizeFormatted = ""
+                    val assetsArray = json.optJSONArray("assets")
+                    if (assetsArray != null) {
+                        for (i in 0 until assetsArray.length()) {
+                            val asset = assetsArray.getJSONObject(i)
+                            val name = asset.optString("name", "")
+                            if (name.endsWith(".apk", ignoreCase = true)) {
+                                downloadUrl = asset.optString("browser_download_url", "")
+                                apkSizeBytes = asset.optLong("size", 0L)
+                                if (apkSizeBytes > 0L) {
+                                    apkSizeFormatted = formatBytes(apkSizeBytes)
+                                }
+                                break
+                            }
+                        }
+                    }
+
+                    val currentVersion = BuildConfig.VERSION_NAME.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
+                    val isNewer = isVersionNewer(cleanTagName, currentVersion)
+
+                    Log.d(TAG, "Mevcut: $currentVersion | GitHub: $cleanTagName | Güncelleme Var mı: $isNewer | Boyut: $apkSizeFormatted | URL: $downloadUrl")
+
+                    return@withContext Result.success(
+                        AppUpdateInfo(
+                            latestVersionName = cleanTagName.ifBlank { rawTagName },
+                            downloadUrl = downloadUrl,
+                            releaseNotes = releaseNotes,
+                            hasUpdate = isNewer && downloadUrl.isNotBlank(),
+                            apkSizeBytes = apkSizeBytes,
+                            apkSizeFormatted = apkSizeFormatted
+                        )
+                    )
+                } else if (responseCode == 403) {
+                    val errorMsg = "GitHub API istek sınırı aşıldı. Lütfen daha sonra tekrar deneyin."
+                    Log.w(TAG, errorMsg)
+                    return@withContext Result.failure(Exception(errorMsg))
+                } else if (responseCode == 404) {
+                    val errorMsg = "Güncelleme sürümü bulunamadı."
+                    Log.w(TAG, errorMsg)
+                    return@withContext Result.failure(Exception(errorMsg))
+                } else {
+                    val errorMsg = "GitHub sunucusu yanıt vermedi (HTTP $responseCode)"
+                    Log.w(TAG, errorMsg)
+                    lastException = Exception(errorMsg)
+                }
+            } catch (e: Exception) {
+                lastException = e
+                Log.w(TAG, "Deneme $attempt/$maxAttempts başarısız: ${e.javaClass.simpleName} - ${e.message}")
+            } finally {
+                try {
+                    connection?.disconnect()
+                } catch (_: Exception) {}
             }
 
-            val currentVersion = BuildConfig.VERSION_NAME.trim().replace(Regex("(?i)beta|v|sürüm"), "").trim()
-            val isNewer = isVersionNewer(cleanTagName, currentVersion)
-
-            Log.d(TAG, "Mevcut: $currentVersion | GitHub: $cleanTagName | Güncelleme Var mı: $isNewer | Boyut: $apkSizeFormatted | URL: $downloadUrl")
-
-            Result.success(
-                AppUpdateInfo(
-                    latestVersionName = cleanTagName.ifBlank { rawTagName },
-                    downloadUrl = downloadUrl,
-                    releaseNotes = releaseNotes,
-                    hasUpdate = isNewer && downloadUrl.isNotBlank(),
-                    apkSizeBytes = apkSizeBytes,
-                    apkSizeFormatted = apkSizeFormatted
-                )
-            )
-        } catch (e: Exception) {
-            Log.e(TAG, "Güncelleme kontrol hatası: ${e.message}", e)
-            Result.failure(e)
+            // Yeniden deneme öncesi 1 saniye bekle (sadece 1. deneme başarısız olduysa)
+            if (attempt < maxAttempts) {
+                delay(1000L)
+            }
         }
+
+        // Tüm denemeler tükendi, anlaşılır Türkçe hata mesajı üret
+        val friendlyMessage = when (lastException) {
+            is SocketTimeoutException, is TimeoutException -> {
+                "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
+            }
+            is UnknownHostException -> {
+                "İnternet bağlantısı bulunamadı. Lütfen ağ bağlantınızı kontrol edin."
+            }
+            is ConnectException -> {
+                "Sunucu bağlantısı kurulamadı. Lütfen internet bağlantınızı kontrol edip tekrar deneyin."
+            }
+            is IOException -> {
+                "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
+            }
+            else -> {
+                lastException?.message?.ifBlank { null }
+                    ?: "Sunucuya bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
+            }
+        }
+
+        Log.e(TAG, "Güncelleme kontrolü başarısız oldu: $friendlyMessage", lastException)
+        Result.failure(Exception(friendlyMessage, lastException))
     }
 
     /**
