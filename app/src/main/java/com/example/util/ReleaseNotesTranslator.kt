@@ -3,9 +3,14 @@ package com.example.util
 /**
  * GitHub Release ve Commit geçmişinden gelen metinleri dinamik olarak analiz eden,
  * yazılım terimlerini ve cümle kalıplarını akıllıca Türkçeleştiren ve gerçek
- * değişiklik maddelerini listeyen motor.
+ * değişiklik maddelerini listeleyen motor.
  */
 object ReleaseNotesTranslator {
+
+    val DEFAULT_CORPORATE_NOTES = listOf(
+        "Sistem performansı ve kararlılık iyileştirmeleri yapıldı.",
+        "Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı."
+    )
 
     /**
      * Ham notları satır satır inceler, markdown ve teknik sembolleri temizler,
@@ -15,9 +20,13 @@ object ReleaseNotesTranslator {
         val trimmed = rawNotes.trim()
         if (trimmed.isBlank() || trimmed.equals("null", ignoreCase = true)) {
             return if (versionName.isNotBlank()) {
-                listOf("v$versionName sürüm güncellemesi.")
+                listOf(
+                    "v$versionName sürüm güncellemesi.",
+                    "Sistem performansı ve kararlılık iyileştirmeleri yapıldı.",
+                    "Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı."
+                )
             } else {
-                emptyList()
+                DEFAULT_CORPORATE_NOTES
             }
         }
 
@@ -71,9 +80,13 @@ object ReleaseNotesTranslator {
         }
 
         return if (versionName.isNotBlank()) {
-            listOf("v$versionName sürüm güncellemesi.")
+            listOf(
+                "v$versionName sürüm güncellemesi.",
+                "Sistem performansı ve kararlılık iyileştirmeleri yapıldı.",
+                "Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı."
+            )
         } else {
-            emptyList()
+            DEFAULT_CORPORATE_NOTES
         }
     }
 
@@ -96,6 +109,26 @@ object ReleaseNotesTranslator {
         val lower = text.lowercase()
 
         // 1. ÖZEL CÜMLE VE KALIP EŞLEŞTİRMELERİ (Sentence-level pattern matchers)
+
+        // "Extend urgent ürün window to 7 days" -> "Acil müdahale vitrini 7 güne çıkarıldı"
+        if (lower.contains("extend") && lower.contains("urgent") && lower.contains("7 days")) {
+            return "Acil müdahale vitrini 7 güne çıkarıldı."
+        }
+
+        // "Urgent ürün filter range from 2 to 7 days" -> "Kritik SKT filtre aralığı 0-7 gün olarak güncellendi"
+        if (lower.contains("urgent") && (lower.contains("filter") || lower.contains("range")) && lower.contains("7 days")) {
+            return "Kritik SKT filtre aralığı 0-7 gün olarak güncellendi."
+        }
+
+        // "View All navigation to urgent carousel" -> "Acil vitrin için 'Tümünü Gör' yönlendirmesi eklendi"
+        if (lower.contains("view all") && (lower.contains("carousel") || lower.contains("urgent") || lower.contains("vitrin"))) {
+            return "Acil vitrin için 'Tümünü Gör' yönlendirmesi eklendi."
+        }
+
+        // "Apply default parameters to ayarlar tab components" -> "Ayarlar ekranı sekme bileşenleri optimize edildi"
+        if ((lower.contains("default parameters") || lower.contains("parameters")) && (lower.contains("ayarlar") || lower.contains("settings")) && lower.contains("tab")) {
+            return "Ayarlar ekranı sekme bileşenleri optimize edildi."
+        }
 
         // "Improve release notes parsing" -> "Sürüm notları ayrıştırması iyileştirildi"
         if (lower.contains("release note") && (lower.contains("parse") || lower.contains("parsing") || lower.contains("format"))) {
@@ -141,10 +174,16 @@ object ReleaseNotesTranslator {
             return "Yeni özellik eklendi: $feature."
         }
 
-        // "Refactor ..." -> "Kod yapısı ve performans optimize edildi"
+        // "Refactor ..." -> "Performans ve Kod İyileştirmesi"
         if (lower.startsWith("refactor") && !lower.contains("ve") && !lower.contains("için")) {
             val target = translateKeywords(text.replace(Regex("(?i)^refactor(ed)?\\s*"), "").trim())
-            return if (target.isNotBlank()) "$target için kod yapısı ve performans optimize edildi." else "Kod yapısı ve performans optimize edildi."
+            return if (target.isNotBlank()) "$target için performans ve kod iyileştirmesi yapıldı." else "Performans ve kod iyileştirmesi yapıldı."
+        }
+
+        // "Performance ..." -> "Performans ve Kod İyileştirmesi"
+        if (lower.startsWith("performance") || lower.startsWith("perf")) {
+            val target = translateKeywords(text.replace(Regex("(?i)^(performance|perf)\\s*[:\\-]?\\s*"), "").trim())
+            return if (target.isNotBlank()) "$target için performans optimizasyonu yapıldı." else "Performans optimizasyonu yapıldı."
         }
 
         // "Improve ... layout" -> "Arayüz düzeni iyileştirildi"
@@ -178,7 +217,7 @@ object ReleaseNotesTranslator {
             Regex("^(add|added|feature|feat|new)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Eklendi: ",
             Regex("^(update|updated|improve|improved|enhancement|enhance|enhanced)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "İyileştirildi: ",
             Regex("^(remove|removed|delete|deleted)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Kaldırıldı: ",
-            Regex("^(refactor|refactored|optimize|optimized|perf)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Optimize Edildi: "
+            Regex("^(refactor|refactored|optimize|optimized|perf)\\s*[:\\-]?\\s*", RegexOption.IGNORE_CASE) to "Performans ve Kod İyileştirmesi: "
         )
 
         for ((regex, prefix) in prefixRules) {
@@ -202,6 +241,10 @@ object ReleaseNotesTranslator {
     fun translateKeywords(text: String): String {
         var t = text
         val dictionary = listOf(
+            Regex("(?i)\\bextend urgent ürün window to 7 days\\b") to "Acil müdahale vitrini 7 güne çıkarıldı",
+            Regex("(?i)\\burgent ürün filter range from 2 to 7 days\\b") to "Kritik SKT filtre aralığı 0-7 gün olarak güncellendi",
+            Regex("(?i)\\bview all navigation to urgent carousel\\b") to "Acil vitrin için 'Tümünü Gör' yönlendirmesi eklendi",
+            Regex("(?i)\\bapply default parameters to ayarlar tab components\\b") to "Ayarlar ekranı sekme bileşenleri optimize edildi",
             Regex("(?i)\\bstore notes\\b") to "Mağaza Notları",
             Regex("(?i)\\bstore note\\b") to "Mağaza Notu",
             Regex("(?i)\\bshortcut\\b") to "kısayolu",
@@ -246,9 +289,14 @@ object ReleaseNotesTranslator {
             Regex("(?i)\\bcrash\\b") to "kapanma sorunu",
             Regex("(?i)\\bbug\\b") to "hata",
             Regex("(?i)\\bbutton\\b") to "buton",
+            Regex("(?i)\\bbuttons\\b") to "butonlar",
             Regex("(?i)\\bhistory\\b") to "geçmiş",
             Regex("(?i)\\bexport\\b") to "dışa aktarma",
             Regex("(?i)\\bimport\\b") to "içe aktarma",
+            Regex("(?i)\\bcarousel\\b") to "vitrin",
+            Regex("(?i)\\bwindow\\b") to "aralık",
+            Regex("(?i)\\bfilter range\\b") to "filtre aralığı",
+            Regex("(?i)\\btab components\\b") to "sekme bileşenleri",
             Regex("(?i)\\bfor robust note formatting\\b") to "güvenilir not formatlama için"
         )
 

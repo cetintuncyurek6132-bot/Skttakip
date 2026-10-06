@@ -8,25 +8,22 @@ import android.graphics.Paint
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
-import com.example.data.DepoIadeKaydi
-import com.example.data.IadeDurumu
-import com.example.data.TakipStats
+import com.example.data.AdetselKayit
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-object IadeImageGenerator {
+object SayimImageGenerator {
 
-    fun createIadeListBitmap(
-        records: List<DepoIadeKaydi>,
-        stats: TakipStats? = null
+    fun createSayimListBitmap(
+        records: List<AdetselKayit>
     ): Bitmap? {
         if (records.isEmpty()) return null
 
         val width = 1080
         val headerHeight = 220
         val summaryBarHeight = 110
-        val itemHeight = 185
+        val itemHeight = 175
         val footerHeight = 90
         val totalHeight = headerHeight + summaryBarHeight + (records.size * itemHeight) + footerHeight
 
@@ -37,7 +34,7 @@ object IadeImageGenerator {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val rectF = RectF()
 
-        // 1. ÜST HERO HEADER
+        // 1. ÜST HERO HEADER (Zümrüt Yeşil Degrade)
         val headerShader = LinearGradient(
             0f, 0f, 0f, headerHeight.toFloat(),
             intArrayOf(Color.parseColor("#0F766E"), Color.parseColor("#115E59"), Color.parseColor("#0F172A")),
@@ -56,13 +53,13 @@ object IadeImageGenerator {
         paint.color = Color.parseColor("#99F6E4")
         paint.textSize = 20f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("DEPO & TEDARİK YÖNETİMİ", 132f, 66f, paint)
+        canvas.drawText("MAĞAZA ENVANTER YÖNETİMİ", 132f, 66f, paint)
 
         // Ana Başlık
         paint.color = Color.WHITE
         paint.textSize = 34f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("İADE VE DEPO TAKİP LİSTESİ", 132f, 110f, paint)
+        canvas.drawText("ADETSEL SAYIM RAPORU", 132f, 110f, paint)
 
         // Tarih ve Sistem Bilgisi
         paint.color = Color.parseColor("#CCFBF1")
@@ -70,7 +67,7 @@ object IadeImageGenerator {
         paint.typeface = Typeface.DEFAULT
         val sdf = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.forLanguageTag("tr-TR"))
         val dateStr = sdf.format(Date())
-        canvas.drawText("Rapor Tarihi: $dateStr   •   Toplam: ${records.size} Kayıt", 40f, 180f, paint)
+        canvas.drawText("Rapor Tarihi: $dateStr   •   Toplam: ${records.size} Ürün", 40f, 180f, paint)
 
         // Header Alt Çizgisi
         paint.color = Color.parseColor("#14B8A6")
@@ -78,23 +75,20 @@ object IadeImageGenerator {
         canvas.drawLine(0f, headerHeight.toFloat() - 2f, width.toFloat(), headerHeight.toFloat() - 2f, paint)
         paint.alpha = 255
 
-        // 2. ÖZET İSTATİSTİK BARI
-        val computedStats = stats ?: TakipStats(
-            toplamKayit = records.size,
-            devamEdenSayisi = records.count { it.durum == IadeDurumu.DEVAM_EDIYOR },
-            onaylananSayisi = records.count { it.durum == IadeDurumu.ONAYLANDI },
-            reddedilenSayisi = records.count { it.durum == IadeDurumu.REDDEDILDI },
-            gorselliKayitSayisi = records.count { it.hasGorsel }
-        )
+        // 2. ÖZET İSTATİSTİK BARI (4 Kutu)
+        val toplamUrun = records.size
+        val toplamAdet = records.sumOf { if (it.yapildiMi) it.sayilanAdet else it.beklenenAdet }
+        val fazlaSayisi = records.count { it.yapildiMi && it.farkAdet > 0 }
+        val eksikSayisi = records.count { it.yapildiMi && it.farkAdet < 0 }
 
         val statY = headerHeight.toFloat() + 20f
         val statW = (width - (40f * 2f) - (14f * 3f)) / 4f
 
         val statItems = listOf(
-            Triple("Toplam Kayıt", "${computedStats.toplamKayit}", "#0F766E"),
-            Triple("Devam Eden", "${computedStats.devamEdenSayisi}", "#EA580C"),
-            Triple("Onaylanan", "${computedStats.onaylananSayisi}", "#16A34A"),
-            Triple("Reddedilen", "${computedStats.reddedilenSayisi}", "#DC2626")
+            Triple("Toplam Ürün", "$toplamUrun", "#0F766E"),
+            Triple("Toplam Adet", "$toplamAdet", "#0284C7"),
+            Triple("Fazla Çıkan", "$fazlaSayisi", "#16A34A"),
+            Triple("Eksik Çıkan", "$eksikSayisi", "#DC2626")
         )
 
         statItems.forEachIndexed { i, (label, count, colorHex) ->
@@ -137,10 +131,11 @@ object IadeImageGenerator {
             val cardLeft = 36f
             val cardRight = width.toFloat() - 36f
 
-            val (statusBg, statusBorder, statusText, statusLabel) = when (record.durum) {
-                IadeDurumu.DEVAM_EDIYOR -> Quadruple("#FFF7ED", "#FED7AA", "#EA580C", "Devam Ediyor")
-                IadeDurumu.ONAYLANDI -> Quadruple("#F0FDF4", "#BBF7D0", "#16A34A", "Onaylandı")
-                IadeDurumu.REDDEDILDI -> Quadruple("#FEF2F2", "#FECACA", "#DC2626", "Reddedildi")
+            val (statusBg, statusBorder, statusText, statusLabel) = when {
+                !record.yapildiMi -> Quadruple("#FFF7ED", "#FED7AA", "#EA580C", "Bekliyor")
+                record.farkAdet == 0 -> Quadruple("#F0FDF4", "#BBF7D0", "#16A34A", "Tam / Eşit (0)")
+                record.farkAdet > 0 -> Quadruple("#EFF6FF", "#BFDBFE", "#2563EB", "+${record.farkAdet} Fazla")
+                else -> Quadruple("#FEF2F2", "#FECACA", "#DC2626", "${record.farkAdet} Eksik")
             }
 
             // Kart zemin
@@ -149,9 +144,9 @@ object IadeImageGenerator {
             canvas.drawRoundRect(rectF, 16f, 16f, paint)
 
             // Kart kenarlık
-            paint.color = if (record.durum == IadeDurumu.REDDEDILDI) Color.parseColor("#FECACA") else Color.parseColor("#E2E8F0")
+            paint.color = if (record.yapildiMi && record.farkAdet != 0) Color.parseColor(statusBorder) else Color.parseColor("#E2E8F0")
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = if (record.durum == IadeDurumu.REDDEDILDI) 2f else 1f
+            paint.strokeWidth = if (record.yapildiMi && record.farkAdet != 0) 1.5f else 1f
             canvas.drawRoundRect(rectF, 16f, 16f, paint)
             paint.style = Paint.Style.FILL
 
@@ -159,7 +154,7 @@ object IadeImageGenerator {
             val innerRight = cardRight - 20f
 
             // Durum Rozeti (Sağ üst)
-            paint.textSize = 16f
+            paint.textSize = 15f
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             val badgeTextWidth = paint.measureText(statusLabel)
             val badgeW = badgeTextWidth + 24f
@@ -195,28 +190,24 @@ object IadeImageGenerator {
             val safeTitle = ImageDrawingUtils.truncateText(paint, record.urunAdi, maxTitleW)
             canvas.drawText(safeTitle, innerLeft + seqOffset, cardTop + 40f, paint)
 
-            // Satır 2: İade Nedeni & Tarihi
+            // Satır 2: Barkod / Kod & Kategori
             paint.color = Color.parseColor("#475569")
-            paint.textSize = 18f
+            paint.textSize = 17f
             paint.typeface = Typeface.DEFAULT
-            val line2 = "Neden: ${record.redNedeni}   |   Tarih: ${record.iadeTarihi}" +
-                (if (record.isKritik) "   |   [🚨 KRİTİK]" else "")
+            val codeStr = record.getDisplayCode()
+            val catStr = record.kategori.ifBlank { "Genel Reyon" }
+            val line2 = "Kod/Barkod: $codeStr   •   Reyon: $catStr"
             val safeLine2 = ImageDrawingUtils.truncateText(paint, line2, innerRight - innerLeft)
             canvas.drawText(safeLine2, innerLeft, cardTop + 82f, paint)
 
-            // Satır 3: Açıklama / Not
+            // Satır 3: Stok Bilgileri & Notlar
+            val sayilanStr = if (record.yapildiMi) "${record.sayilanAdet} Adet" else "Henüz Sayılmadı"
+            val line3 = "Sistem Stoğu: ${record.beklenenAdet} Adet   |   Sayılan: $sayilanStr" +
+                (if (record.notlar.isNotBlank()) "   |   Not: ${record.notlar}" else "")
             paint.color = Color.parseColor("#64748B")
             paint.textSize = 16f
-            val line3 = if (record.aciklama.isNotBlank()) "Not: ${record.aciklama}" else "Not: Açıklama girilmemiş"
             val safeLine3 = ImageDrawingUtils.truncateText(paint, line3, innerRight - innerLeft)
-            canvas.drawText(safeLine3, innerLeft, cardTop + 118f, paint)
-
-            // Satır 4: İrsaliye Durumu
-            val docText = if (record.hasGorsel) "📄 İrsaliye Görseli: Mevcut" else "⚠️ İrsaliye Görseli: Eksik / Yüklenmemiş"
-            paint.color = if (record.hasGorsel) Color.parseColor("#16A34A") else Color.parseColor("#EA580C")
-            paint.textSize = 15f
-            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            canvas.drawText(docText, innerLeft, cardTop + 148f, paint)
+            canvas.drawText(safeLine3, innerLeft, cardTop + 120f, paint)
 
             currentY += itemHeight
         }

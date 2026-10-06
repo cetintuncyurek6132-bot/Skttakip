@@ -74,11 +74,10 @@ fun AppUpdateDialog(
         if (parsed.isNotEmpty()) {
             parsed
         } else {
-            if (cleanVer.isNotBlank()) {
-                listOf("v$cleanVer sürümüne ait sistem güncellemeleri yayınlandı.")
-            } else {
-                listOf("Yeni sürüm güncellemeleri yayınlandı.")
-            }
+            listOf(
+                "Sistem performansı ve kararlılık iyileştirmeleri yapıldı.",
+                "Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı."
+            )
         }
     }
 

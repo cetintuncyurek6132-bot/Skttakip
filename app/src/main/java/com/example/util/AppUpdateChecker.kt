@@ -1,15 +1,25 @@
 package com.example.util
 
+import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
 import android.os.Build
+import android.os.Environment
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
 import com.example.BuildConfig
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
@@ -31,6 +41,16 @@ data class AppUpdateInfo(
     val apkSizeFormatted: String = ""
 )
 
+data class DownloadProgressInfo(
+    val isDownloading: Boolean = false,
+    val progress: Int = 0,
+    val downloadedBytes: Long = 0L,
+    val totalBytes: Long = 0L,
+    val isCompleted: Boolean = false,
+    val downloadedFile: File? = null,
+    val errorMessage: String? = null
+)
+
 object AppUpdateChecker {
     private const val TAG = "AppUpdateChecker"
     private const val GITHUB_API_URL = "https://api.github.com/repos/cetintuncyurek6132-bot/Skttakip/releases/latest"
@@ -38,6 +58,16 @@ object AppUpdateChecker {
     private const val ACCEPT_HEADER = "application/vnd.github.v3+json"
     private const val CONNECT_TIMEOUT_MS = 30000 // 30 saniye
     private const val READ_TIMEOUT_MS = 30000 // 30 saniye
+
+    private const val PREFS_NAME = "skt_app_update_prefs"
+    private const val KEY_DOWNLOAD_ID = "active_download_id"
+    private const val KEY_DOWNLOAD_VERSION = "active_download_version"
+
+    private val _downloadProgressState = MutableStateFlow(DownloadProgressInfo())
+    val downloadProgressState: StateFlow<DownloadProgressInfo> = _downloadProgressState.asStateFlow()
+
+    private var progressTrackingJob: Job? = null
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     /**
      * Bayt boyutunu okunabilir MB/KB metnine çevirir.
@@ -174,6 +204,10 @@ object AppUpdateChecker {
      * GitHub Releases veya commit geçmişinden gelen güncelleme notlarını
      * ReleaseNotesTranslator ile Türkçeleştirir, temizler ve anlaşılır madde imleri halinde formatlar.
      */
+    fun formatChangelogToTurkish(rawNotes: String, versionName: String = ""): String {
+        return ReleaseNotesTranslator.formatAsBulletsString(rawNotes, versionName)
+    }
+
     fun formatReleaseNotesTurkish(rawNotes: String): String {
         return ReleaseNotesTranslator.formatAsBulletsString(rawNotes)
     }
@@ -211,98 +245,257 @@ object AppUpdateChecker {
         return cleanRemote.compareTo(cleanCurrent, ignoreCase = true) > 0
     }
 
+    // =========================================================================
+    // DOWNLOADMANAGER İLE ARKA PLANDA KESİNTİSİZ İNDİRME MOTORU
+    // =========================================================================
+
     /**
-     * APK dosyasını indirir ve progress bildiriminde bulunur.
-     * GitHub Releases yönlendirmelerini (301/302 S3 redirects) ve zaman aşımlarını güvenli şekilde yönetir.
+     * Android DownloadManager servisini kullanarak APK indirme işlemini başlatır.
+     * Uygulama arka plana alınsa dahi indirme kesilmez ve sistem bildiriminde gösterilir.
+     */
+    fun startDownloadWithManager(context: Context, downloadUrl: String, versionName: String = ""): Long {
+        try {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+
+            // Varsa eski indirme dosyasını temizle
+            val targetFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skt-takip-update.apk")
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+
+            val cleanVer = versionName.replace(Regex("(?i)beta|v|sürüm"), "").trim()
+            val title = if (cleanVer.isNotBlank()) "SKT Takip Güncellemesi (v$cleanVer)" else "SKT Takip Güncellemesi"
+
+            val request = DownloadManager.Request(Uri.parse(downloadUrl)).apply {
+                setTitle(title)
+                setDescription("Yeni sürüm indiriliyor...")
+                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
+                setMimeType("application/vnd.android.package-archive")
+                setAllowedOverMetered(true)
+                setAllowedOverRoaming(true)
+                setDestinationUri(Uri.fromFile(targetFile))
+            }
+
+            val downloadId = downloadManager.enqueue(request)
+
+            // SharedPreferences'a aktif indirme ID'sini kaydet
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putLong(KEY_DOWNLOAD_ID, downloadId)
+                .putString(KEY_DOWNLOAD_VERSION, cleanVer)
+                .apply()
+
+            _downloadProgressState.value = DownloadProgressInfo(
+                isDownloading = true,
+                progress = 0,
+                downloadedBytes = 0L,
+                totalBytes = 0L
+            )
+
+            startProgressTracking(context, downloadId)
+            return downloadId
+        } catch (e: Exception) {
+            Log.e(TAG, "DownloadManager başlatma hatası: ${e.message}", e)
+            _downloadProgressState.value = DownloadProgressInfo(
+                isDownloading = false,
+                errorMessage = "İndirme başlatılamadı: ${e.localizedMessage}"
+            )
+            return -1L
+        }
+    }
+
+    /**
+     * Devam eden veya yeni başlatılan indirmenin durumunu ve ilerlemesini periyodik olarak sorgular.
+     */
+    fun startProgressTracking(context: Context, downloadId: Long) {
+        progressTrackingJob?.cancel()
+        val appContext = context.applicationContext
+
+        progressTrackingJob = scope.launch {
+            val downloadManager = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            while (isActive) {
+                val query = DownloadManager.Query().setFilterById(downloadId)
+                var cursor: Cursor? = null
+                try {
+                    cursor = downloadManager.query(query)
+                    if (cursor != null && cursor.moveToFirst()) {
+                        val statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                        val bytesDownloadedIndex = cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                        val bytesTotalIndex = cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+
+                        val status = if (statusIndex >= 0) cursor.getInt(statusIndex) else -1
+                        val downloaded = if (bytesDownloadedIndex >= 0) cursor.getLong(bytesDownloadedIndex) else 0L
+                        val total = if (bytesTotalIndex >= 0) cursor.getLong(bytesTotalIndex) else 0L
+
+                        val percent = if (total > 0L) {
+                            ((downloaded * 100) / total).toInt().coerceIn(0, 100)
+                        } else {
+                            0
+                        }
+
+                        when (status) {
+                            DownloadManager.STATUS_RUNNING, DownloadManager.STATUS_PENDING -> {
+                                _downloadProgressState.value = DownloadProgressInfo(
+                                    isDownloading = true,
+                                    progress = percent,
+                                    downloadedBytes = downloaded,
+                                    totalBytes = total
+                                )
+                            }
+                            DownloadManager.STATUS_SUCCESSFUL -> {
+                                val targetFile = File(appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skt-takip-update.apk")
+                                _downloadProgressState.value = DownloadProgressInfo(
+                                    isDownloading = false,
+                                    progress = 100,
+                                    downloadedBytes = total,
+                                    totalBytes = total,
+                                    isCompleted = true,
+                                    downloadedFile = targetFile
+                                )
+                                // Otomatik kurulumu tetikle
+                                if (targetFile.exists()) {
+                                    installApk(appContext, targetFile)
+                                }
+                                break
+                            }
+                            DownloadManager.STATUS_FAILED -> {
+                                val reasonIndex = cursor.getColumnIndex(DownloadManager.COLUMN_REASON)
+                                val reason = if (reasonIndex >= 0) cursor.getInt(reasonIndex) else -1
+                                _downloadProgressState.value = DownloadProgressInfo(
+                                    isDownloading = false,
+                                    errorMessage = "İndirme başarısız oldu (Hata Kodu: $reason)"
+                                )
+                                break
+                            }
+                        }
+                    } else {
+                        // İndirme kaydı bulunamadı
+                        break
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "İlerleme sorgusu hatası: ${e.message}")
+                } finally {
+                    cursor?.close()
+                }
+                delay(400L)
+            }
+        }
+    }
+
+    /**
+     * Uygulama veya Ayarlar ekranı açıldığında mevcut devam eden bir indirme olup olmadığını kontrol eder.
+     */
+    fun checkCurrentDownloadStatus(context: Context): DownloadProgressInfo {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val downloadId = prefs.getLong(KEY_DOWNLOAD_ID, -1L)
+        if (downloadId == -1L) {
+            return _downloadProgressState.value
+        }
+
+        try {
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val query = DownloadManager.Query().setFilterById(downloadId)
+            val cursor = downloadManager.query(query)
+            cursor?.use { c ->
+                if (c.moveToFirst()) {
+                    val statusIndex = c.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    val bytesDownloadedIndex = c.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR)
+                    val bytesTotalIndex = c.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES)
+
+                    val status = if (statusIndex >= 0) c.getInt(statusIndex) else -1
+                    val downloaded = if (bytesDownloadedIndex >= 0) c.getLong(bytesDownloadedIndex) else 0L
+                    val total = if (bytesTotalIndex >= 0) c.getLong(bytesTotalIndex) else 0L
+                    val percent = if (total > 0L) ((downloaded * 100) / total).toInt().coerceIn(0, 100) else 0
+
+                    if (status == DownloadManager.STATUS_RUNNING || status == DownloadManager.STATUS_PENDING) {
+                        _downloadProgressState.value = DownloadProgressInfo(
+                            isDownloading = true,
+                            progress = percent,
+                            downloadedBytes = downloaded,
+                            totalBytes = total
+                        )
+                        startProgressTracking(context, downloadId)
+                    } else if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        val targetFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skt-takip-update.apk")
+                        _downloadProgressState.value = DownloadProgressInfo(
+                            isDownloading = false,
+                            progress = 100,
+                            downloadedBytes = total,
+                            totalBytes = total,
+                            isCompleted = true,
+                            downloadedFile = targetFile
+                        )
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Mevcut indirme kontrol hatası: ${e.message}")
+        }
+        return _downloadProgressState.value
+    }
+
+    /**
+     * BroadcastReceiver tarafından tetiklendiğinde indirme tamamlanma işlemlerini yönetir.
+     */
+    fun handleDownloadComplete(context: Context, downloadId: Long) {
+        val appContext = context.applicationContext
+        try {
+            val downloadManager = appContext.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val query = DownloadManager.Query().setFilterById(downloadId)
+            val cursor = downloadManager.query(query)
+            cursor?.use { c ->
+                if (c.moveToFirst()) {
+                    val statusIndex = c.getColumnIndex(DownloadManager.COLUMN_STATUS)
+                    val status = if (statusIndex >= 0) c.getInt(statusIndex) else -1
+                    if (status == DownloadManager.STATUS_SUCCESSFUL) {
+                        val targetFile = File(appContext.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skt-takip-update.apk")
+                        _downloadProgressState.value = DownloadProgressInfo(
+                            isDownloading = false,
+                            progress = 100,
+                            isCompleted = true,
+                            downloadedFile = targetFile
+                        )
+                        if (targetFile.exists()) {
+                            installApk(appContext, targetFile)
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Download complete işleme hatası: ${e.message}", e)
+        }
+    }
+
+    /**
+     * Geriye uyumluluk için coroutine tabanlı indirme metodu.
+     * DownloadManager'ı tetikler ve sonucu bekler.
      */
     suspend fun downloadApk(
         context: Context,
         downloadUrl: String,
         onProgress: (percent: Int, downloadedBytes: Long, totalBytes: Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
-        var currentUrl = downloadUrl
-        var connection: HttpURLConnection? = null
-        try {
-            var redirects = 0
-            val maxRedirects = 8
-            var responseCode: Int
-
-            while (true) {
-                val url = URL(currentUrl)
-                connection = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    setRequestProperty("User-Agent", "Mozilla/5.0 (Android; Mobile)")
-                    setRequestProperty("Accept", "*/*")
-                    instanceFollowRedirects = true
-                    connectTimeout = 30000
-                    readTimeout = 60000
-                }
-
-                responseCode = connection.responseCode
-
-                // 301, 302, 303, 307, 308 yönlendirmelerini takip et
-                if (responseCode == HttpURLConnection.HTTP_MOVED_TEMP ||
-                    responseCode == HttpURLConnection.HTTP_MOVED_PERM ||
-                    responseCode == HttpURLConnection.HTTP_SEE_OTHER ||
-                    responseCode == 307 ||
-                    responseCode == 308
-                ) {
-                    val location = connection.getHeaderField("Location")
-                    connection.disconnect()
-                    if (!location.isNullOrBlank() && redirects < maxRedirects) {
-                        currentUrl = if (location.startsWith("http://") || location.startsWith("https://")) {
-                            location
-                        } else {
-                            URL(url, location).toString()
-                        }
-                        redirects++
-                        continue
-                    } else {
-                        return@withContext Result.failure(Exception("Yönlendirme hatası (HTTP $responseCode)"))
-                    }
-                }
-                break
-            }
-
-            if (responseCode != HttpURLConnection.HTTP_OK) {
-                return@withContext Result.failure(Exception("İndirme başarısız (HTTP $responseCode)"))
-            }
-
-            val finalConn = connection ?: return@withContext Result.failure(Exception("Bağlantı kurulamadı"))
-            val fileLength = finalConn.contentLength.toLong()
-            val apkFile = File(context.cacheDir, "update.apk")
-            if (apkFile.exists()) {
-                apkFile.delete()
-            }
-
-            finalConn.inputStream.use { input ->
-                FileOutputStream(apkFile).use { output ->
-                    val data = ByteArray(8192)
-                    var total: Long = 0
-                    var count: Int
-                    while (input.read(data).also { count = it } != -1) {
-                        total += count
-                        val percent = if (fileLength > 0L) {
-                            ((total * 100) / fileLength).toInt().coerceIn(0, 100)
-                        } else {
-                            0
-                        }
-                        onProgress(percent, total, if (fileLength > 0L) fileLength else total)
-                        output.write(data, 0, count)
-                    }
-                    output.flush()
-                }
-            }
-
-            Result.success(apkFile)
-        } catch (e: Exception) {
-            Log.e(TAG, "APK indirme hatası: ${e.message}", e)
-            Result.failure(e)
-        } finally {
-            try {
-                connection?.disconnect()
-            } catch (_: Exception) {}
+        val targetFile = File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "skt-takip-update.apk")
+        val downloadId = startDownloadWithManager(context, downloadUrl)
+        if (downloadId == -1L) {
+            return@withContext Result.failure(Exception("DownloadManager başlatılamadı"))
         }
+
+        // İndirme tamamlanana kadar progress callback'ini besle
+        while (isActive) {
+            val state = _downloadProgressState.value
+            if (state.isDownloading) {
+                onProgress(state.progress, state.downloadedBytes, state.totalBytes)
+            }
+            if (state.isCompleted && state.downloadedFile != null && state.downloadedFile.exists()) {
+                return@withContext Result.success(state.downloadedFile)
+            }
+            if (state.errorMessage != null) {
+                return@withContext Result.failure(Exception(state.errorMessage))
+            }
+            delay(300L)
+        }
+        Result.success(targetFile)
     }
 
     suspend fun downloadApk(
@@ -338,4 +531,3 @@ object AppUpdateChecker {
         }
     }
 }
-

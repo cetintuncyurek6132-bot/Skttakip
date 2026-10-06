@@ -231,8 +231,8 @@ fun BarcodeScannerSheet(
     ) {
         val hasProductDetail = activeBarcode.isNotBlank()
         val isCameraAnalysisPaused = isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
-        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else if (isFixQrMode) 0.38f else 0.35f
-        val topAreaWeight = 1.0f - bottomWeight
+        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
+        val topAreaWeight = if (isFixQrMode) 0.72f else (1.0f - bottomWeight)
 
         Box(
             modifier = Modifier
@@ -579,18 +579,29 @@ fun BarcodeScannerSheet(
             // =========================================================================
             // 3. ALT BEYAZ KART: HORIZONTAL PAGER İLE SAĞA/SOLA KAYDIRILABİLİR
             // =========================================================================
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier
+            val bottomModifier = if (isFixQrMode) {
+                Modifier
+                    .fillMaxWidth()
+                    .wrapContentHeight()
+                    .align(Alignment.BottomCenter)
+            } else {
+                Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(bottomWeight)
-                    .align(Alignment.BottomCenter),
+                    .align(Alignment.BottomCenter)
+            }
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = bottomModifier,
+                verticalAlignment = Alignment.Bottom,
                 beyondViewportPageCount = 1
             ) { page ->
                 if (page == 1) {
                     Surface(
                         modifier = Modifier
-                            .fillMaxSize()
+                            .fillMaxWidth()
+                            .wrapContentHeight()
                             .navigationBarsPadding(),
                         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
                         color = MaterialTheme.colorScheme.surface,
@@ -608,7 +619,7 @@ fun BarcodeScannerSheet(
                             onClearHistory = { qrFixHistoryList.clear() },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .fillMaxSize()
+                                .wrapContentHeight()
                         )
                     }
                 } else {

@@ -4,4 +4,7 @@
     <external-cache-path name="external_shared_images" path="." />
     <files-path name="shared_files" path="." />
     <external-files-path name="external_shared_files" path="." />
+    <external-files-path name="external_download_files" path="Download" />
+    <external-path name="external_files" path="." />
+    <external-path name="external_download" path="Download" />
 </paths>

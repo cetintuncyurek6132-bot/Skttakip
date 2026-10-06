@@ -3,6 +3,7 @@ package com.example.ui.components
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -76,12 +77,10 @@ fun GlobalModalHost(
     // 1. GITHUB UPDATE DIALOG
     var updateInfoState by remember { mutableStateOf<AppUpdateInfo?>(null) }
     var showUpdateDialog by remember { mutableStateOf(false) }
-    var isDownloadingApk by remember { mutableStateOf(false) }
-    var downloadProgressPercent by remember { mutableIntStateOf(0) }
-    var downloadedBytesState by remember { mutableLongStateOf(0L) }
-    var totalBytesState by remember { mutableLongStateOf(0L) }
+    val downloadProgressInfo by AppUpdateChecker.downloadProgressState.collectAsState()
 
     LaunchedEffect(Unit) {
+        AppUpdateChecker.checkCurrentDownloadStatus(context)
         delay(2000L)
         val updateResult = AppUpdateChecker.checkForUpdates()
         updateResult.onSuccess { info ->
@@ -92,42 +91,30 @@ fun GlobalModalHost(
         }
     }
 
+    LaunchedEffect(downloadProgressInfo.isCompleted) {
+        if (downloadProgressInfo.isCompleted) {
+            showUpdateDialog = false
+        }
+    }
+
     if (showUpdateDialog && updateInfoState != null) {
         AppUpdateDialog(
             updateInfo = updateInfoState!!,
-            isDownloading = isDownloadingApk,
-            downloadProgress = downloadProgressPercent,
-            downloadedBytes = downloadedBytesState,
-            totalBytes = totalBytesState,
+            isDownloading = downloadProgressInfo.isDownloading,
+            downloadProgress = downloadProgressInfo.progress,
+            downloadedBytes = downloadProgressInfo.downloadedBytes,
+            totalBytes = downloadProgressInfo.totalBytes,
             onConfirmUpdate = {
                 val downloadUrl = updateInfoState?.downloadUrl.orEmpty()
                 if (downloadUrl.isNotBlank()) {
-                    isDownloadingApk = true
-                    downloadProgressPercent = 0
-                    downloadedBytesState = 0L
-                    totalBytesState = 0L
-                    coroutineScope.launch {
-                        val downloadResult = AppUpdateChecker.downloadApk(
-                            context = context,
-                            downloadUrl = downloadUrl,
-                            onProgress = { progress, downloaded, total ->
-                                downloadProgressPercent = progress
-                                downloadedBytesState = downloaded
-                                totalBytesState = total
-                            }
-                        )
-                        isDownloadingApk = false
-                        downloadResult.onSuccess { apkFile ->
-                            showUpdateDialog = false
-                            AppUpdateChecker.installApk(context, apkFile)
-                        }.onFailure { e ->
-                            Toast.makeText(context, "Güncelleme indirilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                        }
-                    }
+                    AppUpdateChecker.startDownloadWithManager(
+                        context = context,
+                        downloadUrl = downloadUrl,
+                        versionName = updateInfoState?.latestVersionName.orEmpty()
+                    )
                 }
             },
             onDismiss = {
-                isDownloadingApk = false
                 showUpdateDialog = false
             }
         )

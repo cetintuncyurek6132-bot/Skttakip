@@ -93,9 +93,10 @@ fun UrgentProductsCarousel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                // Sol: Turuncu nokta + "Acil Müdahale Vitrini"
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(7.dp)
                 ) {
                     Box(
                         modifier = Modifier
@@ -106,24 +107,14 @@ fun UrgentProductsCarousel(
                     Text(
                         text = "Acil Müdahale Vitrini",
                         fontSize = 14.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Slate900
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900,
+                        maxLines = 1,
+                        softWrap = false
                     )
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = CriticalOrange.copy(alpha = 0.12f),
-                        border = BorderStroke(0.8.dp, CriticalOrangeBorder.copy(alpha = 0.6f))
-                    ) {
-                        Text(
-                            text = "0-7 Gün (Kritik 1 Hafta)",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFFC2410C),
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
-                        )
-                    }
                 }
 
+                // Sağ: "$count Adet" sade sayaç (asla alt satıra kırılmaz)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -137,16 +128,18 @@ fun UrgentProductsCarousel(
                     }
                 ) {
                     Text(
-                        text = "${urgentProducts.size} Ürün Bekliyor",
-                        fontSize = 12.sp,
+                        text = "${urgentProducts.size} Adet",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = ExpiredRedDark
+                        color = CriticalOrange,
+                        maxLines = 1,
+                        softWrap = false
                     )
                     if (onViewAllClick != null) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                             contentDescription = "Tümünü Gör",
-                            tint = ExpiredRedDark,
+                            tint = CriticalOrange,
                             modifier = Modifier.size(10.dp)
                         )
                     }
@@ -253,11 +246,12 @@ fun UrgentProductsCarousel(
                             }
                         }
 
-                        // Orta: Ürün Adı, Kod ve SKT Tarihi
+                        // Orta: Ürün Adı, SKT Tarihi ve Kod
                         Column(
                             modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
+                            // 1. Satır: Ürün Adı
                             Text(
                                 text = product.getDisplayName(),
                                 fontSize = 14.5.sp,
@@ -266,17 +260,43 @@ fun UrgentProductsCarousel(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
-                            Text(
-                                text = "Kod: ${product.urunKodu.ifBlank { "Yok" }} • SKT: ${product.getFormattedSkt()}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Slate500,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+
+                            // 2. Satır: SKT Tarihi (Öncelikli & Renkli) • Kod
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            ) {
+                                Text(
+                                    text = "SKT: ${product.getFormattedSkt()}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = when {
+                                        daysLeft <= 0L -> ExpiredRed
+                                        daysLeft in 1L..2L -> CriticalOrange
+                                        else -> Color(0xFFD97706)
+                                    },
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                                if (product.urunKodu.isNotBlank()) {
+                                    Text(
+                                        text = "•",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF94A3B8)
+                                    )
+                                    Text(
+                                        text = "Kod: ${product.urunKodu}",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Normal,
+                                        color = Slate500,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
 
-                        // Sağ: Adet Rozeti
+                        // Sağ: Sabit Adet Rozeti
                         Surface(
                             shape = RoundedCornerShape(10.dp),
                             color = Slate100,
@@ -287,6 +307,8 @@ fun UrgentProductsCarousel(
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Slate800,
+                                maxLines = 1,
+                                softWrap = false,
                                 modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
                             )
                         }

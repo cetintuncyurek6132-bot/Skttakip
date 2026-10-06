@@ -104,9 +104,11 @@ jobs:
         run: |
           COMMIT_MSG=$(git log -1 --pretty=%B | grep -v '^$' | head -n 5)
           if [ -z "$COMMIT_MSG" ]; then
-            COMMIT_MSG="• Performans ve kararlılık iyileştirmeleri yapıldı."
+            COMMIT_MSG="• Sistem performansı ve kararlılık iyileştirmeleri yapıldı.
+• Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı."
           fi
           echo "NOTES<<EOF" >> $GITHUB_OUTPUT
+          echo "### 🚀 Sürüm v${{ env.APP_VERSION }} Güncellemeleri" >> $GITHUB_OUTPUT
           echo "$COMMIT_MSG" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 

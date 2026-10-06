@@ -154,6 +154,35 @@ object BackupExportHelper {
     // TÜM ÜRÜNLER & STOK EXPORT METOTLARI
     // ==========================================
 
+    fun exportProductsToJson(products: List<com.example.data.Product>): String {
+        val root = JSONObject()
+        root.put("version", 2)
+        root.put("module", "products_only")
+        root.put("appName", "SKT & Mağaza Takip")
+        root.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
+        root.put("totalProducts", products.size)
+
+        val array = JSONArray()
+        products.forEach { p ->
+            val obj = JSONObject()
+            obj.put("id", p.id)
+            obj.put("barkod", p.barkod)
+            obj.put("urunKodu", p.urunKodu)
+            obj.put("urunAdi", p.urunAdi)
+            obj.put("kategori", p.kategori)
+            obj.put("sktTarihi", p.sktTarihi)
+            obj.put("stokAdedi", p.stokAdedi)
+            obj.put("eklenmeTarihi", p.eklenmeTarihi)
+            obj.put("isImportant", p.isImportant)
+            obj.put("sonKontrolTarihi", p.sonKontrolTarihi)
+            if (p.fiyat != null) obj.put("fiyat", p.fiyat)
+            array.put(obj)
+        }
+        root.put("products", array)
+        root.put("urunler", array)
+        return root.toString(2)
+    }
+
     fun exportProductsToCsv(products: List<com.example.data.Product>): String {
         val sb = StringBuilder()
         // UTF-8 BOM for Excel compatibility with Turkish characters
@@ -250,6 +279,63 @@ object BackupExportHelper {
     // ==========================================
     // ADETSEL SAYIM EXPORT METOTLARI
     // ==========================================
+
+    fun exportCountAndIadeToJson(sayimList: List<AdetselKayit>, iadeList: List<DepoIadeKaydi>): String {
+        val root = JSONObject()
+        root.put("version", 2)
+        root.put("module", "count_and_iade_only")
+        root.put("appName", "SKT & Mağaza Takip")
+        root.put("exportDate", SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()))
+        root.put("totalSayimRecords", sayimList.size)
+        root.put("totalIadeRecords", iadeList.size)
+
+        val sayimArray = JSONArray()
+        sayimList.forEach { s ->
+            val obj = JSONObject()
+            obj.put("id", s.id)
+            obj.put("productId", s.productId)
+            obj.put("urunAdi", s.urunAdi)
+            obj.put("urunKodu", s.urunKodu)
+            obj.put("barkod", s.barkod)
+            obj.put("kategori", s.kategori)
+            obj.put("eklenmeTarihi", s.eklenmeTarihi)
+            obj.put("yapildiMi", s.yapildiMi)
+            obj.put("sayimSonucu", s.sayimSonucu)
+            obj.put("beklenenAdet", s.beklenenAdet)
+            obj.put("sayilanAdet", s.sayilanAdet)
+            obj.put("farkAdet", s.farkAdet)
+            obj.put("notlar", s.notlar)
+            obj.put("islemTarihi", s.islemTarihi)
+            sayimArray.put(obj)
+        }
+        root.put("sayimList", sayimArray)
+        root.put("adetselKayitlar", sayimArray)
+
+        val iadeArray = JSONArray()
+        iadeList.forEach { i ->
+            val obj = JSONObject()
+            obj.put("id", i.id)
+            obj.put("urunAdi", i.urunAdi)
+            if (!i.urunKodu.isNullOrBlank()) obj.put("urunKodu", i.urunKodu)
+            if (!i.irsaliyeGorselPath.isNullOrBlank()) obj.put("irsaliyeGorselPath", i.irsaliyeGorselPath)
+            obj.put("iadeTarihi", i.iadeTarihi)
+            obj.put("iadeTarihiMillis", i.iadeTarihiMillis)
+            obj.put("redNedeni", i.redNedeni)
+            obj.put("aciklama", i.aciklama)
+            obj.put("oncelik", i.oncelik.name)
+            obj.put("durum", i.durum.name)
+            obj.put("hatirlatmaTarihi", i.hatirlatmaTarihi)
+            if (i.hatirlatmaTarihiMillis != null) obj.put("hatirlatmaTarihiMillis", i.hatirlatmaTarihiMillis)
+            obj.put("olusturmaTarihiMillis", i.olusturmaTarihiMillis)
+            obj.put("guncellemeTarihiMillis", i.guncellemeTarihiMillis)
+            iadeArray.put(obj)
+        }
+        root.put("iadeTakipList", iadeArray)
+        root.put("iadeList", iadeArray)
+        root.put("depoIadeKayitlari", iadeArray)
+
+        return root.toString(2)
+    }
 
     fun exportAdetselSayimToCsv(records: List<AdetselKayit>): String {
         val sb = StringBuilder()

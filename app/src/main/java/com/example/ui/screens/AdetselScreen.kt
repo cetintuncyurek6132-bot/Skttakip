@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -89,6 +90,7 @@ import com.example.ui.viewmodel.AdetselViewModel
 import com.example.util.HapticFeedbackHelper
 import com.example.ui.screens.adetsel.AdetselFilterChip
 import com.example.ui.screens.adetsel.AdetselSayimDialog
+import com.example.ui.screens.adetsel.AdetselSharePreviewModal
 import com.example.ui.screens.adetsel.CompactYapilacakCard
 import com.example.ui.screens.adetsel.CompactYapildiCard
 import com.example.ui.theme.ExpiredRed
@@ -158,6 +160,8 @@ fun AdetselScreen(
     var itemToDelete by remember { mutableStateOf<AdetselKayit?>(null) }
     var showClearCompletedConfirm by remember { mutableStateOf(false) }
     var showExportModal by remember { mutableStateOf(false) }
+    var sharePreviewRecords by remember { mutableStateOf<List<AdetselKayit>?>(null) }
+    var sharePreviewTextMessage by remember { mutableStateOf("") }
 
     val distinctYapilacakList = remember(yapilacakList) {
         yapilacakList.distinctBy { item ->
@@ -168,6 +172,48 @@ fun AdetselScreen(
                 else -> "N:${item.urunAdi.trim().lowercase()}_${item.id}"
             }
         }
+    }
+
+    fun openShareSayimPreview(targetList: List<AdetselKayit>) {
+        if (targetList.isEmpty()) {
+            Toast.makeText(context, "Paylaşılacak sayım kaydı bulunamadı.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val sdf = java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.forLanguageTag("tr-TR"))
+        val dateStr = sdf.format(java.util.Date())
+        val message = buildString {
+            append("📋 *MAĞAZA ADETSEL SAYIM RAPORU*\n")
+            append("📅 Tarih: $dateStr\n")
+            val tamCount = targetList.count { it.yapildiMi && it.farkAdet == 0 }
+            val fazlaCount = targetList.count { it.yapildiMi && it.farkAdet > 0 }
+            val eksikCount = targetList.count { it.yapildiMi && it.farkAdet < 0 }
+            append("📊 Toplam: ${targetList.size} Ürün | Tam: $tamCount | Fazla: $fazlaCount | Eksik: $eksikCount\n\n")
+
+            targetList.forEachIndexed { index, r ->
+                val emoji = when {
+                    !r.yapildiMi -> "⏳"
+                    r.farkAdet == 0 -> "✅"
+                    r.farkAdet > 0 -> "➕"
+                    else -> "🔻"
+                }
+                val statusText = when {
+                    !r.yapildiMi -> "Bekliyor"
+                    r.farkAdet == 0 -> "Tam (0 Fark)"
+                    r.farkAdet > 0 -> "+${r.farkAdet} Fazla"
+                    else -> "${r.farkAdet} Eksik"
+                }
+                append("${index + 1}. $emoji *${r.urunAdi}*\n")
+                append("   • Kod: ${r.getDisplayCode()} | Durum: $statusText\n")
+                val sayilanText = if (r.yapildiMi) "${r.sayilanAdet} Adet" else "Sayılmadı"
+                append("   • Sistem: ${r.beklenenAdet} Adet | Sayılan: $sayilanText")
+                if (r.notlar.isNotBlank()) {
+                    append(" | Not: ${r.notlar}")
+                }
+                append("\n\n")
+            }
+        }
+        sharePreviewRecords = targetList
+        sharePreviewTextMessage = message
     }
 
     val filteredYapilacak = remember(distinctYapilacakList, searchQuery) {
@@ -556,6 +602,27 @@ fun AdetselScreen(
                                 imageVector = Icons.Default.FileDownload,
                                 contentDescription = "Sayım Sonucunu Dışa Aktar (Excel/CSV)",
                                 tint = TurquoiseDark,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = {
+                                val listToShare = if (selectedTab == AdetselTab.YAPILDI) {
+                                    if (yapildiList.isNotEmpty()) yapildiList else distinctYapilacakList + yapildiList
+                                } else {
+                                    if (distinctYapilacakList.isNotEmpty()) distinctYapilacakList else distinctYapilacakList + yapildiList
+                                }
+                                openShareSayimPreview(listToShare)
+                            },
+                            modifier = Modifier
+                                .size(30.dp)
+                                .background(Color(0xFFE8F5E9), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "WhatsApp ile Paylaş",
+                                tint = Color(0xFF2E7D32),
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1105,6 +1172,15 @@ fun AdetselScreen(
                 }
             },
             onDismiss = { showExportModal = false }
+        )
+    }
+
+    val activePreviewList = sharePreviewRecords
+    if (activePreviewList != null) {
+        AdetselSharePreviewModal(
+            records = activePreviewList,
+            formattedTextMessage = sharePreviewTextMessage,
+            onDismiss = { sharePreviewRecords = null }
         )
     }
 }

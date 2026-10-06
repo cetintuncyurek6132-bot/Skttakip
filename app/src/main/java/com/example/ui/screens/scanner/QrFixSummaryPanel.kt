@@ -95,7 +95,7 @@ fun QrFixSummaryPanel(
             .fillMaxWidth()
             .wrapContentHeight()
             .padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 1. EN ÜST: SON İŞLEM BİLGİ ROZETİ (AnimatedContent ile dikey kayma ve solma geçişi)
         AnimatedContent(
@@ -273,8 +273,6 @@ fun QrFixSummaryPanel(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(2.dp))
 
         // 4. ALT BUTON: Tarananları Gör (Geçmiş)
         Button(

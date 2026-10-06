@@ -1,4 +1,4 @@
-package com.example.ui.screens.takip
+package com.example.ui.screens.adetsel
 
 import android.content.Context
 import android.content.Intent
@@ -55,31 +55,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.example.R
-import com.example.data.DepoIadeKaydi
-import com.example.data.TakipStats
+import com.example.data.AdetselKayit
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
-import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
 import com.example.util.image.BitmapSharingHelper
-import com.example.util.image.IadeImageGenerator
+import com.example.util.image.SayimImageGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 @Composable
-fun IadeSharePreviewModal(
-    records: List<DepoIadeKaydi>,
-    stats: TakipStats? = null,
+fun AdetselSharePreviewModal(
+    records: List<AdetselKayit>,
     formattedTextMessage: String,
     onDismiss: () -> Unit
 ) {
@@ -91,7 +86,7 @@ fun IadeSharePreviewModal(
     LaunchedEffect(records) {
         isGeneratingImage = true
         generatedBitmap = withContext(Dispatchers.Default) {
-            IadeImageGenerator.createIadeListBitmap(records, stats)
+            SayimImageGenerator.createSayimListBitmap(records)
         }
         isGeneratingImage = false
     }
@@ -99,7 +94,7 @@ fun IadeSharePreviewModal(
     fun shareImage() {
         val bitmap = generatedBitmap
         if (bitmap != null) {
-            BitmapSharingHelper.shareBitmap(context, bitmap, "iade_takip_raporu")
+            BitmapSharingHelper.shareBitmap(context, bitmap, "adetsel_sayim_raporu")
             onDismiss()
         } else {
             Toast.makeText(context, "Görsel hazırlanıyor, lütfen bekleyin.", Toast.LENGTH_SHORT).show()
@@ -121,7 +116,7 @@ fun IadeSharePreviewModal(
                 putExtra(Intent.EXTRA_TEXT, formattedTextMessage)
             }
             try {
-                context.startActivity(Intent.createChooser(fallbackIntent, "Takip Raporunu Paylaş"))
+                context.startActivity(Intent.createChooser(fallbackIntent, "Sayım Raporunu Paylaş"))
                 onDismiss()
             } catch (ex: Exception) {
                 Toast.makeText(context, "Paylaşım uygulaması açılamadı.", Toast.LENGTH_SHORT).show()
@@ -184,7 +179,7 @@ fun IadeSharePreviewModal(
                                 color = Slate900
                             )
                             Text(
-                                text = "${records.size} kayıt paylaşılacak",
+                                text = "${records.size} sayım kaydı paylaşılacak",
                                 fontSize = 12.sp,
                                 color = Slate500
                             )
@@ -275,7 +270,7 @@ fun IadeSharePreviewModal(
                             ) {
                                 Image(
                                     bitmap = generatedBitmap!!.asImageBitmap(),
-                                    contentDescription = "İade Listesi Görseli",
+                                    contentDescription = "Sayım Raporu Görseli",
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(8.dp)),
