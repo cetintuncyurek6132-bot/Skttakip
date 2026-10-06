@@ -193,7 +193,7 @@ fun ProductsFilterBar(
                 )
             }
 
-            // 4. "Son 2 Gün"
+            // 4. "Acil (0-7 Gün)"
             item {
                 val isLast2DaysSelected = selectedFilter == ProductFilter.LAST_2_DAYS
 
@@ -205,14 +205,16 @@ fun ProductsFilterBar(
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Schedule,
-                            contentDescription = "Son 2 Gün",
+                            contentDescription = "Acil (0-7 Gün)",
                             tint = if (isLast2DaysSelected) Color.White else Color(0xFFDC2626),
                             modifier = Modifier.size(15.dp)
                         )
                     },
-                    label = "Son 2 Gün",
+                    label = "Acil (0-7 Gün)",
                     modifier = Modifier
                         .testTag("filter_chip_last_2_days")
+                        .testTag("filter_chip_urgent")
+                        .testTag("filter_chip_Acil (0-7 Gün)")
                         .testTag("filter_chip_Son 2 Gün")
                 )
             }

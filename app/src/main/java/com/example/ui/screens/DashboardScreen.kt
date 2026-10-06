@@ -130,10 +130,10 @@ fun DashboardScreen(
         cal.timeInMillis
     }
 
-    // 1. Acil Ürünler (daysLeft <= 2) - En acilden (küçük daysLeft) en uzağa sıralı
+    // 1. Acil Ürünler (daysLeft in 0..7) - En acilden (küçük daysLeft) en uzağa sıralı
     val urgentProducts = remember(products, todayMidnight) {
         products
-            .filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) <= 2 }
+            .filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 0..7 }
             .sortedWith(
                 compareBy<Product> { it.getRemainingDays(todayMidnight) }
                     .thenBy { it.sktTarihi }
@@ -312,7 +312,8 @@ fun DashboardScreen(
         com.example.ui.screens.dashboard.UrgentProductsCarousel(
             urgentProducts = urgentProducts,
             todayMidnight = todayMidnight,
-            onProductClick = onProductClick
+            onProductClick = onProductClick,
+            onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.LAST_2_DAYS) }
         )
 
         // =====================================================================

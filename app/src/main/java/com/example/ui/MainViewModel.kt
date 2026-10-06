@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 enum class ProductFilter(val label: String) {
     ALL("TÜMÜ"),
     IMPORTANT("ÖNEMLİ"),
-    LAST_2_DAYS("Son 2 Gün"),
+    LAST_2_DAYS("Acil (0-7 Gün)"),
     EXPIRED("SÜRESİ GEÇEN"),
     CRITICAL("KRİTİK"),
     SOON("YAKIN")

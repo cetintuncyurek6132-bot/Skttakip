@@ -3,6 +3,7 @@ package com.example.ui.screens.dashboard
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -58,7 +60,8 @@ private data class UrgentBadgeInfo(
 fun UrgentProductsCarousel(
     urgentProducts: List<Product>,
     todayMidnight: Long,
-    onProductClick: (Product) -> Unit
+    onProductClick: (Product) -> Unit,
+    onViewAllClick: (() -> Unit)? = null
 ) {
     if (urgentProducts.isNotEmpty()) {
         val pagerState = rememberPagerState(pageCount = { urgentProducts.size })
@@ -98,7 +101,7 @@ fun UrgentProductsCarousel(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
-                            .background(ExpiredRed)
+                            .background(CriticalOrange)
                     )
                     Text(
                         text = "Acil Müdahale Vitrini",
@@ -106,14 +109,48 @@ fun UrgentProductsCarousel(
                         fontWeight = FontWeight.ExtraBold,
                         color = Slate900
                     )
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = CriticalOrange.copy(alpha = 0.12f),
+                        border = BorderStroke(0.8.dp, CriticalOrangeBorder.copy(alpha = 0.6f))
+                    ) {
+                        Text(
+                            text = "0-7 Gün (Kritik 1 Hafta)",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFC2410C),
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
-                Text(
-                    text = "${urgentProducts.size} Ürün Bekliyor",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = ExpiredRedDark
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = if (onViewAllClick != null) {
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable { onViewAllClick() }
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    } else {
+                        Modifier
+                    }
+                ) {
+                    Text(
+                        text = "${urgentProducts.size} Ürün Bekliyor",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ExpiredRedDark
+                    )
+                    if (onViewAllClick != null) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                            contentDescription = "Tümünü Gör",
+                            tint = ExpiredRedDark,
+                            modifier = Modifier.size(10.dp)
+                        )
+                    }
+                }
             }
 
             // Yatay Akış Pager
@@ -137,10 +174,18 @@ fun UrgentProductsCarousel(
                     }
                     daysLeft == 0L -> {
                         UrgentBadgeInfo(
-                            bgColor = CriticalOrange,
+                            bgColor = ExpiredRed,
                             textColor = Color.White,
                             numberText = "!",
                             labelText = "BUGÜN"
+                        )
+                    }
+                    daysLeft in 1L..2L -> {
+                        UrgentBadgeInfo(
+                            bgColor = CriticalOrange,
+                            textColor = Color.White,
+                            numberText = daysLeft.toString(),
+                            labelText = "GÜN KALDI"
                         )
                     }
                     else -> {
@@ -161,7 +206,8 @@ fun UrgentProductsCarousel(
                         1.dp,
                         when {
                             daysLeft < 0 -> ExpiredRedBorder
-                            daysLeft == 0L -> CriticalOrangeBorder
+                            daysLeft == 0L -> ExpiredRedBorder
+                            daysLeft in 1L..2L -> CriticalOrangeBorder
                             else -> SoonYellowBorder
                         }
                     ),
@@ -315,7 +361,7 @@ fun UrgentProductsCarousel(
                         color = Color(0xFF166534)
                     )
                     Text(
-                        text = "Acil müdahale gerektiren (0-2 gün) ürün bulunmuyor.",
+                        text = "Acil müdahale gerektiren (0-7 gün) ürün bulunmuyor.",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Normal,
                         color = Color(0xFF15803D)

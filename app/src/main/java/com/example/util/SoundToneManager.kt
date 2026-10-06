@@ -18,12 +18,10 @@ object SoundToneManager {
     const val KEY_SCANNER_SOUND_BARCODE = "scanner_sound_barcode"
     const val KEY_SCANNER_SOUND_LABEL_FIX = "scanner_sound_label_fix"
 
+    // Profesyonel Perakende El Terminali (Zebra / Honeywell) Lazer Tonları
     val TONES = listOf(
-        SoundToneOption(1, "Klasik Market Bip", ToneGenerator.TONE_PROP_BEEP, 70),
-        SoundToneOption(2, "Çift Onay Bipi", ToneGenerator.TONE_PROP_ACK, 90),
-        SoundToneOption(3, "Yumuşak Melodik", ToneGenerator.TONE_CDMA_ALERT_NETWORK_LITE, 100),
-        SoundToneOption(4, "Yüksek / Net Terminal", ToneGenerator.TONE_DTMF_D, 80),
-        SoundToneOption(5, "Başarı Çanı / Pozitif", ToneGenerator.TONE_PROP_PROMPT, 110)
+        SoundToneOption(1, "Zebra Lazer Bip (Barkod)", ToneGenerator.TONE_PROP_BEEP, 60),
+        SoundToneOption(2, "Honeywell Onay (Etiket/QR)", ToneGenerator.TONE_PROP_ACK, 80)
     )
 
     fun getToneOptionById(id: Int): SoundToneOption {
@@ -40,13 +38,13 @@ object SoundToneManager {
             synchronized(this) {
                 if (cachedToneGenerator == null) {
                     cachedToneGenerator = try {
-                        ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
+                        ToneGenerator(AudioManager.STREAM_MUSIC, 100)
                     } catch (_: Exception) {
                         try {
-                            ToneGenerator(AudioManager.STREAM_SYSTEM, 100)
+                            ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
                         } catch (_: Exception) {
                             try {
-                                ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+                                ToneGenerator(AudioManager.STREAM_SYSTEM, 100)
                             } catch (_: Exception) {
                                 null
                             }
@@ -58,14 +56,33 @@ object SoundToneManager {
         return cachedToneGenerator
     }
 
+    fun playBarcodeBeep() {
+        try {
+            getToneGenerator()?.startTone(ToneGenerator.TONE_PROP_BEEP, 60)
+        } catch (e: Exception) {
+            Log.e(TAG, "Barcode beep error: ${e.message}")
+        }
+    }
+
+    fun playLabelFixBeep() {
+        try {
+            getToneGenerator()?.startTone(ToneGenerator.TONE_PROP_ACK, 80)
+        } catch (e: Exception) {
+            Log.e(TAG, "Label fix beep error: ${e.message}")
+        }
+    }
+
     fun playTonePreview(context: Context? = null, toneId: Int) {
         playTone(toneId)
     }
 
     fun playTone(toneId: Int) {
         try {
-            val option = getToneOptionById(toneId)
-            getToneGenerator()?.startTone(option.toneType, option.durationMs)
+            if (toneId == 2) {
+                playLabelFixBeep()
+            } else {
+                playBarcodeBeep()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to play tone $toneId: ${e.message}")
         }

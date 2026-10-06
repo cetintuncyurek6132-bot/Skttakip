@@ -462,6 +462,8 @@ private fun SegmentedTabButton(
                 text = label,
                 fontSize = 13.sp,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                softWrap = false,
                 color = contentColor
             )
         }

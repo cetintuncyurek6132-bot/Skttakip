@@ -108,14 +108,14 @@ fun ProductsGroupedList(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "SON 2 GÜN (ACİL SATIŞ / SARI ETİKET)",
+                                text = "ACİL MÜDAHALE (0-7 GÜN - KRİTİK 1 HAFTA)",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 color = Color(0xFF991B1B)
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "SKT'sine 0, 1 veya 2 gün kalan acil satış ve indirim gerektiren ürünler.",
+                                text = "SKT'sine 0 ile 7 gün dahil kalan acil müdahale, indirim ve sarı etiket gerektiren ürünler.",
                                 fontSize = 11.sp,
                                 color = Color(0xFFB91C1C)
                             )
