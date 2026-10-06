@@ -40,7 +40,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.data.StockLog
-import com.example.data.StockMovement
 import com.example.data.getTodayMidnightMillis
 import com.example.ui.screens.analytics.AnalyticsBarChartSection
 import com.example.ui.screens.analytics.AnalyticsKpiSection
@@ -62,7 +61,6 @@ import java.util.Locale
 @Composable
 fun AnalyticsScreen(
     products: List<Product>,
-    stockMovements: List<StockMovement> = emptyList(),
     stockLogs: List<StockLog> = emptyList(),
     onProductClick: (Product) -> Unit = {},
     onBackClick: () -> Unit

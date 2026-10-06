@@ -20,7 +20,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.data.AdetselKayit
 import com.example.data.Product
-import com.example.data.StockMovement
 import com.example.ui.DashboardState
 import com.example.ui.MainViewModel
 import com.example.ui.ProductFilter
@@ -48,7 +47,6 @@ fun AppNavHost(
     filteredProducts: List<Product>,
     yapilacakAdetsel: List<AdetselKayit>,
     yapildiAdetsel: List<AdetselKayit>,
-    stockMovements: List<StockMovement> = emptyList(),
     stockLogs: List<com.example.data.StockLog> = emptyList(),
     searchQuery: String,
     selectedFilter: ProductFilter,
@@ -275,7 +273,6 @@ fun AppNavHost(
         composable("analytics") {
             AnalyticsScreen(
                 products = allProducts,
-                stockMovements = stockMovements,
                 stockLogs = stockLogs,
                 onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
                 onBackClick = { navigateToTab("panel") }

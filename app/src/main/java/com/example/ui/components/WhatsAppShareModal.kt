@@ -90,6 +90,7 @@ enum class ShareCategory {
     IMPORTANT
 }
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun WhatsAppShareModal(
     allProducts: List<Product>,
@@ -134,39 +135,12 @@ fun WhatsAppShareModal(
         selectedProductIds = currentCategoryProducts.map { it.id }.toSet()
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .then(
-                    if (isPreviewMode) {
-                        Modifier
-                            .heightIn(max = 780.dp)
-                            .wrapContentHeight()
-                    } else {
-                        Modifier.fillMaxHeight(0.92f)
-                    }
-                )
-                .padding(vertical = 16.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 12.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(if (isPreviewMode) Modifier.wrapContentHeight() else Modifier.fillMaxHeight())
-                    .padding(16.dp)
-            ) {
-                // =============================================================
-                // 1. MODAL HEADER
-                // =============================================================
+    AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // =============================================================
+        // 1. MODAL HEADER
+        // =============================================================
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -755,7 +729,5 @@ fun WhatsAppShareModal(
                         }
                     }
                 }
-            }
-        }
     }
 }

@@ -138,29 +138,10 @@ fun AddEditProductModal(
     var showProductNameOcrScanner by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .padding(vertical = 16.dp)
-                .imePadding(),
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 12.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(18.dp)
-            ) {
-                // 1. ÜST BİLGİ VE BAŞLIK ALANI (HERO HEADER)
+    AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // 1. ÜST BİLGİ VE BAŞLIK ALANI (HERO HEADER)
                 if (product != null) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -596,7 +577,5 @@ fun AddEditProductModal(
                         )
                     }
                 }
-            }
-        }
     }
 }

@@ -204,23 +204,10 @@ fun AddEditTakipModal(
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.88f)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(20.dp)
-            ) {
-                // Başlık
+    com.example.ui.components.AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // Başlık
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -771,8 +758,6 @@ fun AddEditTakipModal(
                         Text("Kaydet", fontWeight = FontWeight.Bold)
                     }
                 }
-            }
-        }
     }
 
     // TARİH SEÇİCİ MODALLAR

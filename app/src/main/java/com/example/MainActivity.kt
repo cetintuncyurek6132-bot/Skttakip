@@ -414,7 +414,6 @@ fun SktMainApp(
                 filteredProducts = filteredProducts,
                 yapilacakAdetsel = yapilacakAdetsel,
                 yapildiAdetsel = yapildiAdetsel,
-                stockMovements = stockMovements,
                 stockLogs = stockLogs,
                 searchQuery = searchQuery,
                 selectedFilter = selectedFilter,

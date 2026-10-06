@@ -109,26 +109,10 @@ fun AddSktModal(
         )
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.94f)
-                .padding(vertical = 12.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
-            shadowElevation = 12.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(14.dp)
-            ) {
-                // 1. MODAL HEADER
+    AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // 1. MODAL HEADER
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -564,7 +548,5 @@ fun AddSktModal(
                         )
                     }
                 }
-            }
-        }
     }
 }

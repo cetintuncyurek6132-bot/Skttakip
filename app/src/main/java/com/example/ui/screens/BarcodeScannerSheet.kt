@@ -65,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.example.data.Product
 import com.example.data.parseShelfQrPayload
 import com.example.ui.screens.scanner.CameraXBarcodeView
@@ -555,8 +556,15 @@ fun BarcodeScannerSheet(
                 isFlashOn = isFlashOn,
                 onCloseClick = safeDismiss,
                 onModeChange = { isFixMode ->
+                    val targetPage = if (isFixMode) 1 else 0
                     coroutineScope.launch {
-                        pagerState.animateScrollToPage(if (isFixMode) 1 else 0)
+                        if (pagerState.currentPage != targetPage || pagerState.targetPage != targetPage) {
+                            try {
+                                pagerState.animateScrollToPage(targetPage)
+                            } catch (_: Exception) {
+                                pagerState.scrollToPage(targetPage)
+                            }
+                        }
                     }
                     qrFixResultMsg = ""
                     manualBarcode = ""
@@ -573,28 +581,24 @@ fun BarcodeScannerSheet(
                     zoomRatio = 1.0f
                 },
                 onFlashToggle = { isFlashOn = !isFlashOn },
-                modifier = Modifier.align(Alignment.TopCenter)
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(20f)
             )
 
             // =========================================================================
             // 3. ALT BEYAZ KART: HORIZONTAL PAGER İLE SAĞA/SOLA KAYDIRILABİLİR
             // =========================================================================
-            val bottomModifier = if (isFixQrMode) {
-                Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .align(Alignment.BottomCenter)
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(bottomWeight)
-                    .align(Alignment.BottomCenter)
-            }
+            val bottomModifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(bottomWeight)
+                .align(Alignment.BottomCenter)
 
             HorizontalPager(
                 state = pagerState,
                 modifier = bottomModifier,
                 verticalAlignment = Alignment.Bottom,
+                flingBehavior = androidx.compose.foundation.pager.PagerDefaults.flingBehavior(state = pagerState),
                 beyondViewportPageCount = 1
             ) { page ->
                 if (page == 1) {

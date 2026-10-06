@@ -1,6 +1,7 @@
 package com.example.ui.components.detail
 
 import android.widget.Toast
+import com.example.ui.components.AppBottomSheetWrapper
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -66,6 +67,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.material3.ExperimentalMaterial3Api
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeductStockDialog(
     batch: Product,
@@ -81,30 +85,10 @@ fun DeductStockDialog(
     }
     var isSaving by remember { mutableStateOf(false) }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.90f)
-                .padding(vertical = 16.dp)
-                .imePadding()
-                .clip(RoundedCornerShape(20.dp)),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.5.dp, TurquoisePrimary),
-            shadowElevation = 16.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp)
-            ) {
-                // 1. BAŞLIK VE KAPAT BUTONU
+    AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // 1. BAŞLIK VE KAPAT BUTONU
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -397,7 +381,5 @@ fun DeductStockDialog(
                         )
                     }
                 }
-            }
-        }
     }
 }

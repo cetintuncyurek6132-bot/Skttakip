@@ -76,6 +76,7 @@ import com.example.util.image.IadeImageGenerator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun IadeSharePreviewModal(
     records: List<DepoIadeKaydi>,
@@ -129,30 +130,10 @@ fun IadeSharePreviewModal(
         }
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .wrapContentHeight()
-                .padding(vertical = 16.dp)
-                .padding(bottom = 12.dp)
-                .navigationBarsPadding(),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 10.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp)
-            ) {
-                // BAŞLIK BARI
+    com.example.ui.components.AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // BAŞLIK BARI
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -373,7 +354,5 @@ fun IadeSharePreviewModal(
                         )
                     }
                 }
-            }
-        }
     }
 }

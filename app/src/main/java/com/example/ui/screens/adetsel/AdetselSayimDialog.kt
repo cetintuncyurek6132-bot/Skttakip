@@ -79,6 +79,9 @@ import com.example.ui.theme.WarningBlueDark
  * ADETSEL SAYIM DIALOG
  * Direct difference entry: Tam (0) / Eksik (-X) / Fazla (+X)
  */
+import androidx.compose.material3.ExperimentalMaterial3Api
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdetselSayimDialog(
     kayit: AdetselKayit,
@@ -111,23 +114,10 @@ fun AdetselSayimDialog(
         discrepancyText = next.toString()
     }
 
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .clip(RoundedCornerShape(16.dp)),
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                // Header
+    com.example.ui.components.AppBottomSheetWrapper(
+        onDismissRequest = onDismiss
+    ) { dismissSheet ->
+        // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -459,8 +449,6 @@ fun AdetselSayimDialog(
                         )
                     }
                 }
-            }
-        }
     }
 }
 

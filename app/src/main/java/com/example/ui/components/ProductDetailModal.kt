@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,6 +10,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +24,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -43,15 +46,19 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -69,6 +76,7 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
+import kotlinx.coroutines.launch
 
 enum class ProductDetailTab(val title: String, val emoji: String) {
     SKT_BATCHES("Partiler", "📅"),
@@ -93,6 +101,8 @@ fun ProductDetailModal(
     if (product == null) return
 
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
     var localMatchingProducts by remember(matchingProducts) { mutableStateOf(matchingProducts) }
     var localProduct by remember(product) { mutableStateOf(product) }
@@ -106,27 +116,75 @@ fun ProductDetailModal(
         localMatchingProducts.filter { it.sktTarihi > 0L }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    // 3 Kademeli Dikey Sürükleme (PartiallyExpanded -> Expanded -> Dismiss)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+
+    fun dismissSheet() {
+        coroutineScope.launch {
+            try {
+                sheetState.hide()
+            } catch (_: Exception) {}
+            onDismiss()
+        }
+    }
+
+    // Sistem Geri Tuşu / Hareketi (BackHandler)
+    BackHandler(enabled = sheetState.isVisible) {
+        dismissSheet()
+    }
+
+    // Çift Yönlü Yatay Kenar Kaydırma Eşiği (45.dp)
+    val swipeThresholdPx = remember(density) { with(density) { 45.dp.toPx() } }
+    var totalDragX by remember { mutableFloatStateOf(0f) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+        dragHandle = {
+            BottomSheetDefaults.DragHandle(
+                modifier = Modifier.pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { totalDragX = 0f },
+                        onHorizontalDrag = { change, dragAmount ->
+                            totalDragX += dragAmount
+                            if (kotlin.math.abs(totalDragX) > swipeThresholdPx) {
+                                change.consume()
+                                dismissSheet()
+                            }
+                        }
+                    )
+                }
+            )
+        }
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .statusBarsPadding()
                 .navigationBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 1. KOMPAKT VE TEMİZ BAŞLIK ÇUBUĞU
+            // 1. KOMPAKT VE TEMİZ BAŞLIK ÇUBUĞU (Dual Edge Swipe Destekli)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { totalDragX = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                totalDragX += dragAmount
+                                if (kotlin.math.abs(totalDragX) > swipeThresholdPx) {
+                                    change.consume()
+                                    dismissSheet()
+                                }
+                            }
+                        )
+                    },
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -240,7 +298,7 @@ fun ProductDetailModal(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, radius = 16.dp)
-                            ) { onDismiss() }
+                            ) { dismissSheet() }
                             .testTag("close_detail_modal_button"),
                         contentAlignment = Alignment.Center
                     ) {
@@ -260,7 +318,20 @@ fun ProductDetailModal(
                 color = MaterialTheme.colorScheme.surface,
                 border = BorderStroke(1.dp, Slate200),
                 shadowElevation = 1.dp,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { totalDragX = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                totalDragX += dragAmount
+                                if (kotlin.math.abs(totalDragX) > swipeThresholdPx) {
+                                    change.consume()
+                                    dismissSheet()
+                                }
+                            }
+                        )
+                    }
             ) {
                 Row(
                     modifier = Modifier

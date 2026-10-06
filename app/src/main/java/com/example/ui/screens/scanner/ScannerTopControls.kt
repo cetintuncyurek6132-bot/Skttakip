@@ -24,6 +24,8 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.theme.SoonYellow
 import com.example.ui.theme.TurquoisePrimary
 
+import androidx.compose.ui.zIndex
+
 @Composable
 fun ScannerTopControls(
     isFixQrMode: Boolean,
@@ -37,6 +39,7 @@ fun ScannerTopControls(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .zIndex(20f)
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -79,14 +82,15 @@ fun ScannerTopControls(
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (!isFixQrMode) TurquoisePrimary else Color.Transparent)
                         .clickable { onModeChange(false) }
-                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .testTag("scanner_tab_barcode_search"),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = standardModeLabel,
                         color = if (!isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
                         fontWeight = if (!isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
@@ -98,14 +102,15 @@ fun ScannerTopControls(
                         .clip(RoundedCornerShape(20.dp))
                         .background(if (isFixQrMode) TurquoisePrimary else Color.Transparent)
                         .clickable { onModeChange(true) }
-                        .padding(horizontal = 12.dp, vertical = 5.dp),
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .testTag("scanner_tab_label_fix"),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Etiket Düzelt",
                         color = if (isFixQrMode) Color.White else Color.White.copy(alpha = 0.70f),
                         fontWeight = if (isFixQrMode) FontWeight.ExtraBold else FontWeight.SemiBold,
-                        fontSize = 11.sp,
+                        fontSize = 11.5.sp,
                         maxLines = 1,
                         overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                     )
