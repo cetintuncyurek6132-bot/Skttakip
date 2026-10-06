@@ -89,13 +89,84 @@ fun AnalyticsScreen(
         validProducts.filter { it.getRemainingDays(todayMidnight) in 4L..7L }
     }
 
-    // 2. Last 30 Days Expired Summary Metrics
+    // 2. Last 30 Days SKT Performance & Fire Items (Carousel Data)
     val thirtyDaysAgo = remember(todayMidnight) { todayMidnight - (30L * 86400000L) }
-    val last30DaysExpiredProducts = remember(validProducts, todayMidnight, thirtyDaysAgo) {
-        validProducts.filter { it.sktTarihi in thirtyDaysAgo until todayMidnight }
+
+    val sktPerformanceItems = remember(products, stockLogs, todayMidnight, thirtyDaysAgo) {
+        val expiredIn30Days = products.filter {
+            it.sktTarihi in thirtyDaysAgo..todayMidnight || (it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) < 0L)
+        }
+
+        val logsIn30Days = stockLogs.filter { it.timestamp >= thirtyDaysAgo }
+        val logsByBarcode = logsIn30Days.groupBy { it.barcode.trim() }
+        val logsByName = logsIn30Days.groupBy { it.productName.trim().lowercase(Locale.forLanguageTag("tr-TR")) }
+
+        val resultMap = mutableMapOf<String, com.example.ui.screens.analytics.SktPerformanceItem>()
+
+        // 1. Son 30 günde süresi dolan veya dolmuş olan ürünler
+        for (p in expiredIn30Days) {
+            val key = if (p.barkod.isNotBlank() && !p.barkod.startsWith("NO_BARCODE_")) p.barkod.trim() else "ID_${p.id}"
+            val relevantLogs = logsByBarcode[p.barkod.trim()]
+                ?: logsByName[p.urunAdi.trim().lowercase(Locale.forLanguageTag("tr-TR"))]
+                ?: emptyList()
+
+            val soldLogsQty = relevantLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
+            val fireLogsQty = relevantLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
+
+            val fireCount = if (fireLogsQty > 0) fireLogsQty else if (p.stokAdedi > 0) p.stokAdedi else 0
+            val soldCount = if (soldLogsQty > 0) soldLogsQty else if (p.stokAdedi == 0) p.stokAdedi.coerceAtLeast(1) else 0
+            val totalCount = (soldCount + fireCount).coerceAtLeast(1)
+            val rate = ((soldCount.toDouble() / totalCount.toDouble()) * 100).toInt().coerceIn(0, 100)
+
+            resultMap[key] = com.example.ui.screens.analytics.SktPerformanceItem(
+                product = p,
+                productName = p.urunAdi,
+                productCode = p.urunKodu,
+                barcode = p.barkod,
+                formattedSkt = p.getFormattedSkt(),
+                sktTimestamp = p.sktTarihi,
+                soldCount = soldCount,
+                fireCount = fireCount,
+                totalCount = totalCount,
+                recoveryRate = rate
+            )
+        }
+
+        // 2. Son 30 günde aksiyon alınmış (SATIS veya FIRE) log kayıtları
+        for (log in logsIn30Days) {
+            val barcode = log.barcode.trim()
+            val name = log.productName.trim()
+            val key = if (barcode.isNotBlank() && !barcode.startsWith("NO_BARCODE_")) barcode else name.lowercase(Locale.forLanguageTag("tr-TR"))
+            if (!resultMap.containsKey(key)) {
+                val matchingProduct = products.find { it.barkod.trim() == barcode || it.urunAdi.equals(name, ignoreCase = true) }
+                val itemLogs = if (barcode.isNotBlank()) (logsByBarcode[barcode] ?: emptyList()) else (logsByName[name.lowercase(Locale.forLanguageTag("tr-TR"))] ?: emptyList())
+                val soldLogsQty = itemLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
+                val fireLogsQty = itemLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
+                val totalCount = soldLogsQty + fireLogsQty
+                if (totalCount > 0) {
+                    val rate = ((soldLogsQty.toDouble() / totalCount.toDouble()) * 100).toInt().coerceIn(0, 100)
+                    val sktFormatted = if (log.sktDate != null && log.sktDate > 0L) {
+                        SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")).format(Date(log.sktDate))
+                    } else matchingProduct?.getFormattedSkt() ?: "-"
+
+                    resultMap[key] = com.example.ui.screens.analytics.SktPerformanceItem(
+                        product = matchingProduct,
+                        productName = name,
+                        productCode = matchingProduct?.urunKodu.orEmpty(),
+                        barcode = barcode,
+                        formattedSkt = sktFormatted,
+                        sktTimestamp = log.sktDate ?: matchingProduct?.sktTarihi ?: 0L,
+                        soldCount = soldLogsQty,
+                        fireCount = fireLogsQty,
+                        totalCount = totalCount,
+                        recoveryRate = rate
+                    )
+                }
+            }
+        }
+
+        resultMap.values.sortedByDescending { it.sktTimestamp }
     }
-    val last30DaysExpiredCount = last30DaysExpiredProducts.size
-    val last30DaysExpiredStock = remember(last30DaysExpiredProducts) { last30DaysExpiredProducts.sumOf { it.stokAdedi } }
 
     // 3. Daily Bar Chart Data
     val barChartData = remember(validProducts, selectedTimeframe, todayMidnight, chartMode) {
@@ -253,15 +324,15 @@ fun AnalyticsScreen(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // A) 4'lü KPI Özeti & Son 30 Gün Durumu
+            // A) 4'lü KPI Özeti & Son 30 Gün SKT Performans & Fire Vitrini
             AnalyticsKpiSection(
                 expiredProducts = expiredProducts,
                 criticalProducts = criticalProducts,
                 soonProducts = soonProducts,
                 totalVarietyCount = totalVarietyCount,
                 totalStockCount = totalStockCount,
-                last30DaysExpiredCount = last30DaysExpiredCount,
-                last30DaysExpiredStock = last30DaysExpiredStock
+                sktPerformanceItems = sktPerformanceItems,
+                onProductClick = onProductClick
             )
 
             // B) Çubuk Dağılım Grafiği & Günlük İnceleme

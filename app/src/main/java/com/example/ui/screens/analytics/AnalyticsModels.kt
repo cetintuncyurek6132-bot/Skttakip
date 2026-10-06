@@ -1,7 +1,9 @@
 package com.example.ui.screens.analytics
 
+import androidx.compose.runtime.Immutable
 import com.example.data.Product
 
+@Immutable
 data class DailyExpiryData(
     val dayTimestamp: Long,
     val dateLabel: String,
@@ -26,6 +28,7 @@ enum class ChartDisplayMode(val label: String) {
     UPCOMING("Yaklaşan SKT'ler")
 }
 
+@Immutable
 data class ProductPrediction(
     val product: Product,
     val barcode: String,
@@ -38,4 +41,18 @@ data class ProductPrediction(
     val predictedSales: Int,
     val predictedFire: Int,
     val firePercent: Int
+)
+
+@Immutable
+data class SktPerformanceItem(
+    val product: Product? = null,
+    val productName: String,
+    val productCode: String = "",
+    val barcode: String = "",
+    val formattedSkt: String = "",
+    val sktTimestamp: Long = 0L,
+    val soldCount: Int = 0,
+    val fireCount: Int = 0,
+    val totalCount: Int = 0,
+    val recoveryRate: Int = 0
 )

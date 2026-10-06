@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
+import androidx.compose.runtime.Immutable
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
@@ -41,6 +42,7 @@ enum class IadeDurumu(val displayName: String) {
     REDDEDILDI("Reddedildi")
 }
 
+@Immutable
 data class DepoIadeKaydi(
     val id: String = UUID.randomUUID().toString(),
     val urunAdi: String,
@@ -61,6 +63,7 @@ data class DepoIadeKaydi(
     val hasGorsel: Boolean get() = !irsaliyeGorselPath.isNullOrBlank() && File(irsaliyeGorselPath).exists()
 }
 
+@Immutable
 data class TakipStats(
     val toplamKayit: Int,
     val devamEdenSayisi: Int,

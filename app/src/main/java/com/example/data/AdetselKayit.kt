@@ -1,11 +1,13 @@
 package com.example.data
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@Immutable
 @Entity(tableName = "adetsel_kayitlar")
 data class AdetselKayit(
     @PrimaryKey(autoGenerate = true)

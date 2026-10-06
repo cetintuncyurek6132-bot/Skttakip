@@ -74,10 +74,10 @@ fun AppNavHost(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-        enterTransition = { fadeIn(animationSpec = tween(120)) },
-        exitTransition = { fadeOut(animationSpec = tween(120)) },
-        popEnterTransition = { fadeIn(animationSpec = tween(120)) },
-        popExitTransition = { fadeOut(animationSpec = tween(120)) }
+        enterTransition = { fadeIn(animationSpec = tween(150)) },
+        exitTransition = { fadeOut(animationSpec = tween(150)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(150)) },
+        popExitTransition = { fadeOut(animationSpec = tween(150)) }
     ) {
         // 4 ANA SEKME (HORIZONTAL PAGER İLE SAĞA/SOLA KAYDIRMALI GEÇİŞ)
         composable("main") {
@@ -88,7 +88,7 @@ fun AppNavHost(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
-                beyondViewportPageCount = 1,
+                beyondViewportPageCount = 0,
                 key = { page ->
                     when (page) {
                         0 -> "panel"

@@ -212,7 +212,7 @@ fun SktMainApp(
                 navController.popBackStack("main", inclusive = false)
             }
             coroutineScope.launch {
-                pagerState.animateScrollToPage(targetPageIndex)
+                pagerState.scrollToPage(targetPageIndex)
             }
         } else {
             if (currentNavRoute != resolved) {

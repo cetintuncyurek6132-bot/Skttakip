@@ -416,27 +416,34 @@ private fun ExportOptionCard(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
                             text = title,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp,
-                            color = Slate900
+                            fontSize = 13.5.sp,
+                            color = Slate900,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (badgeText != null) {
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
                                 color = badgeColor.copy(alpha = 0.12f),
-                                border = BorderStroke(0.8.dp, badgeColor.copy(alpha = 0.4f))
+                                border = BorderStroke(0.8.dp, badgeColor.copy(alpha = 0.4f)),
+                                modifier = Modifier.wrapContentWidth()
                             ) {
                                 Text(
                                     text = badgeText,
-                                    fontSize = 10.sp,
+                                    fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = badgeColor,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                 )
                             }
                         }

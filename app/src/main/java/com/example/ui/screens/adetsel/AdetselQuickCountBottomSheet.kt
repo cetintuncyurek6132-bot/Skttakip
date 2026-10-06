@@ -114,10 +114,20 @@ fun AdetselQuickCountBottomSheet(
     var isFlashOn by remember { mutableStateOf(false) }
     var lastScannedBarcode by remember { mutableStateOf("") }
     var manualSearchQuery by remember { mutableStateOf("") }
+    var debouncedQuery by remember { mutableStateOf("") }
     var scannedProduct by remember { mutableStateOf<Product?>(null) }
     var isProductNotFound by remember { mutableStateOf(false) }
     var notFoundQuery by remember { mutableStateOf("") }
     var countQuantityText by remember { mutableStateOf("") }
+
+    LaunchedEffect(manualSearchQuery) {
+        if (manualSearchQuery.isBlank()) {
+            debouncedQuery = ""
+        } else {
+            kotlinx.coroutines.delay(200L) // 200ms debounce
+            debouncedQuery = manualSearchQuery
+        }
+    }
 
     val playScanBeep: () -> Unit = {
         try {
@@ -146,9 +156,9 @@ fun AdetselQuickCountBottomSheet(
         countQuantityText = currentStock.toString()
     }
 
-    // Dinamik Arama Sonuçları (Kullanıcı yazdıkça anlık eşleşenler)
-    val searchResults = remember(manualSearchQuery, allProducts) {
-        val q = manualSearchQuery.trim()
+    // Dinamik Arama Sonuçları (Debounce edilmiş sorgu ile arama)
+    val searchResults = remember(debouncedQuery, allProducts) {
+        val q = debouncedQuery.trim()
         if (q.isBlank()) emptyList()
         else {
             allProducts.findMatchingProducts(q).take(6)
@@ -221,6 +231,7 @@ fun AdetselQuickCountBottomSheet(
                         isFlashOn = isFlashOn,
                         zoomRatio = 1.0f,
                         filterMode = ScannerFilterMode.ALL,
+                        isPaused = manualSearchQuery.isNotBlank() || scannedProduct != null,
                         requireCloseDistance = false,
                         onBarcodeScanned = { barcode ->
                             val clean = barcode.trim()

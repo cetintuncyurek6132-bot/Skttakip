@@ -1,9 +1,7 @@
 package com.example.ui.screens.analytics
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,13 +9,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -25,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -34,9 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.ui.theme.CriticalOrange
-import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.ExpiredRedDark
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate600
@@ -51,8 +44,8 @@ fun AnalyticsKpiSection(
     soonProducts: List<Product>,
     totalVarietyCount: Int,
     totalStockCount: Int,
-    last30DaysExpiredCount: Int,
-    last30DaysExpiredStock: Int,
+    sktPerformanceItems: List<SktPerformanceItem> = emptyList(),
+    onProductClick: (Product) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -121,54 +114,12 @@ fun AnalyticsKpiSection(
         }
 
         // -----------------------------------------------------------------
-        // SON 30 GÜN SÜRESİ DOLANLAR ÖZET KARTI
+        // SON 30 GÜN SKT PERFORMANS & FİRE VİTRİNİ (CAROUSEL / PAGER)
         // -----------------------------------------------------------------
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = if (last30DaysExpiredCount > 0) Color(0xFFFEF2F2) else Color(0xFFF0FDF4),
-            border = BorderStroke(1.dp, if (last30DaysExpiredCount > 0) Color(0xFFFECACA) else Color(0xFFBBF7D0)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(if (last30DaysExpiredCount > 0) Color(0xFFFEE2E2) else Color(0xFFDCFCE7)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (last30DaysExpiredCount > 0) Icons.Default.TrendingDown else Icons.Default.Inventory2,
-                        contentDescription = null,
-                        tint = if (last30DaysExpiredCount > 0) ExpiredRed else EmeraldSuccess,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Son 30 Günde Süresi Dolan Ürün Durumu",
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Slate900
-                    )
-                    Text(
-                        text = if (last30DaysExpiredCount > 0)
-                            "Son 30 günde $last30DaysExpiredCount çeşit ($last30DaysExpiredStock adet) ürünün süresi doldu."
-                        else
-                            "Son 30 gün içinde süresi dolmuş ürün kaydı bulunmuyor.",
-                        fontSize = 12.sp,
-                        color = if (last30DaysExpiredCount > 0) ExpiredRedDark else Slate600
-                    )
-                }
-            }
-        }
+        SktPerformanceCarousel(
+            items = sktPerformanceItems,
+            onProductClick = onProductClick
+        )
     }
 }
 

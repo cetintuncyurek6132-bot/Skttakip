@@ -15,17 +15,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,11 +32,14 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -57,8 +57,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
 import com.example.data.StockLog
 import com.example.data.getDisplayName
@@ -77,6 +75,7 @@ enum class ProductDetailTab(val title: String, val emoji: String) {
     PRICE_INFO("Ürün Bilgileri", "🏷️")
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailModal(
     product: Product?,
@@ -107,286 +106,266 @@ fun ProductDetailModal(
         localMatchingProducts.filter { it.sktTarihi > 0L }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .heightIn(min = 280.dp, max = 680.dp)
-                .wrapContentHeight()
-                .padding(vertical = 12.dp)
-                .imePadding()
+                .fillMaxWidth()
                 .navigationBarsPadding()
-                .clip(RoundedCornerShape(22.dp)),
-            shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.5.dp, TurquoisePrimary),
-            shadowElevation = 16.dp
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(start = 16.dp, end = 16.dp, bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .wrapContentHeight()
-                    .padding(16.dp)
+            // 1. KOMPAKT VE TEMİZ BAŞLIK ÇUBUĞU
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // 1. KOMPAKT VE TEMİZ BAŞLIK ÇUBUĞU
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                    Surface(
+                        shape = CircleShape,
+                        color = TurquoisePrimary.copy(alpha = 0.12f),
+                        modifier = Modifier.size(34.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = TurquoisePrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(34.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Inventory2,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Ürün Detayı",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        // Adetsel Sayıma Aktar Butonu
-                        val adetselShape = RoundedCornerShape(8.dp)
-                        Box(
-                            modifier = Modifier
-                                .height(32.dp)
-                                .clip(adetselShape)
-                                .background(TurquoiseDark)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true, color = Color.White)
-                                ) {
-                                    onAddToAdetsel(localProduct)
-                                    Toast.makeText(context, "Ürün sayım listesine eklendi", Toast.LENGTH_SHORT).show()
-                                }
-                                .padding(horizontal = 8.dp)
-                                .testTag("detail_add_to_adetsel_button"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Calculate,
-                                    contentDescription = "Sayıma Ekle",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Sayıma Ekle",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp,
-                                    color = Color.White
-                                )
-                            }
-                        }
-
-                        // Düzenle Butonu
-                        val editShape = RoundedCornerShape(8.dp)
-                        Box(
-                            modifier = Modifier
-                                .height(32.dp)
-                                .clip(editShape)
-                                .border(BorderStroke(1.2.dp, TurquoiseDark), editShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true, color = TurquoiseDark)
-                                ) { onEditClick(localProduct) }
-                                .padding(horizontal = 8.dp)
-                                .testTag("detail_edit_product_button"),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Düzenle",
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = "Düzenle",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 11.5.sp,
-                                    color = TurquoiseDark
-                                )
-                            }
-                        }
-
-                        // Kapat Butonu
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true, radius = 16.dp)
-                                ) { onDismiss() }
-                                .testTag("close_detail_modal_button"),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
-                                tint = Slate500,
+                                imageVector = Icons.Default.Inventory2,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Ürün Detayı",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TurquoiseDark
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 2. FERAH ÜRÜN ÖZET KARTI (Ürün Adı + Kod + Toplam Adet)
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, Slate200),
-                    shadowElevation = 1.dp,
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Row(
+                    // Adetsel Sayıma Aktar Butonu
+                    val adetselShape = RoundedCornerShape(8.dp)
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            modifier = Modifier.size(48.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            shadowElevation = 2.dp
-                        ) {
-                            FallbackLetterBadge(localProduct.getDisplayName())
-                        }
-
-                        Spacer(modifier = Modifier.width(12.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = localProduct.getDisplayName().uppercase(),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                lineHeight = 18.sp
-                            )
-                            Spacer(modifier = Modifier.height(3.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            .height(32.dp)
+                            .clip(adetselShape)
+                            .background(TurquoiseDark)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = Color.White)
                             ) {
-                                val productCodeDisplay = localProduct.urunKodu.ifBlank { localProduct.barkod }
-                                if (productCodeDisplay.isNotBlank()) {
-                                    Text(
-                                        text = "Kod: $productCodeDisplay",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TurquoiseDark
-                                    )
-                                }
+                                onAddToAdetsel(localProduct)
+                                Toast.makeText(context, "Ürün sayım listesine eklendi", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 8.dp)
+                            .testTag("detail_add_to_adetsel_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Calculate,
+                                contentDescription = "Sayıma Ekle",
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Sayıma Ekle",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    // Düzenle Butonu
+                    val editShape = RoundedCornerShape(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .height(32.dp)
+                            .clip(editShape)
+                            .border(BorderStroke(1.2.dp, TurquoiseDark), editShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = TurquoiseDark)
+                            ) { onEditClick(localProduct) }
+                            .padding(horizontal = 8.dp)
+                            .testTag("detail_edit_product_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Düzenle",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "Düzenle",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.5.sp,
+                                color = TurquoiseDark
+                            )
+                        }
+                    }
+
+                    // Kapat Butonu
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, radius = 16.dp)
+                            ) { onDismiss() }
+                            .testTag("close_detail_modal_button"),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Slate500,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            // 2. FERAH ÜRÜN ÖZET KARTI (Ürün Adı + Kod + Toplam Adet)
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, Slate200),
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        shadowElevation = 2.dp
+                    ) {
+                        FallbackLetterBadge(localProduct.getDisplayName())
+                    }
+
+                    Spacer(modifier = Modifier.width(12.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = localProduct.getDisplayName().uppercase(),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val productCodeDisplay = localProduct.urunKodu.ifBlank { localProduct.barkod }
+                            if (productCodeDisplay.isNotBlank()) {
                                 Text(
-                                    text = "•",
-                                    fontSize = 10.sp,
-                                    color = Slate500
-                                )
-                                Text(
-                                    text = "Toplam: $totalStockCount Adet",
+                                    text = "Kod: $productCodeDisplay",
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (totalStockCount >= 10) Color(0xFF4338CA) else Slate700
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TurquoiseDark
                                 )
                             }
+                            Text(
+                                text = "•",
+                                fontSize = 10.sp,
+                                color = Slate500
+                            )
+                            Text(
+                                text = "Toplam: $totalStockCount Adet",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (totalStockCount >= 10) Color(0xFF4338CA) else Slate700
+                            )
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(10.dp))
+            // 3. İKİ AŞAMALI SEKMELİ KONTROL (TABS)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ProductDetailTabButton(
+                    modifier = Modifier.weight(1f),
+                    tab = ProductDetailTab.SKT_BATCHES,
+                    isSelected = selectedTab == ProductDetailTab.SKT_BATCHES,
+                    onClick = { selectedTab = ProductDetailTab.SKT_BATCHES }
+                )
+                ProductDetailTabButton(
+                    modifier = Modifier.weight(1f),
+                    tab = ProductDetailTab.PRICE_INFO,
+                    isSelected = selectedTab == ProductDetailTab.PRICE_INFO,
+                    onClick = { selectedTab = ProductDetailTab.PRICE_INFO }
+                )
+            }
 
-                // 3. İKİ AŞAMALI SEKMELİ KONTROL (TABS)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ProductDetailTabButton(
-                        modifier = Modifier.weight(1f),
-                        tab = ProductDetailTab.SKT_BATCHES,
-                        isSelected = selectedTab == ProductDetailTab.SKT_BATCHES,
-                        onClick = { selectedTab = ProductDetailTab.SKT_BATCHES }
-                    )
-                    ProductDetailTabButton(
-                        modifier = Modifier.weight(1f),
-                        tab = ProductDetailTab.PRICE_INFO,
-                        isSelected = selectedTab == ProductDetailTab.PRICE_INFO,
-                        onClick = { selectedTab = ProductDetailTab.PRICE_INFO }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 4. SEKME İÇERİKLERİ (Scrollable Body)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    AnimatedContent(
-                        targetState = selectedTab,
-                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                        label = "detail_tab_content_anim"
-                    ) { currentTab ->
-                        when (currentTab) {
-                            ProductDetailTab.SKT_BATCHES -> {
-                                ProductDetailSktTabContent(
-                                    product = localProduct,
-                                    matchingProducts = localMatchingProducts,
-                                    stockLogs = stockLogs,
-                                    onAddNewSktClick = { onAddNewSktClick(localProduct) },
-                                    onEditSktItem = { editingSktItem = it },
-                                    onDeleteSkt = { prod ->
-                                        localMatchingProducts = localMatchingProducts.filter { it.id != prod.id }
-                                        onDeleteSkt(prod)
-                                    },
-                                    onBatchClick = { batch ->
-                                        selectedBatchForDeduct = batch
-                                    }
-                                )
+            // 4. SEKME İÇERİKLERİ
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "detail_tab_content_anim"
+            ) { currentTab ->
+                when (currentTab) {
+                    ProductDetailTab.SKT_BATCHES -> {
+                        ProductDetailSktTabContent(
+                            product = localProduct,
+                            matchingProducts = localMatchingProducts,
+                            stockLogs = stockLogs,
+                            onAddNewSktClick = { onAddNewSktClick(localProduct) },
+                            onEditSktItem = { editingSktItem = it },
+                            onDeleteSkt = { prod ->
+                                localMatchingProducts = localMatchingProducts.filter { it.id != prod.id }
+                                onDeleteSkt(prod)
+                            },
+                            onBatchClick = { batch ->
+                                selectedBatchForDeduct = batch
                             }
-                            ProductDetailTab.PRICE_INFO -> {
-                                ProductDetailPriceInfoTabContent(
-                                    product = localProduct,
-                                    matchingProducts = localMatchingProducts,
-                                    onQrPriceClick = { showDetailPriceQrScanner = true }
-                                )
-                            }
-                        }
+                        )
+                    }
+                    ProductDetailTab.PRICE_INFO -> {
+                        ProductDetailPriceInfoTabContent(
+                            product = localProduct,
+                            matchingProducts = localMatchingProducts,
+                            onQrPriceClick = { showDetailPriceQrScanner = true }
+                        )
                     }
                 }
             }

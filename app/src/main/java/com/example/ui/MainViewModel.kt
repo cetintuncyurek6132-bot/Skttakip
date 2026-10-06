@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -33,6 +34,7 @@ enum class ProductGroupFilter(val label: String) {
     GIDA("Gıda")
 }
 
+@Immutable
 data class DashboardState(
     val totalCount: Int = 0,
     val allRegisteredCount: Int = 0,

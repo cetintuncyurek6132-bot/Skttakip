@@ -1,11 +1,16 @@
 package com.example.data
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+
+private val sktDateFormatter = ThreadLocal.withInitial {
+    java.text.SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
+}
 
 fun getTodayMidnightMillis(): Long {
     val cal = Calendar.getInstance()
@@ -56,6 +61,7 @@ fun Product.matchesSearchQuery(rawQuery: String, queryTokens: List<String> = emp
     return tokens.all { targetText.contains(it) }
 }
 
+@Immutable
 @Entity(
     tableName = "products",
     indices = [
@@ -85,41 +91,32 @@ data class Product(
         if (f <= 0.0) return null
         return "₺${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", f)}"
     }
+
     fun getFormattedSkt(): String {
         if (sktTarihi <= 0L) return "SKT Girilmedi"
-        val sdf = java.text.SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
-        return sdf.format(java.util.Date(sktTarihi))
+        return sktDateFormatter.get()?.format(java.util.Date(sktTarihi)) ?: "SKT Girilmedi"
     }
 
     /**
-     * java.time.LocalDate ve ChronoUnit.DAYS.between standardı ile hassas ve net takvim günü hesabı.
-     * Saat, dakika veya zaman dilimi sapması olmadan gün farkı hesaplar.
+     * Gün farkı hesabı: Sıfır nesne tahsisi (zero allocation) ve yüksek performans.
      */
     fun getRemainingDays(todayDate: java.time.LocalDate = java.time.LocalDate.now()): Long {
         if (sktTarihi <= 0L) return 9999L
-        return try {
-            val sktLocalDate = java.time.Instant.ofEpochMilli(sktTarihi)
-                .atZone(java.time.ZoneId.systemDefault())
-                .toLocalDate()
-            java.time.temporal.ChronoUnit.DAYS.between(todayDate, sktLocalDate)
-        } catch (_: Exception) {
-            val diff = sktTarihi - System.currentTimeMillis()
-            diff / (1000L * 60 * 60 * 24)
+        val cal = Calendar.getInstance().apply {
+            set(todayDate.year, todayDate.monthValue - 1, todayDate.dayOfMonth, 0, 0, 0)
+            set(Calendar.MILLISECOND, 0)
         }
+        return getRemainingDays(cal.timeInMillis)
     }
 
     fun getRemainingDays(todayMidnight: Long): Long {
         if (sktTarihi <= 0L) return 9999L
-        return try {
-            val todayLocalDate = java.time.Instant.ofEpochMilli(todayMidnight)
-                .atZone(java.time.ZoneId.systemDefault())
-                .toLocalDate()
-            getRemainingDays(todayLocalDate)
-        } catch (_: Exception) {
-            val sktCal = Calendar.getInstance().apply { timeInMillis = sktTarihi }
-            val todayCal = Calendar.getInstance().apply { timeInMillis = todayMidnight }
-            val diffMillis = sktCal.timeInMillis - todayCal.timeInMillis
-            diffMillis / (1000L * 60 * 60 * 24)
+        val diffMillis = sktTarihi - todayMidnight
+        // 86,400,000 ms per day with half-day rounding for timezone edge cases
+        return if (diffMillis >= 0) {
+            (diffMillis + 43200000L) / 86400000L
+        } else {
+            (diffMillis - 43200000L) / 86400000L
         }
     }
 

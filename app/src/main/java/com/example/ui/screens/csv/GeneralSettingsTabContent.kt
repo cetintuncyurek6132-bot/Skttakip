@@ -604,6 +604,7 @@ fun GeneralSettingsTabContent(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ToneSelectionDialog(
     currentBarcodeToneId: Int,
@@ -612,122 +613,134 @@ private fun ToneSelectionDialog(
     onSelectQrFixTone: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
     ) {
-        Surface(
+        Column(
             modifier = Modifier
-                .fillMaxWidth(0.92f)
-                .wrapContentHeight()
-                .padding(vertical = 16.dp),
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 10.dp,
-            border = BorderStroke(1.dp, Slate200)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+            // Başlık Satırı
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Başlık Satırı
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(CircleShape)
+                            .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.VolumeUp,
                             contentDescription = null,
                             tint = TurquoisePrimary,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
                         )
+                    }
+                    Column {
                         Text(
-                            text = "Tarama Ses Tonu Seçimi",
+                            text = "Ses Efektleri ve Bildirim Tonları",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
-                            tint = Slate500,
-                            modifier = Modifier.size(20.dp)
+                        Text(
+                            text = "Okuma ve doğrulama seslerini özelleştirin",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
 
-                HorizontalDivider(color = Slate200)
-
-                // 1. Kategori: Barkod Tarama Sesi
-                Text(
-                    text = "1. Barkod Tarama Sesi",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TurquoiseDark
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SoundToneManager.BARCODE_TONES.forEach { option ->
-                        ToneOptionItem(
-                            option = option,
-                            isSelected = option.id == currentBarcodeToneId,
-                            onClick = { onSelectBarcodeTone(option.id) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // 2. Kategori: Raf Etiketi / QR Doğrulama Sesi
-                Text(
-                    text = "2. Raf Etiketi / QR Doğrulama Sesi",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TurquoiseDark
-                )
-
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SoundToneManager.QR_FIX_TONES.forEach { option ->
-                        ToneOptionItem(
-                            option = option,
-                            isSelected = option.id == currentQrFixToneId,
-                            onClick = { onSelectQrFixTone(option.id) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Button(
+                IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                    modifier = Modifier.size(32.dp)
                 ) {
-                    Text(
-                        text = "Tamam",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = Color.White
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Kapat",
+                        tint = Slate500,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
+
+            HorizontalDivider(color = Slate200)
+
+            // 1. Kategori: Barkod Tarama Sesi
+            Text(
+                text = "1. Barkod Tarama Sesi",
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = TurquoiseDark
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SoundToneManager.BARCODE_TONES.forEach { option ->
+                    ToneOptionItem(
+                        option = option,
+                        isSelected = option.id == currentBarcodeToneId,
+                        onClick = { onSelectBarcodeTone(option.id) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(2.dp))
+
+            // 2. Kategori: Raf Etiketi / QR Doğrulama Sesi
+            Text(
+                text = "2. Raf Etiketi / QR Doğrulama Sesi",
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Bold,
+                color = TurquoiseDark
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SoundToneManager.QR_FIX_TONES.forEach { option ->
+                    ToneOptionItem(
+                        option = option,
+                        isSelected = option.id == currentQrFixToneId,
+                        onClick = { onSelectQrFixTone(option.id) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(46.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+            ) {
+                Text(
+                    text = "Tamam",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.5.sp,
+                    color = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
