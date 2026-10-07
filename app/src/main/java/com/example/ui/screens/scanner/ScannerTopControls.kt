@@ -76,7 +76,7 @@ fun ScannerTopControls(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 // ARAMA / TARA MODU
-                val standardModeLabel = if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "Sayım Modu" else "Barkod Ara"
+                val standardModeLabel = "Barkod Ara"
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))

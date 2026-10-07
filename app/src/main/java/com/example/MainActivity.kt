@@ -327,7 +327,7 @@ fun SktMainApp(
                     currentRoute = activeRoute,
                     onNavigate = { target -> navigateToTab(target) },
                     onScanClick = {
-                        scannerOpenMode = if (activeRoute == "adetsel") ScannerOpenMode.ADETSEL_SAYIM else ScannerOpenMode.BARCODE_SEARCH
+                        scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
                         isBarcodeScannerOpen = true
                     },
                     userRoleCode = currentUser?.role ?: "MS"
@@ -343,7 +343,7 @@ fun SktMainApp(
                             onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
                             onAddNewProductClick = { inventoryViewModel.openAddProductModal() },
                             onOpenScanner = {
-                                scannerOpenMode = if (activeRoute == "adetsel") ScannerOpenMode.ADETSEL_SAYIM else ScannerOpenMode.BARCODE_SEARCH
+                                scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
                                 isBarcodeScannerOpen = true
                             },
                             onBellClick = { isNotificationDialogOpen = true },

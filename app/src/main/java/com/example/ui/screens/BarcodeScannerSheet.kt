@@ -248,10 +248,10 @@ fun BarcodeScannerSheet(
                 CameraXBarcodeView(
                     isFlashOn = isFlashOn,
                     zoomRatio = zoomRatio,
-                    filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ALL,
+                    filterMode = ScannerFilterMode.ALL,
                     isBatterySaverMode = isBatterySaverMode,
                     isPaused = isCameraAnalysisPaused,
-                    requireCloseDistance = !isFixQrMode,
+                    requireCloseDistance = false,
                     onDistanceStateChanged = { tooFar ->
                         isBarcodeTooFar = if (isFixQrMode) false else tooFar
                     },
@@ -273,6 +273,13 @@ fun BarcodeScannerSheet(
                             isProcessingScan = true
                             lastScannedCode = trimmedBar
                             lastScannedTime = now
+
+                            coroutineScope.launch {
+                                delay(2500L)
+                                if (isProcessingScan) {
+                                    isProcessingScan = false
+                                }
+                            }
 
                             if (onFixQrScanned != null) {
                                 val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
@@ -325,21 +332,23 @@ fun BarcodeScannerSheet(
                                     qrFixHistoryList.add(
                                         0,
                                         com.example.ui.screens.scanner.QrFixHistoryItem(
-                                            time = formattedTime,
-                                            barcode = realBarcode,
-                                            productCode = pCode ?: matchedProd?.urunKodu,
-                                            productName = prodName,
-                                            message = msg,
-                                            isSuccess = isSuccess
+                                             time = formattedTime,
+                                             barcode = realBarcode,
+                                             productCode = pCode ?: matchedProd?.urunKodu,
+                                             productName = prodName,
+                                             message = msg,
+                                             isSuccess = isSuccess
                                         )
                                     )
-                                    // Seri okuma akış bekleme süresi: 1500ms'den 850ms'ye düşürüldü (1 tık daha seri)
+                                    // Seri okuma akış bekleme süresi: 850ms
                                     coroutineScope.launch {
                                         delay(850L)
                                         lastScannedCode = ""
                                         isProcessingScan = false
                                     }
                                 }
+                            } else {
+                                isProcessingScan = false
                             }
                         } else {
                             // 2. BARKOD ARA MODUNDA TEMİZ AYRIŞTIRMA (İsimsiz Ürün Hatasını Önleme)
@@ -678,13 +687,13 @@ fun BarcodeScannerSheet(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Column {
                                         Text(
-                                            text = if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "📋 Sayım Barkod Modu" else "⚡ Seri Barkod Okuma Modu",
+                                            text = "⚡ Seri Barkod Okuma Modu",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Text(
-                                            text = if (openMode == ScannerOpenMode.ADETSEL_SAYIM) "Okutulan barkod doğrudan sayım listesine eklenir" else "Telefonu barkoda yaklaştırarak sırayla okutabilirsiniz",
+                                            text = "Telefonu barkoda veya QR koda yaklaştırarak okutabilirsiniz",
                                             fontSize = 10.5.sp,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )

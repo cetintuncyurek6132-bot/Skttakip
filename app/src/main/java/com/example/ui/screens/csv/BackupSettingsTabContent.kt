@@ -190,6 +190,7 @@ fun BackupSettingsTabContent(
     if (showExportSheet) {
         ModalBottomSheet(
             onDismissRequest = { showExportSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             dragHandle = { BottomSheetDefaults.DragHandle() }
@@ -334,6 +335,7 @@ fun BackupSettingsTabContent(
     if (showImportSheet) {
         ModalBottomSheet(
             onDismissRequest = { showImportSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             dragHandle = { BottomSheetDefaults.DragHandle() }

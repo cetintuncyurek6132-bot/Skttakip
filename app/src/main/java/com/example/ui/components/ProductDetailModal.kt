@@ -117,7 +117,7 @@ fun ProductDetailModal(
     }
 
     // 3 Kademeli Dikey Sürükleme (PartiallyExpanded -> Expanded -> Dismiss)
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     fun dismissSheet() {
         coroutineScope.launch {

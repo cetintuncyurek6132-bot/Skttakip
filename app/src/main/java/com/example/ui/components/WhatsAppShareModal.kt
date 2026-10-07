@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -199,13 +200,13 @@ fun WhatsAppShareModal(
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .horizontalScroll(rememberScrollState())
                                 .padding(3.dp),
                             horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             // Tab 1 (ÖNCELİKLİ / BAŞTA): SON GÜN / -1 GÜN GEÇMİŞ
                             Box(
                                 modifier = Modifier
-                                    .weight(1.15f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(
@@ -240,7 +241,6 @@ fun WhatsAppShareModal(
                             // Tab 2: SKT SON 7 GÜN
                             Box(
                                 modifier = Modifier
-                                    .weight(1f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(
@@ -275,7 +275,6 @@ fun WhatsAppShareModal(
                             // Tab 3: ÖNEMLİ
                             Box(
                                 modifier = Modifier
-                                    .weight(0.9f)
                                     .fillMaxHeight()
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(

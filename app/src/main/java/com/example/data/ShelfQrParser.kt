@@ -51,14 +51,14 @@ object ShelfQrParser {
                 var c: String? = null
                 for (key in listOf("product_code", "productCode", "urun_kodu", "urunKodu", "kod", "c", "item_code", "sku")) {
                     if (jsonObj.has(key)) {
-                        c = jsonObj.optString(key, null)
+                        c = jsonObj.optString(key).takeIf { it.isNotBlank() }
                         if (!c.isNullOrEmpty()) break
                     }
                 }
                 var n: String? = null
                 for (key in listOf("name", "urun_adi", "urunAdi", "title", "n", "desc", "description")) {
                     if (jsonObj.has(key)) {
-                        n = jsonObj.optString(key, null)
+                        n = jsonObj.optString(key).takeIf { it.isNotBlank() }
                         if (!n.isNullOrEmpty()) break
                     }
                 }

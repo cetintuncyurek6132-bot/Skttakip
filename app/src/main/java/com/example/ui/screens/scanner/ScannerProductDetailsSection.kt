@@ -177,7 +177,7 @@ fun ScannerProductDetailsSection(
             }
 
             // 2) Searching in progress
-            activeBarcode.isNotBlank() && isSearching && foundProduct == null -> {
+            activeBarcode.isNotBlank() && isSearching -> {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()

@@ -49,7 +49,7 @@ object CategoryClassifier {
         if (productName.isNullOrBlank()) return CATEGORY_GIDA
 
         return try {
-            val trLocale = Locale("tr", "TR")
+            val trLocale = Locale.forLanguageTag("tr-TR")
             val cleanName = productName.lowercase(trLocale)
 
             // Özel kontrol: "dana eti", "tavuk eti" gibi et tamlamaları (Eti markası değil)
