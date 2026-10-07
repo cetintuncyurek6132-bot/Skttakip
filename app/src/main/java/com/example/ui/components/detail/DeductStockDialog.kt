@@ -2,6 +2,9 @@ package com.example.ui.components.detail
 
 import android.widget.Toast
 import com.example.ui.components.AppBottomSheetWrapper
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -90,7 +93,9 @@ fun DeductStockDialog(
     ) { dismissSheet ->
         // 1. BAŞLIK VE KAPAT BUTONU
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -134,15 +139,24 @@ fun DeductStockDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
 
-                // 2. SEÇİLEN PARTİ BİLGİ KARTI
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Slate200),
-                    modifier = Modifier.fillMaxWidth()
+                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // 2. SEÇİLEN PARTİ BİLGİ KARTI
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Slate200),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -292,11 +306,14 @@ fun DeductStockDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                // Form Column Kapanışı
+                }
 
                 // 4. EYLEM BUTONLARI: "SATILDI" (Yeşil) ve "FİRE" (Kırmızı)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Sol Buton: Satıldı

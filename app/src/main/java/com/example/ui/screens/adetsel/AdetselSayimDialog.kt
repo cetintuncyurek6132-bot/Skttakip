@@ -2,6 +2,8 @@ package com.example.ui.screens.adetsel
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -108,6 +110,12 @@ fun AdetselSayimDialog(
 
     val focusRequester = remember { FocusRequester() }
 
+    LaunchedEffect(kayit, initialMode) {
+        selectedSonuc = initialMode
+        discrepancyText = if (initialMode == "TAM") "0" else "1"
+        notlar = ""
+    }
+
     fun adjustDiscrepancy(delta: Int) {
         val current = discrepancyNumber
         val next = maxOf(1, current + delta)
@@ -119,7 +127,9 @@ fun AdetselSayimDialog(
     ) { dismissSheet ->
         // Header
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -152,15 +162,24 @@ fun AdetselSayimDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // Product Info Box
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                    modifier = Modifier.fillMaxWidth()
+                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    // Product Info Box
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
                             text = kayit.urunAdi.uppercase(),
@@ -395,12 +414,15 @@ fun AdetselSayimDialog(
                         unfocusedBorderColor = Slate300
                     )
                 )
+            }
 
-                Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-                // Action Buttons (Vazgeç & Kaydet)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+            // Action Buttons (Vazgeç & Kaydet)
+            Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(

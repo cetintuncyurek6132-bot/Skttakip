@@ -197,89 +197,133 @@ fun BackupSettingsTabContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .wrapContentHeight()
                     .navigationBarsPadding()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .imePadding()
             ) {
                 // Header
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFECFDF5)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFECFDF5)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                tint = Color(0xFF059669),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "Dışa Aktarma ve Yedekleme",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Yedeklemek istediğiniz veri kapsamını seçin",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { showExportSheet = false },
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CloudUpload,
-                            contentDescription = null,
-                            tint = Color(0xFF059669),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "Dışa Aktarma ve Yedekleme",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Yedeklemek istediğiniz veri kapsamını seçin",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Slate500,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                HorizontalDivider(color = Slate200)
+                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 20.dp))
 
-                // BUTON 1: [ 💾 Tüm Verileri Yedek Al ]
-                ExportOptionCard(
-                    title = "Tüm Verileri Yedek Al (Tam Yedek)",
-                    description = "Ürünler, ürünlere girilen tüm SKT parti adetleri, birim fiyatlar, sayım ve iade takip verilerinin tamamını eksiksiz tek bir .json yedeği olarak dışa aktarır ve paylaşır.",
-                    icon = Icons.Default.Save,
-                    iconBgColor = Color(0xFFECFDF5),
-                    iconColor = Color(0xFF059669),
-                    badgeText = "Önerilen",
-                    badgeColor = Color(0xFF059669),
-                    onClick = {
-                        showExportSheet = false
-                        onTriggerJsonShare()
+                // Scrollable Content
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // BUTON 1: [ 💾 Tüm Verileri Yedek Al ]
+                    ExportOptionCard(
+                        title = "Tüm Verileri Yedek Al (Tam Yedek)",
+                        description = "Ürünler, ürünlere girilen tüm SKT parti adetleri, birim fiyatlar, sayım ve iade takip verilerinin tamamını eksiksiz tek bir .json yedeği olarak dışa aktarır ve paylaşır.",
+                        icon = Icons.Default.Save,
+                        iconBgColor = Color(0xFFECFDF5),
+                        iconColor = Color(0xFF059669),
+                        badgeText = "Önerilen",
+                        badgeColor = Color(0xFF059669),
+                        onClick = {
+                            showExportSheet = false
+                            onTriggerJsonShare()
+                        }
+                    )
+
+                    // BUTON 2: [ 📦 Ürünleri Yedek Al ]
+                    ExportOptionCard(
+                        title = "Ürünleri Yedek Al",
+                        description = "Kayıtlı ürünleri, barkodları, reyonları, fiyatları ve girilmiş tüm SKT parti adetlerini yedekler.",
+                        icon = Icons.Default.Inventory2,
+                        iconBgColor = Color(0xFFEFF6FF),
+                        iconColor = Color(0xFF2563EB),
+                        onClick = {
+                            showExportSheet = false
+                            onTriggerProductsExport()
+                        }
+                    )
+
+                    // BUTON 3: [ 📋 Sayım ve İade Takip Verilerini Yedek Al ]
+                    ExportOptionCard(
+                        title = "Sayım ve İade Takip Verilerini Yedek Al",
+                        description = "Adetsel sayım sonuçlarını ve iade & depo takip kayıtlarını yedekler.",
+                        icon = Icons.Default.AssignmentTurnedIn,
+                        iconBgColor = Color(0xFFFAF5FF),
+                        iconColor = Color(0xFF7C3AED),
+                        onClick = {
+                            showExportSheet = false
+                            onTriggerCountAndIadeExport()
+                        }
+                    )
+                }
+
+                // Alt Aksiyon Alanı
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showExportSheet = false },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Text("Kapat", fontWeight = FontWeight.Bold)
                     }
-                )
-
-                // BUTON 2: [ 📦 Ürünleri Yedek Al ]
-                ExportOptionCard(
-                    title = "Ürünleri Yedek Al",
-                    description = "Kayıtlı ürünleri, barkodları, reyonları, fiyatları ve girilmiş tüm SKT parti adetlerini yedekler.",
-                    icon = Icons.Default.Inventory2,
-                    iconBgColor = Color(0xFFEFF6FF),
-                    iconColor = Color(0xFF2563EB),
-                    onClick = {
-                        showExportSheet = false
-                        onTriggerProductsExport()
-                    }
-                )
-
-                // BUTON 3: [ 📋 Sayım ve İade Takip Verilerini Yedek Al ]
-                ExportOptionCard(
-                    title = "Sayım ve İade Takip Verilerini Yedek Al",
-                    description = "Adetsel sayım sonuçlarını ve iade & depo takip kayıtlarını yedekler.",
-                    icon = Icons.Default.AssignmentTurnedIn,
-                    iconBgColor = Color(0xFFFAF5FF),
-                    iconColor = Color(0xFF7C3AED),
-                    onClick = {
-                        showExportSheet = false
-                        onTriggerCountAndIadeExport()
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
+                }
             }
         }
     }
@@ -297,74 +341,118 @@ fun BackupSettingsTabContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .wrapContentHeight()
                     .navigationBarsPadding()
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                    .imePadding()
             ) {
                 // Header
                 Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFEFF6FF)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFEFF6FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CloudDownload,
+                                contentDescription = null,
+                                tint = Color(0xFF2563EB),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = "İçe Aktarma",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = "Yüklemek istediğiniz dosya türünü seçin",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { showImportSheet = false },
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CloudDownload,
-                            contentDescription = null,
-                            tint = Color(0xFF2563EB),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Column {
-                        Text(
-                            text = "İçe Aktarma",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Yüklemek istediğiniz dosya türünü seçin",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Slate500,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                HorizontalDivider(color = Slate200)
+                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 20.dp))
 
-                // BUTON 1: [ 📄 JSON Yedek Dosyasından Yükle ]
-                ExportOptionCard(
-                    title = "JSON Yedek Dosyasından Yükle",
-                    description = "Tam veya parça yedek dosyasını içeri aktarır. Mevcut verileriniz korunarak akıllıca birleştirilir.",
-                    icon = Icons.Default.DataObject,
-                    iconBgColor = Color(0xFFEFF6FF),
-                    iconColor = Color(0xFF2563EB),
-                    onClick = {
-                        showImportSheet = false
-                        onTriggerJsonImport()
+                // Scrollable Content
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // BUTON 1: [ 📄 JSON Yedek Dosyasından Yükle ]
+                    ExportOptionCard(
+                        title = "JSON Yedek Dosyasından Yükle",
+                        description = "Tam veya parça yedek dosyasını içeri aktarır. Mevcut verileriniz korunarak akıllıca birleştirilir.",
+                        icon = Icons.Default.DataObject,
+                        iconBgColor = Color(0xFFEFF6FF),
+                        iconColor = Color(0xFF2563EB),
+                        onClick = {
+                            showImportSheet = false
+                            onTriggerJsonImport()
+                        }
+                    )
+
+                    // BUTON 2: [ 📊 Excel / CSV'den Ürün Aktar ]
+                    ExportOptionCard(
+                        title = "Excel / CSV'den Ürün Aktar",
+                        description = "Toplu ürün listesi yükler. Barkod, ürün kodu, reyon ve fiyatları otomatik içeri aktarır.",
+                        icon = Icons.Default.TableChart,
+                        iconBgColor = Color(0xFFECFDF5),
+                        iconColor = Color(0xFF059669),
+                        onClick = {
+                            showImportSheet = false
+                            onTriggerCsvImport()
+                        }
+                    )
+                }
+
+                // Alt Aksiyon Alanı
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { showImportSheet = false },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Text("Kapat", fontWeight = FontWeight.Bold)
                     }
-                )
-
-                // BUTON 2: [ 📊 Excel / CSV'den Ürün Aktar ]
-                ExportOptionCard(
-                    title = "Excel / CSV'den Ürün Aktar",
-                    description = "Toplu ürün listesi yükler. Barkod, ürün kodu, reyon ve fiyatları otomatik içeri aktarır.",
-                    icon = Icons.Default.TableChart,
-                    iconBgColor = Color(0xFFECFDF5),
-                    iconColor = Color(0xFF059669),
-                    onClick = {
-                        showImportSheet = false
-                        onTriggerCsvImport()
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
+                }
             }
         }
     }

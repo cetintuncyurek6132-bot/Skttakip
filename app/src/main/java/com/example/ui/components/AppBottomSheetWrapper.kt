@@ -6,10 +6,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -43,13 +45,13 @@ import kotlinx.coroutines.launch
 fun AppBottomSheetWrapper(
     onDismissRequest: () -> Unit,
     modifier: Modifier = Modifier,
-    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false),
+    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
     shape: Shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
     containerColor: Color = MaterialTheme.colorScheme.surface,
     enableHorizontalSwipeDismiss: Boolean = true,
     horizontalSwipeThreshold: Dp = 45.dp,
-    enableVerticalScroll: Boolean = true,
-    contentPadding: Dp = 16.dp,
+    enableVerticalScroll: Boolean = false,
+    contentPadding: Dp = 0.dp,
     dragHandle: @Composable (() -> Unit)? = { BottomSheetDefaults.DragHandle() },
     content: @Composable ColumnScope.(dismissSheet: () -> Unit) -> Unit
 ) {
@@ -104,7 +106,7 @@ fun AppBottomSheetWrapper(
     ) {
         val baseColumnModifier = Modifier
             .fillMaxWidth()
-            .statusBarsPadding()
+            .wrapContentHeight()
             .navigationBarsPadding()
             .imePadding()
             .then(dragModifier)
@@ -113,7 +115,7 @@ fun AppBottomSheetWrapper(
             baseColumnModifier.verticalScroll(rememberScrollState())
         } else {
             baseColumnModifier
-        }.padding(start = contentPadding, end = contentPadding, bottom = contentPadding + 4.dp)
+        }.padding(start = contentPadding, end = contentPadding, bottom = contentPadding)
 
         Column(
             modifier = finalColumnModifier

@@ -35,6 +35,9 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -175,16 +178,15 @@ fun AdetselQuickCountBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentHeight()
+                .navigationBarsPadding()
                 .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 28.dp)
         ) {
             // Başlık Çubuğu
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -216,6 +218,17 @@ fun AdetselQuickCountBottomSheet(
                     )
                 }
             }
+
+            HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+
+            // FORM VE KAMERA İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
 
             // 1. ÜST KISIM (KAMERA - 200dp CameraX Vizörü)
             Box(
@@ -659,12 +672,13 @@ fun AdetselQuickCountBottomSheet(
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // 4. ALT KISIM (BUTONLAR)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
+        // 4. ALT KISIM (BUTONLAR)
+        Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // "Vazgeç" butonu: Modalı kapatır, hiçbir şey kaydetmez

@@ -170,7 +170,7 @@ fun ProfileSheet(
 
                 LazyColumn(
                     modifier = Modifier
-                        .weight(1f)
+                        .weight(1f, fill = false)
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {

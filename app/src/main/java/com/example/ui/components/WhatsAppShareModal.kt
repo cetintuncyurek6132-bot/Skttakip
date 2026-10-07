@@ -385,7 +385,7 @@ fun WhatsAppShareModal(
                     if (currentCategoryProducts.isEmpty()) {
                         Box(
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(1f, fill = false)
                                 .fillMaxWidth()
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
                                 .padding(24.dp),
@@ -421,7 +421,7 @@ fun WhatsAppShareModal(
                     } else {
                         LazyColumn(
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(1f, fill = false)
                                 .fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {

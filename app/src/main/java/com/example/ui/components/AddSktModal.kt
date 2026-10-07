@@ -40,6 +40,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -87,6 +88,13 @@ fun AddSktModal(
     var showOcrScanner by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
 
+    LaunchedEffect(product, isEditMode) {
+        stokAdedi = if (isEditMode && product.stokAdedi > 0) product.stokAdedi.toString() else "1"
+        if (isEditMode && product.sktTarihi > 0L) {
+            selectedDateMillis = product.sktTarihi
+        }
+    }
+
     val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
 
     if (showOcrScanner) {
@@ -114,7 +122,9 @@ fun AddSktModal(
     ) { dismissSheet ->
         // 1. MODAL HEADER
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -157,15 +167,24 @@ fun AddSktModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // 2. PRODUCT INFO CARD
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = Color(0xFFF8FAFC),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                    modifier = Modifier.fillMaxWidth()
+                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // 2. PRODUCT INFO CARD
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -479,14 +498,17 @@ fun AddSktModal(
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-                // 5. ACTION BUTTONS
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+            // 5. ACTION BUTTONS
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                     val context = LocalContext.current
                     if (!isEditMode) {
                         Button(

@@ -217,7 +217,9 @@ fun SktMainApp(
         } else {
             if (currentNavRoute != resolved) {
                 navController.navigate(resolved) {
-                    popUpTo("main") { saveState = true }
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
                     launchSingleTop = true
                     restoreState = true
                 }

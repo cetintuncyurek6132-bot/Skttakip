@@ -24,9 +24,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.ArrowDropDown
@@ -108,14 +110,14 @@ fun AddEditTakipModal(
     onSave: (DepoIadeKaydi) -> Unit
 ) {
     val context = LocalContext.current
-    var urunKoduInput by remember { mutableStateOf(existingRecord?.urunKodu ?: "") }
-    var urunAdi by remember { mutableStateOf(existingRecord?.urunAdi ?: "") }
+    var urunKoduInput by remember(existingRecord) { mutableStateOf(existingRecord?.urunKodu ?: "") }
+    var urunAdi by remember(existingRecord) { mutableStateOf(existingRecord?.urunAdi ?: "") }
     var matchedProduct by remember { mutableStateOf<Product?>(null) }
     var hasSearchedCode by remember { mutableStateOf(false) }
     var isNotFoundByCode by remember { mutableStateOf(false) }
-    var showManualNameInput by remember { mutableStateOf(existingRecord != null || urunAdi.isNotBlank()) }
+    var showManualNameInput by remember { mutableStateOf(true) }
 
-    var selectedRedNedeni by remember {
+    var selectedRedNedeni by remember(existingRecord) {
         mutableStateOf(
             if (existingRecord != null && IadeRedNedeni.values().none { it.displayName == existingRecord.redNedeni }) {
                 IadeRedNedeni.DIGER.displayName
@@ -124,27 +126,45 @@ fun AddEditTakipModal(
             }
         )
     }
-    var customRedNedeni by remember {
+    var customRedNedeni by remember(existingRecord) {
         mutableStateOf(
             if (existingRecord != null && IadeRedNedeni.values().none { it.displayName == existingRecord.redNedeni }) {
                 existingRecord.redNedeni
             } else ""
         )
     }
-    var oncelik by remember { mutableStateOf(existingRecord?.oncelik ?: IadeOncelik.NORMAL) }
-    var durum by remember { mutableStateOf(existingRecord?.durum ?: IadeDurumu.DEVAM_EDIYOR) }
-    var aciklama by remember { mutableStateOf(existingRecord?.aciklama ?: "") }
-    var iadeTarihi by remember { mutableStateOf(existingRecord?.iadeTarihi ?: DepoIadeManager.getTodayDateString()) }
-    var hatirlatmaTarihi by remember { mutableStateOf(existingRecord?.hatirlatmaTarihi ?: "") }
-    var gorselPath by remember { mutableStateOf<String?>(existingRecord?.irsaliyeGorselPath) }
+    var oncelik by remember(existingRecord) { mutableStateOf(existingRecord?.oncelik ?: IadeOncelik.NORMAL) }
+    var durum by remember(existingRecord) { mutableStateOf(existingRecord?.durum ?: IadeDurumu.DEVAM_EDIYOR) }
+    var aciklama by remember(existingRecord) { mutableStateOf(existingRecord?.aciklama ?: "") }
+    var iadeTarihi by remember(existingRecord) { mutableStateOf(existingRecord?.iadeTarihi ?: DepoIadeManager.getTodayDateString()) }
+    var hatirlatmaTarihi by remember(existingRecord) { mutableStateOf(existingRecord?.hatirlatmaTarihi ?: "") }
+    var gorselPath by remember(existingRecord) { mutableStateOf<String?>(existingRecord?.irsaliyeGorselPath) }
 
     var showDatePickerForIade by remember { mutableStateOf(false) }
     var showDatePickerForHatirlatma by remember { mutableStateOf(false) }
     var showRedNedeniDropdown by remember { mutableStateOf(false) }
 
-    // Düzenleme modunda mevcut kaydı eşleştirmeyi dene
-    LaunchedEffect(Unit) {
+    // Düzenleme modunda mevcut kaydı güvenli şekilde state'e aktar
+    LaunchedEffect(existingRecord) {
         if (existingRecord != null) {
+            urunKoduInput = existingRecord.urunKodu ?: ""
+            urunAdi = existingRecord.urunAdi
+            selectedRedNedeni = if (IadeRedNedeni.values().none { it.displayName == existingRecord.redNedeni }) {
+                IadeRedNedeni.DIGER.displayName
+            } else {
+                existingRecord.redNedeni
+            }
+            customRedNedeni = if (IadeRedNedeni.values().none { it.displayName == existingRecord.redNedeni }) {
+                existingRecord.redNedeni
+            } else ""
+            oncelik = existingRecord.oncelik
+            durum = existingRecord.durum
+            aciklama = existingRecord.aciklama
+            iadeTarihi = existingRecord.iadeTarihi.ifBlank { DepoIadeManager.getTodayDateString() }
+            hatirlatmaTarihi = existingRecord.hatirlatmaTarihi
+            gorselPath = existingRecord.irsaliyeGorselPath
+            showManualNameInput = true
+
             val found = availableProducts.firstOrNull { prod ->
                 (!existingRecord.urunKodu.isNullOrBlank() && prod.urunKodu.equals(existingRecord.urunKodu, ignoreCase = true)) ||
                 (!existingRecord.urunKodu.isNullOrBlank() && prod.barkod == existingRecord.urunKodu) ||
@@ -209,7 +229,9 @@ fun AddEditTakipModal(
     ) { dismissSheet ->
         // Başlık
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -226,15 +248,18 @@ fun AddEditTakipModal(
                     }
                 }
 
-                HorizontalDivider(color = Slate200, modifier = Modifier.padding(vertical = 10.dp))
+                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
 
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     // 1. ÜRÜN KODU & ÜRÜN ADI (KOD YAZIP ENTERLEYİNCE BİLGİLER GELİR)
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Ürün Kodu Giriş Alanı
                             Text(
                                 text = "Ürün Kodu *",
@@ -338,71 +363,57 @@ fun AddEditTakipModal(
                                 }
                             }
 
-                            // Eğer ürün kodu ile kayıtlı ürün yoksa (veya manuel girilmek istenirse) hemen altına ürün adı yeri açılır
-                            if (showManualNameInput || isNotFoundByCode || existingRecord != null || urunAdi.isNotBlank()) {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(
-                                        text = "Ürün Adı *",
-                                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
-                                    )
-                                    OutlinedTextField(
-                                        value = urunAdi,
-                                        onValueChange = { urunAdi = it.uppercase(java.util.Locale.forLanguageTag("tr-TR")) },
-                                        placeholder = { Text("Örn: Süt 1L Yarım Yağlı...", color = Slate400, fontSize = 14.sp) },
-                                        singleLine = true,
-                                        shape = RoundedCornerShape(12.dp),
-                                        keyboardOptions = KeyboardOptions(
-                                            capitalization = KeyboardCapitalization.Characters
-                                        ),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
+                            // Ürün Adı Giriş Alanı (Daima eksiksiz render edilir)
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text(
+                                    text = "Ürün Adı *",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
+                                )
+                                OutlinedTextField(
+                                    value = urunAdi,
+                                    onValueChange = { urunAdi = it.uppercase(java.util.Locale.forLanguageTag("tr-TR")) },
+                                    placeholder = { Text("Örn: Süt 1L Yarım Yağlı...", color = Slate400, fontSize = 14.sp) },
+                                    singleLine = true,
+                                    shape = RoundedCornerShape(12.dp),
+                                    keyboardOptions = KeyboardOptions(
+                                        capitalization = KeyboardCapitalization.Characters
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
 
-                                    // Hızlı Öneri Çipleri (Varsa)
-                                    if (urunAdi.isNotEmpty() && urunAdi.length >= 2 && matchedProduct == null) {
-                                        val suggestions = remember(urunAdi, availableProducts) {
-                                            availableProducts.filter {
-                                                it.urunAdi.contains(urunAdi, ignoreCase = true)
-                                            }.take(4)
-                                        }
-                                        if (suggestions.isNotEmpty()) {
-                                            LazyRow(
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.padding(top = 4.dp)
-                                            ) {
-                                                items(suggestions) { prod ->
-                                                    SuggestionChip(
-                                                        onClick = {
-                                                            urunAdi = prod.urunAdi
-                                                            if (urunKoduInput.isBlank() && prod.urunKodu.isNotBlank()) {
-                                                                urunKoduInput = prod.urunKodu
-                                                            }
-                                                            matchedProduct = prod
-                                                        },
-                                                        label = { Text(prod.urunAdi, fontSize = 11.sp, maxLines = 1) },
-                                                        shape = RoundedCornerShape(8.dp)
-                                                    )
-                                                }
+                                // Hızlı Öneri Çipleri (Varsa)
+                                if (urunAdi.isNotEmpty() && urunAdi.length >= 2 && matchedProduct == null) {
+                                    val suggestions = remember(urunAdi, availableProducts) {
+                                        availableProducts.filter {
+                                            it.urunAdi.contains(urunAdi, ignoreCase = true)
+                                        }.take(4)
+                                    }
+                                    if (suggestions.isNotEmpty()) {
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.padding(top = 4.dp)
+                                        ) {
+                                            items(suggestions) { prod ->
+                                                SuggestionChip(
+                                                    onClick = {
+                                                        urunAdi = prod.urunAdi
+                                                        if (urunKoduInput.isBlank() && prod.urunKodu.isNotBlank()) {
+                                                            urunKoduInput = prod.urunKodu
+                                                        }
+                                                        matchedProduct = prod
+                                                    },
+                                                    label = { Text(prod.urunAdi, fontSize = 11.sp, maxLines = 1) },
+                                                    shape = RoundedCornerShape(8.dp)
+                                                )
                                             }
                                         }
                                     }
                                 }
-                            } else {
-                                Text(
-                                    text = "✏️ Ürün adını elle girmek için dokunun",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TurquoiseDark,
-                                    modifier = Modifier
-                                        .clickable { showManualNameInput = true }
-                                        .padding(vertical = 4.dp)
-                                )
                             }
                         }
-                    }
 
                     // 2. RED / İADE NEDENİ (DİĞER DİYİNCE YAZMA KUTUSU GELİR)
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "Red / İade Nedeni *",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
@@ -465,11 +476,9 @@ fun AddEditTakipModal(
                                 )
                             }
                         }
-                    }
 
                     // 3. ÖNCELİK VE DURUM
-                    item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             // Öncelik
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
@@ -493,11 +502,9 @@ fun AddEditTakipModal(
                                 }
                             }
                         }
-                    }
 
-                    item {
-                        // Süreç Durumu (Yazının aşağı kaymasını önleyen tek satır ortalı butonlar)
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Süreç Durumu (Yazının aşağı kaymasını önleyen tek satır ortalı butonlar)
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "Süreç Durumu",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
@@ -554,11 +561,9 @@ fun AddEditTakipModal(
                                 }
                             }
                         }
-                    }
 
                     // 4. İADE TARİHİ VE HATIRLATMA
-                    item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             // İade Tarihi
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text(
@@ -611,30 +616,26 @@ fun AddEditTakipModal(
                                 }
                             }
                         }
-                    }
 
                     // 5. AÇIKLAMA / NOT
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "Açıklama & Takip Notu",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
-                            )
-                            OutlinedTextField(
-                                value = aciklama,
-                                onValueChange = { aciklama = it },
-                                placeholder = { Text("Örn: İrsaliye numarası, ambar teslim tutanağı, şoför adı vb...", color = Slate400, fontSize = 13.sp) },
-                                minLines = 2,
-                                maxLines = 4,
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = "Açıklama & Takip Notu",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
+                        )
+                        OutlinedTextField(
+                            value = aciklama,
+                            onValueChange = { aciklama = it },
+                            placeholder = { Text("Örn: İrsaliye numarası, ambar teslim tutanağı, şoför adı vb...", color = Slate400, fontSize = 13.sp) },
+                            minLines = 2,
+                            maxLines = 4,
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     // 6. İRSALİYE GÖRSELİ EKLEME
-                    item {
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "İrsaliye / Belge Fotoğrafı",
                                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
@@ -688,14 +689,15 @@ fun AddEditTakipModal(
                                 }
                             }
                         }
-                    }
                 }
 
-                HorizontalDivider(color = Slate200, modifier = Modifier.padding(vertical = 10.dp))
+                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
 
                 // Kaydet & İptal Butonları
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(

@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.TextFields
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -135,7 +136,9 @@ fun IadeSharePreviewModal(
     ) { dismissSheet ->
         // BAŞLIK BARI
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -185,110 +188,119 @@ fun IadeSharePreviewModal(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
 
-                // FORMAT SEÇİM SEKMELERİ (TabRow)
-                TabRow(
-                    selectedTabIndex = selectedTab,
-                    containerColor = Color(0xFFF1F5F9),
-                    contentColor = TurquoiseDark,
+                // ÖNİZLEME VE FORMAT ALANI (Ezilmeyi önleyen kaydırılabilir gövde)
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
-                    Tab(
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0 },
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text("Görsel Formatı", fontSize = 13.sp, fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium)
+                    // FORMAT SEÇİM SEKMELERİ (TabRow)
+                    TabRow(
+                        selectedTabIndex = selectedTab,
+                        containerColor = Color(0xFFF1F5F9),
+                        contentColor = TurquoiseDark,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                    ) {
+                        Tab(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Default.Image, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Text("Görsel Formatı", fontSize = 13.sp, fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Medium)
+                                }
                             }
-                        }
-                    )
-                    Tab(
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1 },
-                        text = {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Icon(Icons.Default.TextFields, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Text("Metin Formatı", fontSize = 13.sp, fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium)
+                        )
+                        Tab(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(Icons.Default.TextFields, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Text("Metin Formatı", fontSize = 13.sp, fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Medium)
+                                }
                             }
-                        }
-                    )
-                }
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // ÖNİZLEME ALANI
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(310.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color(0xFFF8FAFC))
-                        .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (selectedTab == 0) {
-                        // Görsel Formatı Önizleme
-                        if (isGeneratingImage) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                CircularProgressIndicator(color = TurquoisePrimary, modifier = Modifier.size(28.dp))
-                                Text("Görsel tablo hazırlanıyor...", fontSize = 12.5.sp, color = Slate500)
+                    // ÖNİZLEME ALANI
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(310.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFF8FAFC))
+                            .border(1.dp, Slate200, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (selectedTab == 0) {
+                            // Görsel Formatı Önizleme
+                            if (isGeneratingImage) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    CircularProgressIndicator(color = TurquoisePrimary, modifier = Modifier.size(28.dp))
+                                    Text("Görsel tablo hazırlanıyor...", fontSize = 12.5.sp, color = Slate500)
+                                }
+                            } else if (generatedBitmap != null) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(8.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Image(
+                                        bitmap = generatedBitmap!!.asImageBitmap(),
+                                        contentDescription = "İade Listesi Görseli",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp)),
+                                        contentScale = ContentScale.FillWidth
+                                    )
+                                }
+                            } else {
+                                Text("Görsel oluşturulamadı.", fontSize = 12.sp, color = Slate500)
                             }
-                        } else if (generatedBitmap != null) {
+                        } else {
+                            // Metin Formatı Önizleme
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .padding(12.dp)
                                     .verticalScroll(rememberScrollState())
-                                    .padding(8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                Image(
-                                    bitmap = generatedBitmap!!.asImageBitmap(),
-                                    contentDescription = "İade Listesi Görseli",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.FillWidth
+                                Text(
+                                    text = formattedTextMessage,
+                                    fontSize = 12.5.sp,
+                                    color = Slate700,
+                                    lineHeight = 18.sp
                                 )
                             }
-                        } else {
-                            Text("Görsel oluşturulamadı.", fontSize = 12.sp, color = Slate500)
-                        }
-                    } else {
-                        // Metin Formatı Önizleme
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            Text(
-                                text = formattedTextMessage,
-                                fontSize = 12.5.sp,
-                                color = Slate700,
-                                lineHeight = 18.sp
-                            )
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
                 // ALT AKSİYON BUTONLARI (50.dp Yükseklik, Tek Satır, Kesilmez)
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

@@ -42,6 +42,7 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -138,13 +139,40 @@ fun AddEditProductModal(
     var showProductNameOcrScanner by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
 
+    LaunchedEffect(product, prefilledBarcode) {
+        if (product != null) {
+            val healed = ProductDataHealer.autoHealProduct(product)
+            barkod = healed.barkod
+            urunKodu = healed.urunKodu
+            urunAdi = healed.urunAdi
+            kategori = com.example.util.CategoryClassifier.classify(healed.urunAdi, healed.kategori)
+            fiyatText = healed.fiyat?.let { f ->
+                if (f % 1.0 == 0.0) f.toInt().toString() else f.toString()
+            } ?: ""
+            isImportant = healed.isImportant
+        } else if (prefilledBarcode.isNotBlank()) {
+            val parsed = parseShelfQrPayload(prefilledBarcode)
+            if (parsed.barcode.isNotBlank()) barkod = parsed.barcode
+            if (!parsed.productCode.isNullOrBlank()) urunKodu = parsed.productCode
+            if (!parsed.productName.isNullOrBlank()) {
+                urunAdi = parsed.productName
+                kategori = com.example.util.CategoryClassifier.classify(parsed.productName)
+            }
+            if (parsed.price != null && parsed.price > 0.0) {
+                fiyatText = if (parsed.price % 1.0 == 0.0) parsed.price.toInt().toString() else parsed.price.toString()
+            }
+        }
+    }
+
     AppBottomSheetWrapper(
         onDismissRequest = onDismiss
     ) { dismissSheet ->
         // 1. ÜST BİLGİ VE BAŞLIK ALANI (HERO HEADER)
                 if (product != null) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.Top
                     ) {
@@ -182,7 +210,9 @@ fun AddEditProductModal(
                     }
                 } else {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -206,22 +236,31 @@ fun AddEditProductModal(
                 }
 
                 HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
                     thickness = 1.dp
                 )
 
-                // 2. "RAF ETİKETİ OKU" BUTONU (Daha Kompakt: 40.dp)
-                Button(
-                    onClick = { showFullQrScanner = true },
+                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(40.dp)
-                        .testTag("scan_qr_label_button"),
-                    colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
-                    shape = RoundedCornerShape(10.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    // 2. "RAF ETİKETİ OKU" BUTONU (Daha Kompakt: 40.dp)
+                    Button(
+                        onClick = { showFullQrScanner = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .testTag("scan_qr_label_button"),
+                        colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
+                    ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
@@ -480,12 +519,15 @@ fun AddEditProductModal(
                         )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-                // 6. ALT BUTONLAR VE AKSİYONLAR: "Sil" ve "Güncelle / Kaydet"
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
+            // 6. ALT BUTONLAR VE AKSİYONLAR: "Sil" ve "Güncelle / Kaydet"
+            Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

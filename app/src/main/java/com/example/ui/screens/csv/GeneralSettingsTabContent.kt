@@ -625,14 +625,15 @@ private fun ToneSelectionDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .wrapContentHeight()
                 .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .imePadding()
         ) {
             // Başlık Satırı
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -682,65 +683,78 @@ private fun ToneSelectionDialog(
                 }
             }
 
-            HorizontalDivider(color = Slate200)
+            HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 20.dp))
 
-            // 1. Kategori: Barkod Tarama Sesi
-            Text(
-                text = "1. Barkod Tarama Sesi",
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = TurquoiseDark
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SoundToneManager.BARCODE_TONES.forEach { option ->
-                    ToneOptionItem(
-                        option = option,
-                        isSelected = option.id == currentBarcodeToneId,
-                        onClick = { onSelectBarcodeTone(option.id) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            // 2. Kategori: Raf Etiketi / QR Doğrulama Sesi
-            Text(
-                text = "2. Raf Etiketi / QR Doğrulama Sesi",
-                fontSize = 13.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = TurquoiseDark
-            )
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                SoundToneManager.QR_FIX_TONES.forEach { option ->
-                    ToneOptionItem(
-                        option = option,
-                        isSelected = option.id == currentQrFixToneId,
-                        onClick = { onSelectQrFixTone(option.id) }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Button(
-                onClick = onDismiss,
+            // Scrollable Content
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(46.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
+                // 1. Kategori: Barkod Tarama Sesi
                 Text(
-                    text = "Tamam",
+                    text = "1. Barkod Tarama Sesi",
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.5.sp,
-                    color = Color.White
+                    color = TurquoiseDark
                 )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SoundToneManager.BARCODE_TONES.forEach { option ->
+                        ToneOptionItem(
+                            option = option,
+                            isSelected = option.id == currentBarcodeToneId,
+                            onClick = { onSelectBarcodeTone(option.id) }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // 2. Kategori: Raf Etiketi / QR Doğrulama Sesi
+                Text(
+                    text = "2. Raf Etiketi / QR Doğrulama Sesi",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TurquoiseDark
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    SoundToneManager.QR_FIX_TONES.forEach { option ->
+                        ToneOptionItem(
+                            option = option,
+                            isSelected = option.id == currentQrFixToneId,
+                            onClick = { onSelectQrFixTone(option.id) }
+                        )
+                    }
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Alt Aksiyon Alanı
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+            ) {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                ) {
+                    Text(
+                        text = "Tamam",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.5.sp,
+                        color = Color.White
+                    )
+                }
+            }
         }
     }
 }

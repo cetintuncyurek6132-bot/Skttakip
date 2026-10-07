@@ -72,10 +72,10 @@ fun AppNavHost(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-        enterTransition = { fadeIn(animationSpec = tween(150)) },
-        exitTransition = { fadeOut(animationSpec = tween(150)) },
-        popEnterTransition = { fadeIn(animationSpec = tween(150)) },
-        popExitTransition = { fadeOut(animationSpec = tween(150)) }
+        enterTransition = { fadeIn(animationSpec = tween(120)) },
+        exitTransition = { fadeOut(animationSpec = tween(120)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(120)) },
+        popExitTransition = { fadeOut(animationSpec = tween(120)) }
     ) {
         // 4 ANA SEKME (HORIZONTAL PAGER İLE SAĞA/SOLA KAYDIRMALI GEÇİŞ)
         composable("main") {
