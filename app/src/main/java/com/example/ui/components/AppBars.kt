@@ -131,6 +131,7 @@ fun SktTopAppBar(
     onProductClick: (Product) -> Unit = {},
     onAddNewProductClick: () -> Unit = {},
     onOpenScanner: () -> Unit = {},
+    onQuickSearchScannerClick: () -> Unit = onOpenScanner,
     onAvatarClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     showHomeButton: Boolean = false,
@@ -315,7 +316,7 @@ fun SktTopAppBar(
 
                     IconButton(
                         onClick = {
-                            onOpenScanner()
+                            onQuickSearchScannerClick()
                         },
                         modifier = Modifier.size(24.dp)
                     ) {

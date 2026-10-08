@@ -174,11 +174,6 @@ object DataBackupManager {
         }
         root.put("stockLogs", stockLogArray)
 
-        // 6. Reminders Notes & Settings
-        val reminderPrefs = getSettingsPrefs(context)
-        val reminderNotes = reminderPrefs.getString("store_reminders_notes", "") ?: ""
-        root.put("remindersNotes", reminderNotes)
-
         root.toString(2)
     }
 
@@ -377,14 +372,6 @@ object DataBackupManager {
                             )
                         )
                     }
-                }
-
-                // 6. Reminders Notes
-                val notes = root.optString("remindersNotes", "")
-                if (notes.isNotBlank()) {
-                    val reminderPrefs = getSettingsPrefs(context)
-                    reminderPrefs.edit().putString("store_reminders_notes", notes).apply()
-                    remindersRestored = true
                 }
             }
 

@@ -68,6 +68,7 @@ import com.example.navigation.AppNavHost
 import com.example.ui.MainViewModel
 import com.example.ui.components.GlobalModalHost
 import com.example.ui.components.ProfessionalLoadingOverlay
+import com.example.ui.components.QuickSearchScannerSheet
 import com.example.ui.components.SktBottomNavBar
 import com.example.ui.components.SktTopAppBar
 import com.example.ui.components.TopBarLoadingBar
@@ -281,6 +282,7 @@ fun SktMainApp(
 
     // Dialog & Scanner control states
     var isBarcodeScannerOpen by remember { mutableStateOf(false) }
+    var isQuickSearchScannerOpen by remember { mutableStateOf(false) }
     var scannerOpenMode by remember { mutableStateOf(ScannerOpenMode.BARCODE_SEARCH) }
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
@@ -309,7 +311,6 @@ fun SktMainApp(
                 "products" -> "products"
                 "adetsel" -> "adetsel"
                 "csv" -> "csv"
-                "reminders" -> "reminders"
                 "panel" -> "panel"
                 else -> target
             }
@@ -346,9 +347,12 @@ fun SktMainApp(
                                 scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
                                 isBarcodeScannerOpen = true
                             },
+                            onQuickSearchScannerClick = {
+                                isQuickSearchScannerOpen = true
+                            },
                             onBellClick = { isNotificationDialogOpen = true },
                             unreadCount = dashboardState.unreadNotificationCount,
-                            onAvatarClick = { navigateToTab("reminders") },
+                            onAvatarClick = { isProfileDialogOpen = true },
                             onSettingsClick = { navigateToTab("csv") },
                             showHomeButton = activeRoute != "panel",
                             onHomeClick = {
@@ -476,6 +480,22 @@ fun SktMainApp(
             isBatterySaverMode = isBatterySaverMode,
             navigateToTab = { tab -> navigateToTab(tab) }
         )
+
+        // HIZLI ÜRÜN ARAMA KOMPAKT BARKOD TARAMA PENCERESİ
+        if (isQuickSearchScannerOpen) {
+            QuickSearchScannerSheet(
+                allProducts = allProducts,
+                onDismiss = { isQuickSearchScannerOpen = false },
+                onProductClick = { product ->
+                    isQuickSearchScannerOpen = false
+                    inventoryViewModel.openProductDetailModal(product)
+                },
+                onAddNewProductWithBarcode = { barcode ->
+                    isQuickSearchScannerOpen = false
+                    inventoryViewModel.openAddProductModal(barcode)
+                }
+            )
+        }
     }
 
     ProfessionalLoadingOverlay(

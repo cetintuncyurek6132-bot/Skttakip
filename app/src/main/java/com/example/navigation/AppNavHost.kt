@@ -29,7 +29,6 @@ import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.CsvScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.ProductsScreen
-import com.example.ui.screens.RemindersScreen
 import com.example.ui.screens.TakipScreen
 import com.example.ui.screens.scanner.ScannerOpenMode
 import com.example.ui.viewmodel.AdetselViewModel
@@ -108,7 +107,6 @@ fun AppNavHost(
                                 when (action) {
                                     "add_product" -> inventoryViewModel.openAddProductModal()
                                     "scan" -> onOpenScanner(ScannerOpenMode.BARCODE_SEARCH)
-                                    "reminders" -> navigateToTab("reminders")
                                     "analytics" -> navigateToTab("analytics")
                                     "csv" -> navigateToTab("csv")
                                     "adetsel" -> navigateToTab("adetsel")
@@ -208,7 +206,13 @@ fun AppNavHost(
         }
 
         // 5. CSV VERİ AKTARIMI & AYARLAR (TAM EKRAN ALT SAYFA)
-        composable("csv") {
+        composable(
+            route = "csv",
+            enterTransition = { fadeIn(animationSpec = tween(90)) },
+            exitTransition = { fadeOut(animationSpec = tween(90)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(90)) },
+            popExitTransition = { fadeOut(animationSpec = tween(90)) }
+        ) {
             val barcodeSoundId by settingsViewModel.barcodeSoundId.collectAsState()
             val labelFixSoundId by settingsViewModel.labelFixSoundId.collectAsState()
             CsvScreen(
@@ -257,19 +261,11 @@ fun AppNavHost(
                 onSaveLocalBackup = { tag, cb -> settingsViewModel.saveLocalBackup(context, tag, cb) },
                 onGetLocalBackups = { settingsViewModel.getLocalBackups(context) },
                 onRestoreFromJson = { json, merge, cb -> settingsViewModel.restoreFromJson(context, json, merge, cb) },
-                onNavigateToReminders = { navigateToTab("reminders") },
                 onBackClick = { navigateToTab("panel") }
             )
         }
 
-        // 6. HATIRLATICILAR & MAĞAZA NOTLARI (TAM EKRAN ALT SAYFA)
-        composable("reminders") {
-            RemindersScreen(
-                onBackClick = { navigateToTab("panel") }
-            )
-        }
-
-        // 7. ANALİZ VE İSTATİSTİKLER (ANALYTICS & CHARTS)
+        // 6. ANALİZ VE İSTATİSTİKLER (ANALYTICS & CHARTS)
         composable("analytics") {
             AnalyticsScreen(
                 products = allProducts,

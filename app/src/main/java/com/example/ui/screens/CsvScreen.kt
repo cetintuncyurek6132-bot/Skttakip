@@ -41,6 +41,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +75,9 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun CsvScreen(
@@ -99,16 +103,25 @@ fun CsvScreen(
     onSaveLocalBackup: (String, (File?) -> Unit) -> Unit = { _, _ -> },
     onGetLocalBackups: () -> List<BackupMetadata> = { emptyList() },
     onRestoreFromJson: (String, Boolean, (BackupRestoreResult) -> Unit) -> Unit = { _, _, _ -> },
-    onNavigateToReminders: () -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val currentUser by UserManager.currentUser.collectAsState()
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    var localBackups by remember { mutableStateOf(onGetLocalBackups()) }
+    var localBackups by remember { mutableStateOf<List<BackupMetadata>>(emptyList()) }
     var isTakingBackup by remember { mutableStateOf(false) }
     var isRestoringBackup by remember { mutableStateOf(false) }
+
+    fun reloadLocalBackups() {
+        coroutineScope.launch(Dispatchers.IO) {
+            val list = onGetLocalBackups()
+            withContext(Dispatchers.Main) {
+                localBackups = list
+            }
+        }
+    }
 
     // Dialog States
     var showResetDialog by remember { mutableStateOf(false) }
@@ -123,7 +136,7 @@ fun CsvScreen(
     var pendingExportJson by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        localBackups = onGetLocalBackups()
+        reloadLocalBackups()
     }
 
     // Storage Access Framework: JSON Export Launcher
@@ -282,14 +295,14 @@ fun CsvScreen(
                         isTakingBackup = true
                         onSaveLocalBackup("MANUEL") { file ->
                             isTakingBackup = false
-                            localBackups = onGetLocalBackups()
+                            reloadLocalBackups()
                             if (file != null) {
                                 Toast.makeText(context, "✅ Güvenli yedek alındı: ${file.name}", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
                     onRefreshLocalBackups = {
-                        localBackups = onGetLocalBackups()
+                        reloadLocalBackups()
                     },
                     isTakingBackup = isTakingBackup,
                     onTriggerJsonExport = {
@@ -373,7 +386,7 @@ fun CsvScreen(
         onRestoreFromJson = onRestoreFromJson,
         onRestoreComplete = { msg ->
             backupStatusMessage = msg
-            localBackups = onGetLocalBackups()
+            reloadLocalBackups()
         },
         context = context
     )
@@ -401,7 +414,7 @@ fun CsvScreen(
                         onRestoreFromJson(json, true) { res ->
                             isRestoringBackup = false
                             backupStatusMessage = res.message
-                            localBackups = onGetLocalBackups()
+                            reloadLocalBackups()
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
