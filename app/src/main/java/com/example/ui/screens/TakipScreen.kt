@@ -109,8 +109,13 @@ fun TakipScreen(
 
             matchesQuery && matchesDurum && matchesOncelik
         }.sortedWith(
-            compareByDescending<DepoIadeKaydi> { it.isKritik }
-                .thenByDescending { it.guncellemeTarihiMillis }
+            compareBy<DepoIadeKaydi> { record ->
+                when (record.durum) {
+                    IadeDurumu.DEVAM_EDIYOR -> 0
+                    IadeDurumu.REDDEDILDI -> 1
+                    IadeDurumu.ONAYLANDI -> 2
+                }
+            }.thenByDescending { maxOf(it.guncellemeTarihiMillis, it.approvedAt ?: 0L, it.olusturmaTarihiMillis) }
         )
     }
 
@@ -194,7 +199,7 @@ fun TakipScreen(
                         )
                     )
                     Text(
-                        text = "${filteredRecords.size} aktif takip kaydı",
+                        text = "${stats.devamEdenSayisi} aktif takip kaydı",
                         style = MaterialTheme.typography.bodySmall.copy(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 11.5.sp
@@ -485,10 +490,12 @@ fun TakipScreen(
                             selectedTakipDetail = record
                         },
                         onStatusChange = { newStatus ->
+                            val now = System.currentTimeMillis()
                             val updated = records.map {
                                 if (it.id == record.id) it.copy(
                                     durum = newStatus,
-                                    guncellemeTarihiMillis = System.currentTimeMillis()
+                                    guncellemeTarihiMillis = now,
+                                    approvedAt = if (newStatus == IadeDurumu.ONAYLANDI) now else if (newStatus == IadeDurumu.DEVAM_EDIYOR) null else it.approvedAt
                                 ) else it
                             }
                             saveAndRefresh(updated)

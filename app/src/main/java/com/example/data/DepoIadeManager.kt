@@ -57,7 +57,8 @@ data class DepoIadeKaydi(
     val hatirlatmaTarihi: String = "",
     val hatirlatmaTarihiMillis: Long? = null,
     val olusturmaTarihiMillis: Long = System.currentTimeMillis(),
-    val guncellemeTarihiMillis: Long = System.currentTimeMillis()
+    val guncellemeTarihiMillis: Long = System.currentTimeMillis(),
+    val approvedAt: Long? = null
 ) {
     val isKritik: Boolean get() = oncelik == IadeOncelik.KRITIK
     val hasGorsel: Boolean get() = !irsaliyeGorselPath.isNullOrBlank() && File(irsaliyeGorselPath).exists()
@@ -205,7 +206,10 @@ object DepoIadeManager {
                             obj.optLong("hatirlatmaTarihiMillis")
                         } else null,
                         olusturmaTarihiMillis = obj.optLong("olusturmaTarihiMillis", System.currentTimeMillis()),
-                        guncellemeTarihiMillis = obj.optLong("guncellemeTarihiMillis", System.currentTimeMillis())
+                        guncellemeTarihiMillis = obj.optLong("guncellemeTarihiMillis", System.currentTimeMillis()),
+                        approvedAt = if (obj.has("approvedAt") && !obj.isNull("approvedAt")) {
+                            obj.optLong("approvedAt")
+                        } else null
                     )
                 )
             }
@@ -240,6 +244,9 @@ object DepoIadeManager {
             }
             obj.put("olusturmaTarihiMillis", item.olusturmaTarihiMillis)
             obj.put("guncellemeTarihiMillis", item.guncellemeTarihiMillis)
+            if (item.approvedAt != null) {
+                obj.put("approvedAt", item.approvedAt)
+            }
             jsonArray.put(obj)
         }
         prefs.edit().putString(KEY_RECORDS_JSON, jsonArray.toString()).apply()

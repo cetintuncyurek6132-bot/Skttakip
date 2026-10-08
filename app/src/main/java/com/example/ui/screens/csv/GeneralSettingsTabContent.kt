@@ -70,19 +70,10 @@ fun GeneralSettingsTabContent(
     var currentBarcodeToneId by remember(barcodeSoundId) { mutableIntStateOf(barcodeSoundId) }
     var currentQrFixToneId by remember(labelFixSoundId) { mutableIntStateOf(labelFixSoundId) }
 
-    // Otomatik Sessiz Kontrol: Ekran ilk açıldığında arka planda (IO) çalışsın
+    // Mevcut indirme durumunu arka planda hafifçe kontrol et (ağ çağrısı yapmaz, yerel DownloadManager kontrolü)
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             AppUpdateChecker.checkCurrentDownloadStatus(context)
-        }
-        isCheckingUpdate = true
-        val result = AppUpdateChecker.checkForUpdates()
-        isCheckingUpdate = false
-        result.onSuccess { info ->
-            hasUpdateAvailable = info.hasUpdate
-            latestVersionName = info.latestVersionName
-        }.onFailure {
-            hasUpdateAvailable = false
         }
     }
 

@@ -45,6 +45,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.DepoIadeKaydi
+import com.example.data.DepoIadeManager
 import com.example.data.IadeDurumu
 import com.example.data.IadeOncelik
 import com.example.ui.theme.ExpiredRed
@@ -126,7 +127,7 @@ fun TakipKaydiCard(
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    // Tek satırda Ürün Kodu ve İade Tarihi
+                    // Tek satırda Ürün Kodu ve İade Tarihi (+ Onay Tarihi)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -147,6 +148,18 @@ fun TakipKaydiCard(
                                 fontSize = 11.5.sp
                             )
                         )
+                        if (record.durum == IadeDurumu.ONAYLANDI) {
+                            val approvedTime = record.approvedAt ?: record.guncellemeTarihiMillis
+                            Text("•", color = Slate400, fontSize = 10.sp)
+                            Text(
+                                text = "✓ Onay: ${DepoIadeManager.formatMillisToDate(approvedTime)}",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFF16A34A),
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 11.sp
+                                )
+                            )
+                        }
                     }
                 }
 

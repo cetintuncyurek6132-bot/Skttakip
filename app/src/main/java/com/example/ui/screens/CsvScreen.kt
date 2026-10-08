@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -108,6 +109,10 @@ fun CsvScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val currentUser by UserManager.currentUser.collectAsState()
+
+    BackHandler {
+        onBackClick()
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var localBackups by remember { mutableStateOf<List<BackupMetadata>>(emptyList()) }

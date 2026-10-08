@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.DepoIadeKaydi
+import com.example.data.DepoIadeManager
 import com.example.data.IadeDurumu
 import com.example.data.IadeOncelik
 import com.example.ui.components.AppBottomSheetWrapper
@@ -225,6 +226,31 @@ fun TakipDetailSheet(
                                 fontSize = 12.5.sp
                             )
                         )
+                    }
+
+                    if (record.durum == IadeDurumu.ONAYLANDI) {
+                        val approvedTime = record.approvedAt ?: record.guncellemeTarihiMillis
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "✓ Onay Tarihi: ",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFF16A34A),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                            Text(
+                                text = DepoIadeManager.formatMillisToDate(approvedTime),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = Color(0xFF16A34A),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 12.5.sp
+                                )
+                            )
+                        }
                     }
                 }
             }

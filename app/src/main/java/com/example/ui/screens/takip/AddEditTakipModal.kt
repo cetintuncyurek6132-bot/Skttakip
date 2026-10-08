@@ -12,6 +12,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -224,39 +225,110 @@ fun AddEditTakipModal(
         }
     }
 
+    val isDigerSelected = selectedRedNedeni == IadeRedNedeni.DIGER.displayName || selectedRedNedeni == "Diğer"
+    val isFormValid = urunAdi.trim().isNotBlank() && (!isDigerSelected || customRedNedeni.trim().isNotBlank())
+
+    val saveAction = {
+        val finalUrunAdi = urunAdi.trim()
+        if (finalUrunAdi.isBlank()) {
+            Toast.makeText(context, "Lütfen ürün adını giriniz.", Toast.LENGTH_SHORT).show()
+        } else if (isDigerSelected && customRedNedeni.isBlank()) {
+            Toast.makeText(context, "Lütfen red / iade nedenini yazınız.", Toast.LENGTH_SHORT).show()
+        } else {
+            val finalRedNedeni = if (isDigerSelected && customRedNedeni.isNotBlank()) {
+                customRedNedeni.trim()
+            } else {
+                selectedRedNedeni
+            }
+
+            val record = DepoIadeKaydi(
+                id = existingRecord?.id ?: System.currentTimeMillis().toString(),
+                urunAdi = finalUrunAdi,
+                urunKodu = urunKoduInput.trim().takeIf { it.isNotBlank() },
+                irsaliyeGorselPath = gorselPath,
+                iadeTarihi = iadeTarihi.ifBlank { DepoIadeManager.getTodayDateString() },
+                iadeTarihiMillis = DepoIadeManager.parseDateToMillis(iadeTarihi),
+                redNedeni = finalRedNedeni,
+                aciklama = aciklama.trim(),
+                oncelik = oncelik,
+                durum = durum,
+                hatirlatmaTarihi = hatirlatmaTarihi,
+                hatirlatmaTarihiMillis = if (hatirlatmaTarihi.isNotBlank()) DepoIadeManager.parseDateToMillis(hatirlatmaTarihi) else null,
+                olusturmaTarihiMillis = existingRecord?.olusturmaTarihiMillis ?: System.currentTimeMillis(),
+                guncellemeTarihiMillis = System.currentTimeMillis(),
+                approvedAt = if (durum == IadeDurumu.ONAYLANDI) (existingRecord?.approvedAt ?: System.currentTimeMillis()) else null
+            )
+            if (record.hatirlatmaTarihiMillis != null) {
+                DepoIadeManager.scheduleNotification(context, record)
+            }
+            onSave(record)
+        }
+    }
+
     com.example.ui.components.AppBottomSheetWrapper(
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        enableHorizontalSwipeDismiss = false,
+        preventDismissOnDrag = true,
+        dismissOnScrim = false,
+        dragHandle = null
     ) { dismissSheet ->
-        // Başlık
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = if (existingRecord == null) "Yeni Takip Kaydı" else "Kaydı Düzenle",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900,
-                            fontSize = 18.sp
-                        )
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Kapat", tint = Slate500)
-                    }
-                }
+        // Üst Başlık Barı (Header): SOL: Kaydet, ORTA: Başlık, SAĞ: Kapat (X)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // SOL: Kaydet Butonu
+            Button(
+                onClick = { saveAction() },
+                enabled = isFormValid,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = TurquoisePrimary,
+                    disabledContainerColor = Slate200,
+                    contentColor = Color.White,
+                    disabledContentColor = Slate400
+                ),
+                shape = RoundedCornerShape(10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                modifier = Modifier.height(36.dp)
+            ) {
+                Icon(Icons.Default.Save, contentDescription = "Kaydet", modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("Kaydet", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
 
-                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+            // ORTA: Başlık
+            Text(
+                text = if (existingRecord == null) "Yeni Takip Kaydı" else "Kaydı Düzenle",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900,
+                    fontSize = 16.5.sp
+                ),
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.Center
+            )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
+            // SAĞ: Kapatma Butonu
+            IconButton(
+                onClick = { dismissSheet() },
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(Icons.Default.Close, contentDescription = "Kapat", tint = Slate500, modifier = Modifier.size(20.dp))
+            }
+        }
+
+        HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
                     // 1. ÜRÜN KODU & ÜRÜN ADI (KOD YAZIP ENTERLEYİNCE BİLGİLER GELİR)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Ürün Kodu Giriş Alanı
@@ -688,7 +760,6 @@ fun AddEditTakipModal(
                                 }
                             }
                         }
-                }
 
                 HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
 
@@ -710,45 +781,14 @@ fun AddEditTakipModal(
                     }
 
                     Button(
-                        onClick = {
-                            val finalUrunAdi = urunAdi.trim()
-                            if (finalUrunAdi.isBlank()) {
-                                Toast.makeText(context, "Lütfen ürün adını giriniz.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val isDiger = selectedRedNedeni == IadeRedNedeni.DIGER.displayName || selectedRedNedeni == "Diğer"
-                            if (isDiger && customRedNedeni.isBlank()) {
-                                Toast.makeText(context, "Lütfen red / iade nedenini yazınız.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val finalRedNedeni = if (isDiger && customRedNedeni.isNotBlank()) {
-                                customRedNedeni.trim()
-                            } else {
-                                selectedRedNedeni
-                            }
-
-                            val record = DepoIadeKaydi(
-                                id = existingRecord?.id ?: System.currentTimeMillis().toString(),
-                                urunAdi = finalUrunAdi,
-                                urunKodu = urunKoduInput.trim().takeIf { it.isNotBlank() },
-                                irsaliyeGorselPath = gorselPath,
-                                iadeTarihi = iadeTarihi.ifBlank { DepoIadeManager.getTodayDateString() },
-                                iadeTarihiMillis = DepoIadeManager.parseDateToMillis(iadeTarihi),
-                                redNedeni = finalRedNedeni,
-                                aciklama = aciklama.trim(),
-                                oncelik = oncelik,
-                                durum = durum,
-                                hatirlatmaTarihi = hatirlatmaTarihi,
-                                hatirlatmaTarihiMillis = if (hatirlatmaTarihi.isNotBlank()) DepoIadeManager.parseDateToMillis(hatirlatmaTarihi) else null,
-                                olusturmaTarihiMillis = existingRecord?.olusturmaTarihiMillis ?: System.currentTimeMillis(),
-                                guncellemeTarihiMillis = System.currentTimeMillis()
-                            )
-                            if (record.hatirlatmaTarihiMillis != null) {
-                                DepoIadeManager.scheduleNotification(context, record)
-                            }
-                            onSave(record)
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                        onClick = { saveAction() },
+                        enabled = isFormValid,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = TurquoisePrimary,
+                            disabledContainerColor = Slate200,
+                            contentColor = Color.White,
+                            disabledContentColor = Slate400
+                        ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier
                             .weight(1f)
@@ -759,6 +799,9 @@ fun AddEditTakipModal(
                         Text("Kaydet", fontWeight = FontWeight.Bold)
                     }
                 }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
     }
 
     // TARİH SEÇİCİ MODALLAR

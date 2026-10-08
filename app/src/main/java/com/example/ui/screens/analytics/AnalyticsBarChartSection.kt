@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -297,6 +298,17 @@ fun AnalyticsBarChartSection(
     }
 }
 
+private fun shouldShowDateLabel(index: Int, totalSize: Int): Boolean {
+    if (totalSize <= 7) {
+        return index == 0 || index == 2 || index == 4 || index == totalSize - 1
+    }
+    val step = 7
+    if (index % step == 0) {
+        return (totalSize - 1 - index) >= 4 || index == 0
+    }
+    return index == totalSize - 1
+}
+
 @Composable
 fun InteractiveBarChart(
     data: List<DailyExpiryData>,
@@ -324,7 +336,7 @@ fun InteractiveBarChart(
                 modifier = Modifier
                     .width(24.dp)
                     .fillMaxHeight()
-                    .padding(bottom = 2.dp),
+                    .padding(bottom = 26.dp),
                 verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.End
             ) {
@@ -350,21 +362,22 @@ fun InteractiveBarChart(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            // Sağ Taraf: Çubuklar ve Arka Plan Kılavuz Çizgileri
+            // Sağ Taraf: Çubuklar, Kılavuz Çizgileri ve Hizalı Tarih Etiketleri
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
             ) {
+                // Arka plan yatay kılavuz çizgileri
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 2.dp),
+                        .padding(top = 14.dp, bottom = 26.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
                     HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
-                    HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                    HorizontalDivider(color = Color(0xFFCBD5E1), thickness = 1.dp)
                 }
 
                 val scrollState = rememberScrollState()
@@ -394,6 +407,7 @@ fun InteractiveBarChart(
                         } else 0.04f
 
                         val isSelected = selectedIndex == index
+                        val showLabel = shouldShowDateLabel(index, data.size)
 
                         val gradientBrush = when {
                             item.isToday -> Brush.verticalGradient(
@@ -415,13 +429,14 @@ fun InteractiveBarChart(
                             verticalArrangement = Arrangement.Bottom,
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .width(if (isScrollable) barWidth + 4.dp else barWidth + 6.dp)
+                                .width(if (isScrollable) barWidth + 6.dp else barWidth + 8.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .clickable {
                                     onSelectIndex(if (isSelected) null else index)
                                 }
                                 .padding(horizontal = 1.dp)
                         ) {
+                            // 1. Tepe Adet Metni
                             if (totalForDay > 0) {
                                 Text(
                                     text = "$totalForDay",
@@ -435,23 +450,32 @@ fun InteractiveBarChart(
                                 Spacer(modifier = Modifier.height(14.dp))
                             }
 
+                            // 2. Çubuk Alanı (Dikey Esnek Alan)
                             Box(
                                 modifier = Modifier
-                                    .width(barWidth)
-                                    .fillMaxHeight(heightFraction)
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                    .background(gradientBrush)
-                                    .then(
-                                        if (isSelected) {
-                                            Modifier.border(
-                                                width = 1.5.dp,
-                                                color = TurquoiseDark,
-                                                shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
-                                            )
-                                        } else Modifier
-                                    )
-                            )
+                                    .weight(1f)
+                                    .width(barWidth),
+                                contentAlignment = Alignment.BottomCenter
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .fillMaxHeight(heightFraction)
+                                        .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                        .background(gradientBrush)
+                                        .then(
+                                            if (isSelected) {
+                                                Modifier.border(
+                                                    width = 1.5.dp,
+                                                    color = TurquoiseDark,
+                                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                                                )
+                                            } else Modifier
+                                        )
+                                )
+                            }
 
+                            // 3. Bugün Noktası
                             if (item.isToday) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Box(
@@ -460,44 +484,42 @@ fun InteractiveBarChart(
                                         .clip(CircleShape)
                                         .background(TurquoisePrimary)
                                 )
+                            } else {
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+
+                            // 4. X Ekseni Referans Tick Çizgisi (Çubuğun Tam Merkezi)
+                            Box(
+                                modifier = Modifier
+                                    .width(if (showLabel || isSelected) 1.5.dp else 1.dp)
+                                    .height(if (showLabel) 4.dp else 2.dp)
+                                    .background(
+                                        if (isSelected) TurquoiseDark
+                                        else if (showLabel) Slate500
+                                        else Color(0xFFCBD5E1)
+                                    )
+                            )
+
+                            // 5. X Ekseni Tarih Etiketi (Çubuğun Tam Merkezine Hizalı)
+                            if (showLabel) {
+                                Text(
+                                    text = item.shortLabel,
+                                    fontSize = 9.sp,
+                                    fontWeight = if (item.isToday || isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = if (isSelected) TurquoiseDark else if (item.isToday) TurquoisePrimary else Slate500,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .wrapContentSize(unbounded = true, align = Alignment.Center)
+                                        .padding(top = 2.dp)
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.height(14.dp))
                             }
                         }
                     }
                 }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 30.dp, end = 4.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (data.isNotEmpty()) {
-                Text(
-                    text = data.first().shortLabel,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Slate500
-                )
-                if (data.size > 2) {
-                    val midIndex = data.size / 2
-                    Text(
-                        text = data[midIndex].shortLabel,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Slate500
-                    )
-                }
-                Text(
-                    text = data.last().shortLabel,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Slate500
-                )
             }
         }
     }

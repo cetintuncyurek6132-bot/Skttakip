@@ -13,11 +13,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -113,13 +115,16 @@ fun QuickSearchScannerSheet(
     }
 
     AppBottomSheetWrapper(
-        onDismissRequest = onDismiss
+        onDismissRequest = onDismiss,
+        contentModifier = Modifier
+            .fillMaxHeight(0.88f)
+            .statusBarsPadding()
     ) { _ ->
         // 1. ÜST BAŞLIK VE KAPAT BUTONU
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -152,18 +157,19 @@ fun QuickSearchScannerSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .weight(1f, fill = false)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Kamera Vizörü (Kompakt 190 dp)
+            // Kamera Vizörü (Ekranın üst hizasına yakın, yüksekliği artırılmış 310 dp)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(190.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .height(310.dp)
+                    .clip(RoundedCornerShape(18.dp))
                     .background(Color.Black)
-                    .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                    .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.5f), RoundedCornerShape(18.dp))
             ) {
                 if (cameraPermissionState.status.isGranted) {
                     CameraXBarcodeView(
@@ -195,8 +201,8 @@ fun QuickSearchScannerSheet(
                         onClick = { isFlashOn = !isFlashOn },
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .size(36.dp)
+                            .padding(10.dp)
+                            .size(38.dp)
                             .background(Color.Black.copy(alpha = 0.55f), CircleShape)
                     ) {
                         Icon(
@@ -207,13 +213,13 @@ fun QuickSearchScannerSheet(
                         )
                     }
 
-                    // Odaklama Çerçevesi
+                    // Odaklama Çerçevesi (Genişletilmiş vizör hedef alanı)
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
-                            .fillMaxWidth(0.72f)
-                            .height(85.dp)
-                            .border(2.dp, TurquoisePrimary.copy(alpha = 0.75f), RoundedCornerShape(12.dp))
+                            .fillMaxWidth(0.74f)
+                            .height(130.dp)
+                            .border(2.dp, TurquoisePrimary.copy(alpha = 0.85f), RoundedCornerShape(14.dp))
                     )
                 } else {
                     Column(
