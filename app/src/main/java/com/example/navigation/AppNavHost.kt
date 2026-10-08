@@ -2,6 +2,8 @@ package com.example.navigation
 
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -208,10 +210,10 @@ fun AppNavHost(
         // 5. CSV VERİ AKTARIMI & AYARLAR (TAM EKRAN ALT SAYFA)
         composable(
             route = "csv",
-            enterTransition = { fadeIn(animationSpec = tween(90)) },
-            exitTransition = { fadeOut(animationSpec = tween(90)) },
-            popEnterTransition = { fadeIn(animationSpec = tween(90)) },
-            popExitTransition = { fadeOut(animationSpec = tween(90)) }
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
         ) {
             val barcodeSoundId by settingsViewModel.barcodeSoundId.collectAsState()
             val labelFixSoundId by settingsViewModel.labelFixSoundId.collectAsState()

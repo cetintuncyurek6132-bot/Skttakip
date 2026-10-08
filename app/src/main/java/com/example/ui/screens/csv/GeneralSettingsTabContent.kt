@@ -32,7 +32,9 @@ import com.example.util.AppUpdateChecker
 import com.example.util.AppUpdateInfo
 import com.example.util.SoundToneManager
 import com.example.util.SoundToneOption
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun GeneralSettingsTabContent(
@@ -65,12 +67,14 @@ fun GeneralSettingsTabContent(
     val downloadProgressInfo by AppUpdateChecker.downloadProgressState.collectAsState()
 
     var showToneSelectionDialog by remember { mutableStateOf(false) }
-    var currentBarcodeToneId by remember { mutableIntStateOf(SoundToneManager.getBarcodeToneId(context)) }
-    var currentQrFixToneId by remember { mutableIntStateOf(SoundToneManager.getQrFixToneId(context)) }
+    var currentBarcodeToneId by remember(barcodeSoundId) { mutableIntStateOf(barcodeSoundId) }
+    var currentQrFixToneId by remember(labelFixSoundId) { mutableIntStateOf(labelFixSoundId) }
 
-    // Otomatik Sessiz Kontrol: Ekran ilk açıldığında arka planda çalışsın
+    // Otomatik Sessiz Kontrol: Ekran ilk açıldığında arka planda (IO) çalışsın
     LaunchedEffect(Unit) {
-        AppUpdateChecker.checkCurrentDownloadStatus(context)
+        withContext(Dispatchers.IO) {
+            AppUpdateChecker.checkCurrentDownloadStatus(context)
+        }
         isCheckingUpdate = true
         val result = AppUpdateChecker.checkForUpdates()
         isCheckingUpdate = false

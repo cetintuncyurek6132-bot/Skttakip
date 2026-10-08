@@ -135,8 +135,11 @@ fun CsvScreen(
     var restorePendingJson by remember { mutableStateOf<String?>(null) }
     var pendingExportJson by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
-        reloadLocalBackups()
+    // Veri Ayarları (Yedekleme) sekmesi seçildiğinde arka planda asenkron yükle
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 1) {
+            reloadLocalBackups()
+        }
     }
 
     // Storage Access Framework: JSON Export Launcher
