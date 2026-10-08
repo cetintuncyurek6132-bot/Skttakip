@@ -40,6 +40,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.example.data.*
 import com.example.ui.screens.takip.AddEditTakipModal
 import com.example.ui.screens.takip.IadeSharePreviewModal
+import com.example.ui.screens.takip.TakipDetailSheet
 import com.example.ui.screens.takip.TakipKaydiCard
 import com.example.ui.screens.takip.TakipStatCard
 import com.example.ui.theme.*
@@ -64,6 +65,7 @@ fun TakipScreen(
     // Dialog & Modal State
     var showAddEditDialog by remember { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<DepoIadeKaydi?>(null) }
+    var selectedTakipDetail by remember { mutableStateOf<DepoIadeKaydi?>(null) }
     var previewImagePath by remember { mutableStateOf<String?>(null) }
     var recordToDelete by remember { mutableStateOf<DepoIadeKaydi?>(null) }
     var sharePreviewRecords by remember { mutableStateOf<List<DepoIadeKaydi>?>(null) }
@@ -479,6 +481,9 @@ fun TakipScreen(
                 items(filteredRecords, key = { it.id }) { record ->
                     TakipKaydiCard(
                         record = record,
+                        onClick = {
+                            selectedTakipDetail = record
+                        },
                         onStatusChange = { newStatus ->
                             val updated = records.map {
                                 if (it.id == record.id) it.copy(
@@ -531,6 +536,29 @@ fun TakipScreen(
                 showAddEditDialog = false
                 editingRecord = null
                 Toast.makeText(context, "Takip kaydı kaydedildi.", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    // DETAY GÖRÜNTÜLEME BOTTOM SHEET
+    if (selectedTakipDetail != null) {
+        val currentDetail = records.find { it.id == selectedTakipDetail?.id } ?: selectedTakipDetail!!
+        TakipDetailSheet(
+            record = currentDetail,
+            onDismiss = { selectedTakipDetail = null },
+            onEditClick = {
+                val toEdit = currentDetail
+                selectedTakipDetail = null
+                editingRecord = toEdit
+                showAddEditDialog = true
+            },
+            onShareClick = {
+                val toShare = currentDetail
+                selectedTakipDetail = null
+                openSharePreview(toShare)
+            },
+            onImageClick = { imgPath ->
+                previewImagePath = imgPath
             }
         )
     }

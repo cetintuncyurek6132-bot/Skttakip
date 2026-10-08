@@ -195,32 +195,33 @@ fun WhatsAppShareModal(
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .wrapContentHeight()
+                            .height(44.dp)
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .height(44.dp)
                                 .horizontalScroll(rememberScrollState())
-                                .padding(4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Tab 1 (ÖNCELİKLİ / BAŞTA): SON GÜN / -1 GÜN GEÇMİŞ
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(20.dp))
+                                    .height(36.dp)
+                                    .clip(RoundedCornerShape(18.dp))
                                     .background(
                                         if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) TurquoisePrimary else Color.Transparent
                                     )
                                     .clickable { selectedCategory = ShareCategory.TODAY_AND_OVERDUE_1 }
+                                    .padding(horizontal = 12.dp)
                                     .testTag("share_tab_today_and_overdue_1"),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Warning,
@@ -230,11 +231,11 @@ fun WhatsAppShareModal(
                                     )
                                     Text(
                                         text = "Son Gün / -1 Gün (${todayAndOverdue1Products.size})",
-                                        fontSize = 10.5.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) FontWeight.ExtraBold else FontWeight.SemiBold,
                                         color = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -242,19 +243,19 @@ fun WhatsAppShareModal(
                             // Tab 2: SKT SON 7 GÜN
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(20.dp))
+                                    .height(36.dp)
+                                    .clip(RoundedCornerShape(18.dp))
                                     .background(
                                         if (selectedCategory == ShareCategory.LAST_7_DAYS) TurquoisePrimary else Color.Transparent
                                     )
                                     .clickable { selectedCategory = ShareCategory.LAST_7_DAYS }
+                                    .padding(horizontal = 12.dp)
                                     .testTag("share_tab_last_7_days"),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Schedule,
@@ -264,11 +265,11 @@ fun WhatsAppShareModal(
                                     )
                                     Text(
                                         text = "Son 7 Gün (${last7DaysProducts.size})",
-                                        fontSize = 10.5.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.LAST_7_DAYS) FontWeight.ExtraBold else FontWeight.SemiBold,
                                         color = if (selectedCategory == ShareCategory.LAST_7_DAYS) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        softWrap = false
                                     )
                                 }
                             }
@@ -276,19 +277,19 @@ fun WhatsAppShareModal(
                             // Tab 3: ÖNEMLİ
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight()
-                                    .clip(RoundedCornerShape(20.dp))
+                                    .height(36.dp)
+                                    .clip(RoundedCornerShape(18.dp))
                                     .background(
                                         if (selectedCategory == ShareCategory.IMPORTANT) TurquoisePrimary else Color.Transparent
                                     )
                                     .clickable { selectedCategory = ShareCategory.IMPORTANT }
+                                    .padding(horizontal = 12.dp)
                                     .testTag("share_tab_important"),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
-                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Star,
@@ -298,11 +299,11 @@ fun WhatsAppShareModal(
                                     )
                                     Text(
                                         text = "Önemli (${importantProducts.size})",
-                                        fontSize = 10.5.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.IMPORTANT) FontWeight.ExtraBold else FontWeight.SemiBold,
                                         color = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        softWrap = false
                                     )
                                 }
                             }

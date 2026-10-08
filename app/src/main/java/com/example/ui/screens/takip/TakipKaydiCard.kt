@@ -1,12 +1,9 @@
 package com.example.ui.screens.takip
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,11 +20,8 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.WarningAmber
-import androidx.compose.material.icons.filled.ZoomIn
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -39,15 +33,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.DepoIadeKaydi
@@ -57,15 +51,11 @@ import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedContainer
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate50
+import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate500
-import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
-import com.example.ui.theme.TurquoisePrimary
-import java.io.File
 
 @Composable
 fun TakipKaydiCard(
@@ -74,7 +64,8 @@ fun TakipKaydiCard(
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onShareClick: () -> Unit,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit = {},
+    onClick: () -> Unit = {}
 ) {
     val statusColor = when (record.durum) {
         IadeDurumu.DEVAM_EDIYOR -> Color(0xFFD97706)
@@ -91,10 +82,10 @@ fun TakipKaydiCard(
     val prioColor = when (record.oncelik) {
         IadeOncelik.KRITIK -> ExpiredRed
         IadeOncelik.ONEMLI -> Color(0xFFEA580C)
-        IadeOncelik.NORMAL -> Slate600
+        IadeOncelik.NORMAL -> Slate500
     }
 
-    val cardShape = RoundedCornerShape(16.dp)
+    val cardShape = RoundedCornerShape(14.dp)
     Card(
         shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -105,48 +96,66 @@ fun TakipKaydiCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(cardShape)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true)
+            ) { onClick() }
     ) {
         Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // 1. Üst Başlık ve Rozetler
+            // 1. Üst Satır: Ürün Adı, Kodu ve Tarih / Sağda Rozetler
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Column(modifier = Modifier.weight(1f)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     Text(
                         text = record.urunAdi,
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = Slate900,
-                            fontSize = 16.sp
-                        )
+                            fontSize = 15.sp
+                        ),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    if (!record.urunKodu.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
+
+                    // Tek satırda Ürün Kodu ve İade Tarihi
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (!record.urunKodu.isNullOrBlank()) {
+                            Text(
+                                text = "🏷️ ${record.urunKodu}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = TurquoiseDark
+                            )
+                            Text("•", color = Slate400, fontSize = 10.sp)
+                        }
                         Text(
-                            text = "🏷️ Kod: ${record.urunKodu}",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = TurquoiseDark
+                            text = "📅 ${record.iadeTarihi}",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = Slate500,
+                                fontSize = 11.5.sp
+                            )
                         )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "📅 İade Tarihi: ${record.iadeTarihi}",
-                        style = MaterialTheme.typography.bodySmall.copy(
-                            color = Slate500,
-                            fontSize = 12.sp
-                        )
-                    )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
                     // Durum Rozeti
                     Surface(
                         color = statusBg,
@@ -156,11 +165,11 @@ fun TakipKaydiCard(
                         Text(
                             text = record.durum.displayName,
                             color = statusColor,
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             softWrap = false,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
                         )
                     }
 
@@ -171,11 +180,11 @@ fun TakipKaydiCard(
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = "Öncelik: ${record.oncelik.displayName}",
+                                text = record.oncelik.displayName,
                                 color = prioColor,
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.5.dp)
                             )
                         }
                     }
@@ -184,128 +193,13 @@ fun TakipKaydiCard(
 
             HorizontalDivider(color = Slate100, thickness = 1.dp)
 
-            // 2. Red / İade Nedeni & Açıklama
-            Surface(
-                color = Slate50,
-                shape = RoundedCornerShape(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.WarningAmber,
-                            contentDescription = null,
-                            tint = Color(0xFFD97706),
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Neden: ${record.redNedeni}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = Slate800,
-                                fontSize = 13.sp
-                            )
-                        )
-                    }
-
-                    if (record.aciklama.isNotBlank()) {
-                        Text(
-                            text = record.aciklama,
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = Slate600,
-                                fontSize = 12.sp
-                            )
-                        )
-                    }
-
-                    if (record.hatirlatmaTarihi.isNotBlank()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                            Icon(
-                                imageVector = Icons.Default.Event,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Takip Hatırlatıcısı: ${record.hatirlatmaTarihi}",
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = TurquoiseDark,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 3. İrsaliye Görseli Thumbnail (Varsa)
-            if (record.hasGorsel) {
-                val file = remember(record.irsaliyeGorselPath) { File(record.irsaliyeGorselPath!!) }
-                if (file.exists()) {
-                    val bitmap = remember(record.irsaliyeGorselPath) {
-                        try {
-                            BitmapFactory.decodeFile(file.absolutePath)
-                        } catch (e: Exception) {
-                            null
-                        }
-                    }
-                    if (bitmap != null) {
-                        val imgShape = RoundedCornerShape(10.dp)
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(imgShape)
-                                .background(Slate100)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true)
-                                ) { onImageClick(record.irsaliyeGorselPath!!) }
-                                .padding(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Image(
-                                bitmap = bitmap.asImageBitmap(),
-                                contentDescription = "İrsaliye Belgesi",
-                                modifier = Modifier
-                                    .size(50.dp)
-                                    .clip(RoundedCornerShape(8.dp)),
-                                contentScale = ContentScale.Fit
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "İrsaliye / Belge Görseli",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Slate800
-                                )
-                                Text(
-                                    text = "Tam ekran büyütmek için dokunun",
-                                    fontSize = 11.sp,
-                                    color = Slate500
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.Default.ZoomIn,
-                                contentDescription = "Büyüt",
-                                tint = TurquoisePrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 4. Alt Hızlı İşlemler Butonları
+            // 2. Alt Kısım: Durum butonu ile Paylaş, Düzenle, Sil ikonları
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // Hızlı Durum Değiştirici
+                // Durum Butonu
                 if (record.durum == IadeDurumu.DEVAM_EDIYOR) {
                     FilledTonalButton(
                         onClick = { onStatusChange(IadeDurumu.ONAYLANDI) },
@@ -313,13 +207,13 @@ fun TakipKaydiCard(
                             containerColor = Color(0xFFDCFCE7),
                             contentColor = Color(0xFF16A34A)
                         ),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.height(36.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Onayla", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Onayla", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     FilledTonalButton(
@@ -328,22 +222,22 @@ fun TakipKaydiCard(
                             containerColor = ExpiredRedContainer,
                             contentColor = ExpiredRed
                         ),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.height(36.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Reddet", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text("Reddet", fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold)
                     }
                 } else {
                     OutlinedButton(
                         onClick = { onStatusChange(IadeDurumu.DEVAM_EDIYOR) },
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(8.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                        modifier = Modifier.height(36.dp)
+                        modifier = Modifier.height(32.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(13.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Yeniden Aç", fontSize = 11.sp)
                     }
@@ -355,7 +249,7 @@ fun TakipKaydiCard(
                 IconButton(
                     onClick = onShareClick,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color(0xFFE8F5E9))
                 ) {
@@ -363,7 +257,7 @@ fun TakipKaydiCard(
                         imageVector = Icons.Default.Share,
                         contentDescription = "WhatsApp Paylaş",
                         tint = Color(0xFF2E7D32),
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -371,7 +265,7 @@ fun TakipKaydiCard(
                 IconButton(
                     onClick = onEditClick,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Slate100)
                 ) {
@@ -379,7 +273,7 @@ fun TakipKaydiCard(
                         imageVector = Icons.Default.Edit,
                         contentDescription = "Düzenle",
                         tint = Slate700,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -387,7 +281,7 @@ fun TakipKaydiCard(
                 IconButton(
                     onClick = onDeleteClick,
                     modifier = Modifier
-                        .size(36.dp)
+                        .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
                         .background(ExpiredRedContainer)
                 ) {
@@ -395,7 +289,7 @@ fun TakipKaydiCard(
                         imageVector = Icons.Default.DeleteOutline,
                         contentDescription = "Sil",
                         tint = ExpiredRed,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
