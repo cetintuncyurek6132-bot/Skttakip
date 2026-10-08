@@ -109,7 +109,6 @@ fun AppBottomSheetWrapper(
             .wrapContentHeight()
             .navigationBarsPadding()
             .imePadding()
-            .then(dragModifier)
 
         val finalColumnModifier = if (enableVerticalScroll) {
             baseColumnModifier.verticalScroll(rememberScrollState())

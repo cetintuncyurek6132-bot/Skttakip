@@ -592,7 +592,7 @@ fun BarcodeScannerSheet(
                 onFlashToggle = { isFlashOn = !isFlashOn },
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .zIndex(20f)
+                    .zIndex(25f)
             )
 
             // =========================================================================

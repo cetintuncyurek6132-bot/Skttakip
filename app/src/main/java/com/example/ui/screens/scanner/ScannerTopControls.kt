@@ -39,7 +39,7 @@ fun ScannerTopControls(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .zIndex(20f)
+            .zIndex(25f)
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,

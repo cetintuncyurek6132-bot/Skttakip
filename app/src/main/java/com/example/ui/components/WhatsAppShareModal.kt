@@ -189,20 +189,21 @@ fun WhatsAppShareModal(
                 // 2. MAIN BODY (SELECTION OR PREVIEW)
                 // =============================================================
                 if (!isPreviewMode) {
-                    // CATEGORY TABS [ SKT SON 7 GÜN ] [ ÖNEMLİ ]
+                    // CATEGORY TABS [ SON GÜN / -1 GÜN ] [ SKT SON 7 GÜN ] [ ÖNEMLİ ]
                     Surface(
                         shape = RoundedCornerShape(24.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(44.dp)
+                            .wrapContentHeight()
                     ) {
                         Row(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
                                 .horizontalScroll(rememberScrollState())
-                                .padding(3.dp),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Tab 1 (ÖNCELİKLİ / BAŞTA): SON GÜN / -1 GÜN GEÇMİŞ
                             Box(

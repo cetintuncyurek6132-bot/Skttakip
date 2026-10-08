@@ -89,7 +89,8 @@ data class Product(
     fun getFormattedPrice(): String? {
         val f = fiyat ?: return null
         if (f <= 0.0) return null
-        return "₺${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", f)}"
+        val bd = java.math.BigDecimal(f.toString()).setScale(2, java.math.RoundingMode.HALF_UP)
+        return "₺${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", bd.toDouble())}"
     }
 
     fun getFormattedSkt(): String {
@@ -372,7 +373,8 @@ fun parsePriceFromQr(rawInput: String): Double? {
 
         val candidate = partClean.replace(",", ".").toDoubleOrNull()
         if (candidate != null && candidate in 0.01..9999.99) {
-            return candidate
+            val bd = java.math.BigDecimal(candidate.toString()).setScale(2, java.math.RoundingMode.HALF_UP)
+            return bd.toDouble()
         }
     }
     return null

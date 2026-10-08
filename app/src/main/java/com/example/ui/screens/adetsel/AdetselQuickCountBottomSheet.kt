@@ -463,7 +463,7 @@ fun AdetselQuickCountBottomSheet(
                                             modifier = Modifier.padding(start = 8.dp)
                                         ) {
                                             Text(
-                                                text = "Stok: ${product.stokAdedi}",
+                                                text = "${product.stokAdedi} Adet",
                                                 fontSize = 11.5.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = TurquoiseDark,

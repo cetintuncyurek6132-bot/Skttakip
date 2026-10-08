@@ -6,6 +6,17 @@ import java.util.TimeZone
 
 object ShelfQrParser {
 
+    private fun roundPrice(value: Double?): Double? {
+        if (value == null || value <= 0.0) return null
+        return try {
+            java.math.BigDecimal(value.toString())
+                .setScale(2, java.math.RoundingMode.HALF_UP)
+                .toDouble()
+        } catch (_: Exception) {
+            value
+        }
+    }
+
     private fun parseGs1DateToMillis(rawDate6: String): Pair<Long, String>? {
         if (rawDate6.length != 6 || !rawDate6.all { it.isDigit() }) return null
         val yy = rawDate6.substring(0, 2).toIntOrNull() ?: return null
@@ -90,7 +101,7 @@ object ShelfQrParser {
                         barcode = b.ifBlank { c ?: "" },
                         productCode = c,
                         productName = n,
-                        price = p,
+                        price = roundPrice(p),
                         expiryDateMillis = expMillis,
                         expiryDateFormatted = expStr,
                         isShelfQr = true
@@ -173,7 +184,7 @@ object ShelfQrParser {
                     barcode = b.ifBlank { c ?: "" },
                     productCode = c,
                     productName = n,
-                    price = p,
+                    price = roundPrice(p),
                     expiryDateMillis = expMillis,
                     expiryDateFormatted = expStr,
                     isShelfQr = true
@@ -224,7 +235,7 @@ object ShelfQrParser {
                             barcode = b.ifBlank { c ?: "" },
                             productCode = c,
                             productName = n,
-                            price = p,
+                            price = roundPrice(p),
                             expiryDateMillis = expMillis,
                             expiryDateFormatted = expStr,
                             isShelfQr = true
@@ -272,7 +283,7 @@ object ShelfQrParser {
                     return ShelfQrData(
                         storeCode = detectedStoreCode,
                         barcode = cleanBarcode.ifEmpty { detectedProductCode ?: "" },
-                        price = detectedPrice,
+                        price = roundPrice(detectedPrice),
                         productCode = detectedProductCode,
                         productName = detectedName,
                         isShelfQr = true
@@ -312,7 +323,7 @@ object ShelfQrParser {
                     barcode = b.ifBlank { c ?: "" },
                     productCode = c,
                     productName = if (nameWords.isNotEmpty()) nameWords.joinToString(" ") else null,
-                    price = p,
+                    price = roundPrice(p),
                     isShelfQr = true
                 )
             }
