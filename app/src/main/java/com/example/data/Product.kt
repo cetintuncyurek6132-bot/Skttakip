@@ -103,21 +103,34 @@ data class Product(
      */
     fun getRemainingDays(todayDate: java.time.LocalDate = java.time.LocalDate.now()): Long {
         if (sktTarihi <= 0L) return 9999L
-        val cal = Calendar.getInstance().apply {
-            set(todayDate.year, todayDate.monthValue - 1, todayDate.dayOfMonth, 0, 0, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return getRemainingDays(cal.timeInMillis)
+        val zone = java.time.ZoneId.systemDefault()
+        val sktLocalDate = java.time.Instant.ofEpochMilli(sktTarihi).atZone(zone).toLocalDate()
+        return java.time.temporal.ChronoUnit.DAYS.between(todayDate, sktLocalDate)
     }
 
     fun getRemainingDays(todayMidnight: Long): Long {
         if (sktTarihi <= 0L) return 9999L
-        val diffMillis = sktTarihi - todayMidnight
-        // 86,400,000 ms per day with half-day rounding for timezone edge cases
-        return if (diffMillis >= 0) {
-            (diffMillis + 43200000L) / 86400000L
-        } else {
-            (diffMillis - 43200000L) / 86400000L
+        return try {
+            val zone = java.time.ZoneId.systemDefault()
+            val sktLocalDate = java.time.Instant.ofEpochMilli(sktTarihi).atZone(zone).toLocalDate()
+            val todayLocalDate = java.time.Instant.ofEpochMilli(todayMidnight).atZone(zone).toLocalDate()
+            java.time.temporal.ChronoUnit.DAYS.between(todayLocalDate, sktLocalDate)
+        } catch (_: Exception) {
+            val sktCal = Calendar.getInstance().apply {
+                timeInMillis = sktTarihi
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            val todayCal = Calendar.getInstance().apply {
+                timeInMillis = todayMidnight
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            (sktCal.timeInMillis - todayCal.timeInMillis) / 86400000L
         }
     }
 

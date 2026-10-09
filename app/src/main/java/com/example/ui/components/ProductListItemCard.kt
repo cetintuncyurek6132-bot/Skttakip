@@ -199,11 +199,11 @@ fun ProductListItemCard(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "GÜN GEÇTİ",
+                                text = "GÜNÜ GEÇTİ",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.5.sp,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.3.sp,
                                 lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -515,11 +515,11 @@ fun GroupedProductListItemCard(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "GÜN GEÇTİ",
+                                text = "GÜNÜ GEÇTİ",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.5.sp,
+                                fontSize = 10.sp,
+                                letterSpacing = 0.3.sp,
                                 lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -688,7 +688,7 @@ fun GroupedProductListItemCard(
                                 ExpiredRedBorder,
                                 ExpiredRed,
                                 Color.White,
-                                if (itemDaysLeft < 0) "${kotlin.math.abs(itemDaysLeft)} GÜN GEÇTİ" else "SON GÜN"
+                                if (itemDaysLeft < 0) "${kotlin.math.abs(itemDaysLeft)} GÜNÜ GEÇTİ" else "SON GÜN"
                             )
                             itemStatus == ExpiryStatus.CRITICAL -> arrayOf(
                                 CriticalOrangeContainer,

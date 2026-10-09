@@ -130,7 +130,10 @@ fun GlobalModalHost(
             highStockAlertEnabled = highStockAlertEnabled,
             onDismiss = onDismissNotificationDialog,
             onFilterSelected = { filter -> inventoryViewModel.onFilterSelected(filter) },
-            onNavigate = { route -> navigateToTab(route) },
+            onNavigate = { route ->
+                onDismissNotificationDialog()
+                navigateToTab(route)
+            },
             onMarkAllAsRead = { mainViewModel.markNotificationsAsRead() },
             onToggleMorningReminder = { settingsViewModel.toggleMorningCheckReminder() },
             onToggleCriticalAlert = { settingsViewModel.toggleCriticalSktAlert() },
@@ -170,7 +173,10 @@ fun GlobalModalHost(
             onToggleSoundEffects = { settingsViewModel.toggleSoundEffects() },
             onToggleVibration = { settingsViewModel.toggleVibration() },
             onToggleBatterySaverMode = { settingsViewModel.toggleBatterySaverMode() },
-            onNavigateToCsv = { navigateToTab("csv") }
+            onNavigateToCsv = {
+                onDismissProfileDialog()
+                navigateToTab("csv")
+            }
         )
     }
 

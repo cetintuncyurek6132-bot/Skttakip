@@ -111,6 +111,7 @@ class MainActivity : ComponentActivity() {
         val deepLinkRoute = intent?.getStringExtra("navigate_to")
         if (!deepLinkRoute.isNullOrBlank()) {
             pendingNavigationRoute.value = deepLinkRoute
+            intent?.removeExtra("navigate_to")
         }
 
         val db = AppDatabase.getDatabase(applicationContext)
@@ -174,6 +175,7 @@ class MainActivity : ComponentActivity() {
         val deepLinkRoute = intent.getStringExtra("navigate_to")
         if (!deepLinkRoute.isNullOrBlank()) {
             pendingNavigationRoute.value = deepLinkRoute
+            intent.removeExtra("navigate_to")
         }
     }
 }
@@ -209,14 +211,22 @@ fun SktMainApp(
         }
         val targetPageIndex = tabRoutes.indexOf(resolved)
         if (targetPageIndex != -1) {
-            if (currentNavRoute != "main") {
-                navController.popBackStack("main", inclusive = false)
-            }
-            coroutineScope.launch {
-                pagerState.scrollToPage(targetPageIndex)
+            val liveRoute = navController.currentDestination?.route ?: currentNavRoute
+            // Hedef zaten aktif olan sekme değilse işlemi yürüt
+            if (liveRoute != "main" || pagerState.currentPage != targetPageIndex) {
+                coroutineScope.launch {
+                    // Sayfayı popBackStack öncesinde veya anında güncelle ki eski sayfa ekranda flicker yapmasın
+                    if (pagerState.currentPage != targetPageIndex) {
+                        pagerState.scrollToPage(targetPageIndex)
+                    }
+                    if (navController.currentDestination?.route != "main") {
+                        navController.popBackStack("main", inclusive = false)
+                    }
+                }
             }
         } else {
-            if (currentNavRoute != resolved) {
+            val liveRoute = navController.currentDestination?.route ?: currentNavRoute
+            if (liveRoute != resolved) {
                 navController.navigate(resolved) {
                     popUpTo(navController.graph.findStartDestination().id) {
                         saveState = true
@@ -295,10 +305,10 @@ fun SktMainApp(
         }
     }
 
-    // Android sistem geri tuşunda ana sayfaya (page 0) dön
-    BackHandler(enabled = currentNavRoute == "main" && pagerState.currentPage != 0) {
+    // Android sistem geri tuşunda ana sayfaya (page 0) animasyonsuz, tek seferde dön
+    BackHandler(enabled = (navController.currentDestination?.route ?: currentNavRoute) == "main" && pagerState.currentPage != 0) {
         coroutineScope.launch {
-            pagerState.animateScrollToPage(0)
+            pagerState.scrollToPage(0)
         }
     }
 
@@ -356,7 +366,7 @@ fun SktMainApp(
                             onSettingsClick = { navigateToTab("csv") },
                             showHomeButton = activeRoute != "panel",
                             onHomeClick = {
-                                coroutineScope.launch { pagerState.animateScrollToPage(0) }
+                                navigateToTab("panel")
                             }
                         )
                         TopBarLoadingBar(isLoading = isLoading)

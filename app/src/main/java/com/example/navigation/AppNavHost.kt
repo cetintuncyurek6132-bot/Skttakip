@@ -87,6 +87,7 @@ fun AppNavHost(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = false,
                 beyondViewportPageCount = 0,
                 key = { page ->
                     when (page) {
@@ -263,7 +264,11 @@ fun AppNavHost(
                 onSaveLocalBackup = { tag, cb -> settingsViewModel.saveLocalBackup(context, tag, cb) },
                 onGetLocalBackups = { settingsViewModel.getLocalBackups(context) },
                 onRestoreFromJson = { json, merge, cb -> settingsViewModel.restoreFromJson(context, json, merge, cb) },
-                onBackClick = { navigateToTab("panel") }
+                onBackClick = {
+                    if (!navController.popBackStack()) {
+                        navigateToTab("panel")
+                    }
+                }
             )
         }
 
@@ -273,7 +278,11 @@ fun AppNavHost(
                 products = allProducts,
                 stockLogs = stockLogs,
                 onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
-                onBackClick = { navigateToTab("panel") }
+                onBackClick = {
+                    if (!navController.popBackStack()) {
+                        navigateToTab("panel")
+                    }
+                }
             )
         }
     }

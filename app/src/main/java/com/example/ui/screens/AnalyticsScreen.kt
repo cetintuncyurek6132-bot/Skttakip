@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -65,6 +66,10 @@ fun AnalyticsScreen(
     onProductClick: (Product) -> Unit = {},
     onBackClick: () -> Unit
 ) {
+    BackHandler {
+        onBackClick()
+    }
+
     val todayMidnight = remember { getTodayMidnightMillis() }
     var selectedTimeframe by remember { mutableStateOf(AnalyticsTimeframe.LAST_30_DAYS) }
     var chartMode by remember { mutableStateOf(ChartDisplayMode.ALL) }
