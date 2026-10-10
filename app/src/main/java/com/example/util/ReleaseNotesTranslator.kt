@@ -394,10 +394,24 @@ object ReleaseNotesTranslator {
             Regex("(?i)\\bfilter range\\b") to "filtre aralığı",
             Regex("(?i)\\btab components\\b") to "sekme bileşenleri",
             Regex("(?i)\\byellow labels?\\b") to "sarı etiket",
+            Regex("(?i)\\brisk summary panel\\b") to "risk özeti paneli",
             Regex("(?i)\\brisk summary\\b") to "reyon risk özeti",
+            Regex("(?i)\\bfinancial kpi metrics\\b") to "finansal performans göstergeleri",
+            Regex("(?i)\\bfinancial analysis\\b") to "finansal analiz",
             Regex("(?i)\\bfinancial\\b") to "finansal",
+            Regex("(?i)\\bprediction features\\b") to "tahminleme özellikleri",
+            Regex("(?i)\\breyon risk summary components\\b") to "reyon bazlı risk analiz bileşenleri",
+            Regex("(?i)\\binventory reductions\\b") to "stok azalışları",
+            Regex("(?i)\\bstock loss\\b") to "stok kaybı",
+            Regex("(?i)\\bbarcode scanner\\b") to "barkod tarayıcı",
+            Regex("(?i)\\buser experience\\b") to "kullanıcı deneyimi",
+            Regex("(?i)\\bdata management\\b") to "veri yönetimi",
+            Regex("(?i)\\brelease notes\\b") to "sürüm notları",
             Regex("(?i)\\bfeatures?\\b") to "özellikleri",
-            Regex("(?i)\\bcomponents?\\b") to "bileşenleri"
+            Regex("(?i)\\bcomponents?\\b") to "bileşenleri",
+            Regex("(?i)\\bpotential\\b") to "olası",
+            Regex("(?i)\\btracking\\b") to "takibi",
+            Regex("(?i)\\bmetrics\\b") to "göstergeleri"
         )
 
         for ((pattern, replacement) in dict) {

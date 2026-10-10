@@ -229,14 +229,13 @@ fun SktMainApp(
                 // Hedef sayfa zaten aktif değilse geçiş yap
                 if (pagerState.currentPage != targetPageIndex) {
                     try {
-                        if (Math.abs(pagerState.currentPage - targetPageIndex) == 1) {
-                            pagerState.animateScrollToPage(
-                                page = targetPageIndex,
-                                animationSpec = androidx.compose.animation.core.tween(240)
+                        pagerState.animateScrollToPage(
+                            page = targetPageIndex,
+                            animationSpec = androidx.compose.animation.core.tween(
+                                durationMillis = 180,
+                                easing = androidx.compose.animation.core.FastOutSlowInEasing
                             )
-                        } else {
-                            pagerState.scrollToPage(targetPageIndex)
-                        }
+                        )
                     } catch (_: Exception) {
                         try {
                             pagerState.scrollToPage(targetPageIndex)
@@ -325,18 +324,17 @@ fun SktMainApp(
         }
     }
 
-    // Android sistem geri tuşunda ana sayfaya (page 0) güvenli dön
+    // Android sistem geri tuşunda ana sayfaya (page 0) güvenli ve akıcı dön
     BackHandler(enabled = (navController.currentDestination?.route ?: currentNavRoute) == "main" && pagerState.currentPage != 0) {
         coroutineScope.launch {
             try {
-                if (pagerState.currentPage == 1) {
-                    pagerState.animateScrollToPage(
-                        page = 0,
-                        animationSpec = androidx.compose.animation.core.tween(240)
+                pagerState.animateScrollToPage(
+                    page = 0,
+                    animationSpec = androidx.compose.animation.core.tween(
+                        durationMillis = 180,
+                        easing = androidx.compose.animation.core.FastOutSlowInEasing
                     )
-                } else {
-                    pagerState.scrollToPage(0)
-                }
+                )
             } catch (_: Exception) {
                 pagerState.scrollToPage(0)
             }

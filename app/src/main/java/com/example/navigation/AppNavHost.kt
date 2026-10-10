@@ -74,26 +74,26 @@ fun AppNavHost(
         enterTransition = {
             slideIntoContainer(
                 towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(260)
-            ) + fadeIn(animationSpec = tween(260))
+                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(180))
         },
         exitTransition = {
             slideOutOfContainer(
                 towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(260)
-            ) + fadeOut(animationSpec = tween(260))
+                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(180))
         },
         popEnterTransition = {
             slideIntoContainer(
                 towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(260)
-            ) + fadeIn(animationSpec = tween(260))
+                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(180))
         },
         popExitTransition = {
             slideOutOfContainer(
                 towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(260)
-            ) + fadeOut(animationSpec = tween(260))
+                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(180))
         }
     ) {
         // 4 ANA SEKME (HORIZONTAL PAGER İLE DÜZENLİ GEÇİŞ)

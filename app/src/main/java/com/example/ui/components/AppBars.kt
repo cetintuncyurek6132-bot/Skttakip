@@ -188,35 +188,29 @@ fun SktTopAppBar(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (showHomeButton) {
-                IconButton(
-                    onClick = onHomeClick,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .testTag("top_bar_home_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Home,
-                        contentDescription = "Ana Sayfaya Dön",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(4.dp))
-            }
-
             // SKT Özel Grafik Logo Rozeti (Ferah Beyaz Kapsül & Kurumsal Terminal Tasarımı)
+            // Ana sayfa harici sayfalarda tıklandığında ana sayfaya döner
             Surface(
+                onClick = {
+                    if (showHomeButton) {
+                        onHomeClick()
+                    }
+                },
+                enabled = showHomeButton,
                 modifier = Modifier
-                    .height(32.dp)
+                    .height(34.dp)
                     .graphicsLayer {
                         this.rotationY = rotationY.value
                         cameraDistance = 12f * density
-                    },
+                    }
+                    .testTag("top_bar_logo_badge"),
                 shape = RoundedCornerShape(10.dp),
                 color = Color.White,
-                border = BorderStroke(1.dp, Color(0xFF0D9488).copy(alpha = 0.25f)),
-                shadowElevation = 2.dp
+                border = BorderStroke(
+                    1.dp,
+                    if (showHomeButton) Color(0xFF0D9488) else Color(0xFF0D9488).copy(alpha = 0.25f)
+                ),
+                shadowElevation = if (showHomeButton) 3.dp else 2.dp
             ) {
                 Row(
                     modifier = Modifier
