@@ -74,10 +74,7 @@ fun AppUpdateDialog(
         if (parsed.isNotEmpty()) {
             parsed
         } else {
-            listOf(
-                "Sistem performansı ve kararlılık iyileştirmeleri yapıldı.",
-                "Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı."
-            )
+            ReleaseNotesTranslator.getCorporateFallback(cleanVer)
         }
     }
 
