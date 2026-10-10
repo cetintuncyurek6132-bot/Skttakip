@@ -110,7 +110,12 @@ fun SktBottomNavBar(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .fillMaxHeight()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onScanClick
+                        ),
                     contentAlignment = Alignment.BottomCenter
                 ) {
                     Text(

@@ -2,8 +2,6 @@ package com.example.navigation
 
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -73,12 +71,32 @@ fun AppNavHost(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-        enterTransition = { fadeIn(animationSpec = tween(120)) },
-        exitTransition = { fadeOut(animationSpec = tween(120)) },
-        popEnterTransition = { fadeIn(animationSpec = tween(120)) },
-        popExitTransition = { fadeOut(animationSpec = tween(120)) }
+        enterTransition = {
+            slideIntoContainer(
+                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(260)
+            ) + fadeIn(animationSpec = tween(260))
+        },
+        exitTransition = {
+            slideOutOfContainer(
+                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Start,
+                animationSpec = tween(260)
+            ) + fadeOut(animationSpec = tween(260))
+        },
+        popEnterTransition = {
+            slideIntoContainer(
+                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(260)
+            ) + fadeIn(animationSpec = tween(260))
+        },
+        popExitTransition = {
+            slideOutOfContainer(
+                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.End,
+                animationSpec = tween(260)
+            ) + fadeOut(animationSpec = tween(260))
+        }
     ) {
-        // 4 ANA SEKME (HORIZONTAL PAGER İLE SAĞA/SOLA KAYDIRMALI GEÇİŞ)
+        // 4 ANA SEKME (HORIZONTAL PAGER İLE DÜZENLİ GEÇİŞ)
         composable("main") {
             val sktProductCount = remember(allProducts) {
                 allProducts.count { it.sktTarihi > 0L && it.stokAdedi > 0 }
@@ -88,7 +106,7 @@ fun AppNavHost(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = false,
-                beyondViewportPageCount = 0,
+                beyondViewportPageCount = 1,
                 key = { page ->
                     when (page) {
                         0 -> "panel"
@@ -209,13 +227,7 @@ fun AppNavHost(
         }
 
         // 5. CSV VERİ AKTARIMI & AYARLAR (TAM EKRAN ALT SAYFA)
-        composable(
-            route = "csv",
-            enterTransition = { EnterTransition.None },
-            exitTransition = { ExitTransition.None },
-            popEnterTransition = { EnterTransition.None },
-            popExitTransition = { ExitTransition.None }
-        ) {
+        composable("csv") {
             val barcodeSoundId by settingsViewModel.barcodeSoundId.collectAsState()
             val labelFixSoundId by settingsViewModel.labelFixSoundId.collectAsState()
             CsvScreen(

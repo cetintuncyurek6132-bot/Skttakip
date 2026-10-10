@@ -211,16 +211,36 @@ fun SktMainApp(
         }
         val targetPageIndex = tabRoutes.indexOf(resolved)
         if (targetPageIndex != -1) {
-            val liveRoute = navController.currentDestination?.route ?: currentNavRoute
-            // Hedef zaten aktif olan sekme değilse işlemi yürüt
-            if (liveRoute != "main" || pagerState.currentPage != targetPageIndex) {
-                coroutineScope.launch {
-                    // Sayfayı popBackStack öncesinde veya anında güncelle ki eski sayfa ekranda flicker yapmasın
-                    if (pagerState.currentPage != targetPageIndex) {
-                        pagerState.scrollToPage(targetPageIndex)
+            coroutineScope.launch {
+                val liveRoute = navController.currentDestination?.route ?: currentNavRoute
+                // Alt ekrandan (csv, analytics vb.) ana sekmeye dönülüyorsa önce main rotasına dön
+                if (liveRoute != "main") {
+                    val popped = navController.popBackStack("main", inclusive = false)
+                    if (!popped) {
+                        navController.navigate("main") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
-                    if (navController.currentDestination?.route != "main") {
-                        navController.popBackStack("main", inclusive = false)
+                }
+                // Hedef sayfa zaten aktif değilse geçiş yap
+                if (pagerState.currentPage != targetPageIndex) {
+                    try {
+                        if (Math.abs(pagerState.currentPage - targetPageIndex) == 1) {
+                            pagerState.animateScrollToPage(
+                                page = targetPageIndex,
+                                animationSpec = androidx.compose.animation.core.tween(240)
+                            )
+                        } else {
+                            pagerState.scrollToPage(targetPageIndex)
+                        }
+                    } catch (_: Exception) {
+                        try {
+                            pagerState.scrollToPage(targetPageIndex)
+                        } catch (_: Exception) {}
                     }
                 }
             }
@@ -305,10 +325,21 @@ fun SktMainApp(
         }
     }
 
-    // Android sistem geri tuşunda ana sayfaya (page 0) animasyonsuz, tek seferde dön
+    // Android sistem geri tuşunda ana sayfaya (page 0) güvenli dön
     BackHandler(enabled = (navController.currentDestination?.route ?: currentNavRoute) == "main" && pagerState.currentPage != 0) {
         coroutineScope.launch {
-            pagerState.scrollToPage(0)
+            try {
+                if (pagerState.currentPage == 1) {
+                    pagerState.animateScrollToPage(
+                        page = 0,
+                        animationSpec = androidx.compose.animation.core.tween(240)
+                    )
+                } else {
+                    pagerState.scrollToPage(0)
+                }
+            } catch (_: Exception) {
+                pagerState.scrollToPage(0)
+            }
         }
     }
 

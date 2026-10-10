@@ -44,6 +44,7 @@ import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -187,6 +188,23 @@ fun SktTopAppBar(
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (showHomeButton) {
+                IconButton(
+                    onClick = onHomeClick,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .testTag("top_bar_home_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Home,
+                        contentDescription = "Ana Sayfaya Dön",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+            }
+
             // SKT Özel Grafik Logo Rozeti (Ferah Beyaz Kapsül & Kurumsal Terminal Tasarımı)
             Surface(
                 modifier = Modifier
