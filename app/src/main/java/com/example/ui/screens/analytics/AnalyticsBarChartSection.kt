@@ -300,11 +300,15 @@ fun AnalyticsBarChartSection(
 
 private fun shouldShowDateLabel(index: Int, totalSize: Int): Boolean {
     if (totalSize <= 7) {
-        return index == 0 || index == 2 || index == 4 || index == totalSize - 1
+        return index == 0 || index == 3 || index == totalSize - 1
     }
-    val step = 7
-    if (index % step == 0) {
-        return (totalSize - 1 - index) >= 4 || index == 0
+    if (totalSize in 28..32) {
+        // 30 günlük görünüm: Başlangıç (0), +7 gün (7), +14 gün (14), +21 gün (21), Bitiş (totalSize - 1)
+        return index == 0 || index == 7 || index == 14 || index == 21 || index == totalSize - 1
+    }
+    // 60 günlük ve diğer aralıklar: 7'şer günlük düzenli adımlar
+    if (index % 7 == 0) {
+        return (totalSize - 1 - index) >= 3 || index == 0
     }
     return index == totalSize - 1
 }

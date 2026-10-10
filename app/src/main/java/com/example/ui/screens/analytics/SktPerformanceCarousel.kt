@@ -367,8 +367,8 @@ fun SktPerformanceCarousel(
                                     fontSize = 12.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = when {
-                                        item.recoveryRate >= 70 -> Color(0xFF16A34A)
-                                        item.recoveryRate >= 40 -> Color(0xFFD97706)
+                                        item.recoveryRate >= 75 -> Color(0xFF16A34A)
+                                        item.recoveryRate >= 50 -> Color(0xFFEA580C)
                                         else -> Color(0xFFDC2626)
                                     }
                                 )
@@ -381,8 +381,8 @@ fun SktPerformanceCarousel(
                                     .height(6.dp)
                                     .clip(RoundedCornerShape(3.dp)),
                                 color = when {
-                                    item.recoveryRate >= 70 -> Color(0xFF16A34A)
-                                    item.recoveryRate >= 40 -> Color(0xFFD97706)
+                                    item.recoveryRate >= 75 -> Color(0xFF16A34A)
+                                    item.recoveryRate >= 50 -> Color(0xFFEA580C)
                                     else -> Color(0xFFDC2626)
                                 },
                                 trackColor = Color(0xFFF1F5F9)

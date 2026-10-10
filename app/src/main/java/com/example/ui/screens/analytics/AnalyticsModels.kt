@@ -40,7 +40,12 @@ data class ProductPrediction(
     val pastSaleRate: Double,
     val predictedSales: Int,
     val predictedFire: Int,
-    val firePercent: Int
+    val firePercent: Int,
+    val observationDays: Long = 1L,
+    val dailySalesVelocity: Double = 0.0,
+    val remainingDays: Long = 0L,
+    val isExpired: Boolean = false,
+    val isHighRisk: Boolean = isExpired || (predictedFire > 0 && firePercent >= 30)
 )
 
 @Immutable

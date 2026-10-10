@@ -36,6 +36,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.data.StockLog
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.Locale
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.CriticalOrangeDark
 import com.example.ui.theme.EmeraldSuccess
@@ -55,51 +60,104 @@ fun PredictiveAnalyticsSection(
     onProductClick: (Product) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // Ürün Bazlı Satış & Fire Öngörüsü (Riskli Ürün Öngörüleri - İlk 5 Ürün)
+    // Ürün Bazlı Satış & Fire Öngörüsü (Riskli Parti Öngörüleri - İlk 5 Ürün / Parti)
     val productPredictions = remember(validProducts, stockLogs) {
-        val activeByBarcode = validProducts
-            .filter { it.barkod.isNotBlank() && it.stokAdedi > 0 }
-            .groupBy { it.barkod.trim() }
+        val zone = ZoneId.systemDefault()
+        val bugunLocalDate = LocalDate.now(zone)
 
+        // Sadece stoğu olan ve geçerli SKT'ye sahip partileri bağımsız (batch bazlı) olarak ele al
+        val activeBatches = validProducts.filter { it.stokAdedi > 0 && it.sktTarihi > 0L }
         val predictions = mutableListOf<ProductPrediction>()
 
-        activeByBarcode.forEach { (barcode, productList) ->
-            val sampleProduct = productList.first()
-            val currentStock = productList.sumOf { it.stokAdedi }
-            val logs = stockLogs.filter { it.barcode.equals(barcode, ignoreCase = true) }
+        activeBatches.forEach { product ->
+            // İlgili partinin barkodu veya adına ait geçmiş log kayıtlarını bul
+            val logs = stockLogs.filter { log ->
+                (product.barkod.isNotBlank() && log.barcode.equals(product.barkod, ignoreCase = true)) ||
+                (log.productName.isNotBlank() && log.productName.trim().equals(product.urunAdi.trim(), ignoreCase = true))
+            }
+
             val pastSold = logs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
             val pastFire = logs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
-            val totalFinished = pastSold + pastFire
 
-            if (totalFinished > 0) {
-                val fRate = pastFire.toDouble() / totalFinished.toDouble()
-                val sRate = pastSold.toDouble() / totalFinished.toDouble()
-                val predictedSales = Math.round(currentStock * sRate).toInt()
-                val predictedFire = Math.round(currentStock * fRate).toInt()
-                val fPercent = Math.round(fRate * 100).toInt()
+            // 1. Gözlem Süresi (Payda): Ürünün ilk eklenme tarihi veya en eski log zamanı
+            val minProductEklenme = if (product.eklenmeTarihi > 0L) product.eklenmeTarihi else null
+            val earliestLogTime = logs
+                .filter { it.actionType == "SKT_GIRIS" || it.actionType == "SATIS" }
+                .map { it.timestamp }
+                .filter { it > 0L }
+                .minOrNull()
 
+            val observationStartTime = listOfNotNull(minProductEklenme, earliestLogTime).minOrNull() ?: product.eklenmeTarihi
+            val eklenmeLocalDate = try {
+                Instant.ofEpochMilli(observationStartTime).atZone(zone).toLocalDate()
+            } catch (_: Exception) {
+                bugunLocalDate
+            }
+
+            val gecenGun = maxOf(1L, ChronoUnit.DAYS.between(eklenmeLocalDate, bugunLocalDate))
+
+            // 2. Gerçek Günlük Satış Hızı: Toplam satış adedi / geçen gün sayısı
+            val gunlukSatisHizi = pastSold.toDouble() / gecenGun.toDouble()
+
+            // 3. Kalan Gün ve Beklenen Satış / Fire
+            val kalanGun = product.getRemainingDays(bugunLocalDate)
+
+            val beklenenSatis: Int
+            val beklenenFire: Int
+            val firePercent: Int
+            val isExpired: Boolean
+
+            if (kalanGun <= 0L) {
+                // KURAL A (Süresi Dolanlar): Ürün artık satılamaz, tamamı doğrudan %100 fire
+                beklenenSatis = 0
+                beklenenFire = product.stokAdedi
+                firePercent = 100
+                isExpired = true
+            } else {
+                // KURAL B (SKT'si Devam Edenler)
+                val beklenenSatisDouble = Math.min(product.stokAdedi.toDouble(), gunlukSatisHizi * kalanGun.toDouble())
+                beklenenSatis = Math.round(beklenenSatisDouble).toInt().coerceIn(0, product.stokAdedi)
+                beklenenFire = Math.max(0, product.stokAdedi - beklenenSatis)
+                firePercent = if (product.stokAdedi > 0) {
+                    Math.round((beklenenFire.toDouble() / product.stokAdedi.toDouble()) * 100).toInt().coerceIn(0, 100)
+                } else 0
+                isExpired = false
+            }
+
+            val pastSaleRate = if (product.stokAdedi > 0) beklenenSatis.toDouble() / product.stokAdedi.toDouble() else 0.0
+            val pastFireRate = if (product.stokAdedi > 0) beklenenFire.toDouble() / product.stokAdedi.toDouble() else 0.0
+            val isHighRisk = isExpired || (beklenenFire > 0 && firePercent >= 30)
+
+            // Geçmiş log kaydı olan veya satış/fire kaydı bulunan ürünleri listeye al
+            if (logs.isNotEmpty() || pastSold > 0 || pastFire > 0) {
                 predictions.add(
                     ProductPrediction(
-                        product = sampleProduct,
-                        barcode = barcode,
-                        productName = sampleProduct.urunAdi,
-                        currentStock = currentStock,
+                        product = product,
+                        barcode = product.barkod,
+                        productName = product.urunAdi,
+                        currentStock = product.stokAdedi,
                         pastSold = pastSold,
                         pastFire = pastFire,
-                        pastFireRate = fRate,
-                        pastSaleRate = sRate,
-                        predictedSales = predictedSales,
-                        predictedFire = predictedFire,
-                        firePercent = fPercent
+                        pastFireRate = pastFireRate,
+                        pastSaleRate = pastSaleRate,
+                        predictedSales = beklenenSatis,
+                        predictedFire = beklenenFire,
+                        firePercent = firePercent,
+                        observationDays = gecenGun,
+                        dailySalesVelocity = gunlukSatisHizi,
+                        remainingDays = kalanGun,
+                        isExpired = isExpired,
+                        isHighRisk = isHighRisk
                     )
                 )
             }
         }
 
-        // Fire riski en yüksek olandan başlayarak sırala, ilk 5 ürünü al
+        // Fire riski en yüksek olandan başlayarak sırala (önce firePercent, sonra predictedFire, sonra azalan gün), ilk 5'i al
         predictions.sortedWith(
-            compareByDescending<ProductPrediction> { it.pastFireRate }
+            compareByDescending<ProductPrediction> { it.firePercent }
                 .thenByDescending { it.predictedFire }
+                .thenBy { it.remainingDays }
                 .thenByDescending { it.currentStock }
         ).take(5)
     }
@@ -208,10 +266,10 @@ fun PredictiveAnalyticsSection(
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onProductClick(item.product) },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (item.firePercent >= 40) androidx.compose.ui.graphics.Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            color = if (item.isHighRisk) androidx.compose.ui.graphics.Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                             border = BorderStroke(
                                 1.dp,
-                                if (item.firePercent >= 40) androidx.compose.ui.graphics.Color(0xFFFECACA) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                if (item.isHighRisk) androidx.compose.ui.graphics.Color(0xFFFECACA) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                             )
                         ) {
                             Column(
@@ -220,7 +278,7 @@ fun PredictiveAnalyticsSection(
                                     .padding(12.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // 1. Satır: Sıra + Ürün Adı + Rozet
+                                // 1. Satır: Sıra + Ürün Adı & Parti SKT + Rozet
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -234,23 +292,30 @@ fun PredictiveAnalyticsSection(
                                             text = "#${index + 1}",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Black,
-                                            color = if (item.firePercent >= 40) ExpiredRed else TurquoiseDark
+                                            color = if (item.isHighRisk) ExpiredRed else TurquoiseDark
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = item.productName,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = item.productName,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "Parti SKT: ${item.product.getFormattedSkt()} • ${if (item.remainingDays <= 0) "Süresi Doldu" else "${item.remainingDays} gün kaldı"}",
+                                                fontSize = 10.sp,
+                                                color = if (item.isExpired || item.remainingDays <= 2) ExpiredRed else Slate500
+                                            )
+                                        }
                                     }
 
                                     Spacer(modifier = Modifier.width(8.dp))
 
-                                    // Uyarı Rozeti: %40+ Fire Beklentisi
-                                    if (item.firePercent >= 40) {
+                                    // Uyarı Rozetleri
+                                    if (item.isExpired) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
                                             color = ExpiredRed.copy(alpha = 0.12f),
@@ -268,26 +333,37 @@ fun PredictiveAnalyticsSection(
                                                 )
                                                 Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
-                                                    text = "%${item.firePercent}+ Fire Beklentisi",
-                                                    fontSize = 10.5.sp,
+                                                    text = "SÜRESİ DOLDU / %100 FİRE",
+                                                    fontSize = 10.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = ExpiredRed
                                                 )
                                             }
                                         }
-                                    } else if (item.firePercent in 20..39) {
+                                    } else if (item.isHighRisk) {
                                         Surface(
                                             shape = RoundedCornerShape(6.dp),
-                                            color = CriticalOrange.copy(alpha = 0.12f),
-                                            border = BorderStroke(1.dp, CriticalOrange.copy(alpha = 0.4f))
+                                            color = ExpiredRed.copy(alpha = 0.12f),
+                                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.4f))
                                         ) {
-                                            Text(
-                                                text = "%${item.firePercent} Fire Riski",
-                                                fontSize = 10.5.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = CriticalOrangeDark,
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                            )
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Warning,
+                                                    contentDescription = null,
+                                                    tint = ExpiredRed,
+                                                    modifier = Modifier.size(11.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = "YÜKSEK FİRE RİSKİ",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = ExpiredRed
+                                                )
+                                            }
                                         }
                                     } else {
                                         Surface(
@@ -296,8 +372,8 @@ fun PredictiveAnalyticsSection(
                                             border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.4f))
                                         ) {
                                             Text(
-                                                text = "%${item.firePercent} Düşük Fire",
-                                                fontSize = 10.5.sp,
+                                                text = "DÜŞÜK RİSK / ERİTİLEBİLİR",
+                                                fontSize = 10.sp,
                                                 fontWeight = FontWeight.ExtraBold,
                                                 color = EmeraldSuccess,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -306,7 +382,7 @@ fun PredictiveAnalyticsSection(
                                     }
                                 }
 
-                                // 2. Satır: 3 Metrik (Mevcut Stok, Tahmini Satacak, Olası Fire Riski)
+                                // 2. Satır: 3 Metrik (Mevcut Stok, Tahmini Satış, Tahmini Fire)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -314,22 +390,43 @@ fun PredictiveAnalyticsSection(
                                 ) {
                                     Column {
                                         Text(text = "Mevcut Stok", fontSize = 10.sp, color = Slate500)
-                                        Text(text = "${item.currentStock} Adet", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                                        Text(
+                                            text = "${item.currentStock} Adet",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
                                     }
                                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(text = "Tahmini Satacak", fontSize = 10.sp, color = EmeraldSuccess)
-                                        Text(text = "~${item.predictedSales} Adet", fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, color = EmeraldSuccess)
-                                    }
-                                    Column(horizontalAlignment = Alignment.End) {
-                                        Text(text = "Olası Fire Riski", fontSize = 10.sp, color = if (item.firePercent >= 40) ExpiredRed else CriticalOrange)
+                                        Text(text = "Tahmini Satış", fontSize = 10.sp, color = EmeraldSuccess)
                                         Text(
-                                            text = "~${item.predictedFire} Adet (%${item.firePercent})",
+                                            text = "${item.predictedSales} Adet",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.ExtraBold,
-                                            color = if (item.firePercent >= 40) ExpiredRed else CriticalOrangeDark
+                                            color = EmeraldSuccess
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text(
+                                            text = "Tahmini Fire",
+                                            fontSize = 10.sp,
+                                            color = if (item.isHighRisk) ExpiredRed else CriticalOrange
+                                        )
+                                        Text(
+                                            text = "${item.predictedFire} Adet (%${item.firePercent})",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = if (item.isHighRisk) ExpiredRed else CriticalOrangeDark
                                         )
                                     }
                                 }
+
+                                // 3. Satır: Satış Hızı Bilgilendirmesi
+                                Text(
+                                    text = "Satış Hızı: ${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", item.dailySalesVelocity)} adet/gün (${item.observationDays} günde ${item.pastSold} satış)",
+                                    fontSize = 9.5.sp,
+                                    color = Slate500
+                                )
 
                                 // Mini görsel bar
                                 Row(
@@ -353,7 +450,7 @@ fun PredictiveAnalyticsSection(
                                             modifier = Modifier
                                                 .weight(item.pastFireRate.toFloat().coerceAtLeast(0.05f))
                                                 .fillMaxHeight()
-                                                .background(if (item.firePercent >= 40) ExpiredRed else CriticalOrange)
+                                                .background(if (item.isHighRisk) ExpiredRed else CriticalOrange)
                                         )
                                     }
                                 }
