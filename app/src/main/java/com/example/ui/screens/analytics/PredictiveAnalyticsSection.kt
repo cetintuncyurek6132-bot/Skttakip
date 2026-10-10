@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Tag
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -29,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -58,6 +61,7 @@ fun PredictiveAnalyticsSection(
     validProducts: List<Product>,
     stockLogs: List<StockLog>,
     onProductClick: (Product) -> Unit = {},
+    onApplyYellowTag: (Product) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Ürün Bazlı Satış & Fire Öngörüsü (Riskli Parti Öngörüleri - İlk 5 Ürün / Parti)
@@ -266,10 +270,10 @@ fun PredictiveAnalyticsSection(
                                 .clip(RoundedCornerShape(12.dp))
                                 .clickable { onProductClick(item.product) },
                             shape = RoundedCornerShape(12.dp),
-                            color = if (item.isHighRisk) androidx.compose.ui.graphics.Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                            color = if (item.isHighRisk) Color(0xFFFEF2F2) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
                             border = BorderStroke(
                                 1.dp,
-                                if (item.isHighRisk) androidx.compose.ui.graphics.Color(0xFFFECACA) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                if (item.isHighRisk) Color(0xFFFECACA) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
                             )
                         ) {
                             Column(
@@ -421,12 +425,53 @@ fun PredictiveAnalyticsSection(
                                     }
                                 }
 
-                                // 3. Satır: Satış Hızı Bilgilendirmesi
-                                Text(
-                                    text = "Satış Hızı: ${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", item.dailySalesVelocity)} adet/gün (${item.observationDays} günde ${item.pastSold} satış)",
-                                    fontSize = 9.5.sp,
-                                    color = Slate500
-                                )
+                                // 3. Satır: Satış Hızı ve "Sarı Etiket / İndirim" Aksiyonu
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Satış Hızı: ${String.format(Locale.forLanguageTag("tr-TR"), "%.2f", item.dailySalesVelocity)} adet/gün (${item.observationDays} günde ${item.pastSold} satış)",
+                                        fontSize = 9.5.sp,
+                                        color = Slate500,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    if (item.isHighRisk || item.isExpired) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Surface(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable { onApplyYellowTag(item.product) },
+                                            shape = RoundedCornerShape(8.dp),
+                                            color = if (item.product.isImportant) Color(0xFFFEF3C7) else Color(0xFFFFFBEB),
+                                            border = BorderStroke(
+                                                1.dp,
+                                                if (item.product.isImportant) Color(0xFFF59E0B) else Color(0xFFFDE68A)
+                                            )
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.5.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (item.product.isImportant) Icons.Default.Check else Icons.Default.Tag,
+                                                    contentDescription = null,
+                                                    tint = if (item.product.isImportant) Color(0xFF16A34A) else Color(0xFFD97706),
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = if (item.product.isImportant) "Sarı Etikette ✓" else "Sarı Etiket",
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (item.product.isImportant) Color(0xFF166534) else Color(0xFFB45309)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
 
                                 // Mini görsel bar
                                 Row(

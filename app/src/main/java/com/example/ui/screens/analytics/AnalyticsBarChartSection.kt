@@ -1,5 +1,10 @@
 package com.example.ui.screens.analytics
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,10 +28,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,6 +55,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
+import com.example.ui.theme.CriticalOrange
+import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate600
@@ -109,7 +119,7 @@ fun AnalyticsBarChartSection(
 
                     // Sağ üstteki lejant alanı
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(
@@ -124,7 +134,7 @@ fun AnalyticsBarChartSection(
                             )
                             Text(
                                 text = "Süresi Geçen",
-                                fontSize = 11.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate700,
                                 maxLines = 1,
@@ -142,8 +152,8 @@ fun AnalyticsBarChartSection(
                                     .background(Color(0xFFF97316))
                             )
                             Text(
-                                text = "Kritik / Yaklaşan",
-                                fontSize = 11.sp,
+                                text = "Yaklaşan",
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate700,
                                 maxLines = 1,
@@ -153,16 +163,46 @@ fun AnalyticsBarChartSection(
                     }
                 }
 
-                Text(
-                    text = "Günlük süresi dolan ve yaklaşan ürün adedi",
-                    fontSize = 11.5.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // Sol: Geçmiş, Sağ: Gelecek yönlendirme rehberi
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "← Geçmiş (Süresi Dolan)",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = ExpiredRed
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(4.dp),
+                        color = TurquoiseDark.copy(alpha = 0.12f),
+                        border = BorderStroke(0.6.dp, TurquoiseDark.copy(alpha = 0.3f))
+                    ) {
+                        Text(
+                            text = "BUGÜN (Referans)",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp)
+                        )
+                    }
+                    Text(
+                        text = "Gelecek (Yaklaşan) →",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = CriticalOrange
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Chart Mode Selector Tabs
+            // Chart Mode Selector Tabs (Tüm Dağılım / Süresi Dolanlar / Yaklaşan SKT'ler)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -196,87 +236,7 @@ fun AnalyticsBarChartSection(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Selected Bar Tooltip & Product List Preview
-            selectedBarIndex?.let { idx ->
-                if (idx in barChartData.indices) {
-                    val item = barChartData[idx]
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = TurquoiseDark,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${item.dateLabel} ${if (item.isToday) "(BUGÜN)" else ""}",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                val count = item.expiredCount + item.criticalCount
-                                Text(
-                                    text = "$count Çeşit • ${item.totalStock} Adet",
-                                    color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold
-                                )
-                            }
-
-                            if (item.products.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                HorizontalDivider(color = Color.White.copy(alpha = 0.3f), thickness = 0.5.dp)
-                                Spacer(modifier = Modifier.height(6.dp))
-
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    item.products.take(4).forEach { p ->
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(6.dp))
-                                                .clickable { onProductClick(p) }
-                                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "• ${p.urunAdi}",
-                                                color = Color.White,
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            Text(
-                                                text = "${p.stokAdedi} Adet",
-                                                color = TurquoiseLight,
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    }
-                                    if (item.products.size > 4) {
-                                        Text(
-                                            text = "+${item.products.size - 4} ürün daha...",
-                                            color = Color.White.copy(alpha = 0.8f),
-                                            fontSize = 10.5.sp,
-                                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Interactive Modern Bar Chart
+            // 1. Interactive Modern Bar Chart (ÜSTTE SABİT ÇİZİM)
             InteractiveBarChart(
                 data = barChartData,
                 selectedIndex = selectedBarIndex,
@@ -286,9 +246,129 @@ fun AnalyticsBarChartSection(
                     .height(200.dp)
             )
 
+            // 2. Bilgi Kartı Yerleşimi: Grafiğin altına yumuşak animasyonla yerleşir
+            AnimatedVisibility(
+                visible = selectedBarIndex != null,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                selectedBarIndex?.let { idx ->
+                    if (idx in barChartData.indices) {
+                        val item = barChartData[idx]
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = TurquoiseDark,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = item.dateLabel,
+                                            color = Color.White,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        if (item.isToday) {
+                                            Surface(
+                                                shape = RoundedCornerShape(4.dp),
+                                                color = Color.White.copy(alpha = 0.25f)
+                                            ) {
+                                                Text(
+                                                    text = "BUGÜN",
+                                                    fontSize = 9.5.sp,
+                                                    fontWeight = FontWeight.Black,
+                                                    color = Color.White,
+                                                    modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val count = item.expiredCount + item.criticalCount
+                                        Text(
+                                            text = "$count Çeşit • ${item.totalStock} Adet",
+                                            color = TurquoiseLight,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.ExtraBold
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        IconButton(
+                                            onClick = { selectedBarIndex = null },
+                                            modifier = Modifier.size(24.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Close,
+                                                contentDescription = "Kapat",
+                                                tint = Color.White.copy(alpha = 0.8f),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (item.products.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    HorizontalDivider(color = Color.White.copy(alpha = 0.25f), thickness = 0.5.dp)
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        item.products.take(4).forEach { p ->
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .clickable { onProductClick(p) }
+                                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "• ${p.urunAdi}",
+                                                    color = Color.White,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Text(
+                                                    text = "${p.stokAdedi} Adet",
+                                                    color = TurquoiseLight,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                        if (item.products.size > 4) {
+                                            Text(
+                                                text = "+${item.products.size - 4} ürün daha...",
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                fontSize = 10.5.sp,
+                                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "💡 Çubuklara dokunarak o günün süresi geçen / dolacak ürün ve parti adetlerini görebilirsiniz.",
+                text = "💡 Çubuklara dokunarak o günün süresi geçen / dolacak ürün detaylarını aşağıdaki kartta inceleyebilirsiniz.",
                 fontSize = 11.sp,
                 color = Slate500,
                 textAlign = TextAlign.Center,
@@ -298,6 +378,9 @@ fun AnalyticsBarChartSection(
     }
 }
 
+/**
+ * X ekseni tarih etiketleri: 7'şer günlük adımlarla düzenli ve çubuk merkezine tam hizalı.
+ */
 private fun shouldShowDateLabel(index: Int, totalSize: Int): Boolean {
     if (totalSize <= 7) {
         return index == 0 || index == 3 || index == totalSize - 1
@@ -366,7 +449,7 @@ fun InteractiveBarChart(
 
             Spacer(modifier = Modifier.width(6.dp))
 
-            // Sağ Taraf: Çubuklar, Kılavuz Çizgileri ve Hizalı Tarih Etiketleri
+            // Sağ Taraf: Çubuklar, Kılavuz Çizgileri, Bugün Göstergesi ve Hizalı Tarih Etiketleri
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -376,7 +459,7 @@ fun InteractiveBarChart(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = 14.dp, bottom = 26.dp),
+                        .padding(top = 18.dp, bottom = 26.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
                     HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
@@ -415,7 +498,7 @@ fun InteractiveBarChart(
 
                         val gradientBrush = when {
                             item.isToday -> Brush.verticalGradient(
-                                listOf(Color(0xFF14B8A6), Color(0xFF0F766E))
+                                listOf(Color(0xFF0D9488), Color(0xFF0F766E))
                             )
                             item.isPast && totalForDay > 0 -> Brush.verticalGradient(
                                 listOf(Color(0xFFEF4444), Color(0xFFDC2626))
@@ -433,15 +516,37 @@ fun InteractiveBarChart(
                             verticalArrangement = Arrangement.Bottom,
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .width(if (isScrollable) barWidth + 6.dp else barWidth + 8.dp)
+                                .width(if (isScrollable) barWidth + 8.dp else barWidth + 8.dp)
                                 .clip(RoundedCornerShape(6.dp))
                                 .clickable {
                                     onSelectIndex(if (isSelected) null else index)
                                 }
+                                .then(
+                                    if (item.isToday) {
+                                        Modifier.background(
+                                            TurquoisePrimary.copy(alpha = 0.08f),
+                                            shape = RoundedCornerShape(6.dp)
+                                        )
+                                    } else Modifier
+                                )
                                 .padding(horizontal = 1.dp)
                         ) {
-                            // 1. Tepe Adet Metni
-                            if (totalForDay > 0) {
+                            // 1. "BUGÜN" Referans Rozeti veya Tepe Adet Metni
+                            if (item.isToday) {
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = TurquoiseDark,
+                                    modifier = Modifier.padding(bottom = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "BUGÜN",
+                                        fontSize = 7.5.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
+                                    )
+                                }
+                            } else if (totalForDay > 0) {
                                 Text(
                                     text = "$totalForDay",
                                     fontSize = 10.sp,
@@ -461,6 +566,16 @@ fun InteractiveBarChart(
                                     .width(barWidth),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
+                                // Bugün için dikey referans çizgisi
+                                if (item.isToday) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxHeight()
+                                            .width(1.5.dp)
+                                            .background(TurquoisePrimary.copy(alpha = 0.4f))
+                                    )
+                                }
+
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -468,10 +583,16 @@ fun InteractiveBarChart(
                                         .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                         .background(gradientBrush)
                                         .then(
-                                            if (isSelected) {
+                                            if (item.isToday) {
                                                 Modifier.border(
                                                     width = 1.5.dp,
                                                     color = TurquoiseDark,
+                                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
+                                                )
+                                            } else if (isSelected) {
+                                                Modifier.border(
+                                                    width = 1.5.dp,
+                                                    color = Color(0xFF6366F1),
                                                     shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
                                                 )
                                             } else Modifier
@@ -484,7 +605,7 @@ fun InteractiveBarChart(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Box(
                                     modifier = Modifier
-                                        .size(4.dp)
+                                        .size(5.dp)
                                         .clip(CircleShape)
                                         .background(TurquoisePrimary)
                                 )
@@ -495,22 +616,23 @@ fun InteractiveBarChart(
                             // 4. X Ekseni Referans Tick Çizgisi (Çubuğun Tam Merkezi)
                             Box(
                                 modifier = Modifier
-                                    .width(if (showLabel || isSelected) 1.5.dp else 1.dp)
-                                    .height(if (showLabel) 4.dp else 2.dp)
+                                    .width(if (item.isToday || isSelected) 2.dp else if (showLabel) 1.5.dp else 1.dp)
+                                    .height(if (item.isToday || showLabel) 4.dp else 2.dp)
                                     .background(
-                                        if (isSelected) TurquoiseDark
+                                        if (item.isToday) TurquoiseDark
+                                        else if (isSelected) Color(0xFF6366F1)
                                         else if (showLabel) Slate500
                                         else Color(0xFFCBD5E1)
                                     )
                             )
 
                             // 5. X Ekseni Tarih Etiketi (Çubuğun Tam Merkezine Hizalı)
-                            if (showLabel) {
+                            if (showLabel || item.isToday) {
                                 Text(
-                                    text = item.shortLabel,
+                                    text = if (item.isToday) "Bugün" else item.shortLabel,
                                     fontSize = 9.sp,
-                                    fontWeight = if (item.isToday || isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (isSelected) TurquoiseDark else if (item.isToday) TurquoisePrimary else Slate500,
+                                    fontWeight = if (item.isToday || isSelected) FontWeight.Black else FontWeight.SemiBold,
+                                    color = if (item.isToday) TurquoiseDark else if (isSelected) Color(0xFF6366F1) else Slate500,
                                     maxLines = 1,
                                     softWrap = false,
                                     textAlign = TextAlign.Center,
@@ -526,25 +648,5 @@ fun InteractiveBarChart(
                 }
             }
         }
-    }
-}
-
-@Composable
-fun LegendItem(color: Color, label: String) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(color)
-        )
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = Slate600
-        )
     }
 }

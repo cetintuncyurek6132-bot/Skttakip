@@ -29,6 +29,30 @@ enum class ChartDisplayMode(val label: String) {
 }
 
 @Immutable
+data class FinancialKpiMetrics(
+    val recoveryRate: Int = 0,
+    val savedRevenue: Double = 0.0,
+    val fireRiskCost: Double = 0.0,
+    val formattedSavedRevenue: String = "₺0",
+    val formattedFireRiskCost: String = "₺0"
+)
+
+@Immutable
+data class ReyonRiskSummary(
+    val reyonName: String,
+    val categoryKey: String,
+    val isColdChain: Boolean,
+    val totalVarietyCount: Int,
+    val totalStockCount: Int,
+    val criticalProductCount: Int,
+    val criticalStockCount: Int,
+    val expiredProductCount: Int,
+    val expiredStockCount: Int,
+    val fireRatePercent: Int,
+    val riskLevel: String // "DÜŞÜK", "ORTA", "YÜKSEK"
+)
+
+@Immutable
 data class ProductPrediction(
     val product: Product,
     val barcode: String,

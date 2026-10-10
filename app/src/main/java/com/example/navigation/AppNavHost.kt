@@ -278,6 +278,12 @@ fun AppNavHost(
                 products = allProducts,
                 stockLogs = stockLogs,
                 onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
+                onApplyYellowTag = { prod ->
+                    if (!prod.isImportant) {
+                        inventoryViewModel.toggleProductImportant(prod)
+                    }
+                    Toast.makeText(context, "${prod.urunAdi} reyon indirim listesine alındı (Sarı Etiket)", Toast.LENGTH_SHORT).show()
+                },
                 onBackClick = {
                     if (!navController.popBackStack()) {
                         navigateToTab("panel")
