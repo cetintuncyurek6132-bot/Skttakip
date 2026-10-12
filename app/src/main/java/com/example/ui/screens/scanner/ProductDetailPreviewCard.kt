@@ -99,6 +99,7 @@ fun ProductDetailPreviewCard(
     onDeductStock: (Product, Int, String) -> Unit = { _, _, _ -> },
     onSelectProduct: () -> Unit,
     onEditProduct: ((Product) -> Unit)? = null,
+    onStartEditing: () -> Unit = {},
     onClearDetail: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -129,6 +130,7 @@ fun ProductDetailPreviewCard(
             initialDateMillis = selectedSktMillis,
             onDismissRequest = { isDatePickerOpen = false },
             onDateSelected = { selectedMillis ->
+                onStartEditing()
                 selectedSktMillis = selectedMillis
             }
         )
@@ -540,10 +542,23 @@ fun ProductDetailPreviewCard(
                 selectedSktMillis = selectedSktMillis,
                 sktAdediStr = sktAdediStr,
                 dateFormat = dateFormat,
-                onDateClick = { isDatePickerOpen = true },
-                onOcrClick = { isOcrScannerOpen = true },
-                onPresetDateSelected = { selectedSktMillis = it },
-                onSktAdediChange = { sktAdediStr = it },
+                onDateClick = {
+                    onStartEditing()
+                    isDatePickerOpen = true
+                },
+                onOcrClick = {
+                    onStartEditing()
+                    isOcrScannerOpen = true
+                },
+                onPresetDateSelected = {
+                    onStartEditing()
+                    selectedSktMillis = it
+                },
+                onSktAdediChange = {
+                    onStartEditing()
+                    sktAdediStr = it
+                },
+                onStartEditing = onStartEditing,
                 onAddSkt = onAddSkt,
                 onClearDetail = onClearDetail
             )

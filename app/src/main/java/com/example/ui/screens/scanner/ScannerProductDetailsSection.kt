@@ -44,6 +44,7 @@ fun ScannerProductDetailsSection(
     onAddSkt: (Product, Long, Int) -> Unit,
     onDeductStock: (Product, Int, String) -> Unit = { _, _, _ -> },
     onBarcodeDetected: (String) -> Unit,
+    onStartEditing: () -> Unit = {},
     onClearDetail: () -> Unit
 ) {
     Column(
@@ -172,6 +173,7 @@ fun ScannerProductDetailsSection(
                     onSelectProduct = {
                         onBarcodeDetected(foundProduct.barkod)
                     },
+                    onStartEditing = onStartEditing,
                     onClearDetail = onClearDetail
                 )
             }

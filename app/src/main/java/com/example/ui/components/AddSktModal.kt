@@ -87,6 +87,9 @@ fun AddSktModal(
     var showDatePicker by remember { mutableStateOf(false) }
     var showOcrScanner by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
+    var hasAddedBatchInSession by remember { mutableStateOf(false) }
+    var lastSavedDateMillis by remember { mutableStateOf<Long?>(null) }
+    var lastSavedAdetStr by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(product, isEditMode) {
         stokAdedi = if (isEditMode && product.stokAdedi > 0) product.stokAdedi.toString() else "1"
@@ -514,9 +517,12 @@ fun AddSktModal(
                             onClick = {
                                 if (isSaving) return@Button
                                 isSaving = true
-                                val count = stokAdedi.toIntOrNull() ?: 1
+                                val count = stokAdedi.toIntOrNull()?.coerceAtLeast(1) ?: 1
                                 onSaveSkt(product, selectedDateMillis, count)
                                 Toast.makeText(context, "SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
+                                hasAddedBatchInSession = true
+                                lastSavedDateMillis = selectedDateMillis
+                                lastSavedAdetStr = "1"
                                 stokAdedi = "1"
                                 isSaving = false
                             },
@@ -544,10 +550,17 @@ fun AddSktModal(
                         onClick = {
                             if (isSaving) return@Button
                             isSaving = true
-                            val count = stokAdedi.toIntOrNull() ?: 1
-                            onSaveSkt(product, selectedDateMillis, count)
-                            val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
-                            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            val isAlreadyCommitted = hasAddedBatchInSession &&
+                                    (lastSavedDateMillis == selectedDateMillis) &&
+                                    (lastSavedAdetStr == stokAdedi)
+                            if (!isAlreadyCommitted) {
+                                val count = stokAdedi.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                                onSaveSkt(product, selectedDateMillis, count)
+                                val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
+                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(context, "Kaydedildi", Toast.LENGTH_SHORT).show()
+                            }
                             onDismiss()
                         },
                         enabled = !isSaving,

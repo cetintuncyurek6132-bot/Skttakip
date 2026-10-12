@@ -36,6 +36,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -135,6 +136,15 @@ fun BarcodeScannerSheet(
     var resumeCooldownUntil by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     var isCooldownActive by remember { mutableStateOf(false) }
     var cooldownRemainingSeconds by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    var isIndefiniteLockActive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(activeBarcode) {
+        if (activeBarcode.isNotBlank()) {
+            val now = System.currentTimeMillis()
+            resumeCooldownUntil = now + 5000L
+            isIndefiniteLockActive = false
+        }
+    }
 
     val todayMidnight = remember {
         java.util.Calendar.getInstance().apply {
@@ -232,7 +242,7 @@ fun BarcodeScannerSheet(
         )
     ) {
         val hasProductDetail = activeBarcode.isNotBlank()
-        val isCameraAnalysisPaused = isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
+        val isCameraAnalysisPaused = isCooldownActive || isIndefiniteLockActive || (isKeyboardVisible && manualBarcode.isNotBlank())
         val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.73f else 0.35f
         val topAreaWeight = if (isFixQrMode) 0.72f else (1.0f - bottomWeight)
 
@@ -258,7 +268,7 @@ fun BarcodeScannerSheet(
                     },
                     onBarcodeScanned = { barcode ->
                         val now = System.currentTimeMillis()
-                        if (now < resumeCooldownUntil || isCooldownActive) {
+                        if (now < resumeCooldownUntil || isCooldownActive || isIndefiniteLockActive) {
                             return@CameraXBarcodeView
                         }
                         val trimmedBar = barcode.trim()
@@ -413,8 +423,10 @@ fun BarcodeScannerSheet(
                             }
 
                             if (matchedProd != null && matchedProd.urunAdi.isNotBlank() && !matchedProd.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
-                                // Ürün veritabanında varsa (SKT eklenmiş olsa dahi): Alt detay/SKT panelini aç
+                                // Ürün veritabanında varsa (SKT eklenmiş olsa dahi): Alt detay/SKT panelini aç ve 5 saniye kitle
                                 activeBarcode = trimmedBar
+                                resumeCooldownUntil = now + 5000L
+                                isIndefiniteLockActive = false
                             } else {
                                 // Ürün veritabanında kayıtlı değilse: Asla boş veya "İSİMSİZ ÜRÜN" detay paneli açma;
                                 // doğrudan AddEditProductModal'ı prefilledBarcode = cleanBarcode ve fiyatı dolu olarak aç
@@ -556,6 +568,61 @@ fun BarcodeScannerSheet(
                                             )
                                         }
                                     }
+                                }
+                            }
+                        }
+
+                        // Camera Lock Badge (5s or Indefinite)
+                        if (isIndefiniteLockActive) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFDC2626).copy(alpha = 0.88f),
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = "Kamera Kilitli (Giriş Yapılıyor)",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        } else if (isCooldownActive && cooldownRemainingSeconds > 0 && hasProductDetail) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color(0xFFEA580C).copy(alpha = 0.88f),
+                                modifier = Modifier.height(24.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Text(
+                                        text = "Kamera Kilitli (${cooldownRemainingSeconds} sn)",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
                                 }
                             }
                         }
@@ -767,7 +834,12 @@ fun BarcodeScannerSheet(
                                 onAddSkt = onAddSkt,
                                 onDeductStock = onDeductStock,
                                 onBarcodeDetected = onBarcodeDetected,
+                                onStartEditing = {
+                                    isIndefiniteLockActive = true
+                                    resumeCooldownUntil = 0L
+                                },
                                 onClearDetail = {
+                                    isIndefiniteLockActive = false
                                     activeBarcode = ""
                                     manualBarcode = ""
                                     selectedProductOverride = null

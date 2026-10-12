@@ -33,8 +33,13 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -62,10 +67,27 @@ fun ProductDetailSktInputSection(
     onOcrClick: () -> Unit = {},
     onPresetDateSelected: (Long) -> Unit = {},
     onSktAdediChange: (String) -> Unit,
+    onStartEditing: () -> Unit = {},
     onAddSkt: (Product, Long, Int) -> Unit,
     onClearDetail: () -> Unit
 ) {
     val context = LocalContext.current
+    var isCurrentInputCommitted by remember(product.barkod) { mutableStateOf(false) }
+    var lastCommittedDateMillis by remember(product.barkod) { mutableStateOf<Long?>(null) }
+    var lastCommittedAdetStr by remember(product.barkod) { mutableStateOf<String?>(null) }
+    var lastActionTimestamp by remember { mutableStateOf(0L) }
+
+    val isAlreadyCommitted = isCurrentInputCommitted &&
+            (lastCommittedDateMillis == selectedSktMillis) &&
+            (lastCommittedAdetStr == sktAdediStr)
+
+    val handleAdetChange: (String) -> Unit = { newValue ->
+        if (newValue != lastCommittedAdetStr) {
+            isCurrentInputCommitted = false
+        }
+        onStartEditing()
+        onSktAdediChange(newValue)
+    }
 
     Column(
         modifier = Modifier
@@ -77,7 +99,10 @@ fun ProductDetailSktInputSection(
     ) {
         // Row 1: Date Picker (Tam Genişlikte ve Ferah)
         Surface(
-            onClick = onDateClick,
+            onClick = {
+                onStartEditing()
+                onDateClick()
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(38.dp)
@@ -143,7 +168,7 @@ fun ProductDetailSktInputSection(
                         onClick = {
                             val current = sktAdediStr.toIntOrNull() ?: 1
                             if (current > 1) {
-                                onSktAdediChange((current - 1).toString())
+                                handleAdetChange((current - 1).toString())
                             }
                         },
                         modifier = Modifier
@@ -166,7 +191,7 @@ fun ProductDetailSktInputSection(
                             value = sktAdediStr,
                             onValueChange = { newValue ->
                                 if (newValue.all { it.isDigit() } && newValue.length <= 4) {
-                                    onSktAdediChange(newValue)
+                                    handleAdetChange(newValue)
                                 }
                             },
                             singleLine = true,
@@ -182,13 +207,18 @@ fun ProductDetailSktInputSection(
                                 .fillMaxWidth()
                                 .padding(horizontal = 4.dp)
                                 .testTag("skt_quantity_input")
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        onStartEditing()
+                                    }
+                                }
                         )
                     }
 
                     Button(
                         onClick = {
                             val current = sktAdediStr.toIntOrNull() ?: 0
-                            onSktAdediChange((current + 1).toString())
+                            handleAdetChange((current + 1).toString())
                         },
                         modifier = Modifier
                             .size(width = 46.dp, height = 38.dp),
@@ -202,9 +232,15 @@ fun ProductDetailSktInputSection(
 
                 OutlinedButton(
                     onClick = {
-                        val count = sktAdediStr.toIntOrNull() ?: 1
+                        val now = System.currentTimeMillis()
+                        if (now - lastActionTimestamp < 350L) return@OutlinedButton
+                        lastActionTimestamp = now
+                        val count = sktAdediStr.toIntOrNull()?.coerceAtLeast(1) ?: 1
                         onAddSkt(product, selectedSktMillis, count)
                         Toast.makeText(context, "✓ SKT eklendi ($count adet), yeni SKT girebilirsiniz", Toast.LENGTH_SHORT).show()
+                        isCurrentInputCommitted = true
+                        lastCommittedDateMillis = selectedSktMillis
+                        lastCommittedAdetStr = "1"
                         onSktAdediChange("1")
                     },
                     modifier = Modifier
@@ -242,9 +278,16 @@ fun ProductDetailSktInputSection(
         ) {
             Button(
                 onClick = {
-                    val count = sktAdediStr.toIntOrNull() ?: 1
-                    onAddSkt(product, selectedSktMillis, count)
-                    Toast.makeText(context, "✓ Kaydedildi ($count adet). Sıradaki taranıyor...", Toast.LENGTH_SHORT).show()
+                    val now = System.currentTimeMillis()
+                    if (now - lastActionTimestamp < 350L) return@Button
+                    lastActionTimestamp = now
+                    if (!isAlreadyCommitted) {
+                        val count = sktAdediStr.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                        onAddSkt(product, selectedSktMillis, count)
+                        Toast.makeText(context, "✓ Kaydedildi ($count adet). Sıradaki taranıyor...", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "✓ Kaydedildi. Sıradaki taranıyor...", Toast.LENGTH_SHORT).show()
+                    }
                     onClearDetail()
                 },
                 modifier = Modifier
