@@ -49,7 +49,7 @@ fun ScannerProductDetailsSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp)
+            .padding(bottom = 2.dp)
     ) {
         val qrData = remember(activeBarcode) { parseShelfQrPayload(activeBarcode) }
         val searchBarcode = qrData.barcode.ifBlank { activeBarcode.trim() }

@@ -233,7 +233,7 @@ fun BarcodeScannerSheet(
     ) {
         val hasProductDetail = activeBarcode.isNotBlank()
         val isCameraAnalysisPaused = isCooldownActive || (isKeyboardVisible && manualBarcode.isNotBlank())
-        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.68f else 0.35f
+        val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.73f else 0.35f
         val topAreaWeight = if (isFixQrMode) 0.72f else (1.0f - bottomWeight)
 
         Box(
@@ -652,14 +652,14 @@ fun BarcodeScannerSheet(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .navigationBarsPadding()
-                                .padding(horizontal = 16.dp, vertical = 10.dp)
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
                                 .verticalScroll(rememberScrollState())
                         ) {
                             // Top Grip Bar Indicator
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 6.dp)
+                                    .padding(bottom = 4.dp)
                                     .width(32.dp)
                                     .height(3.dp)
                                     .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
@@ -724,7 +724,7 @@ fun BarcodeScannerSheet(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             // MANUAL ENTRY SEARCH BAR (ALWAYS VISIBLE & EDITABLE - NEVER VANISHES)
                             ScannerManualSearchBar(
@@ -755,7 +755,7 @@ fun BarcodeScannerSheet(
                                 }
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
 
                             // PRODUCT DETAILS AREA ("ÜRÜN AYRINTI YERİ")
                             ScannerProductDetailsSection(

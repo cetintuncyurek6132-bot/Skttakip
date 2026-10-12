@@ -190,16 +190,16 @@ fun ProductDetailPreviewCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.5.dp, TurquoisePrimary),
+        border = BorderStroke(1.2.dp, TurquoisePrimary),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Top info: Full Product Name & Clear Button (Row 1), Badges & Category/Barcode (Row 2)
             Row(
@@ -434,7 +434,7 @@ fun ProductDetailPreviewCard(
                 val batchDateStr = if (targetBatch.sktTarihi > 0L) dateFormat.format(Date(targetBatch.sktTarihi)) else "SKT Girilmedi"
 
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(8.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
                     modifier = Modifier.fillMaxWidth()
@@ -442,20 +442,20 @@ fun ProductDetailPreviewCard(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "HIZLI İŞLEM (${batchDateStr}):",
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Slate700
                             )
                             Text(
                                 text = "Mevcut: ${targetBatch.stokAdedi} Adet",
-                                fontSize = 11.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Black,
                                 color = if (canDeduct) TurquoiseDark else ExpiredRed
                             )
@@ -478,19 +478,19 @@ fun ProductDetailPreviewCard(
                                     containerColor = Color(0xFF16A34A),
                                     disabledContainerColor = Color(0xFFCBD5E1)
                                 ),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.height(34.dp)
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ShoppingCart,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(12.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "-1 Satıldı",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color.White
                                 )
@@ -512,19 +512,19 @@ fun ProductDetailPreviewCard(
                                     containerColor = Color(0xFFDC2626),
                                     disabledContainerColor = Color(0xFFCBD5E1)
                                 ),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.height(34.dp)
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                                modifier = Modifier.height(30.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
                                     contentDescription = null,
                                     tint = Color.White,
-                                    modifier = Modifier.size(13.dp)
+                                    modifier = Modifier.size(12.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Text(
                                     text = "-1 Fire",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color.White
                                 )

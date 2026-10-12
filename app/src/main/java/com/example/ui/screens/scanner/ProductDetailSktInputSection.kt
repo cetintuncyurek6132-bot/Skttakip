@@ -72,17 +72,17 @@ fun ProductDetailSktInputSection(
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f), RoundedCornerShape(10.dp))
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.25f), RoundedCornerShape(10.dp))
-            .padding(8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(horizontal = 6.dp, vertical = 5.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         // Row 1: Date Picker (Tam Genişlikte ve Ferah)
         Surface(
             onClick = onDateClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
+                .height(38.dp)
                 .testTag("skt_date_picker_button"),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(1.dp, TurquoisePrimary),
             shadowElevation = 1.dp
@@ -90,19 +90,19 @@ fun ProductDetailSktInputSection(
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.DateRange,
                     contentDescription = "Tarih",
                     tint = TurquoisePrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = dateFormat.format(Date(selectedSktMillis)),
-                    fontSize = 14.sp,
+                    fontSize = 13.5.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -113,31 +113,31 @@ fun ProductDetailSktInputSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
-                .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.45f), RoundedCornerShape(12.dp))
-                .padding(8.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(10.dp))
+                .border(1.2.dp, TurquoisePrimary.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                .padding(horizontal = 6.dp, vertical = 5.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             // Sadece Adet Başlığı (Hızlı çipler kaldırıldı)
             Text(
                 text = "📦 Adet / Miktar",
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 12.5.sp,
+                fontSize = 11.5.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
             // Büyük Stepper [-] [ Sayı ] [+] ve "Tarih Ekle" Butonu
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .border(1.5.dp, TurquoisePrimary, RoundedCornerShape(12.dp))
-                        .padding(3.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                        .border(1.2.dp, TurquoisePrimary, RoundedCornerShape(10.dp))
+                        .padding(2.dp)
                 ) {
                     Button(
                         onClick = {
@@ -147,19 +147,19 @@ fun ProductDetailSktInputSection(
                             }
                         },
                         modifier = Modifier
-                            .size(width = 50.dp, height = 46.dp),
+                            .size(width = 46.dp, height = 38.dp),
                         contentPadding = PaddingValues(0.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("-", fontSize = 24.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("-", fontSize = 22.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
 
                     Box(
                         modifier = Modifier
-                            .width(76.dp)
-                            .height(46.dp)
-                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp)),
+                            .width(68.dp)
+                            .height(38.dp)
+                            .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(6.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         androidx.compose.foundation.text.BasicTextField(
@@ -173,7 +173,7 @@ fun ProductDetailSktInputSection(
                             textStyle = androidx.compose.ui.text.TextStyle(
                                 textAlign = TextAlign.Center,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 22.sp,
+                                fontSize = 20.sp,
                                 color = MaterialTheme.colorScheme.onSurface
                             ),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -191,12 +191,12 @@ fun ProductDetailSktInputSection(
                             onSktAdediChange((current + 1).toString())
                         },
                         modifier = Modifier
-                            .size(width = 50.dp, height = 46.dp),
+                            .size(width = 46.dp, height = 38.dp),
                         contentPadding = PaddingValues(0.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text("+", fontSize = 24.sp, fontWeight = FontWeight.Black, color = Color.White)
+                        Text("+", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color.White)
                     }
                 }
 
@@ -209,10 +209,10 @@ fun ProductDetailSktInputSection(
                     },
                     modifier = Modifier
                         .weight(1f)
-                        .height(52.dp)
+                        .height(42.dp)
                         .testTag("save_skt_button"),
-                    border = BorderStroke(1.5.dp, TurquoisePrimary),
-                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.2.dp, TurquoisePrimary),
+                    shape = RoundedCornerShape(10.dp),
                     contentPadding = PaddingValues(horizontal = 6.dp)
                 ) {
                     Column(
@@ -224,7 +224,7 @@ fun ProductDetailSktInputSection(
                                 text = "Tarih Ekle",
                                 fontWeight = FontWeight.ExtraBold,
                                 color = TurquoiseDark,
-                                fontSize = 13.sp,
+                                fontSize = 12.5.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -237,7 +237,7 @@ fun ProductDetailSktInputSection(
         // Row 3: Tek Adımlı Ana Buton: "Kaydet ve Devam Et"
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Button(
@@ -249,7 +249,7 @@ fun ProductDetailSktInputSection(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp)
+                    .height(42.dp)
                     .testTag("save_finished_skt_button"),
                 colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
                 shape = RoundedCornerShape(10.dp),
@@ -259,14 +259,14 @@ fun ProductDetailSktInputSection(
                     imageVector = Icons.Default.CheckCircle,
                     contentDescription = "Kaydet ve Devam Et",
                     tint = Color.White,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(17.dp)
                 )
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(5.dp))
                 Text(
                     text = "Kaydet ve Devam Et",
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White,
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -275,7 +275,7 @@ fun ProductDetailSktInputSection(
             OutlinedButton(
                 onClick = onClearDetail,
                 modifier = Modifier
-                    .height(46.dp)
+                    .height(42.dp)
                     .testTag("close_preview_detail_button"),
                 shape = RoundedCornerShape(10.dp),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
@@ -284,7 +284,7 @@ fun ProductDetailSktInputSection(
                     text = "Kapat",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.5.sp,
+                    fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
