@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -97,6 +98,7 @@ fun ProductDetailPreviewCard(
     onAddSkt: (Product, Long, Int) -> Unit = { _, _, _ -> },
     onDeductStock: (Product, Int, String) -> Unit = { _, _, _ -> },
     onSelectProduct: () -> Unit,
+    onEditProduct: ((Product) -> Unit)? = null,
     onClearDetail: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -218,16 +220,35 @@ fun ProductDetailPreviewCard(
                         .padding(end = 6.dp)
                 )
 
-                IconButton(
-                    onClick = onClearDetail,
-                    modifier = Modifier.size(28.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Temizle",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    if (onEditProduct != null) {
+                        IconButton(
+                            onClick = { onEditProduct(effectiveProduct) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Ürünü Düzenle",
+                                tint = TurquoisePrimary,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onClearDetail,
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Temizle",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 

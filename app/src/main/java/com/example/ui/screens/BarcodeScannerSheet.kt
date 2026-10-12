@@ -67,6 +67,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import com.example.data.Product
+import com.example.data.findMatchingProducts
 import com.example.data.parseShelfQrPayload
 import com.example.ui.screens.scanner.CameraXBarcodeView
 import com.example.ui.screens.scanner.CornerBracketsViewfinder
@@ -398,7 +399,11 @@ fun BarcodeScannerSheet(
                             serialScanCount++
                             resumeCooldownUntil = now + 1200L
 
-                            val matchedProd = products.firstOrNull { p ->
+                            val matchedProd = products.findMatchingProducts(cleanBarcode).firstOrNull { p ->
+                                p.urunAdi.isNotBlank() && !p.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)
+                            } ?: products.findMatchingProducts(trimmedBar).firstOrNull { p ->
+                                p.urunAdi.isNotBlank() && !p.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)
+                            } ?: products.firstOrNull { p ->
                                 val pBar = p.barkod.trim()
                                 val pCodeStr = p.urunKodu.trim()
                                 (cleanBarcode.isNotBlank() && !cleanBarcode.startsWith("NO_BARCODE_") && pBar.equals(cleanBarcode, ignoreCase = true)) ||
@@ -408,7 +413,7 @@ fun BarcodeScannerSheet(
                             }
 
                             if (matchedProd != null && matchedProd.urunAdi.isNotBlank() && !matchedProd.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
-                                // Ürün veritabanında varsa: Alt detay/SKT panelini aç
+                                // Ürün veritabanında varsa (SKT eklenmiş olsa dahi): Alt detay/SKT panelini aç
                                 activeBarcode = trimmedBar
                             } else {
                                 // Ürün veritabanında kayıtlı değilse: Asla boş veya "İSİMSİZ ÜRÜN" detay paneli açma;

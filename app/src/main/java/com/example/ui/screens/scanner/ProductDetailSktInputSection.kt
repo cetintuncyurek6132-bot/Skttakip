@@ -59,8 +59,8 @@ fun ProductDetailSktInputSection(
     sktAdediStr: String,
     dateFormat: SimpleDateFormat,
     onDateClick: () -> Unit,
-    onOcrClick: () -> Unit,
-    onPresetDateSelected: (Long) -> Unit,
+    onOcrClick: () -> Unit = {},
+    onPresetDateSelected: (Long) -> Unit = {},
     onSktAdediChange: (String) -> Unit,
     onAddSkt: (Product, Long, Int) -> Unit,
     onClearDetail: () -> Unit
@@ -75,144 +75,41 @@ fun ProductDetailSktInputSection(
             .padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        // Row 1: Date Picker & OCR Button
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                onClick = onDateClick,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(42.dp)
-                    .testTag("skt_date_picker_button"),
-                shape = RoundedCornerShape(10.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, TurquoisePrimary),
-                shadowElevation = 1.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.DateRange,
-                        contentDescription = "Tarih",
-                        tint = TurquoisePrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = dateFormat.format(Date(selectedSktMillis)),
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
-            Button(
-                onClick = onOcrClick,
-                modifier = Modifier
-                    .height(42.dp)
-                    .testTag("open_skt_ocr_button"),
-                colors = ButtonDefaults.buttonColors(containerColor = Slate700),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.CameraAlt,
-                    contentDescription = "SKT Tara",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(5.dp))
-                Text(
-                    text = "Tarih Oku",
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    fontSize = 12.5.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        // Row 1.5: Hızlı Tarih Kısayolları (Ayaküstü tek tıkla SKT belirleme)
-        Row(
+        // Row 1: Date Picker (Tam Genişlikte ve Ferah)
+        Surface(
+            onClick = onDateClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .height(44.dp)
+                .testTag("skt_date_picker_button"),
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, TurquoisePrimary),
+            shadowElevation = 1.dp
         ) {
-            val presets = listOf(
-                "+15 Gün" to {
-                    val c = Calendar.getInstance()
-                    c.add(Calendar.DAY_OF_YEAR, 15)
-                    c.timeInMillis
-                },
-                "+1 Ay" to {
-                    val c = Calendar.getInstance()
-                    c.add(Calendar.MONTH, 1)
-                    c.timeInMillis
-                },
-                "+2 Ay" to {
-                    val c = Calendar.getInstance()
-                    c.add(Calendar.MONTH, 2)
-                    c.timeInMillis
-                },
-                "+3 Ay" to {
-                    val c = Calendar.getInstance()
-                    c.add(Calendar.MONTH, 3)
-                    c.timeInMillis
-                },
-                "+6 Ay" to {
-                    val c = Calendar.getInstance()
-                    c.add(Calendar.MONTH, 6)
-                    c.timeInMillis
-                },
-                "+1 Yıl" to {
-                    val c = Calendar.getInstance()
-                    c.add(Calendar.YEAR, 1)
-                    c.timeInMillis
-                },
-                "Yıl Sonu" to {
-                    val c = Calendar.getInstance()
-                    c.set(Calendar.MONTH, Calendar.DECEMBER)
-                    c.set(Calendar.DAY_OF_MONTH, 31)
-                    c.timeInMillis
-                }
-            )
-            presets.forEach { (label, dateCalc) ->
-                Surface(
-                    onClick = {
-                        onPresetDateSelected(dateCalc())
-                    },
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
-                    modifier = Modifier.height(28.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark
-                        )
-                    }
-                }
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.DateRange,
+                    contentDescription = "Tarih",
+                    tint = TurquoisePrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = dateFormat.format(Date(selectedSktMillis)),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
             }
         }
 
-        // Row 2: Adet Arttırma / Azaltma & Manuel Giriş (BÜYÜTÜLMÜŞ, GENİŞ VE ERGONOMİK ALAN)
+        // Row 2: Adet Stepper & "Tarih Ekle" Butonu (Sadeleştirilmiş, Ferah Alan)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -221,50 +118,15 @@ fun ProductDetailSktInputSection(
                 .padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Adet Başlığı & Hızlı Miktar Kısayolları
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "📦 Adet / Miktar",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 12.5.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+            // Sadece Adet Başlığı (Hızlı çipler kaldırıldı)
+            Text(
+                text = "📦 Adet / Miktar",
+                fontWeight = FontWeight.ExtraBold,
+                fontSize = 12.5.sp,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf(1, 2, 5, 10, 24).forEach { addCount ->
-                        Surface(
-                            onClick = {
-                                val current = sktAdediStr.toIntOrNull() ?: 0
-                                onSktAdediChange((current + addCount).toString())
-                            },
-                            shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-                            modifier = Modifier.height(24.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(horizontal = 6.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "+$addCount",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TurquoiseDark
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Büyük Stepper [-] [ Sayı ] [+] ve "+ Farklı Tarih" Butonu
+            // Büyük Stepper [-] [ Sayı ] [+] ve "Tarih Ekle" Butonu
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -358,18 +220,11 @@ fun ProductDetailSktInputSection(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "Farklı Tarih Ekle",
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
                             Text(
-                                text = "+ Tarih Ekle",
+                                text = "Tarih Ekle",
                                 fontWeight = FontWeight.ExtraBold,
                                 color = TurquoiseDark,
-                                fontSize = 12.sp,
+                                fontSize = 13.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
