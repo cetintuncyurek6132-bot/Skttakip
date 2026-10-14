@@ -46,6 +46,15 @@ object HapticFeedbackHelper {
         return cachedToneGenerator
     }
 
+    fun release() {
+        try {
+            cachedToneGenerator?.release()
+        } catch (_: Exception) {
+        } finally {
+            cachedToneGenerator = null
+        }
+    }
+
     private fun getVibrator(context: Context): Vibrator? {
         if (!vibratorChecked) {
             try {

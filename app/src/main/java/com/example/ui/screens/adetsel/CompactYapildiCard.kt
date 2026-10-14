@@ -27,6 +27,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -120,12 +121,9 @@ fun CompactYapildiCard(
                     )
                 }
 
-                val formattedDate = if (kayit.islemTarihi <= 0L) "-" else {
-                    try {
-                        java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.forLanguageTag("tr-TR")).format(java.util.Date(kayit.islemTarihi))
-                    } catch (_: Exception) {
-                        "-"
-                    }
+                val formattedDate = remember(kayit.islemTarihi) {
+                    if (kayit.islemTarihi <= 0L) "-"
+                    else com.example.util.SafeDateFormatter.shortDateTime(kayit.islemTarihi)
                 }
 
                 Text(

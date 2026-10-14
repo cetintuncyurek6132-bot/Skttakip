@@ -226,9 +226,13 @@ fun GlobalModalHost(
             }.sortedBy { it.sktTarihi }
         }
 
+        val currentDetailProduct = allMatchingProducts.firstOrNull { it.id == detailProduct.id }
+            ?: allMatchingProducts.firstOrNull()
+            ?: detailProduct
+
         ProductDetailModal(
-            product = detailProduct,
-            matchingProducts = allMatchingProducts.ifEmpty { listOf(detailProduct) },
+            product = currentDetailProduct,
+            matchingProducts = allMatchingProducts.ifEmpty { listOf(currentDetailProduct) },
             stockLogs = stockLogs,
             onDismiss = { inventoryViewModel.closeProductDetailModal() },
             onEditClick = { prod -> inventoryViewModel.openEditProductModal(prod) },

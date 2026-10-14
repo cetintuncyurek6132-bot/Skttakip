@@ -193,28 +193,28 @@ fun ProductsFilterBar(
                 )
             }
 
-            // 4. "Acil (0-7 Gün)"
+            // 4. "Acil (Son 7 Gün)"
             item {
-                val isLast2DaysSelected = selectedFilter == ProductFilter.LAST_2_DAYS
+                val isUrgentSelected = selectedFilter == ProductFilter.URGENT_0_TO_7
 
                 FilterChipBadge(
-                    selected = isLast2DaysSelected,
-                    onClick = { onFilterSelect(ProductFilter.LAST_2_DAYS) },
+                    selected = isUrgentSelected,
+                    onClick = { onFilterSelect(ProductFilter.URGENT_0_TO_7) },
                     selectedColor = Color(0xFFDC2626), // Kırmızı / Turuncu dikkat çekici container
                     selectedContentColor = Color.White,
                     icon = {
                         Icon(
                             imageVector = Icons.Default.Schedule,
-                            contentDescription = "Acil (0-7 Gün)",
-                            tint = if (isLast2DaysSelected) Color.White else Color(0xFFDC2626),
+                            contentDescription = "Acil (Son 7 Gün)",
+                            tint = if (isUrgentSelected) Color.White else Color(0xFFDC2626),
                             modifier = Modifier.size(15.dp)
                         )
                     },
-                    label = "Acil (0-7 Gün)",
+                    label = "Acil (Son 7 Gün)",
                     modifier = Modifier
                         .testTag("filter_chip_last_2_days")
                         .testTag("filter_chip_urgent")
-                        .testTag("filter_chip_Acil (0-7 Gün)")
+                        .testTag("filter_chip_Acil (Son 7 Gün)")
                         .testTag("filter_chip_Son 2 Gün")
                 )
             }

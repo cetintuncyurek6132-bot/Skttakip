@@ -64,9 +64,7 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,10 +75,10 @@ fun AddSktModal(
     onDismiss: () -> Unit,
     onSaveSkt: (product: Product, sktTarihi: Long, stokAdedi: Int) -> Unit
 ) {
-    var stokAdedi by remember(product) {
+    var stokAdedi by remember(product, isEditMode) {
         mutableStateOf(if (isEditMode && product.stokAdedi > 0) product.stokAdedi.toString() else "1")
     }
-    val initialDateMillis = remember(product) {
+    val initialDateMillis = remember(product, isEditMode) {
         if (isEditMode && product.sktTarihi > 0L) product.sktTarihi else System.currentTimeMillis()
     }
     var selectedDateMillis by remember(initialDateMillis) { mutableStateOf(initialDateMillis) }
@@ -93,12 +91,12 @@ fun AddSktModal(
 
     LaunchedEffect(product, isEditMode) {
         stokAdedi = if (isEditMode && product.stokAdedi > 0) product.stokAdedi.toString() else "1"
-        if (isEditMode && product.sktTarihi > 0L) {
-            selectedDateMillis = product.sktTarihi
+        selectedDateMillis = if (isEditMode && product.sktTarihi > 0L) {
+            product.sktTarihi
+        } else {
+            System.currentTimeMillis()
         }
     }
-
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
 
     if (showOcrScanner) {
         DateOcrScannerDialog(
@@ -242,7 +240,7 @@ fun AddSktModal(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = dateFormat.format(Date(selectedDateMillis)),
+                                    text = com.example.util.SafeDateFormatter.shortDate(selectedDateMillis),
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Slate900

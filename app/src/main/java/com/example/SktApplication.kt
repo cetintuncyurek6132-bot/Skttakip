@@ -15,6 +15,38 @@ class SktApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         setupGlobalCrashInterceptor()
+        setupToneReleaseOnLowMemory()
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+        try {
+            com.example.util.SoundToneManager.release()
+            com.example.util.HapticFeedbackHelper.release()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun setupToneReleaseOnLowMemory() {
+        // Uygulama düşük bellekte kapatılırsa ToneGenerator'ları serbest bırak
+        // Bu API 14+ için geçerlidir
+        registerComponentCallbacks(object : android.content.ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {}
+            override fun onLowMemory() {
+                try {
+                    com.example.util.SoundToneManager.release()
+                    com.example.util.HapticFeedbackHelper.release()
+                } catch (_: Exception) {}
+            }
+            override fun onTrimMemory(level: Int) {
+                if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+                    try {
+                        com.example.util.SoundToneManager.release()
+                        com.example.util.HapticFeedbackHelper.release()
+                    } catch (_: Exception) {}
+                }
+            }
+        })
     }
 
     private fun setupGlobalCrashInterceptor() {

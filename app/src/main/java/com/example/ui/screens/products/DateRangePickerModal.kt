@@ -282,12 +282,23 @@ fun DateRangePickerModal(
                     // Preset: Bu Ay
                     Surface(
                         onClick = {
-                            val calStart = Calendar.getInstance().apply {
-                                set(Calendar.DAY_OF_MONTH, 1)
+                            // Tek bir base Calendar kullan, ay geçişinde tutarsızlık olmasın
+                            val baseCal = Calendar.getInstance().apply {
+                                set(Calendar.HOUR_OF_DAY, 0)
+                                set(Calendar.MINUTE, 0)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
                             }
-                            val calEnd = Calendar.getInstance().apply {
-                                set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
-                            }
+
+                            val calStart = baseCal.clone() as Calendar
+                            calStart.set(Calendar.DAY_OF_MONTH, 1)
+
+                            val calEnd = baseCal.clone() as Calendar
+                            calEnd.set(Calendar.DAY_OF_MONTH, calEnd.getActualMaximum(Calendar.DAY_OF_MONTH))
+                            calEnd.set(Calendar.HOUR_OF_DAY, 23)
+                            calEnd.set(Calendar.MINUTE, 59)
+                            calEnd.set(Calendar.SECOND, 59)
+
                             startDateMillis = calStart.timeInMillis
                             endDateMillis = calEnd.timeInMillis
                         },

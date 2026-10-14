@@ -157,12 +157,12 @@ fun SktTopAppBar(
         }
     }
 
-    // 2 dakikada bir kendi ekseni etrafında dönen (3D Flip) mikro-animasyon
+    // 10 dakikada bir kendi ekseni etrafında dönen (3D Flip) mikro-animasyon
     val rotationY = remember { androidx.compose.animation.core.Animatable(0f) }
 
     LaunchedEffect(Unit) {
         while (true) {
-            delay(120_000L) // 2 dakika (120 saniye) bekle
+            delay(600_000L) // 10 dakika (600 saniye) bekle
             rotationY.animateTo(
                 targetValue = 360f,
                 animationSpec = androidx.compose.animation.core.tween(
@@ -170,7 +170,7 @@ fun SktTopAppBar(
                     easing = androidx.compose.animation.core.FastOutSlowInEasing
                 )
             )
-            rotationY.snapTo(0f) // Tur bitince açıyı sıfırla, bir sonraki 2 dakikayı bekle
+            rotationY.snapTo(0f)
         }
     }
 

@@ -64,8 +64,19 @@ android {
   }
 
   compileOptions {
+    isCoreLibraryDesugaringEnabled = true
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
+  }
+
+  ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+    arg("room.generateKotlin", "true")
+  }
+
+  sourceSets {
+    getByName("androidTest").assets.srcDir("$projectDir/schemas")
   }
 
   buildFeatures {
@@ -126,4 +137,5 @@ dependencies {
   debugImplementation(libs.androidx.compose.ui.test.manifest)
 
   "ksp"(libs.androidx.room.compiler)
+  coreLibraryDesugaring(libs.desugar.jdk.libs)
 }

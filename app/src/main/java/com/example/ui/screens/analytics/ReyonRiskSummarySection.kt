@@ -94,8 +94,24 @@ fun ReyonRiskSummarySection(
             }
         }.sumOf { it.quantity }
     }
-    val dolapFireRate = if (dolapTotalStock + dolapFireLogs > 0) {
-        Math.round(((dolapCriticalStock + dolapFireLogs).toDouble() / (dolapTotalStock + dolapFireLogs).toDouble()) * 100).toInt().coerceIn(0, 100)
+    // Dolap satış logları
+    val dolapSoldLogs = remember(stockLogs, products) {
+        stockLogs.filter { log ->
+            log.actionType == "SATIS" && products.any { p ->
+                (p.barkod.isNotBlank() && p.barkod == log.barcode && p.kategori.equals("Dolap", ignoreCase = true)) ||
+                (p.urunAdi.equals(log.productName, ignoreCase = true) && p.kategori.equals("Dolap", ignoreCase = true))
+            }
+        }.sumOf { it.quantity }
+    }
+
+    // 1) Gerçek fire oranı: (fire / (satış + fire))
+    val dolapFireRate = if (dolapSoldLogs + dolapFireLogs > 0) {
+        Math.round((dolapFireLogs.toDouble() / (dolapSoldLogs + dolapFireLogs).toDouble()) * 100).toInt().coerceIn(0, 100)
+    } else 0
+
+    // 2) Şu anki risk oranı: (kritik + süresi dolmuş stok / toplam stok)
+    val dolapRiskRatio = if (dolapTotalStock > 0) {
+        Math.round((dolapCriticalStock.toDouble() / dolapTotalStock.toDouble()) * 100).toInt().coerceIn(0, 100)
     } else 0
 
     // Gıda İstatistikleri
@@ -118,8 +134,21 @@ fun ReyonRiskSummarySection(
             }
         }.sumOf { it.quantity }
     }
-    val gidaFireRate = if (gidaTotalStock + gidaFireLogs > 0) {
-        Math.round(((gidaCriticalStock + gidaFireLogs).toDouble() / (gidaTotalStock + gidaFireLogs).toDouble()) * 100).toInt().coerceIn(0, 100)
+    val gidaSoldLogs = remember(stockLogs, products) {
+        stockLogs.filter { log ->
+            log.actionType == "SATIS" && products.any { p ->
+                (p.barkod.isNotBlank() && p.barkod == log.barcode && !p.kategori.equals("Dolap", ignoreCase = true)) ||
+                (p.urunAdi.equals(log.productName, ignoreCase = true) && !p.kategori.equals("Dolap", ignoreCase = true))
+            }
+        }.sumOf { it.quantity }
+    }
+
+    val gidaFireRate = if (gidaSoldLogs + gidaFireLogs > 0) {
+        Math.round((gidaFireLogs.toDouble() / (gidaSoldLogs + gidaFireLogs).toDouble()) * 100).toInt().coerceIn(0, 100)
+    } else 0
+
+    val gidaRiskRatio = if (gidaTotalStock > 0) {
+        Math.round((gidaCriticalStock.toDouble() / gidaTotalStock.toDouble()) * 100).toInt().coerceIn(0, 100)
     } else 0
 
     var selectedTab by remember { mutableStateOf(0) } // 0: Yan Yana Özet, 1: Dolap, 2: Gıda
@@ -255,27 +284,27 @@ fun ReyonRiskSummarySection(
                             }
                         }
 
-                        // Fire Oranı & Çubuk
+                        // Risk Oranı & Çubuk
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = "Fire Oranı", fontSize = 9.5.sp, color = Slate600)
+                                Text(text = "Risk Oranı", fontSize = 9.5.sp, color = Slate600)
                                 Text(
-                                    text = "%$dolapFireRate",
+                                    text = "Risk: %$dolapRiskRatio",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (dolapFireRate >= 20) ExpiredRed else if (dolapFireRate >= 10) CriticalOrange else EmeraldSuccess
+                                    color = if (dolapRiskRatio >= 20) ExpiredRed else if (dolapRiskRatio >= 10) CriticalOrange else EmeraldSuccess
                                 )
                             }
                             LinearProgressIndicator(
-                                progress = { (dolapFireRate / 100f).coerceIn(0f, 1f) },
+                                progress = { (dolapRiskRatio / 100f).coerceIn(0f, 1f) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(4.dp)
                                     .clip(RoundedCornerShape(2.dp)),
-                                color = if (dolapFireRate >= 20) ExpiredRed else if (dolapFireRate >= 10) CriticalOrange else EmeraldSuccess,
+                                color = if (dolapRiskRatio >= 20) ExpiredRed else if (dolapRiskRatio >= 10) CriticalOrange else EmeraldSuccess,
                                 trackColor = Color(0xFFE0F2FE)
                             )
                         }
@@ -349,27 +378,27 @@ fun ReyonRiskSummarySection(
                             }
                         }
 
-                        // Fire Oranı & Çubuk
+                        // Risk Oranı & Çubuk
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(text = "Fire Oranı", fontSize = 9.5.sp, color = Slate600)
+                                Text(text = "Risk Oranı", fontSize = 9.5.sp, color = Slate600)
                                 Text(
-                                    text = "%$gidaFireRate",
+                                    text = "Risk: %$gidaRiskRatio",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (gidaFireRate >= 20) ExpiredRed else if (gidaFireRate >= 10) CriticalOrange else EmeraldSuccess
+                                    color = if (gidaRiskRatio >= 20) ExpiredRed else if (gidaRiskRatio >= 10) CriticalOrange else EmeraldSuccess
                                 )
                             }
                             LinearProgressIndicator(
-                                progress = { (gidaFireRate / 100f).coerceIn(0f, 1f) },
+                                progress = { (gidaRiskRatio / 100f).coerceIn(0f, 1f) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(4.dp)
                                     .clip(RoundedCornerShape(2.dp)),
-                                color = if (gidaFireRate >= 20) ExpiredRed else if (gidaFireRate >= 10) CriticalOrange else EmeraldSuccess,
+                                color = if (gidaRiskRatio >= 20) ExpiredRed else if (gidaRiskRatio >= 10) CriticalOrange else EmeraldSuccess,
                                 trackColor = Color(0xFFFEF3C7)
                             )
                         }

@@ -68,6 +68,7 @@ fun PredictiveAnalyticsSection(
     val productPredictions = remember(validProducts, stockLogs) {
         val zone = ZoneId.systemDefault()
         val bugunLocalDate = LocalDate.now(zone)
+        val todayMidnight = com.example.data.getTodayMidnightMillis()
 
         // Sadece stoğu olan ve geçerli SKT'ye sahip partileri bağımsız (batch bazlı) olarak ele al
         val activeBatches = validProducts.filter { it.stokAdedi > 0 && it.sktTarihi > 0L }
@@ -104,7 +105,7 @@ fun PredictiveAnalyticsSection(
             val gunlukSatisHizi = pastSold.toDouble() / gecenGun.toDouble()
 
             // 3. Kalan Gün ve Beklenen Satış / Fire
-            val kalanGun = product.getRemainingDays(bugunLocalDate)
+            val kalanGun = product.getRemainingDays(todayMidnight)
 
             val beklenenSatis: Int
             val beklenenFire: Int
@@ -132,8 +133,11 @@ fun PredictiveAnalyticsSection(
             val pastFireRate = if (product.stokAdedi > 0) beklenenFire.toDouble() / product.stokAdedi.toDouble() else 0.0
             val isHighRisk = isExpired || (beklenenFire > 0 && firePercent >= 30)
 
-            // Geçmiş log kaydı olan veya satış/fire kaydı bulunan ürünleri listeye al
-            if (logs.isNotEmpty() || pastSold > 0 || pastFire > 0) {
+            // Yeni ürün yanıltmasını önle: En az 7 gün gözlem + en az 1 satış/fire kaydı
+            val hasMinimumObservation = gecenGun >= 7L
+            val hasActionableData = pastSold > 0 || pastFire > 0
+
+            if (hasMinimumObservation && hasActionableData) {
                 predictions.add(
                     ProductPrediction(
                         product = product,

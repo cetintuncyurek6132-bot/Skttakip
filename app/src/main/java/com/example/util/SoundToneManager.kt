@@ -128,6 +128,49 @@ object SoundToneManager {
         playTone(toneId)
     }
 
+    /**
+     * Native ToneGenerator kaynağını serbest bırakır.
+     * Uygulama kapanırken veya arka plana atıldığında çağrılmalıdır.
+     */
+    fun release() {
+        try {
+            cachedToneGenerator?.release()
+        } catch (_: Exception) {
+        } finally {
+            cachedToneGenerator = null
+        }
+    }
+
+    /**
+     * Uygulamanın her yerinden sesli geri bildirim için TEK NOKTA.
+     * Context'e gerek yok — cached ToneGenerator kullanır.
+     */
+    fun playScannerFeedback(context: Context?, isSuccess: Boolean) {
+        try {
+            val tg = getToneGenerator() ?: return
+            if (isSuccess) {
+                val toneId = if (context != null) getBarcodeToneId(context) else 1
+                val option = getToneOptionById(toneId)
+                tg.startTone(option.toneType, option.durationMs)
+            } else {
+                tg.startTone(ToneGenerator.TONE_PROP_NACK, 160)
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    fun playDoubleTone() {
+        try {
+            getToneGenerator()?.startTone(ToneGenerator.TONE_PROP_BEEP2, 140)
+        } catch (_: Exception) {}
+    }
+
+    fun playWarningTone() {
+        try {
+            getToneGenerator()?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200)
+        } catch (_: Exception) {}
+    }
+
     fun playTone(toneId: Int) {
         try {
             val option = getToneOptionById(toneId)

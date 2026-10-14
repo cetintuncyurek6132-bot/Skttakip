@@ -17,8 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import android.media.AudioManager
-import android.media.ToneGenerator
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -148,10 +146,7 @@ fun AdetselScreen(
     }
 
     val playScanBeep: () -> Unit = {
-        try {
-            val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90)
-            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-        } catch (_: Exception) {}
+        com.example.util.SoundToneManager.playScannerFeedback(context, isSuccess = true)
         HapticFeedbackHelper.triggerSuccessHaptic(context)
     }
 

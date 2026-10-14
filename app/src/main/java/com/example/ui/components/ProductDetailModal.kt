@@ -105,16 +105,17 @@ fun ProductDetailModal(
     val coroutineScope = rememberCoroutineScope()
     val density = LocalDensity.current
 
-    var localMatchingProducts by remember(matchingProducts) { mutableStateOf(matchingProducts) }
-    var localProduct by remember(product) { mutableStateOf(product) }
+    val currentProduct = remember(product, matchingProducts) {
+        matchingProducts.firstOrNull { it.id == product.id } ?: matchingProducts.firstOrNull() ?: product
+    }
 
     var selectedTab by remember { mutableStateOf(ProductDetailTab.SKT_BATCHES) }
     var editingSktItem by remember { mutableStateOf<Product?>(null) }
     var selectedBatchForDeduct by remember { mutableStateOf<Product?>(null) }
     var showDetailPriceQrScanner by remember { mutableStateOf(false) }
 
-    val totalStockCount = remember(localMatchingProducts) {
-        localMatchingProducts.filter { it.sktTarihi > 0L }.sumOf { maxOf(0, it.stokAdedi) }
+    val totalStockCount = remember(matchingProducts) {
+        matchingProducts.filter { it.sktTarihi > 0L }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
     // 3 Kademeli Dikey Sürükleme (PartiallyExpanded -> Expanded -> Dismiss)
@@ -231,7 +232,7 @@ fun ProductDetailModal(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = Color.White)
                             ) {
-                                onAddToAdetsel(localProduct)
+                                onAddToAdetsel(currentProduct)
                                 Toast.makeText(context, "Ürün sayım listesine eklendi", Toast.LENGTH_SHORT).show()
                             }
                             .padding(horizontal = 8.dp)
@@ -267,7 +268,7 @@ fun ProductDetailModal(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = TurquoiseDark)
-                            ) { onEditClick(localProduct) }
+                            ) { onEditClick(currentProduct) }
                             .padding(horizontal = 8.dp)
                             .testTag("detail_edit_product_button"),
                         contentAlignment = Alignment.Center
@@ -345,14 +346,14 @@ fun ProductDetailModal(
                         shape = RoundedCornerShape(12.dp),
                         shadowElevation = 2.dp
                     ) {
-                        FallbackLetterBadge(localProduct.getDisplayName())
+                        FallbackLetterBadge(currentProduct.getDisplayName())
                     }
 
                     Spacer(modifier = Modifier.width(12.dp))
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = localProduct.getDisplayName().uppercase(),
+                            text = currentProduct.getDisplayName().uppercase(),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -365,7 +366,7 @@ fun ProductDetailModal(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            val productCodeDisplay = localProduct.urunKodu.ifBlank { localProduct.barkod }
+                            val productCodeDisplay = currentProduct.urunKodu.ifBlank { currentProduct.barkod }
                             if (productCodeDisplay.isNotBlank()) {
                                 Text(
                                     text = "Kod: $productCodeDisplay",
@@ -418,13 +419,12 @@ fun ProductDetailModal(
                 when (currentTab) {
                     ProductDetailTab.SKT_BATCHES -> {
                         ProductDetailSktTabContent(
-                            product = localProduct,
-                            matchingProducts = localMatchingProducts,
+                            product = currentProduct,
+                            matchingProducts = matchingProducts,
                             stockLogs = stockLogs,
-                            onAddNewSktClick = { onAddNewSktClick(localProduct) },
+                            onAddNewSktClick = { onAddNewSktClick(currentProduct) },
                             onEditSktItem = { editingSktItem = it },
                             onDeleteSkt = { prod ->
-                                localMatchingProducts = localMatchingProducts.filter { it.id != prod.id }
                                 onDeleteSkt(prod)
                             },
                             onBatchClick = { batch ->
@@ -434,8 +434,8 @@ fun ProductDetailModal(
                     }
                     ProductDetailTab.PRICE_INFO -> {
                         ProductDetailPriceInfoTabContent(
-                            product = localProduct,
-                            matchingProducts = localMatchingProducts,
+                            product = currentProduct,
+                            matchingProducts = matchingProducts,
                             onQrPriceClick = { showDetailPriceQrScanner = true }
                         )
                     }
@@ -451,23 +451,6 @@ fun ProductDetailModal(
             onDeduct = { amount, reason ->
                 val batchToDeduct = selectedBatchForDeduct!!
                 val remaining = maxOf(0, batchToDeduct.stokAdedi - amount)
-                if (remaining == 0) {
-                    val remainingMatching = localMatchingProducts.filter { it.id != batchToDeduct.id }
-                    localMatchingProducts = remainingMatching
-                    val nextActive = remainingMatching.firstOrNull { it.stokAdedi > 0 }
-                    if (nextActive != null) {
-                        localProduct = nextActive
-                    } else {
-                        localProduct = localProduct.copy(sktTarihi = 0L, stokAdedi = 0)
-                    }
-                } else {
-                    localMatchingProducts = localMatchingProducts.map {
-                        if (it.id == batchToDeduct.id) it.copy(stokAdedi = remaining) else it
-                    }
-                    if (localProduct.id == batchToDeduct.id) {
-                        localProduct = localProduct.copy(stokAdedi = remaining)
-                    }
-                }
                 onDeductStock(batchToDeduct, amount, reason)
                 val toastMsg = if (remaining == 0) {
                     "$amount adet $reason olarak düşüldü (Parti tamamlandı)"
@@ -486,12 +469,6 @@ fun ProductDetailModal(
             isEditMode = true,
             onDismiss = { editingSktItem = null },
             onSaveSkt = { prod, newSkt, newCount ->
-                localMatchingProducts = localMatchingProducts.map {
-                    if (it.id == prod.id) it.copy(sktTarihi = newSkt, stokAdedi = newCount) else it
-                }
-                if (localProduct.id == prod.id) {
-                    localProduct = localProduct.copy(sktTarihi = newSkt, stokAdedi = newCount)
-                }
                 onEditSktItem(prod, newSkt, newCount)
                 editingSktItem = null
             }
@@ -500,14 +477,12 @@ fun ProductDetailModal(
 
     if (showDetailPriceQrScanner) {
         PriceQrScannerDialog(
-            expectedBarcode = localProduct.barkod,
-            expectedProductCode = localProduct.urunKodu,
-            expectedProductName = localProduct.urunAdi,
+            expectedBarcode = currentProduct.barkod,
+            expectedProductCode = currentProduct.urunKodu,
+            expectedProductName = currentProduct.urunAdi,
             onDismiss = { showDetailPriceQrScanner = false },
             onPriceScanned = { scannedPrice, _ ->
-                val updatedProduct = localProduct.copy(fiyat = scannedPrice)
-                localProduct = updatedProduct
-                localMatchingProducts = localMatchingProducts.map { it.copy(fiyat = scannedPrice) }
+                val updatedProduct = currentProduct.copy(fiyat = scannedPrice)
                 onUpdatePrice(updatedProduct, scannedPrice)
             }
         )

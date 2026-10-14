@@ -121,14 +121,7 @@ fun DashboardScreen(
     val haptic = LocalHapticFeedback.current
     val currentUser by UserManager.currentUser.collectAsState()
 
-    val todayMidnight = remember {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        cal.timeInMillis
-    }
+    val todayMidnight by com.example.util.rememberTodayMidnight()
 
     // 1. Acil Ürünler (daysLeft in 0..7) - En acilden (küçük daysLeft) en uzağa sıralı
     val urgentProducts = remember(products, todayMidnight) {
@@ -313,7 +306,7 @@ fun DashboardScreen(
             urgentProducts = urgentProducts,
             todayMidnight = todayMidnight,
             onProductClick = onProductClick,
-            onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.LAST_2_DAYS) }
+            onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.URGENT_0_TO_7) }
         )
 
         // =====================================================================

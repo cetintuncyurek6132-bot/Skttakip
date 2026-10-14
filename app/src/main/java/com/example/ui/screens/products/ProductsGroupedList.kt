@@ -22,9 +22,7 @@ import com.example.data.Product
 import com.example.ui.ProductFilter
 import com.example.ui.components.GroupedProductListItemCard
 import com.example.ui.components.ProductListItemCard
-import com.example.ui.theme.CriticalOrange
 
-import java.util.Calendar
 
 @Composable
 fun ProductsGroupedList(
@@ -33,18 +31,10 @@ fun ProductsGroupedList(
     onProductClick: (Product) -> Unit,
     onDeleteProduct: (Product) -> Unit,
     onQuickAddSkt: (Product) -> Unit = {},
+    todayMidnight: Long = com.example.util.getTodayMidnight(),
     modifier: Modifier = Modifier,
     listState: LazyListState = rememberLazyListState()
 ) {
-    val todayMidnight = remember {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        cal.timeInMillis
-    }
-
     val groupedProducts = remember(products) {
         products.groupBy {
             if (it.barkod.isNotBlank()) it.barkod.trim().lowercase() else it.urunAdi.trim().lowercase()
@@ -91,7 +81,7 @@ fun ProductsGroupedList(
                         }
                     }
                 }
-            } else if (selectedFilter == ProductFilter.LAST_2_DAYS) {
+            } else if (selectedFilter == ProductFilter.URGENT_0_TO_7) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -108,7 +98,7 @@ fun ProductsGroupedList(
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
                             Text(
-                                text = "ACİL MÜDAHALE (0-7 GÜN - KRİTİK 1 HAFTA)",
+                                text = "ACİL MÜDAHALE (SON 7 GÜN)",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp,
                                 color = Color(0xFF991B1B)

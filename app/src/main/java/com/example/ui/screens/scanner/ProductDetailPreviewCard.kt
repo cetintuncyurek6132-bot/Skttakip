@@ -75,26 +75,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private fun getDaysRemaining(sktTarihi: Long, todayMidnight: Long): Long {
-    if (sktTarihi <= 0L) return 9999L
-    val diffMillis = sktTarihi - todayMidnight
-    return java.util.concurrent.TimeUnit.MILLISECONDS.toDays(diffMillis)
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailPreviewCard(
     product: Product,
     matchingProducts: List<Product> = listOf(product),
     initialSktMillis: Long? = null,
-    todayMidnight: Long = remember {
-        java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    },
+    todayMidnight: Long = com.example.util.getTodayMidnight(),
     onAddSkt: (Product, Long, Int) -> Unit = { _, _, _ -> },
     onDeductStock: (Product, Int, String) -> Unit = { _, _, _ -> },
     onSelectProduct: () -> Unit,
@@ -138,20 +125,20 @@ fun ProductDetailPreviewCard(
 
     // Risk Level Breakdown calculated only on valid SKT products
     val expiredOrNearCount = remember(validSktProducts, todayMidnight) {
-        validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) <= 3 }.sumOf { it.stokAdedi }
+        validSktProducts.filter { it.getRemainingDays(todayMidnight) <= 3 }.sumOf { it.stokAdedi }
     }
     val criticalCount = remember(validSktProducts, todayMidnight) {
-        validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) in 4..15 }.sumOf { it.stokAdedi }
+        validSktProducts.filter { it.getRemainingDays(todayMidnight) in 4..15 }.sumOf { it.stokAdedi }
     }
     val safeCount = remember(validSktProducts, todayMidnight) {
-        validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) >= 16 }.sumOf { it.stokAdedi }
+        validSktProducts.filter { it.getRemainingDays(todayMidnight) >= 16 }.sumOf { it.stokAdedi }
     }
 
     val filteredValidSktProducts = remember(validSktProducts, selectedRiskFilter, todayMidnight) {
         val filtered = when (selectedRiskFilter) {
-            "EXPIRED" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) <= 3 }
-            "CRITICAL" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) in 4..15 }
-            "SAFE" -> validSktProducts.filter { getDaysRemaining(it.sktTarihi, todayMidnight) >= 16 }
+            "EXPIRED" -> validSktProducts.filter { it.getRemainingDays(todayMidnight) <= 3 }
+            "CRITICAL" -> validSktProducts.filter { it.getRemainingDays(todayMidnight) in 4..15 }
+            "SAFE" -> validSktProducts.filter { it.getRemainingDays(todayMidnight) >= 16 }
             else -> validSktProducts
         }
         filtered.sortedBy { it.sktTarihi }

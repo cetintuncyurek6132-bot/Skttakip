@@ -43,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.data.StockLog
-import com.example.data.getTodayMidnightMillis
 import com.example.ui.screens.analytics.AnalyticsBarChartSection
 import com.example.ui.screens.analytics.AnalyticsKpiSection
 import com.example.ui.screens.analytics.AnalyticsTimeframe
@@ -79,7 +78,7 @@ fun AnalyticsScreen(
         onBackClick()
     }
 
-    val todayMidnight = remember { getTodayMidnightMillis() }
+    val todayMidnight by com.example.util.rememberTodayMidnight()
     var selectedTimeframe by remember { mutableStateOf(AnalyticsTimeframe.LAST_30_DAYS) }
     var chartMode by remember { mutableStateOf(ChartDisplayMode.ALL) }
 
@@ -219,7 +218,7 @@ fun AnalyticsScreen(
                 if (totalCount > 0) {
                     val rate = ((soldLogsQty.toDouble() / totalCount.toDouble()) * 100).toInt().coerceIn(0, 100)
                     val sktFormatted = if (log.sktDate != null && log.sktDate > 0L) {
-                        SimpleDateFormat("dd/MM/yyyy", trLocale).format(Date(log.sktDate))
+                        com.example.util.SafeDateFormatter.shortDate(log.sktDate)
                     } else matchingProduct?.getFormattedSkt() ?: "-"
 
                     resultMap[key] = com.example.ui.screens.analytics.SktPerformanceItem(

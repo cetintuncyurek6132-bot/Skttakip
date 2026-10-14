@@ -1,8 +1,6 @@
 package com.example.ui.screens.adetsel
 
 import android.Manifest
-import android.media.AudioManager
-import android.media.ToneGenerator
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -133,10 +131,7 @@ fun AdetselQuickCountBottomSheet(
     }
 
     val playScanBeep: () -> Unit = {
-        try {
-            val tg = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90)
-            tg.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-        } catch (_: Exception) {}
+        com.example.util.SoundToneManager.playScannerFeedback(context, isSuccess = true)
         HapticFeedbackHelper.triggerSuccessHaptic(context)
     }
 

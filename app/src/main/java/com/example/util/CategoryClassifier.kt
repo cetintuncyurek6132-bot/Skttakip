@@ -84,9 +84,18 @@ object CategoryClassifier {
     }
 
     /**
-     * Overload for backwards compatibility and fallback support.
+     * Kullanıcı seçimini KORUYAN sınıflandırıcı.
+     * Eğer fallbackCategory "Dolap" veya "Gıda" ise, o değeri döner.
+     * Aksi halde ürün adından otomatik sınıflandırır.
      */
     fun classify(productName: String?, fallbackCategory: String? = null): String {
+        // Kullanıcı geçerli bir kategori seçmişse, onu koru (override etme)
+        if (fallbackCategory != null) {
+            val cleaned = fallbackCategory.trim()
+            if (cleaned.equals(CATEGORY_DOLAP, ignoreCase = true)) return CATEGORY_DOLAP
+            if (cleaned.equals(CATEGORY_GIDA, ignoreCase = true)) return CATEGORY_GIDA
+        }
+        // Kategori geçersiz veya boşsa otomatik sınıflandır
         return classifyCategory(productName)
     }
 

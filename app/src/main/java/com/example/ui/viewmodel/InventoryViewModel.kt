@@ -149,7 +149,7 @@ class InventoryViewModel(
             val matchesFilter = when (filter) {
                 ProductFilter.ALL -> prod.sktTarihi > 0L && prod.stokAdedi > 0
                 ProductFilter.IMPORTANT -> prod.isImportant && prod.stokAdedi > 0
-                ProductFilter.LAST_2_DAYS -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in 0L..7L
+                ProductFilter.URGENT_0_TO_7 -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in 0L..7L
                 ProductFilter.EXPIRED -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED
                 ProductFilter.CRITICAL -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL
                 ProductFilter.SOON -> prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON
@@ -263,7 +263,13 @@ class InventoryViewModel(
             }
             val finalSkt = if (sktTarihi > 0L) sktTarihi else 0L
             val finalStok = if (sktTarihi > 0L) (if (stokAdedi > 0) stokAdedi else 1) else 0
-            val cleanCategory = com.example.util.CategoryClassifier.classify(urunAdi, kategori)
+            val userCategory = kategori.trim()
+            val cleanCategory = if (userCategory.equals("Dolap", ignoreCase = true) ||
+                                    userCategory.equals("Gıda", ignoreCase = true)) {
+                userCategory  // Kullanıcı seçimi
+            } else {
+                com.example.util.CategoryClassifier.classifyCategory(urunAdi)
+            }
             val currentEditing = _editingProduct.value
 
             val savedProduct: Product = if (currentEditing != null) {
@@ -294,7 +300,7 @@ class InventoryViewModel(
                 }
 
                 siblings.forEach { sibling ->
-                    val siblingCat = com.example.util.CategoryClassifier.classify(sibling.urunAdi, cleanCategory)
+                    val siblingCat = cleanCategory  // Kullanıcının seçtiği kategori tüm kardeşlere uygulanır
                     val updatedSibling = sibling.copy(
                         barkod = finalBarkod,
                         urunKodu = urunKodu.trim().ifBlank { sibling.urunKodu },
@@ -345,7 +351,17 @@ class InventoryViewModel(
             }
 
             if (finalSkt > 0L) {
-                val daysRemaining = ((finalSkt - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                val daysRemaining = if (finalSkt > 0L) {
+                    val tempProduct = Product(
+                        barkod = finalBarkod,
+                        urunKodu = urunKodu,
+                        urunAdi = urunAdi,
+                        kategori = cleanCategory,
+                        sktTarihi = finalSkt,
+                        stokAdedi = finalStok
+                    )
+                    tempProduct.getRemainingDays(getTodayMidnightMillis()).toInt()
+                } else 0
                 repository.insertStockLog(
                     StockLog(
                         barcode = finalBarkod,
@@ -444,7 +460,10 @@ class InventoryViewModel(
             }
 
             if (newSktTarihi > 0L) {
-                val daysRemaining = ((newSktTarihi - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                val daysRemaining = if (newSktTarihi > 0L) {
+                    existingProduct.copy(sktTarihi = newSktTarihi)
+                        .getRemainingDays(getTodayMidnightMillis()).toInt()
+                } else 0
                 repository.insertStockLog(
                     StockLog(
                         barcode = existingProduct.barkod,
@@ -479,7 +498,10 @@ class InventoryViewModel(
             repository.insertOrUpdateProduct(updatedProduct)
 
             if (newSktTarihi > 0L) {
-                val daysRemaining = ((newSktTarihi - System.currentTimeMillis()) / (1000 * 60 * 60 * 24)).toInt()
+                val daysRemaining = if (newSktTarihi > 0L) {
+                    item.copy(sktTarihi = newSktTarihi)
+                        .getRemainingDays(getTodayMidnightMillis()).toInt()
+                } else 0
                 repository.insertStockLog(
                     StockLog(
                         barcode = item.barkod,
@@ -517,8 +539,7 @@ class InventoryViewModel(
             }
 
             val daysRemaining = if (product.sktTarihi > 0L) {
-                val diff = product.sktTarihi - System.currentTimeMillis()
-                (diff / (1000 * 60 * 60 * 24)).toInt()
+                product.getRemainingDays(getTodayMidnightMillis()).toInt()
             } else null
 
             repository.insertStockLog(

@@ -8,18 +8,7 @@ import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
 
-private val sktDateFormatter = ThreadLocal.withInitial {
-    java.text.SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
-}
-
-fun getTodayMidnightMillis(): Long {
-    val cal = Calendar.getInstance()
-    cal.set(Calendar.HOUR_OF_DAY, 0)
-    cal.set(Calendar.MINUTE, 0)
-    cal.set(Calendar.SECOND, 0)
-    cal.set(Calendar.MILLISECOND, 0)
-    return cal.timeInMillis
-}
+fun getTodayMidnightMillis(): Long = com.example.util.getTodayMidnight()
 
 fun String.normalizeForSearch(): String {
     if (this.isBlank()) return ""
@@ -95,20 +84,21 @@ data class Product(
 
     fun getFormattedSkt(): String {
         if (sktTarihi <= 0L) return "SKT Girilmedi"
-        return sktDateFormatter.get()?.format(java.util.Date(sktTarihi)) ?: "SKT Girilmedi"
+        return com.example.util.SafeDateFormatter.shortDate(sktTarihi)
     }
 
     /**
-     * Gün farkı hesabı: Sıfır nesne tahsisi (zero allocation) ve yüksek performans.
+     * SKT'ye kaç gün kaldığını hesaplar. KANONİK KAYNAK.
+     * 
+     * Negatif: SKT geçmiş
+     * 0: SKT bugün
+     * Pozitif: SKT gelecekte
+     * 9999: SKT girilmemiş (sktTarihi <= 0)
+     * 
+     * Not: Gece yarısı (00:00) bazlıdır. Saat farkı önemsizdir.
+     * Tüm uygulamada SADECE BU METOT kullanılmalıdır.
      */
-    fun getRemainingDays(todayDate: java.time.LocalDate = java.time.LocalDate.now()): Long {
-        if (sktTarihi <= 0L) return 9999L
-        val zone = java.time.ZoneId.systemDefault()
-        val sktLocalDate = java.time.Instant.ofEpochMilli(sktTarihi).atZone(zone).toLocalDate()
-        return java.time.temporal.ChronoUnit.DAYS.between(todayDate, sktLocalDate)
-    }
-
-    fun getRemainingDays(todayMidnight: Long): Long {
+    fun getRemainingDays(todayMidnight: Long = getTodayMidnightMillis()): Long {
         if (sktTarihi <= 0L) return 9999L
         return try {
             val zone = java.time.ZoneId.systemDefault()

@@ -373,7 +373,8 @@ fun TakipDetailSheet(
                 if (file.exists()) {
                     val bitmap = remember(record.irsaliyeGorselPath) {
                         try {
-                            BitmapFactory.decodeFile(file.absolutePath)
+                            val options = BitmapFactory.Options().apply { inSampleSize = 2 }
+                            BitmapFactory.decodeFile(file.absolutePath, options)
                         } catch (e: Exception) {
                             null
                         }

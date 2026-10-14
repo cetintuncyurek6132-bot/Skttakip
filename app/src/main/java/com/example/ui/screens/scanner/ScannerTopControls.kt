@@ -76,7 +76,11 @@ fun ScannerTopControls(
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 // ARAMA / TARA MODU
-                val standardModeLabel = "Barkod Ara"
+                val standardModeLabel = when (openMode) {
+                    ScannerOpenMode.BARCODE_SEARCH -> "Barkod Ara"
+                    ScannerOpenMode.ADETSEL_SAYIM -> "Sayım Modu"
+                    ScannerOpenMode.LABEL_FIX -> "Etiket Düzelt"  // fallback
+                }
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))

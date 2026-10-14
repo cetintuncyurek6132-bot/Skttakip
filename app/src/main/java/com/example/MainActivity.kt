@@ -178,6 +178,17 @@ class MainActivity : ComponentActivity() {
             intent.removeExtra("navigate_to")
         }
     }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            try {
+                com.example.util.SoundToneManager.release()
+                com.example.util.HapticFeedbackHelper.release()
+            } catch (_: Exception) {
+            }
+        }
+    }
 }
 
 @Composable

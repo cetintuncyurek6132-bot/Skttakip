@@ -25,3 +25,15 @@
 # Keep Kotlin Reflections / Attributes
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 -dontwarn org.json.**
+
+# Room Schema Files - Keep for migration testing
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao interface * { *; }
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    <init>(...);
+}
+-keep class androidx.room.migration.** { *; }
+-keep class **Schema { *; }
+-keepclassmembers class ** { @androidx.room.* <methods>; }
+

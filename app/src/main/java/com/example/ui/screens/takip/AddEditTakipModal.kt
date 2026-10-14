@@ -715,7 +715,8 @@ fun AddEditTakipModal(
                             if (gorselPath != null && File(gorselPath!!).exists()) {
                                 val bitmap = remember(gorselPath) {
                                     try {
-                                        BitmapFactory.decodeFile(gorselPath!!)
+                                        val options = BitmapFactory.Options().apply { inSampleSize = 4 }
+                                        BitmapFactory.decodeFile(gorselPath!!, options)
                                     } catch (e: Exception) {
                                         null
                                     }

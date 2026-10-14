@@ -42,6 +42,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -95,30 +96,32 @@ fun NotificationSheet(
     onAddToAdetsel: (Product) -> Unit = {},
     onOpenProductDetail: (Product) -> Unit = {}
 ) {
+    val todayMidnight by com.example.util.rememberTodayMidnight()
+
     // Sayısal Özet Hesaplamaları
-    val expiredCount = remember(allProducts, dashboardState) {
+    val expiredCount = remember(allProducts, dashboardState, todayMidnight) {
         val countFromList = allProducts.count {
-            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.EXPIRED
+            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus(todayMidnight) == ExpiryStatus.EXPIRED
         }
         if (countFromList > 0) countFromList else dashboardState.expiredCount
     }
 
-    val criticalCount = remember(allProducts, dashboardState) {
+    val criticalCount = remember(allProducts, dashboardState, todayMidnight) {
         val countFromList = allProducts.count {
-            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.CRITICAL
+            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus(todayMidnight) == ExpiryStatus.CRITICAL
         }
         if (countFromList > 0) countFromList else dashboardState.criticalCount
     }
 
-    val soonCount = remember(allProducts) {
+    val soonCount = remember(allProducts, todayMidnight) {
         allProducts.count {
-            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus() == ExpiryStatus.SOON
+            it.sktTarihi > 0L && it.stokAdedi > 0 && it.getExpiryStatus(todayMidnight) == ExpiryStatus.SOON
         }
     }
 
-    val highStockCount = remember(allProducts) {
+    val highStockCount = remember(allProducts, todayMidnight) {
         allProducts.filter {
-            it.sktTarihi > 0L && it.stokAdedi >= 10 && it.getRemainingDays() in 0..30
+            it.sktTarihi > 0L && it.stokAdedi >= 10 && it.getRemainingDays(todayMidnight) in 0..30
         }.distinctBy {
             it.barkod.ifBlank { it.urunKodu }.ifBlank { it.urunAdi }
         }.size

@@ -111,9 +111,13 @@ class ProductRepository(
     }
 
     suspend fun updateProduct(product: Product): Int {
-        val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi)
-        val toUpdate = if (product.kategori != cleanCategory) product.copy(kategori = cleanCategory) else product
-        return productDao.updateProduct(toUpdate)
+        // Kullanıcı seçimini KORU - ProductDataHealer zaten healleme yapacak
+        val cleaned = if (product.kategori.isBlank()) {
+            product.copy(kategori = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi))
+        } else {
+            product
+        }
+        return productDao.updateProduct(cleaned)
     }
 
     suspend fun reclassifyAllProducts(): Int {
@@ -157,28 +161,37 @@ class ProductRepository(
     }
 
     suspend fun insertOrUpdateProduct(product: Product): Long {
-        val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi)
-        val productToSave = if (product.kategori != cleanCategory) product.copy(kategori = cleanCategory) else product
-        val id = if (productToSave.id != 0) {
-            productDao.updateProduct(productToSave)
-            productToSave.id.toLong()
+        val cleaned = if (product.kategori.isBlank()) {
+            product.copy(kategori = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi))
         } else {
-            productDao.insertProduct(productToSave)
+            product
+        }
+        val id = if (cleaned.id != 0) {
+            productDao.updateProduct(cleaned)
+            cleaned.id.toLong()
+        } else {
+            productDao.insertProduct(cleaned)
         }
         return id
     }
 
     suspend fun insertNewSktForBarcode(product: Product): Long {
-        val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi)
-        val productToSave = if (product.kategori != cleanCategory) product.copy(kategori = cleanCategory) else product
-        return productDao.insertProduct(productToSave.copy(id = 0))
+        val cleaned = if (product.kategori.isBlank()) {
+            product.copy(kategori = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi))
+        } else {
+            product
+        }
+        return productDao.insertProduct(cleaned.copy(id = 0))
     }
 
     suspend fun insertProductsBatch(products: List<Product>) {
         if (products.isEmpty()) return
         val cleanList = products.map { p ->
-            val cat = com.example.util.CategoryClassifier.classifyCategory(p.urunAdi)
-            if (p.kategori != cat) p.copy(kategori = cat) else p
+            if (p.kategori.isBlank()) {
+                p.copy(kategori = com.example.util.CategoryClassifier.classifyCategory(p.urunAdi))
+            } else {
+                p
+            }
         }
         productDao.insertAll(cleanList)
     }

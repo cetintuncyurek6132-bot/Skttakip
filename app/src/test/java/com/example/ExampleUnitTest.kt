@@ -82,6 +82,30 @@ class ExampleUnitTest {
     }
 
     @Test
+    fun testUserSelectedCategoryPreserved() {
+        // Kullanıcı "SÜT 1L" için "Dolap" seçtiğinde kategori korunmalı
+        assertEquals("Dolap", CategoryClassifier.classify("SÜT 1L", "Dolap"))
+        assertEquals("Dolap", CategoryClassifier.classify("SÜT 1L", "dolap"))
+        assertEquals("Gıda", CategoryClassifier.classify("Dana Kıyma", "Gıda"))
+
+        // Boş veya geçersiz fallback durumunda otomatik sınıflandırma çalışmalı
+        assertEquals("Dolap", CategoryClassifier.classify("Dana Kıyma", null))
+        assertEquals("Dolap", CategoryClassifier.classify("Dana Kıyma", ""))
+
+        // ProductDataHealer autoHealProduct da kullanıcının Dolap seçimini ezmemeli
+        val userProduct = Product(
+            barkod = "8690001000001",
+            urunKodu = "12345",
+            urunAdi = "SÜT 1L",
+            kategori = "Dolap",
+            sktTarihi = System.currentTimeMillis() + 86400000L,
+            stokAdedi = 5
+        )
+        val healed = com.example.util.ProductDataHealer.autoHealProduct(userProduct)
+        assertEquals("Dolap", healed.kategori)
+    }
+
+    @Test
     fun testObservationDaysPaydaCalculation() {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)

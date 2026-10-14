@@ -82,7 +82,11 @@ object XlsxParser {
         }
 
         // Step 2: Find sheet entries (sheet1.xml, sheet2.xml, etc.)
-        val sheetKeys = entries.keys.filter { it.startsWith("xl/worksheets/sheet") }.sorted()
+        val sheetKeys = entries.keys
+            .filter { it.startsWith("xl/worksheets/sheet") }
+            .sortedBy { key -> 
+                key.replace(Regex("\\D"), "").toIntOrNull() ?: Int.MAX_VALUE
+            }
         if (sheetKeys.isEmpty()) return emptyList()
 
         val resultLines = mutableListOf<String>()

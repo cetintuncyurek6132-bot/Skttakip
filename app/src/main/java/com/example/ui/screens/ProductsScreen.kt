@@ -80,6 +80,7 @@ fun ProductsScreen(
     onOpenQrFixMode: () -> Unit = {}
 ) {
     val context = LocalContext.current
+    val todayMidnight by com.example.util.rememberTodayMidnight()
     val listState = rememberLazyListState()
     var isDateRangeModalOpen by remember { mutableStateOf(false) }
     var isWhatsAppShareModalOpen by remember { mutableStateOf(false) }
@@ -201,6 +202,7 @@ fun ProductsScreen(
                     onProductClick = onProductClick,
                     onDeleteProduct = onDeleteProduct,
                     onQuickAddSkt = onQuickAddSkt,
+                    todayMidnight = todayMidnight,
                     listState = listState
                 )
 

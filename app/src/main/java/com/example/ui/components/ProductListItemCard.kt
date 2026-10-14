@@ -63,12 +63,7 @@ import com.example.ui.theme.WarningBlue
 import com.example.ui.theme.WarningBlueBorder
 import com.example.ui.theme.WarningBlueContainer
 import com.example.ui.theme.WarningBlueDark
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
-
-private val sharedSktDateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
 
 @Composable
 fun ProductListItemCard(
@@ -76,20 +71,13 @@ fun ProductListItemCard(
     onClick: () -> Unit,
     onQuickAddSkt: (() -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
-    todayMidnight: Long = remember {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        cal.timeInMillis
-    }
+    todayMidnight: Long = com.example.util.getTodayMidnight()
 ) {
     val hasSkt = product.sktTarihi > 0L && product.stokAdedi > 0
-    val daysLeft = remember(product.sktTarihi, todayMidnight) {
+    val daysLeft = remember(product.sktTarihi, product.stokAdedi, todayMidnight) {
         if (hasSkt) product.getRemainingDays(todayMidnight) else 9999L
     }
-    val status = remember(product.sktTarihi, todayMidnight) {
+    val status = remember(product.sktTarihi, product.stokAdedi, todayMidnight) {
         if (hasSkt) product.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
     }
 
@@ -109,11 +97,9 @@ fun ProductListItemCard(
 
     val squareTextColor: Color = Color.White
 
-    val sktSummaryText = remember(product.sktTarihi) {
+    val sktSummaryText = remember(product.sktTarihi, hasSkt) {
         if (hasSkt) {
-            synchronized(sharedSktDateFormat) {
-                "SKT: ${sharedSktDateFormat.format(Date(product.sktTarihi))}"
-            }
+            "SKT: ${com.example.util.SafeDateFormatter.shortDate(product.sktTarihi)}"
         } else "SKT: Girilmedi"
     }
 
@@ -367,14 +353,7 @@ fun GroupedProductListItemCard(
     onClick: (Product) -> Unit,
     onQuickAddSkt: ((Product) -> Unit)? = null,
     onDeleteProduct: ((Product) -> Unit)? = null,
-    todayMidnight: Long = remember {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        cal.timeInMillis
-    }
+    todayMidnight: Long = com.example.util.getTodayMidnight()
 ) {
     if (productList.isEmpty()) return
     val mainProduct = productList.first()
@@ -392,10 +371,10 @@ fun GroupedProductListItemCard(
         ?: sortedList.firstOrNull { it.sktTarihi > 0L }
         ?: sortedList.first()
     val hasSkt = nearestWithSkt.sktTarihi > 0L && nearestWithSkt.stokAdedi > 0 && validBatches.isNotEmpty()
-    val daysLeft = remember(nearestWithSkt.sktTarihi, todayMidnight) {
+    val daysLeft = remember(nearestWithSkt.sktTarihi, nearestWithSkt.stokAdedi, todayMidnight) {
         if (hasSkt) nearestWithSkt.getRemainingDays(todayMidnight) else 9999L
     }
-    val status = remember(nearestWithSkt.sktTarihi, todayMidnight) {
+    val status = remember(nearestWithSkt.sktTarihi, nearestWithSkt.stokAdedi, todayMidnight) {
         if (hasSkt) nearestWithSkt.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
     }
     val activeBatches = remember(productList) { productList.filter { it.stokAdedi > 0 } }
@@ -759,9 +738,7 @@ fun GroupedProductListItemCard(
                                 }
 
                                 val sktStr = if (itemHasSkt) {
-                                    synchronized(sharedSktDateFormat) {
-                                        sharedSktDateFormat.format(Date(item.sktTarihi))
-                                    }
+                                    com.example.util.SafeDateFormatter.shortDate(item.sktTarihi)
                                 } else "SKT Girilmedi"
                                 Text(
                                     text = "📅 $sktStr",

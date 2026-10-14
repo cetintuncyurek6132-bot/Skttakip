@@ -1,0 +1,386 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 6,
+    "identityHash": "865e8a55c5e1378a7e432538c7bde53b",
+    "entities": [
+      {
+        "tableName": "products",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `barkod` TEXT NOT NULL, `urunKodu` TEXT NOT NULL, `urunAdi` TEXT NOT NULL, `kategori` TEXT NOT NULL, `sktTarihi` INTEGER NOT NULL, `stokAdedi` INTEGER NOT NULL, `eklenmeTarihi` INTEGER NOT NULL, `isImportant` INTEGER NOT NULL, `sonKontrolTarihi` INTEGER NOT NULL, `fiyat` REAL, `resimUrl` TEXT, `isDeleted` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "barkod",
+            "columnName": "barkod",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urunKodu",
+            "columnName": "urunKodu",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urunAdi",
+            "columnName": "urunAdi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kategori",
+            "columnName": "kategori",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sktTarihi",
+            "columnName": "sktTarihi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stokAdedi",
+            "columnName": "stokAdedi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eklenmeTarihi",
+            "columnName": "eklenmeTarihi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isImportant",
+            "columnName": "isImportant",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sonKontrolTarihi",
+            "columnName": "sonKontrolTarihi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fiyat",
+            "columnName": "fiyat",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "resimUrl",
+            "columnName": "resimUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isDeleted",
+            "columnName": "isDeleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_products_barkod",
+            "unique": false,
+            "columnNames": [
+              "barkod"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_products_barkod` ON `${TABLE_NAME}` (`barkod`)"
+          },
+          {
+            "name": "index_products_urunKodu",
+            "unique": false,
+            "columnNames": [
+              "urunKodu"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_products_urunKodu` ON `${TABLE_NAME}` (`urunKodu`)"
+          },
+          {
+            "name": "index_products_sktTarihi",
+            "unique": false,
+            "columnNames": [
+              "sktTarihi"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_products_sktTarihi` ON `${TABLE_NAME}` (`sktTarihi`)"
+          }
+        ]
+      },
+      {
+        "tableName": "inspection_reports",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tarih` INTEGER NOT NULL, `reyonAdi` TEXT NOT NULL, `tarananUrunSayisi` INTEGER NOT NULL, `suresiGecenSayisi` INTEGER NOT NULL, `kritikUrunSayisi` INTEGER NOT NULL, `fireTutari` REAL NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tarih",
+            "columnName": "tarih",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reyonAdi",
+            "columnName": "reyonAdi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tarananUrunSayisi",
+            "columnName": "tarananUrunSayisi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "suresiGecenSayisi",
+            "columnName": "suresiGecenSayisi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kritikUrunSayisi",
+            "columnName": "kritikUrunSayisi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fireTutari",
+            "columnName": "fireTutari",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "adetsel_kayitlar",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `productId` INTEGER NOT NULL, `urunAdi` TEXT NOT NULL, `urunKodu` TEXT NOT NULL, `barkod` TEXT NOT NULL, `kategori` TEXT NOT NULL, `eklenmeTarihi` INTEGER NOT NULL, `yapildiMi` INTEGER NOT NULL, `sayimSonucu` TEXT NOT NULL, `beklenenAdet` INTEGER NOT NULL, `sayilanAdet` INTEGER NOT NULL, `farkAdet` INTEGER NOT NULL, `notlar` TEXT NOT NULL, `islemTarihi` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productId",
+            "columnName": "productId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urunAdi",
+            "columnName": "urunAdi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urunKodu",
+            "columnName": "urunKodu",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "barkod",
+            "columnName": "barkod",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kategori",
+            "columnName": "kategori",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "eklenmeTarihi",
+            "columnName": "eklenmeTarihi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "yapildiMi",
+            "columnName": "yapildiMi",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sayimSonucu",
+            "columnName": "sayimSonucu",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "beklenenAdet",
+            "columnName": "beklenenAdet",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sayilanAdet",
+            "columnName": "sayilanAdet",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "farkAdet",
+            "columnName": "farkAdet",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "notlar",
+            "columnName": "notlar",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "islemTarihi",
+            "columnName": "islemTarihi",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "stock_movements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `barkod` TEXT NOT NULL, `urunAdi` TEXT NOT NULL, `adet` INTEGER NOT NULL, `islemTuru` TEXT NOT NULL, `tarih` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "barkod",
+            "columnName": "barkod",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "urunAdi",
+            "columnName": "urunAdi",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "adet",
+            "columnName": "adet",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "islemTuru",
+            "columnName": "islemTuru",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tarih",
+            "columnName": "tarih",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "stock_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `barcode` TEXT NOT NULL, `productName` TEXT NOT NULL, `actionType` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `sktDate` INTEGER, `daysRemaining` INTEGER, `timestamp` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "barcode",
+            "columnName": "barcode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "productName",
+            "columnName": "productName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "actionType",
+            "columnName": "actionType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sktDate",
+            "columnName": "sktDate",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "daysRemaining",
+            "columnName": "daysRemaining",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "timestamp",
+            "columnName": "timestamp",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '865e8a55c5e1378a7e432538c7bde53b')"
+    ]
+  }
+}

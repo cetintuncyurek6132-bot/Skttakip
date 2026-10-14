@@ -195,13 +195,19 @@ object ProductDataHealer {
             )
         }
 
-        // Ensure category is classified cleanly as Dolap or Gıda
-        val classifiedCategory = CategoryClassifier.classify(healedUrunAdi, healedKategori)
+        // Kategori zaten geçerliyse KORU, değilse otomatik sınıflandır
+        val finalCategory = if (healedKategori.equals("Dolap", ignoreCase = true) ||
+                                healedKategori.equals("Gıda", ignoreCase = true)) {
+            healedKategori  // Kullanıcı seçimi kutsal
+        } else {
+            CategoryClassifier.classifyCategory(healedUrunAdi)
+        }
+
         product.copy(
             barkod = healedBarkod,
             urunKodu = healedUrunKodu,
             urunAdi = healedUrunAdi.uppercase(trLocale),
-            kategori = classifiedCategory
+            kategori = finalCategory
         )
     } catch (t: Throwable) {
         android.util.Log.e("ProductDataHealer", "SafeStartup: autoHealProduct failed safely: ${t.message}", t)
@@ -309,8 +315,9 @@ object ProductDataHealer {
 
         // Fallbacks
         val finalProductName = (foundProductName ?: "İSİMSİZ ÜRÜN").uppercase(trLocale)
-        val finalBarcode = foundBarcode ?: (foundProductCode ?: "NO_BARCODE_${System.currentTimeMillis()}")
-        val finalProductCode = foundProductCode ?: (if (foundBarcode != null && foundBarcode.length <= 9) foundBarcode else "2500${(1000..9999).random()}")
+        val codeSuffix = (finalProductName.hashCode().toString().replace("-", "").takeLast(4).padStart(4, '0'))
+        val finalProductCode = foundProductCode ?: (if (foundBarcode != null && foundBarcode.length <= 9) foundBarcode else "2500$codeSuffix")
+        val finalBarcode = foundBarcode ?: (foundProductCode ?: "NO_BARCODE_${(finalProductName + finalProductCode).hashCode().toString().replace("-", "N")}")
         val finalCategory = detectCategory(finalProductName, foundCategory ?: "Gıda")
 
         val rawProduct = Product(

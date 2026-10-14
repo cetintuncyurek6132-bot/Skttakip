@@ -61,9 +61,7 @@ import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.theme.WarningBlueBorder
 import com.example.ui.theme.WarningBlueContainer
 import com.example.ui.theme.WarningBlueDark
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 
 @Composable
@@ -72,11 +70,11 @@ fun CustomBoxedCalendarDialog(
     onDismissRequest: () -> Unit,
     onDateSelected: (Long) -> Unit
 ) {
-    var selectedMillis by remember {
+    var selectedMillis by remember(initialDateMillis) {
         mutableStateOf(if (initialDateMillis > 0L) initialDateMillis else System.currentTimeMillis())
     }
 
-    var calendarView by remember {
+    var calendarView by remember(initialDateMillis) {
         mutableStateOf(Calendar.getInstance().apply {
             timeInMillis = if (initialDateMillis > 0L) initialDateMillis else System.currentTimeMillis()
             set(Calendar.DAY_OF_MONTH, 1)
@@ -87,22 +85,11 @@ fun CustomBoxedCalendarDialog(
         })
     }
 
-    val todayMidnight = remember {
-        Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, 0)
-            set(Calendar.MINUTE, 0)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    }
+    val todayMidnight by com.example.util.rememberTodayMidnight()
 
     val currentYear = calendarView.get(Calendar.YEAR)
     val currentMonth = calendarView.get(Calendar.MONTH)
-
     val trLocale = remember { Locale.forLanguageTag("tr-TR") }
-    val monthYearFormat = remember { SimpleDateFormat("MMMM yyyy", trLocale) }
-    val numericHeaderFormat = remember { SimpleDateFormat("dd/MM/yyyy", trLocale) }
-    val shortDateFormat = remember { SimpleDateFormat("dd MMMM yyyy", trLocale) }
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -139,7 +126,7 @@ fun CustomBoxedCalendarDialog(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = if (selectedMillis > 0L) numericHeaderFormat.format(Date(selectedMillis)) else "Tarih Seçiniz",
+                            text = if (selectedMillis > 0L) com.example.util.SafeDateFormatter.shortDate(selectedMillis) else "Tarih Seçiniz",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface
@@ -193,7 +180,7 @@ fun CustomBoxedCalendarDialog(
                         }
 
                         Text(
-                            text = monthYearFormat.format(calendarView.time).uppercase(trLocale),
+                            text = com.example.util.SafeDateFormatter.monthYear(calendarView.timeInMillis).uppercase(trLocale),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 14.5.sp,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -366,7 +353,7 @@ fun CustomBoxedCalendarDialog(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = if (selectedMillis > 0L) shortDateFormat.format(Date(selectedMillis)) else "-",
+                                text = if (selectedMillis > 0L) com.example.util.SafeDateFormatter.longDate(selectedMillis) else "-",
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Black,
                                 color = MaterialTheme.colorScheme.onSurface

@@ -73,7 +73,7 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
 @Database(
     entities = [Product::class, InspectionReport::class, AdetselKayit::class, StockMovement::class, StockLog::class],
     version = 6,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao

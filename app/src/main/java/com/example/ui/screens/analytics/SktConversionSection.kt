@@ -73,17 +73,37 @@ fun SktConversionSection(
         periodStockLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
     }
 
-    val currentRaftaQty = remember(validProducts) {
+    // Dönem başlangıç zamanı
+    val periodStartTime = akibetCutoffTime
+
+    // O DÖNEMDE SKT_GIRIS ile giren toplam stok
+    val periodSktEntries = remember(periodStockLogs) {
+        periodStockLogs.filter { it.actionType == "SKT_GIRIS" }.sumOf { it.quantity }
+    }
+
+    // Dönem içinde işlem görmüş toplam adet (satış + fire)
+    val periodProcessedQty = periodSoldQty + periodFireQty
+
+    // Dönem içinde giren stoktan hala rafta olan (yaklaşık hesap):
+    // Fallback: Eğer periodSktEntries 0 ise, eski mantığa düş (currentRaftaQty kullan)
+    val periodRaftaQty = if (periodSktEntries > 0) {
+        maxOf(0, periodSktEntries - periodProcessedQty)
+    } else {
         validProducts.sumOf { it.stokAdedi }
     }
 
-    val totalAkibetQty = remember(periodSoldQty, periodFireQty, currentRaftaQty) {
-        periodSoldQty + periodFireQty + currentRaftaQty
+    // Payda: dönem içinde akıbeti belirlenen tüm adetler
+    val totalAkibetQty = remember(periodSoldQty, periodFireQty, periodSktEntries, periodRaftaQty) {
+        if (periodSktEntries > 0) {
+            periodSktEntries.coerceAtLeast(periodProcessedQty)
+        } else {
+            periodSoldQty + periodFireQty + periodRaftaQty
+        }
     }
 
     val soldRatio = if (totalAkibetQty > 0) periodSoldQty.toDouble() / totalAkibetQty.toDouble() else 0.0
     val fireRatio = if (totalAkibetQty > 0) periodFireQty.toDouble() / totalAkibetQty.toDouble() else 0.0
-    val raftaRatio = if (totalAkibetQty > 0) currentRaftaQty.toDouble() / totalAkibetQty.toDouble() else 0.0
+    val raftaRatio = if (totalAkibetQty > 0) periodRaftaQty.toDouble() / totalAkibetQty.toDouble() else 0.0
 
     val soldPercent = Math.round(soldRatio * 100).toInt()
     val firePercent = Math.round(fireRatio * 100).toInt()
@@ -201,7 +221,7 @@ fun SktConversionSection(
                                     .background(ExpiredRed)
                             )
                         }
-                        if (currentRaftaQty > 0) {
+                        if (periodRaftaQty > 0) {
                             Box(
                                 modifier = Modifier
                                     .weight(raftaRatio.toFloat().coerceAtLeast(0.04f))
@@ -326,7 +346,7 @@ fun SktConversionSection(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "$currentRaftaQty Adet",
+                            text = "$periodRaftaQty Adet",
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Black,
                             color = MaterialTheme.colorScheme.onSurface

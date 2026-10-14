@@ -1,7 +1,6 @@
 package com.example.ui.screens.scanner
 
 import android.content.Context
-import android.media.ToneGenerator
 import android.os.Build
 import android.os.VibrationEffect
 import android.os.Vibrator
@@ -84,7 +83,6 @@ object ScannerFeedbackHelper {
 
     fun playFeedback(
         context: Context,
-        toneGenerator: ToneGenerator?,
         risk: ScanResultRisk,
         soundEnabled: Boolean = true,
         vibrationEnabled: Boolean = true
@@ -96,34 +94,18 @@ object ScannerFeedbackHelper {
         lastFeedbackTime = now
 
         if (soundEnabled) {
-            val tg = toneGenerator ?: try {
-                ToneGenerator(android.media.AudioManager.STREAM_NOTIFICATION, 100)
-            } catch (_: Exception) {
-                try {
-                    ToneGenerator(android.media.AudioManager.STREAM_SYSTEM, 100)
-                } catch (_: Exception) {
-                    try {
-                        ToneGenerator(android.media.AudioManager.STREAM_MUSIC, 100)
-                    } catch (_: Exception) {
-                        null
-                    }
+            when (risk) {
+                ScanResultRisk.SAFE, ScanResultRisk.NO_SKT -> {
+                    com.example.util.SoundToneManager.playScannerFeedback(context, isSuccess = true)
                 }
-            }
-
-            if (tg != null) {
-                try {
-                    val prefs = context.getSharedPreferences("app_settings_prefs", Context.MODE_PRIVATE)
-                    val barcodeToneId = prefs.getInt("scanner_sound_barcode", 1)
-                    val barcodeTone = com.example.util.SoundToneManager.getToneOptionById(barcodeToneId)
-
-                    when (risk) {
-                        ScanResultRisk.SAFE, ScanResultRisk.NO_SKT -> tg.startTone(barcodeTone.toneType, barcodeTone.durationMs)
-                        ScanResultRisk.WARNING -> tg.startTone(ToneGenerator.TONE_PROP_BEEP2, 140)
-                        ScanResultRisk.CRITICAL, ScanResultRisk.EXPIRED -> tg.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200)
-                        ScanResultRisk.NOT_FOUND -> tg.startTone(ToneGenerator.TONE_PROP_NACK, 160)
-                    }
-                } catch (e: Exception) {
-                    // Ignore audio playback error
+                ScanResultRisk.WARNING -> {
+                    com.example.util.SoundToneManager.playDoubleTone()
+                }
+                ScanResultRisk.CRITICAL, ScanResultRisk.EXPIRED -> {
+                    com.example.util.SoundToneManager.playWarningTone()
+                }
+                ScanResultRisk.NOT_FOUND -> {
+                    com.example.util.SoundToneManager.playWarningTone()
                 }
             }
         }

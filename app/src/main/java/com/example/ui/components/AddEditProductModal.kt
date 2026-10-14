@@ -98,26 +98,29 @@ fun AddEditProductModal(
         product?.let { ProductDataHealer.autoHealProduct(it) }
     }
 
-    var barkod by remember {
+    var barkod by remember(product, prefilledBarcode) {
         mutableStateOf(
             healedProduct?.barkod ?: parsedPrefill?.barcode?.ifEmpty { null } ?: prefilledBarcode
         )
     }
-    var urunKodu by remember {
+    var urunKodu by remember(product, prefilledBarcode) {
         mutableStateOf(
             healedProduct?.urunKodu ?: parsedPrefill?.productCode ?: ""
         )
     }
-    var urunAdi by remember { mutableStateOf(healedProduct?.urunAdi ?: "") }
-    val initialCategory = remember(healedProduct) {
+    var urunAdi by remember(product, prefilledBarcode) { mutableStateOf(healedProduct?.urunAdi ?: parsedPrefill?.productName ?: "") }
+    val initialCategory = remember(healedProduct, parsedPrefill) {
         if (healedProduct != null) {
             com.example.util.CategoryClassifier.classify(healedProduct.urunAdi, healedProduct.kategori)
+        } else if (!parsedPrefill?.productName.isNullOrBlank()) {
+            com.example.util.CategoryClassifier.classify(parsedPrefill!!.productName)
         } else {
             "Gıda"
         }
     }
-    var kategori by remember { mutableStateOf(initialCategory) }
-    var fiyatText by remember {
+    var kategori by remember(product, prefilledBarcode) { mutableStateOf(initialCategory) }
+    var userOverrodeCategory by remember(product, prefilledBarcode) { mutableStateOf(false) }
+    var fiyatText by remember(product, prefilledBarcode) {
         mutableStateOf(
             healedProduct?.fiyat?.let { f ->
                 if (f % 1.0 == 0.0) f.toInt().toString() else f.toString()
@@ -126,7 +129,7 @@ fun AddEditProductModal(
             } ?: ""
         )
     }
-    var isImportant by remember { mutableStateOf(healedProduct?.isImportant ?: false) }
+    var isImportant by remember(product, prefilledBarcode) { mutableStateOf(healedProduct?.isImportant ?: false) }
 
     // Sadece iki reyon kategorisi (Dolap ve Gıda)
     val categories = listOf(
@@ -145,7 +148,12 @@ fun AddEditProductModal(
             barkod = healed.barkod
             urunKodu = healed.urunKodu
             urunAdi = healed.urunAdi
-            kategori = com.example.util.CategoryClassifier.classify(healed.urunAdi, healed.kategori)
+            kategori = if (healed.kategori.isNotBlank()) {
+                healed.kategori  // Mevcut kategoriyi koru
+            } else {
+                com.example.util.CategoryClassifier.classifyCategory(healed.urunAdi)
+            }
+            userOverrodeCategory = false  // Reset
             fiyatText = healed.fiyat?.let { f ->
                 if (f % 1.0 == 0.0) f.toInt().toString() else f.toString()
             } ?: ""
@@ -157,10 +165,19 @@ fun AddEditProductModal(
             if (!parsed.productName.isNullOrBlank()) {
                 urunAdi = parsed.productName
                 kategori = com.example.util.CategoryClassifier.classify(parsed.productName)
+                userOverrodeCategory = false
             }
             if (parsed.price != null && parsed.price > 0.0) {
                 fiyatText = if (parsed.price % 1.0 == 0.0) parsed.price.toInt().toString() else parsed.price.toString()
             }
+        } else {
+            barkod = ""
+            urunKodu = ""
+            urunAdi = ""
+            kategori = "Gıda"
+            userOverrodeCategory = false
+            fiyatText = ""
+            isImportant = false
         }
     }
 
@@ -301,6 +318,7 @@ fun AddEditProductModal(
                             if (!shelfData.productName.isNullOrBlank()) {
                                 urunAdi = shelfData.productName
                                 kategori = com.example.util.CategoryClassifier.classify(shelfData.productName)
+                                userOverrodeCategory = false
                             }
                             Toast.makeText(context, "Raf etiketi okundu", Toast.LENGTH_SHORT).show()
                         }
@@ -359,7 +377,7 @@ fun AddEditProductModal(
                     onValueChange = {
                         val formatted = it.uppercase(java.util.Locale.forLanguageTag("tr-TR"))
                         urunAdi = formatted
-                        if (formatted.isNotBlank()) {
+                        if (!userOverrodeCategory && formatted.isNotBlank()) {
                             kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
                         }
                     },
@@ -402,6 +420,7 @@ fun AddEditProductModal(
                             val formatted = detectedName.uppercase(java.util.Locale.forLanguageTag("tr-TR"))
                             urunAdi = formatted
                             kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
+                            userOverrodeCategory = false
                             showProductNameOcrScanner = false
                             Toast.makeText(context, "Yazı okundu: $formatted", Toast.LENGTH_SHORT).show()
                         }
@@ -451,6 +470,7 @@ fun AddEditProductModal(
                                         text = { Text(cat, fontSize = 13.sp) },
                                         onClick = {
                                             kategori = cat
+                                            userOverrodeCategory = true  // Artık otomatik override etme
                                             expandedCategoryMenu = false
                                         }
                                     )
@@ -574,7 +594,7 @@ fun AddEditProductModal(
 
                             val candidate = Product(
                                 id = product?.id ?: 0,
-                                barkod = enteredBarkod.ifBlank { if (enteredCode.isNotBlank()) "2500$enteredCode" else "NO_BARCODE_${System.currentTimeMillis()}" },
+                                barkod = enteredBarkod.ifBlank { if (enteredCode.isNotBlank()) "2500$enteredCode" else "NO_BARCODE_${(enteredName + enteredCode).hashCode().toString().replace("-", "N")}" },
                                 urunKodu = enteredCode.ifBlank { "0000" },
                                 urunAdi = enteredName,
                                 kategori = enteredCategory,

@@ -63,9 +63,7 @@ import com.example.ui.theme.NormalGreenDark
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+
 
 enum class SktRiskFilter {
     ALL,
@@ -87,7 +85,7 @@ fun ProductDetailSktTabContent(
     onDeleteSkt: (Product) -> Unit,
     onBatchClick: (Product) -> Unit = {}
 ) {
-    val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR"))
+
     val allValidSktProducts = remember(matchingProducts) {
         matchingProducts.filter { it.sktTarihi > 0L && it.stokAdedi > 0 }.sortedBy { it.sktTarihi }
     }
@@ -108,25 +106,26 @@ fun ProductDetailSktTabContent(
     val estimatedFire = if (hasPastData) Math.round(totalActiveStock * (pastFire.toDouble() / totalHistorical.toDouble())).toInt() else 0
 
     var selectedRiskFilter by remember { mutableStateOf(SktRiskFilter.ALL) }
+    val todayMidnight by com.example.util.rememberTodayMidnight()
 
-    val expiredOrNearCount = remember(allValidSktProducts) {
-        allValidSktProducts.filter { it.getRemainingDays() <= 3 }.sumOf { maxOf(0, it.stokAdedi) }
+    val expiredOrNearCount = remember(allValidSktProducts, todayMidnight) {
+        allValidSktProducts.filter { it.getRemainingDays(todayMidnight) <= 3 }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
-    val criticalCount = remember(allValidSktProducts) {
-        allValidSktProducts.filter { it.getRemainingDays() in 4..15 }.sumOf { maxOf(0, it.stokAdedi) }
+    val criticalCount = remember(allValidSktProducts, todayMidnight) {
+        allValidSktProducts.filter { it.getRemainingDays(todayMidnight) in 4..15 }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
-    val safeCount = remember(allValidSktProducts) {
-        allValidSktProducts.filter { it.getRemainingDays() >= 16 }.sumOf { maxOf(0, it.stokAdedi) }
+    val safeCount = remember(allValidSktProducts, todayMidnight) {
+        allValidSktProducts.filter { it.getRemainingDays(todayMidnight) >= 16 }.sumOf { maxOf(0, it.stokAdedi) }
     }
 
-    val displayedSktProducts = remember(allValidSktProducts, selectedRiskFilter) {
+    val displayedSktProducts = remember(allValidSktProducts, selectedRiskFilter, todayMidnight) {
         when (selectedRiskFilter) {
             SktRiskFilter.ALL -> allValidSktProducts
-            SktRiskFilter.EXPIRED_NEAR -> allValidSktProducts.filter { it.getRemainingDays() <= 3 }
-            SktRiskFilter.CRITICAL -> allValidSktProducts.filter { it.getRemainingDays() in 4..15 }
-            SktRiskFilter.SAFE -> allValidSktProducts.filter { it.getRemainingDays() >= 16 }
+            SktRiskFilter.EXPIRED_NEAR -> allValidSktProducts.filter { it.getRemainingDays(todayMidnight) <= 3 }
+            SktRiskFilter.CRITICAL -> allValidSktProducts.filter { it.getRemainingDays(todayMidnight) in 4..15 }
+            SktRiskFilter.SAFE -> allValidSktProducts.filter { it.getRemainingDays(todayMidnight) >= 16 }
         }
     }
 
@@ -353,8 +352,8 @@ fun ProductDetailSktTabContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 displayedSktProducts.forEach { item ->
-                    val daysRemaining = item.getRemainingDays()
-                    val dateStr = dateFormat.format(Date(item.sktTarihi))
+                    val daysRemaining = item.getRemainingDays(todayMidnight)
+                    val dateStr = com.example.util.SafeDateFormatter.shortDate(item.sktTarihi)
 
                     val (badgeText, badgeBg, badgeTextColor) = when {
                         daysRemaining < 0 -> Triple("${kotlin.math.abs(daysRemaining)} gün geçti", ExpiredRedContainer, ExpiredRedDark)

@@ -54,6 +54,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,7 +78,6 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.R
 import com.example.data.Product
-import com.example.data.getTodayMidnightMillis
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
@@ -98,7 +98,7 @@ fun WhatsAppShareModal(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val todayMidnight = remember { getTodayMidnightMillis() }
+    val todayMidnight by com.example.util.rememberTodayMidnight()
 
     var selectedCategory by remember { mutableStateOf(ShareCategory.TODAY_AND_OVERDUE_1) }
     var isPreviewMode by remember { mutableStateOf(false) }
@@ -132,8 +132,13 @@ fun WhatsAppShareModal(
     var selectedProductIds by remember { mutableStateOf<Set<Int>>(emptySet()) }
 
     // Auto-select all products when category changes or initial load
-    LaunchedEffect(selectedCategory, currentCategoryProducts) {
-        selectedProductIds = currentCategoryProducts.map { it.id }.toSet()
+    LaunchedEffect(selectedCategory) {
+        val products = when (selectedCategory) {
+            ShareCategory.TODAY_AND_OVERDUE_1 -> todayAndOverdue1Products
+            ShareCategory.LAST_7_DAYS -> last7DaysProducts
+            ShareCategory.IMPORTANT -> importantProducts
+        }
+        selectedProductIds = products.map { it.id }.toSet()
     }
 
     AppBottomSheetWrapper(
@@ -671,7 +676,11 @@ fun WhatsAppShareModal(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         OutlinedButton(
-                            onClick = { isPreviewMode = false },
+                            onClick = {
+                                generatedBitmaps.forEach { it.recycle() }
+                                generatedBitmaps = emptyList()
+                                isPreviewMode = false
+                            },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(46.dp)
@@ -730,5 +739,12 @@ fun WhatsAppShareModal(
                         }
                     }
                 }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            generatedBitmaps.forEach { it.recycle() }
+            generatedBitmaps = emptyList()
+        }
     }
 }

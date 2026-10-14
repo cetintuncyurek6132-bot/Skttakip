@@ -25,7 +25,6 @@ object DataMigrationManager {
     private const val KEY_LAST_UPDATE_TIME = "app_last_data_protection_check"
 
     const val CURRENT_DATA_VERSION = 4
-    private const val KEY_CATEGORY_CLEANED_V3 = "has_reclassified_categories_clean_v3"
 
     private val _migrationStatus = MutableStateFlow<MigrationStatus?>(null)
     val migrationStatus: StateFlow<MigrationStatus?> = _migrationStatus.asStateFlow()
@@ -98,34 +97,6 @@ object DataMigrationManager {
                     prefs.edit().putLong(KEY_LAST_UPDATE_TIME, now).apply()
                 }
 
-                // 3. Tek seferlik tarama: Veritabanındaki mevcut ürünlerin kategorilerini temiz kurallara göre "Dolap" ve "Gıda" olarak güncelle
-                val hasReclassified = prefs.getBoolean(KEY_CATEGORY_CLEANED_V3, false)
-                if (!hasReclassified) {
-                    var reclassifiedCount = 0
-                    try {
-                        val currentProds = productDao.getAllProductsList()
-                        val toUpdate = mutableListOf<Product>()
-                        for (prod in currentProds) {
-                            try {
-                                val cleanCategory = com.example.util.CategoryClassifier.classifyCategory(prod.urunAdi)
-                                if (prod.kategori != cleanCategory) {
-                                    toUpdate.add(prod.copy(kategori = cleanCategory))
-                                    reclassifiedCount++
-                                }
-                            } catch (t: Throwable) {
-                                Log.e(TAG, "SafeStartup: error classifying product id=${prod.id}: ${t.message}", t)
-                            }
-                        }
-                        if (toUpdate.isNotEmpty()) {
-                            productDao.updateAllProducts(toUpdate)
-                        }
-                        prefs.edit().putBoolean(KEY_CATEGORY_CLEANED_V3, true).apply()
-                        Log.i(TAG, "Clean category reclassification scan finished. Updated $reclassifiedCount products to Dolap/Gıda.")
-                    } catch (t: Throwable) {
-                        Log.e(TAG, "SafeStartup: reclassification batch skipped: ${t.message}", t)
-                        prefs.edit().putBoolean(KEY_CATEGORY_CLEANED_V3, true).apply()
-                    }
-                }
             } else {
                 // Brand new installation: mark current version
                 if (storedVersion == 0) {

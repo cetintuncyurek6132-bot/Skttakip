@@ -43,6 +43,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -361,5 +362,12 @@ fun AdetselSharePreviewModal(
                         )
                     }
                 }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            generatedBitmap?.recycle()
+            generatedBitmap = null
+        }
     }
 }

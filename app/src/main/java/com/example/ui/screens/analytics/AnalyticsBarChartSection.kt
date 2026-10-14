@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -470,11 +471,20 @@ fun InteractiveBarChart(
                 val scrollState = rememberScrollState()
                 val isScrollable = data.size > 14
 
-                LaunchedEffect(data) {
+                val density = LocalDensity.current
+
+                LaunchedEffect(data, density) {
                     val todayIndex = data.indexOfFirst { it.isToday }
                     if (todayIndex > 0 && isScrollable) {
-                        val approxScroll = (todayIndex * 18 * 2)
-                        scrollState.scrollTo(approxScroll)
+                        val barWidthDp = when {
+                            data.size <= 7 -> 20.dp
+                            data.size <= 14 -> 14.dp
+                            else -> 9.5.dp
+                        }
+                        val spacingDp = 6.dp
+                        val itemWidthPx = with(density) { (barWidthDp + spacingDp + 8.dp).toPx() }
+                        val targetScroll = (todayIndex * itemWidthPx).toInt()
+                        scrollState.scrollTo(targetScroll)
                     }
                 }
 

@@ -66,9 +66,7 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 
@@ -80,10 +78,9 @@ fun DeductStockDialog(
     onDeduct: (amount: Int, reason: String) -> Unit
 ) {
     val context = LocalContext.current
-    val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
-    val dateStr = if (batch.sktTarihi > 0L) dateFormat.format(Date(batch.sktTarihi)) else "SKT Girilmedi"
+    val dateStr = if (batch.sktTarihi > 0L) com.example.util.SafeDateFormatter.shortDate(batch.sktTarihi) else "SKT Girilmedi"
 
-    var deductAmountText by remember {
+    var deductAmountText by remember(batch) {
         mutableStateOf(if (batch.stokAdedi > 0) "1" else "0")
     }
     var isSaving by remember { mutableStateOf(false) }

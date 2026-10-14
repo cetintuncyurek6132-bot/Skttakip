@@ -15,10 +15,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 import java.util.UUID
 
 enum class IadeRedNedeni(val displayName: String) {
@@ -78,22 +75,17 @@ object DepoIadeManager {
     private const val KEY_RECORDS_JSON = "depo_iade_records_v2"
     private const val NOTIFICATION_CHANNEL_ID = "depo_iade_channel"
 
-    private val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.forLanguageTag("tr-TR"))
-
     fun getTodayDateString(): String {
-        return dateFormat.format(Date())
+        return com.example.util.SafeDateFormatter.nowNumericDate()
     }
 
     fun parseDateToMillis(dateStr: String): Long {
-        return try {
-            dateFormat.parse(dateStr)?.time ?: System.currentTimeMillis()
-        } catch (e: Exception) {
-            System.currentTimeMillis()
-        }
+        val parsed = com.example.util.SafeDateFormatter.parseNumericDate(dateStr)
+        return if (parsed > 0L) parsed else System.currentTimeMillis()
     }
 
     fun formatMillisToDate(millis: Long): String {
-        return dateFormat.format(Date(millis))
+        return com.example.util.SafeDateFormatter.numericDate(millis)
     }
 
     fun saveImageToInternalStorage(context: Context, uri: Uri): String? {

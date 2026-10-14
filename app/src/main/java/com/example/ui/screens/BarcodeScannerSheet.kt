@@ -2,8 +2,6 @@ package com.example.ui.screens
 
 import android.Manifest
 import android.content.Context
-import android.media.AudioManager
-import android.media.ToneGenerator
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -87,10 +85,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Date
-import java.util.Locale
 
 import com.example.ui.screens.scanner.ScannerOpenMode
 
@@ -146,14 +141,7 @@ fun BarcodeScannerSheet(
         }
     }
 
-    val todayMidnight = remember {
-        java.util.Calendar.getInstance().apply {
-            set(java.util.Calendar.HOUR_OF_DAY, 0)
-            set(java.util.Calendar.MINUTE, 0)
-            set(java.util.Calendar.SECOND, 0)
-            set(java.util.Calendar.MILLISECOND, 0)
-        }.timeInMillis
-    }
+    val todayMidnight by com.example.util.rememberTodayMidnight()
 
     LaunchedEffect(resumeCooldownUntil) {
         val remaining = resumeCooldownUntil - System.currentTimeMillis()
@@ -175,30 +163,9 @@ fun BarcodeScannerSheet(
     var isFlashOn by remember { mutableStateOf(false) }
     var zoomRatio by remember { mutableStateOf(1.0f) }
 
-    val toneGenerator = remember {
-        try {
-            ToneGenerator(AudioManager.STREAM_NOTIFICATION, 100)
-        } catch (_: Exception) {
-            try {
-                ToneGenerator(AudioManager.STREAM_SYSTEM, 100)
-            } catch (_: Exception) {
-                try {
-                    ToneGenerator(AudioManager.STREAM_MUSIC, 100)
-                } catch (_: Exception) {
-                    null
-                }
-            }
-        }
-    }
-
     DisposableEffect(Unit) {
         onDispose {
             isFlashOn = false
-            try {
-                toneGenerator?.release()
-            } catch (e: Exception) {
-                // Ignore audio release error
-            }
         }
     }
 
@@ -293,8 +260,7 @@ fun BarcodeScannerSheet(
                             }
 
                             if (onFixQrScanned != null) {
-                                val timeFormat = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
-                                val formattedTime = timeFormat.format(Date(now))
+                                val formattedTime = com.example.util.SafeDateFormatter.timeShort(now)
                                 qrFixLastTime = formattedTime
                                 val sc = shelfData.storeCode
                                 if (!sc.isNullOrBlank()) {
@@ -397,7 +363,6 @@ fun BarcodeScannerSheet(
                             val (risk, remainingDays) = ScannerFeedbackHelper.evaluateProductRisk(cleanBarcode, products, todayMidnight)
                             ScannerFeedbackHelper.playFeedback(
                                 context = context,
-                                toneGenerator = toneGenerator,
                                 risk = risk,
                                 soundEnabled = soundEffectsEnabled,
                                 vibrationEnabled = vibrationEnabled
