@@ -460,6 +460,64 @@ object ReleaseNotesTranslator {
         }
     }
 
+    /**
+     * AKILLI ÇEVİRİ: Hibrit yaklaşım.
+     * 
+     * 1. Önce mevcut sözlük tabanlı çeviri yapılır
+     * 2. Sonuç hala İngilizce içeriyorsa Gemini API denenir
+     * 3. Gemini de başarısız olursa sözlük fallback'i kullanılır
+     * 
+     * Bu fonksiyon suspend olduğu için Compose'da LaunchedEffect içinde çağrılmalıdır.
+     * 
+     * @param rawNotes GitHub Release'ten gelen ham metin
+     * @param versionName Opsiyonel sürüm adı
+     * @return Kullanıcıya gösterilecek Türkçe madde listesi
+     */
+    suspend fun translateSmart(rawNotes: String, versionName: String = ""): List<String> {
+        if (rawNotes.isBlank()) return getCorporateFallback(versionName)
+        
+        // 1. ADIM: Yerel sözlük tabanlı çeviri
+        val localResult = translateToBulletPoints(rawNotes, versionName)
+        
+        // Yerel sonuç kaliteli mi kontrol et
+        val hasEnglishResidue = localResult.any { line ->
+            val lower = line.lowercase()
+            ENGLISH_TECH_WORDS.any { word -> 
+                lower.contains(" $word ") || lower.startsWith("$word ") || lower.endsWith(" $word")
+            }
+        }
+        
+        if (!hasEnglishResidue && localResult.isNotEmpty()) {
+            // Yerel çeviri yeterince iyi, Gemini'ye gerek yok
+            return localResult
+        }
+        
+        // 2. ADIM: Gemini API ile dinamik çeviri
+        val geminiResult = try {
+            GeminiTranslator.translateToTurkish(rawNotes)
+        } catch (e: Exception) {
+            null
+        }
+        
+        return geminiResult ?: localResult
+    }
+
+    /**
+     * Yerel sözlükte tanımlı İngilizce teknik kelimeler.
+     * Bu kelimeler çeviride kalırsa Gemini'ye düşülür.
+     */
+    private val ENGLISH_TECH_WORDS = setOf(
+        "date", "handling", "room", "migration", "schema", "export",
+        "enable", "disable", "replace", "legacy", "format", "formatter",
+        "memory", "system", "resource", "management", "modernize",
+        "implement", "introduce", "refactor", "update", "add", "remove",
+        "fix", "improve", "optimize", "performance", "database",
+        "compose", "layout", "component", "view", "screen", "modal",
+        "scanner", "camera", "barcode", "stock", "product", "expiry",
+        "backup", "restore", "notification", "theme", "dark", "light",
+        "jdk", "desugaring", "kotlin", "android", "firebase"
+    )
+
     private fun formatFinalSentence(text: String): String {
         var result = text.trim()
         if (result.isEmpty()) return ""

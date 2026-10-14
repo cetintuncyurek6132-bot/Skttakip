@@ -21,6 +21,12 @@ android {
     ndk {
       abiFilters.addAll(listOf("arm64-v8a", "armeabi-v7a"))
     }
+
+    buildConfigField(
+      "String",
+      "GEMINI_API_KEY",
+      "\"${project.findProperty("GEMINI_API_KEY") ?: System.getenv("GEMINI_API_KEY") ?: ""}\""
+    )
   }
 
   signingConfigs {
@@ -95,6 +101,8 @@ android {
 
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
+  implementation(platform(libs.firebase.bom))
+  implementation(libs.firebase.ai)
   implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.camera.camera2)

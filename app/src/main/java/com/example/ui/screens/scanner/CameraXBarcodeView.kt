@@ -53,11 +53,13 @@ fun CameraXBarcodeView(
     isFlashOn: Boolean,
     zoomRatio: Float = 1.0f,
     filterMode: ScannerFilterMode = ScannerFilterMode.ALL,
+    isQrMode: Boolean = false,
     isBatterySaverMode: Boolean = false,
     isPaused: Boolean = false,
     requireCloseDistance: Boolean = true,
     onDistanceStateChanged: ((isTooFar: Boolean) -> Unit)? = null,
-    onBarcodeScanned: (String) -> Unit
+    onBarcodeScanned: (String) -> Unit,
+    onBarcodeTypeDetected: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -67,6 +69,7 @@ fun CameraXBarcodeView(
     val cameraRef = remember { mutableStateOf<androidx.camera.core.Camera?>(null) }
 
     val currentOnBarcodeScanned by rememberUpdatedState(onBarcodeScanned)
+    val currentOnBarcodeTypeDetected by rememberUpdatedState(onBarcodeTypeDetected)
     val currentOnDistanceStateChanged by rememberUpdatedState(onDistanceStateChanged)
     val currentFilterMode by rememberUpdatedState(filterMode)
     val currentRequireCloseDistance by rememberUpdatedState(requireCloseDistance)
@@ -102,10 +105,10 @@ fun CameraXBarcodeView(
     }
 
     // 3. SÜREKLİ ODAK (CONTINUOUS AUTO-FOCUS)
-    LaunchedEffect(isPaused) {
-        if (!isPaused) {
+    LaunchedEffect(isPaused, isBatterySaverMode) {
+        if (!isPaused && !isBatterySaverMode) {
             while (isActive) {
-                delay(2600L)
+                delay(5000L) // 2.6sn → 5sn
                 triggerAutoFocus()
             }
         }
@@ -143,10 +146,31 @@ fun CameraXBarcodeView(
         }
     }
 
-    // 1. ML KIT BARKOD TARAYICI: Tüm barkod ve QR formatlarını destekleyen tek ve kalıcı istemci
-    val barcodeScanner = remember {
+    // 1. ML KIT BARKOD TARAYICI: İhtiyaca göre 1D veya QR formatlarını filtreleyen optimize istemci
+    val barcodeScanner = remember(isQrMode) {
         val builder = BarcodeScannerOptions.Builder()
-            .setBarcodeFormats(Barcode.FORMAT_ALL_FORMATS)
+        if (isQrMode) {
+            // QR / 2D formatlar
+            builder.setBarcodeFormats(
+                Barcode.FORMAT_QR_CODE,
+                Barcode.FORMAT_DATA_MATRIX,
+                Barcode.FORMAT_AZTEC,
+                Barcode.FORMAT_PDF417
+            )
+        } else {
+            // 1D barkod formatları (EAN, UPC, Code128 vs.)
+            builder.setBarcodeFormats(
+                Barcode.FORMAT_EAN_13,
+                Barcode.FORMAT_EAN_8,
+                Barcode.FORMAT_UPC_A,
+                Barcode.FORMAT_UPC_E,
+                Barcode.FORMAT_CODE_128,
+                Barcode.FORMAT_CODE_39,
+                Barcode.FORMAT_CODE_93,
+                Barcode.FORMAT_ITF,
+                Barcode.FORMAT_CODABAR
+            )
+        }
         BarcodeScanning.getClient(builder.build())
     }
 
@@ -404,6 +428,8 @@ private fun processImageProxy(
     imageProxy: ImageProxy,
     onCloseProxy: () -> Unit,
     onDistanceFeedback: (isTooFar: Boolean) -> Unit,
+    mainHandler: android.os.Handler,
+    onBarcodeTypeDetected: ((String) -> Unit)? = null,
     onSuccess: (List<Barcode>) -> Unit
 ) {
     var isAsyncDispatched = false
@@ -442,6 +468,29 @@ private fun processImageProxy(
             if (validBarcodes.isEmpty()) {
                 onDistanceFeedback(false)
                 return@addOnSuccessListener
+            }
+
+            val firstBarcode = validBarcodes.firstOrNull()
+            if (firstBarcode != null) {
+                val typeLabel = when (firstBarcode.format) {
+                    Barcode.FORMAT_EAN_13 -> "EAN-13"
+                    Barcode.FORMAT_EAN_8 -> "EAN-8"
+                    Barcode.FORMAT_UPC_A -> "UPC-A"
+                    Barcode.FORMAT_UPC_E -> "UPC-E"
+                    Barcode.FORMAT_CODE_128 -> "Code128"
+                    Barcode.FORMAT_CODE_39 -> "Code39"
+                    Barcode.FORMAT_CODE_93 -> "Code93"
+                    Barcode.FORMAT_ITF -> "ITF"
+                    Barcode.FORMAT_CODABAR -> "Codabar"
+                    Barcode.FORMAT_QR_CODE -> "QR"
+                    Barcode.FORMAT_DATA_MATRIX -> "DataMatrix"
+                    Barcode.FORMAT_AZTEC -> "Aztec"
+                    Barcode.FORMAT_PDF417 -> "PDF417"
+                    else -> "Barkod"
+                }
+                mainHandler.post {
+                    onBarcodeTypeDetected?.invoke(typeLabel)
+                }
             }
 
             onDistanceFeedback(false)

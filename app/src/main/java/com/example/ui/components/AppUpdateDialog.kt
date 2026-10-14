@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,7 +33,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -69,12 +74,26 @@ fun AppUpdateDialog(
         updateInfo.latestVersionName.replace(Regex("(?i)beta|v|sürüm|\\:"), "").trim()
     }
 
-    val noteItems = remember(updateInfo.releaseNotes, cleanVer) {
-        val parsed = ReleaseNotesTranslator.translateToBulletPoints(updateInfo.releaseNotes, cleanVer)
-        if (parsed.isNotEmpty()) {
-            parsed
-        } else {
-            ReleaseNotesTranslator.getCorporateFallback(cleanVer)
+    // Gemini API çağrısı bir suspend işlem olduğu için state ile yönetilmeli
+    var noteItems by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isLoadingNotes by remember { mutableStateOf(true) }
+    
+    LaunchedEffect(updateInfo.releaseNotes, cleanVer) {
+        isLoadingNotes = true
+        try {
+            val translated = ReleaseNotesTranslator.translateSmart(
+                rawNotes = updateInfo.releaseNotes,
+                versionName = cleanVer
+            )
+            noteItems = if (translated.isNotEmpty()) {
+                translated
+            } else {
+                ReleaseNotesTranslator.getCorporateFallback(cleanVer)
+            }
+        } catch (e: Exception) {
+            noteItems = ReleaseNotesTranslator.getCorporateFallback(cleanVer)
+        } finally {
+            isLoadingNotes = false
         }
     }
 
@@ -219,27 +238,47 @@ fun AppUpdateDialog(
                             )
                         }
 
-                        noteItems.forEach { note ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.Top
+                        if (isLoadingNotes) {
+                            // İskelet yükleme (basit)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = null,
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier
-                                        .size(15.dp)
-                                        .padding(top = 2.dp)
-                                )
-                                Text(
-                                    text = note,
-                                    fontSize = 12.5.sp,
-                                    lineHeight = 18.sp,
-                                    color = Slate700,
-                                    fontWeight = FontWeight.Normal
-                                )
+                                repeat(3) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.85f)
+                                            .height(14.dp)
+                                            .clip(RoundedCornerShape(4.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                                    )
+                                }
+                            }
+                        } else {
+                            noteItems.forEach { note ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.Top
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = null,
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier
+                                            .size(15.dp)
+                                            .padding(top = 2.dp)
+                                    )
+                                    Text(
+                                        text = note,
+                                        fontSize = 12.5.sp,
+                                        lineHeight = 18.sp,
+                                        color = Slate700,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
                             }
                         }
                     }

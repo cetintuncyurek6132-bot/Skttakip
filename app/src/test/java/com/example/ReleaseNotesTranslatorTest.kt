@@ -1,6 +1,7 @@
 package com.example
 
 import com.example.util.ReleaseNotesTranslator
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -142,6 +143,24 @@ class ReleaseNotesTranslatorTest {
         assertTrue(bullets.isNotEmpty())
         assertEquals("v1.5.0 sürüm güncellemesi.", bullets[0])
         assertTrue(bullets.contains("Sistem performansı ve kararlılık iyileştirmeleri yapıldı."))
+    }
+
+    @Test
+    fun testTranslateSmartCleanLocalTranslation() = runBlocking {
+        val input = "SKT yaklaşan ürünler için anlık bildirim sistemi güncellendi."
+        val results = ReleaseNotesTranslator.translateSmart(input, "1.6.0")
+        assertTrue(results.isNotEmpty())
+        assertEquals("SKT yaklaşan ürünler için anlık bildirim sistemi güncellendi.", results[0])
+    }
+
+    @Test
+    fun testTranslateSmartFallbackWhenNoGeminiKey() = runBlocking {
+        val input = "Modernize date handling ve Room migration iyileştirildi."
+        // GeminiTranslator will return null without active Firebase/Key, translateSmart must gracefully fall back without crashing
+        val results = ReleaseNotesTranslator.translateSmart(input, "1.6.0")
+        assertTrue(results.isNotEmpty())
+        // Should contain valid text without crashing
+        assertTrue(results[0].isNotBlank())
     }
 
     private fun assertNoEnglishResiduals(text: String) {
