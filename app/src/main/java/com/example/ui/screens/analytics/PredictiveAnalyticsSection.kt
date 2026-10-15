@@ -131,7 +131,7 @@ fun PredictiveAnalyticsSection(
 
             val pastSaleRate = if (product.stokAdedi > 0) beklenenSatis.toDouble() / product.stokAdedi.toDouble() else 0.0
             val pastFireRate = if (product.stokAdedi > 0) beklenenFire.toDouble() / product.stokAdedi.toDouble() else 0.0
-            val isHighRisk = isExpired || (beklenenFire > 0 && firePercent >= 30)
+            val isHighRisk = isExpired || (beklenenFire > 0 && firePercent >= 50)
 
             // Yeni ürün yanıltmasını önle: En az 7 gün gözlem + en az 1 satış/fire kaydı
             val hasMinimumObservation = gecenGun >= 7L
@@ -199,9 +199,9 @@ fun PredictiveAnalyticsSection(
                         imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                         contentDescription = null,
                         tint = TurquoiseDark,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Column {
                         Text(
                             text = "Ürün Bazlı Satış & Fire Öngörüsü",
@@ -278,7 +278,8 @@ fun PredictiveAnalyticsSection(
                             border = BorderStroke(
                                 1.dp,
                                 if (item.isHighRisk) Color(0xFFFECACA) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                            )
+                            ),
+                            shadowElevation = 2.dp
                         ) {
                             Column(
                                 modifier = Modifier
@@ -341,7 +342,7 @@ fun PredictiveAnalyticsSection(
                                                 )
                                                 Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
-                                                    text = "SÜRESİ DOLDU / %100 FİRE",
+                                                    text = "SÜRESİ DOLDU",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = ExpiredRed
@@ -366,7 +367,7 @@ fun PredictiveAnalyticsSection(
                                                 )
                                                 Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
-                                                    text = "YÜKSEK FİRE RİSKİ",
+                                                    text = "DİKKAT: YÜKSEK FİRE",
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.ExtraBold,
                                                     color = ExpiredRed
@@ -421,7 +422,7 @@ fun PredictiveAnalyticsSection(
                                             color = if (item.isHighRisk) ExpiredRed else CriticalOrange
                                         )
                                         Text(
-                                            text = "${item.predictedFire} Adet (%${item.firePercent})",
+                                            text = "${item.predictedFire} / ${item.currentStock} Adet",
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = if (item.isHighRisk) ExpiredRed else CriticalOrangeDark
@@ -481,23 +482,25 @@ fun PredictiveAnalyticsSection(
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(5.dp)
-                                        .clip(RoundedCornerShape(2.5.dp))
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp))
                                         .background(Slate200),
                                     horizontalArrangement = Arrangement.spacedBy(1.dp)
                                 ) {
+                                    // Satış kısmı (yeşil)
                                     if (item.predictedSales > 0) {
                                         Box(
                                             modifier = Modifier
-                                                .weight(item.pastSaleRate.toFloat().coerceAtLeast(0.05f))
+                                                .weight(item.pastSaleRate.toFloat().coerceIn(0.01f, 0.99f))
                                                 .fillMaxHeight()
                                                 .background(EmeraldSuccess)
                                         )
                                     }
+                                    // Fire kısmı (kırmızı) - kalan kısım
                                     if (item.predictedFire > 0) {
                                         Box(
                                             modifier = Modifier
-                                                .weight(item.pastFireRate.toFloat().coerceAtLeast(0.05f))
+                                                .weight(item.pastFireRate.toFloat().coerceIn(0.01f, 0.99f))
                                                 .fillMaxHeight()
                                                 .background(if (item.isHighRisk) ExpiredRed else CriticalOrange)
                                         )

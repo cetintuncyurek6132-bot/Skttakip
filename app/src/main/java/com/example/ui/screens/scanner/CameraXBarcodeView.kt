@@ -355,6 +355,11 @@ fun CameraXBarcodeView(
                                             }
                                         }
                                     }
+                                },
+                                onBarcodeTypeDetected = { type ->
+                                    mainHandler.post {
+                                        currentOnBarcodeTypeDetected?.invoke(type)
+                                    }
                                 }
                             ) { barcodes ->
                                 if (currentDistanceStateRef.compareAndSet(true, false)) {
@@ -428,7 +433,6 @@ private fun processImageProxy(
     imageProxy: ImageProxy,
     onCloseProxy: () -> Unit,
     onDistanceFeedback: (isTooFar: Boolean) -> Unit,
-    mainHandler: android.os.Handler,
     onBarcodeTypeDetected: ((String) -> Unit)? = null,
     onSuccess: (List<Barcode>) -> Unit
 ) {
@@ -488,9 +492,7 @@ private fun processImageProxy(
                     Barcode.FORMAT_PDF417 -> "PDF417"
                     else -> "Barkod"
                 }
-                mainHandler.post {
-                    onBarcodeTypeDetected?.invoke(typeLabel)
-                }
+                onBarcodeTypeDetected?.invoke(typeLabel)
             }
 
             onDistanceFeedback(false)

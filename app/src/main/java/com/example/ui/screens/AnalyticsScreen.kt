@@ -101,7 +101,7 @@ fun AnalyticsScreen(
         validProducts.filter { it.getRemainingDays(todayMidnight) in 4L..7L }
     }
 
-    // 2. Finansal KPI Metrikleri Hesabı (Kurtarma Oranı, Kurtarılan Ciro, Fire/Risk Maliyeti)
+    // 2. Finansal KPI Metrikleri Hesabı (Fire Önleme Oranı, Kurtarılan Satış, Fire Maliyeti)
     val financialMetrics = remember(products, stockLogs, validProducts, expiredProducts, todayMidnight) {
         val priceByBarcode = products.filter { it.barkod.isNotBlank() && (it.fiyat ?: 0.0) > 0.0 }
             .associate { it.barkod.trim() to it.fiyat!! }
@@ -114,16 +114,18 @@ fun AnalyticsScreen(
                 ?: 0.0
         }
 
-        val soldLogs = stockLogs.filter { it.actionType == "SATIS" }
-        val fireLogs = stockLogs.filter { it.actionType == "FIRE" }
+        val thirtyDaysAgo = todayMidnight - (30L * 86400000L)
+        val periodLogs = stockLogs.filter { it.timestamp >= thirtyDaysAgo }
+        val soldLogs = periodLogs.filter { it.actionType == "SATIS" }
+        val fireLogs = periodLogs.filter { it.actionType == "FIRE" }
 
-        // Kurtarılan Ciro: Toplam satışı yapılan ürünlerin adet * fiyat tutarı
+        // Kurtarılan Satış Ciro: Toplam satışı yapılan ürünlerin adet * fiyat tutarı
         val savedRevenue = soldLogs.sumOf {
             val unitPrice = getKnownPrice(it.barcode, it.productName)
             it.quantity * unitPrice
         }
 
-        // Fire / Risk Maliyeti: Geçmiş fire kayıtları + şu anda süresi dolup rafta bekleyen ürünlerin değeri
+        // Fire Maliyeti: Geçmiş fire kayıtları + şu anda süresi dolup rafta bekleyen ürünlerin değeri
         val pastFireCost = fireLogs.sumOf {
             val unitPrice = getKnownPrice(it.barcode, it.productName)
             it.quantity * unitPrice
@@ -133,7 +135,7 @@ fun AnalyticsScreen(
         }
         val totalFireRiskCost = pastFireCost + expiredStockCost
 
-        // Kurtarma Oranı: Toplam satış adedi / (satış + fire adedi)
+        // Fire Önleme Oranı: Toplam satış adedi / (satış + fire adedi)
         val totalSoldQty = soldLogs.sumOf { it.quantity }
         val totalFireQty = fireLogs.sumOf { it.quantity }
         val totalProcessed = totalSoldQty + totalFireQty
@@ -396,7 +398,7 @@ fun AnalyticsScreen(
                 .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // A) 3'LÜ FİNANSAL KPI PANELİ & ENVANTER ÖZETİ & SON 30 GÜN AKIBET
+            // A) 3'LÜ FİNANSAL KPI PANELİ & ENVANTER ÖZETİ & SON 30 GÜN FİRE SONUÇLARI
             AnalyticsKpiSection(
                 financialMetrics = financialMetrics,
                 expiredProducts = expiredProducts,
@@ -423,7 +425,7 @@ fun AnalyticsScreen(
                 stockLogs = stockLogs
             )
 
-            // D) SKT GİRİŞ & AKIBET DAĞILIMI (SATILAN vs FİRE vs RAFTA)
+            // D) SKT GİRİŞ & SONUÇ DAĞILIMI (SATILAN vs FİRE vs RAFTA)
             SktConversionSection(
                 stockLogs = stockLogs,
                 validProducts = validProducts

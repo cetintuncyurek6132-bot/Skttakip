@@ -119,9 +119,9 @@ fun AnalyticsKpiSection(
             // KPI 3: Toplam Çeşit
             KpiMetricCard(
                 modifier = Modifier.weight(1f),
-                title = "Toplam Ürün Çeşidi",
+                title = "Aktif SKT Çeşidi",
                 value = "$totalVarietyCount",
-                subText = "Kayıtlı Aktif SKT",
+                subText = "Adet Girilmiş Ürün",
                 icon = Icons.Default.Inventory2,
                 color = TurquoiseDark,
                 bgColor = Color(0xFFF0FDFA),
@@ -131,9 +131,9 @@ fun AnalyticsKpiSection(
             // KPI 4: Toplam SKT Adedi
             KpiMetricCard(
                 modifier = Modifier.weight(1f),
-                title = "Toplam SKT Adedi",
+                title = "Toplam Adet",
                 value = "$totalStockCount",
-                subText = "Aktif Partiler",
+                subText = "Raftaki Toplam Stok",
                 icon = Icons.Default.Category,
                 color = Slate700,
                 bgColor = Slate100,
@@ -153,9 +153,9 @@ fun AnalyticsKpiSection(
 
 /**
  * 3 Sütunlu Finansal Karar Destek Paneli:
- * KART 1: Kurtarma Oranı (%X) -> Dinamik renk eşikleri (<50 kırmızı, 50-75 turuncu, >=75 yeşil)
- * KART 2: Kurtarılan Ciro -> Satışı yapılan ürünlerin toplam parasal değeri (örn: "₺1.420")
- * KART 3: Fire / Risk Maliyeti -> Fireye çıkan veya süresi dolup satılamayan ürünlerin toplam TL zararı (örn: "₺340")
+ * KART 1: Fire Önleme Oranı (%X) -> Dinamik renk eşikleri (<50 kırmızı, 50-75 turuncu, >=75 yeşil)
+ * KART 2: Kurtarılan Satış Ciro -> Satışı yapılan ürünlerin toplam parasal değeri (örn: "₺1.420")
+ * KART 3: Fire Maliyeti -> Fireye çıkan veya süresi dolup satılamayan ürünlerin toplam TL zararı (örn: "₺340")
  */
 @Composable
 fun FinancialKpiThreeColumnPanel(
@@ -191,14 +191,14 @@ fun FinancialKpiThreeColumnPanel(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // -------------------------------------------------------------
-        // KART 1: KURTARMA ORANI
+        // KART 1: FİRE ÖNLEME ORANI
         // -------------------------------------------------------------
         Surface(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(14.dp),
             color = rateBg,
             border = BorderStroke(1.dp, rateBorder),
-            shadowElevation = 1.dp
+            shadowElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier
@@ -212,7 +212,7 @@ fun FinancialKpiThreeColumnPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Kurtarma",
+                        text = "Fire Önleme",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = rateColor,
@@ -228,14 +228,14 @@ fun FinancialKpiThreeColumnPanel(
 
                 Text(
                     text = "%$rate",
-                    fontSize = 19.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = rateColor,
                     maxLines = 1
                 )
 
                 Text(
-                    text = "$rateLabel Başarı",
+                    text = "$rateLabel Koruma",
                     fontSize = 9.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = rateColor.copy(alpha = 0.9f),
@@ -245,14 +245,14 @@ fun FinancialKpiThreeColumnPanel(
         }
 
         // -------------------------------------------------------------
-        // KART 2: KURTARILAN CİRO
+        // KART 2: KURTARILAN SATIŞ CİRO
         // -------------------------------------------------------------
         Surface(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(14.dp),
             color = Color(0xFFF0FDF4),
             border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-            shadowElevation = 1.dp
+            shadowElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier
@@ -266,7 +266,7 @@ fun FinancialKpiThreeColumnPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Kurtarılan",
+                        text = "Kurtarılan Satış",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFF16A34A),
@@ -282,7 +282,7 @@ fun FinancialKpiThreeColumnPanel(
 
                 Text(
                     text = metrics.formattedSavedRevenue,
-                    fontSize = 18.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFF15803D),
                     maxLines = 1,
@@ -300,14 +300,14 @@ fun FinancialKpiThreeColumnPanel(
         }
 
         // -------------------------------------------------------------
-        // KART 3: FİRE / RİSK MALİYETİ
+        // KART 3: FİRE MALİYETİ
         // -------------------------------------------------------------
         Surface(
             modifier = Modifier.weight(1f),
             shape = RoundedCornerShape(14.dp),
             color = Color(0xFFFEF2F2),
             border = BorderStroke(1.dp, Color(0xFFFECACA)),
-            shadowElevation = 1.dp
+            shadowElevation = 2.dp
         ) {
             Column(
                 modifier = Modifier
@@ -321,7 +321,7 @@ fun FinancialKpiThreeColumnPanel(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Fire Riski",
+                        text = "Fire Maliyeti",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color(0xFFDC2626),
@@ -337,7 +337,7 @@ fun FinancialKpiThreeColumnPanel(
 
                 Text(
                     text = metrics.formattedFireRiskCost,
-                    fontSize = 18.sp,
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFFB91C1C),
                     maxLines = 1,
@@ -373,7 +373,8 @@ fun KpiMetricCard(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         color = bgColor,
-        border = BorderStroke(1.dp, borderColor)
+        border = BorderStroke(1.dp, borderColor),
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
@@ -401,7 +402,7 @@ fun KpiMetricCard(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = value,
-                fontSize = 20.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Slate900
             )

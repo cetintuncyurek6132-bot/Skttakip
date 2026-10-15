@@ -51,7 +51,7 @@ fun ScannerProductDetailsSection(
         var matchingProducts by remember { mutableStateOf<List<Product>>(emptyList()) }
         var isSearching by remember { mutableStateOf(false) }
 
-        LaunchedEffect(activeBarcode, products) {
+        LaunchedEffect(activeBarcode) {
             val query = searchBarcode.trim()
             if (query.isBlank()) {
                 matchingProducts = emptyList()

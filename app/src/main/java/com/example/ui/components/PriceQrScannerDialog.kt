@@ -60,7 +60,7 @@ fun PriceQrScannerDialog(
 ) {
     val context = LocalContext.current
     var isFlashOn by remember { mutableStateOf(false) }
-    var hasHandledScan by remember { mutableStateOf(false) }
+    val hasHandledScan = remember { java.util.concurrent.atomic.AtomicBoolean(false) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -199,10 +199,11 @@ fun PriceQrScannerDialog(
                     CameraXBarcodeView(
                         isFlashOn = isFlashOn,
                         filterMode = ScannerFilterMode.ONLY_QR_CODE,
-                        isPaused = hasHandledScan,
+                        isQrMode = true,
+                        isPaused = hasHandledScan.get(),
                         requireCloseDistance = false,
                         onBarcodeScanned = { raw ->
-                            if (hasHandledScan) return@CameraXBarcodeView
+                            if (hasHandledScan.get()) return@CameraXBarcodeView
 
                             val shelfData = parseShelfQrPayload(raw)
                             val parsedPrice = shelfData.price ?: parsePriceFromQr(raw)
@@ -238,7 +239,7 @@ fun PriceQrScannerDialog(
                                     }
                                 }
 
-                                hasHandledScan = true
+                                if (!hasHandledScan.compareAndSet(false, true)) return@CameraXBarcodeView
                                 isFlashOn = false
                                 com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context)
                                 val formatted = if (parsedPrice % 1.0 == 0.0) parsedPrice.toInt().toString() else String.format(Locale.US, "%.2f", parsedPrice)

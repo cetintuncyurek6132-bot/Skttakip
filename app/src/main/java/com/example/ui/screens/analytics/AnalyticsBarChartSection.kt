@@ -406,9 +406,49 @@ fun InteractiveBarChart(
 ) {
     if (data.isEmpty()) return
 
+    // Veri tamamen boşsa mesaj göster
+    val hasAnyData = data.any { (it.expiredCount + it.criticalCount) > 0 }
+    if (!hasAnyData) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Analytics,
+                    contentDescription = null,
+                    tint = Slate400,
+                    modifier = Modifier.size(40.dp)
+                )
+                Text(
+                    text = "Bu dönemde SKT kaydı bulunmuyor",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Slate500
+                )
+                Text(
+                    text = "Ürünlere SKT ekledikçe burada grafik oluşacak",
+                    fontSize = 11.sp,
+                    color = Slate400,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+        return
+    }
+
     val maxCount = remember(data) {
-        val maxVal = data.maxOfOrNull { it.expiredCount + it.criticalCount } ?: 1
-        if (maxVal < 4) 4 else maxVal
+        val maxVal = data.maxOfOrNull { it.expiredCount + it.criticalCount } ?: 0
+        when {
+            maxVal <= 0 -> 2      // Veri yoksa min 2 göster
+            maxVal <= 2 -> 2      // 1-2 arası için 2
+            maxVal <= 5 -> 5      // 3-5 arası için 5
+            maxVal <= 10 -> 10    // 6-10 arası için 10
+            else -> ((maxVal / 5) + 1) * 5  // 5'in katlarına yuvarla
+        }
     }
 
     Column(modifier = modifier) {
@@ -435,7 +475,7 @@ fun InteractiveBarChart(
                     color = Slate400
                 )
                 Text(
-                    text = "${(maxCount + 1) / 2}",
+                    text = "${maxCount / 2}",
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate400
@@ -543,19 +583,16 @@ fun InteractiveBarChart(
                         ) {
                             // 1. "BUGÜN" Referans Rozeti veya Tepe Adet Metni
                             if (item.isToday) {
-                                Surface(
-                                    shape = RoundedCornerShape(4.dp),
+                                // Bugün için sadece sayı, ayrı etiket yok - X ekseninde zaten "Bugün" yazıyor
+                                Text(
+                                    text = "$totalForDay",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Black,
                                     color = TurquoiseDark,
-                                    modifier = Modifier.padding(bottom = 2.dp)
-                                ) {
-                                    Text(
-                                        text = "BUGÜN",
-                                        fontSize = 7.5.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 3.dp, vertical = 1.dp)
-                                    )
-                                }
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
                             } else if (totalForDay > 0) {
                                 Text(
                                     text = "$totalForDay",

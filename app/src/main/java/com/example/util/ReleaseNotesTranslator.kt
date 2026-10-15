@@ -194,7 +194,7 @@ object ReleaseNotesTranslator {
                 return "Finansal analiz, KPI göstergeleri ve reyon risk özeti özellikleri eklendi."
             }
             if (lower.contains("recovery") || lower.contains("kurtarma") || lower.contains("ciro") || lower.contains("fire")) {
-                return "Kurtarma oranı, kurtarılan ciro ve fire risk maliyeti KPI kartları eklendi."
+                return "Fire önleme oranı, kurtarılan satış ve fire maliyeti KPI kartları eklendi."
             }
             return "Finansal analiz ve risk metrikleri geliştirildi."
         }

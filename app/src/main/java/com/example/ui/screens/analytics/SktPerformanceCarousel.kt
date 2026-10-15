@@ -79,18 +79,18 @@ fun SktPerformanceCarousel(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(9.dp)
-                        .clip(CircleShape)
-                        .background(PurpleAccent)
+                Icon(
+                    imageVector = Icons.Default.EventBusy,
+                    contentDescription = null,
+                    tint = PurpleAccent,
+                    modifier = Modifier.size(18.dp)
                 )
                 Text(
-                    text = "Son 30 Gün SKT Akıbeti",
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = "Son 30 Gün Fire Sonuçları",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Slate900,
                     maxLines = 1,
                     softWrap = false
@@ -102,7 +102,7 @@ fun SktPerformanceCarousel(
                 ) {
                     Text(
                         text = "Performans & Fire",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         color = PurpleDark,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -129,6 +129,7 @@ fun SktPerformanceCarousel(
                 shape = RoundedCornerShape(16.dp),
                 color = Color(0xFFF0FDF4),
                 border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                shadowElevation = 2.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -247,7 +248,7 @@ fun SktPerformanceCarousel(
                             }
                         }
 
-                        // 2. SATIR: Biten SKT Bilgisi
+                        // 2. SATIR: Parti SKT Bilgisi
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -259,7 +260,7 @@ fun SktPerformanceCarousel(
                                 modifier = Modifier.size(15.dp)
                             )
                             Text(
-                                text = "Biten SKT: ${item.formattedSkt}",
+                                text = "Parti SKT: ${item.formattedSkt}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF991B1B)
@@ -271,7 +272,7 @@ fun SktPerformanceCarousel(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Yeşil Kutu: Satıldı / Kurtarıldı
+                            // Yeşil Kutu: Satılan
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFFF0FDF4),
@@ -293,7 +294,7 @@ fun SktPerformanceCarousel(
                                     )
                                     Column {
                                         Text(
-                                            text = "Satıldı / Kurtarıldı",
+                                            text = "Satılan",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF166534)
@@ -308,7 +309,7 @@ fun SktPerformanceCarousel(
                                 }
                             }
 
-                            // Kırmızı Kutu: Fire / İmha Edildi
+                            // Kırmızı Kutu: Fire
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFFFEF2F2),
@@ -330,7 +331,7 @@ fun SktPerformanceCarousel(
                                     )
                                     Column {
                                         Text(
-                                            text = "Fire / İmha",
+                                            text = "Fire",
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Color(0xFF991B1B)
@@ -346,7 +347,7 @@ fun SktPerformanceCarousel(
                             }
                         }
 
-                        // 4. SATIR: KURTARMA ORANI VE İLERLEME ÇUBUĞU
+                        // 4. SATIR: FİRE ÖNLEME ORANI VE İLERLEME ÇUBUĞU
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -357,7 +358,7 @@ fun SktPerformanceCarousel(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Kurtarma Başarısı",
+                                    text = "Fire Önleme Oranı",
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Slate600

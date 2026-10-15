@@ -138,12 +138,12 @@ fun SktConversionSection(
                         imageVector = Icons.Default.PieChart,
                         contentDescription = null,
                         tint = TurquoiseDark,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Column {
                         Text(
-                            text = "SKT Giriş & Akıbet Dağılımı",
+                            text = "SKT Giriş & Sonuç Dağılımı",
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 15.sp,
                             color = MaterialTheme.colorScheme.onSurface
@@ -192,10 +192,10 @@ fun SktConversionSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(14.dp)
-                        .clip(RoundedCornerShape(7.dp))
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     if (totalAkibetQty == 0) {
                         Box(
@@ -263,7 +263,8 @@ fun SktConversionSection(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     color = EmeraldSuccess.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f))
+                    border = BorderStroke(1.dp, EmeraldSuccess.copy(alpha = 0.35f)),
+                    shadowElevation = 2.dp
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
@@ -297,7 +298,8 @@ fun SktConversionSection(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     color = ExpiredRed.copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.35f))
+                    border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.35f)),
+                    shadowElevation = 2.dp
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
@@ -326,19 +328,20 @@ fun SktConversionSection(
                     }
                 }
 
-                // Kutu 3: Rafta Satışta Olan
+                // Kutu 3: Raftaki Stok
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     color = Color(0xFF0EA5E9).copy(alpha = 0.08f),
-                    border = BorderStroke(1.dp, Color(0xFF0EA5E9).copy(alpha = 0.35f))
+                    border = BorderStroke(1.dp, Color(0xFF0EA5E9).copy(alpha = 0.35f)),
+                    shadowElevation = 2.dp
                 ) {
                     Column(
                         modifier = Modifier.padding(10.dp),
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Text(
-                            text = "Rafta Satışta",
+                            text = "Raftaki Stok",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF0284C7),
@@ -368,7 +371,7 @@ fun SktConversionSection(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Toplam Sisteme Girilen SKT Adedi: $totalAkibetQty Adet (${akibetTimeframe.label})",
+                    text = "Dönem Toplamı: $totalAkibetQty Adet",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
                     color = Slate600,

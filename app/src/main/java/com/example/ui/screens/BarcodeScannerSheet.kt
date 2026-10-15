@@ -132,12 +132,17 @@ fun BarcodeScannerSheet(
     var isCooldownActive by remember { mutableStateOf(false) }
     var cooldownRemainingSeconds by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var isIndefiniteLockActive by remember { mutableStateOf(false) }
+    var lastBarcodeType by remember { mutableStateOf("") }
 
     LaunchedEffect(activeBarcode) {
         if (activeBarcode.isNotBlank()) {
-            val now = System.currentTimeMillis()
-            resumeCooldownUntil = now + 5000L
+            // Ürün detayı açıldı: kamera SÜRESİZ dursun
+            isIndefiniteLockActive = true
+            resumeCooldownUntil = 0L
+        } else {
+            // Detay kapatıldı: kamera tekrar aktif
             isIndefiniteLockActive = false
+            resumeCooldownUntil = System.currentTimeMillis() + 600L
         }
     }
 
@@ -161,7 +166,19 @@ fun BarcodeScannerSheet(
         }
     }
     var isFlashOn by remember { mutableStateOf(false) }
-    var zoomRatio by remember { mutableStateOf(1.0f) }
+
+    val context = LocalContext.current
+    val zoomPrefs = remember { 
+        context.getSharedPreferences("scanner_prefs", android.content.Context.MODE_PRIVATE) 
+    }
+    var zoomRatio by remember { 
+        mutableStateOf(zoomPrefs.getFloat("last_zoom", 1.0f)) 
+    }
+    
+    // Zoom değiştiğinde kaydet
+    LaunchedEffect(zoomRatio) {
+        zoomPrefs.edit().putFloat("last_zoom", zoomRatio).apply()
+    }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -169,7 +186,6 @@ fun BarcodeScannerSheet(
         }
     }
 
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -226,7 +242,8 @@ fun BarcodeScannerSheet(
                 CameraXBarcodeView(
                     isFlashOn = isFlashOn,
                     zoomRatio = zoomRatio,
-                    filterMode = ScannerFilterMode.ALL,
+                    filterMode = if (isFixQrMode) ScannerFilterMode.ONLY_QR_CODE else ScannerFilterMode.ONLY_1D_BARCODE,
+                    isQrMode = isFixQrMode,
                     isBatterySaverMode = isBatterySaverMode,
                     isPaused = isCameraAnalysisPaused,
                     requireCloseDistance = false,
@@ -388,18 +405,22 @@ fun BarcodeScannerSheet(
                             }
 
                             if (matchedProd != null && matchedProd.urunAdi.isNotBlank() && !matchedProd.urunAdi.equals("İSİMSİZ ÜRÜN", ignoreCase = true)) {
-                                // Ürün veritabanında varsa (SKT eklenmiş olsa dahi): Alt detay/SKT panelini aç ve 5 saniye kitle
+                                // Ürün bulundu: Detay göster, kamera süresiz dursun
                                 activeBarcode = trimmedBar
-                                resumeCooldownUntil = now + 5000L
-                                isIndefiniteLockActive = false
+                                isIndefiniteLockActive = true
+                                resumeCooldownUntil = 0L
                             } else {
-                                // Ürün veritabanında kayıtlı değilse: Asla boş veya "İSİMSİZ ÜRÜN" detay paneli açma;
-                                // doğrudan AddEditProductModal'ı prefilledBarcode = cleanBarcode ve fiyatı dolu olarak aç
-                                activeBarcode = ""
-                                onBarcodeDetected(trimmedBar)
+                                // Ürün bulunamadı: Kamera AÇIK KALSIN
+                                // activeBarcode set edilir, ScannerProductDetailsSection alt panelde
+                                // "Ürün sistemde kayıtlı değil" kartı gösterir (ProductNotFoundPreviewCard)
+                                // Kullanıcı isterse kart içindeki "Yeni Ürün Ekle" butonuna basar
+                                activeBarcode = trimmedBar
+                                isIndefiniteLockActive = true
+                                resumeCooldownUntil = 0L
                             }
                         }
-                    }
+                    },
+                    onBarcodeTypeDetected = { type -> lastBarcodeType = type }
                 )
             } else {
                 Column(
@@ -484,6 +505,22 @@ fun BarcodeScannerSheet(
                             .padding(top = 40.dp, bottom = 4.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        if (lastBarcodeType.isNotBlank() && !isFixQrMode) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color.Black.copy(alpha = 0.65f),
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            ) {
+                                Text(
+                                    text = lastBarcodeType,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                )
+                            }
+                        }
+
                         // Unobstructed Clean Viewfinder Frame
                         Box(
                             modifier = Modifier
@@ -542,23 +579,23 @@ fun BarcodeScannerSheet(
                             Spacer(modifier = Modifier.height(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = Color(0xFFDC2626).copy(alpha = 0.88f),
-                                modifier = Modifier.height(24.dp)
+                                color = Color(0xFF0D9488).copy(alpha = 0.92f),
+                                modifier = Modifier.height(28.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Lock,
                                         contentDescription = null,
                                         tint = Color.White,
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Kamera Kilitli (Giriş Yapılıyor)",
-                                        fontSize = 10.5.sp,
+                                        text = "🔒 Kamera Durduruldu",
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
                                     )

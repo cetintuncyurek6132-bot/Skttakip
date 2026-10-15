@@ -223,7 +223,7 @@ fun ReyonRiskSummarySection(
                     shape = RoundedCornerShape(14.dp),
                     color = Color(0xFFF0F9FF), // Hafif Buzul Mavisi
                     border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
-                    shadowElevation = 1.dp
+                    shadowElevation = 2.dp
                 ) {
                     Column(
                         modifier = Modifier
@@ -267,7 +267,7 @@ fun ReyonRiskSummarySection(
 
                         // Kritik Adet
                         Column {
-                            Text(text = "Kritik & Dolmuş", fontSize = 10.sp, color = Slate600)
+                            Text(text = "Kritik & Süresi Dolan", fontSize = 10.sp, color = Slate600)
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     text = "$dolapCriticalStock",
@@ -288,9 +288,8 @@ fun ReyonRiskSummarySection(
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.End
                             ) {
-                                Text(text = "Risk Oranı", fontSize = 9.5.sp, color = Slate600)
                                 Text(
                                     text = "Risk: %$dolapRiskRatio",
                                     fontSize = 10.5.sp,
@@ -317,7 +316,7 @@ fun ReyonRiskSummarySection(
                     shape = RoundedCornerShape(14.dp),
                     color = Color(0xFFFFFBEB), // Hafif Saman / Kehribar Sarısı
                     border = BorderStroke(1.dp, Color(0xFFFDE68A)),
-                    shadowElevation = 1.dp
+                    shadowElevation = 2.dp
                 ) {
                     Column(
                         modifier = Modifier
@@ -361,7 +360,7 @@ fun ReyonRiskSummarySection(
 
                         // Kritik Adet
                         Column {
-                            Text(text = "Kritik & Dolmuş", fontSize = 10.sp, color = Slate600)
+                            Text(text = "Kritik & Süresi Dolan", fontSize = 10.sp, color = Slate600)
                             Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
                                     text = "$gidaCriticalStock",
@@ -382,9 +381,8 @@ fun ReyonRiskSummarySection(
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.End
                             ) {
-                                Text(text = "Risk Oranı", fontSize = 9.5.sp, color = Slate600)
                                 Text(
                                     text = "Risk: %$gidaRiskRatio",
                                     fontSize = 10.5.sp,
