@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Warning
@@ -22,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +32,13 @@ import com.example.data.StockLog
 import com.example.data.getTodayMidnightMillis
 import com.example.ui.theme.*
 import java.util.Locale
+
+private data class SktBarItem(
+    val title: String,
+    val shortLabel: String,
+    val count: Int,
+    val color: Color
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,8 +65,49 @@ fun AnalyticsScreen(
     val totalSoldQty = remember(periodLogs) {
         periodLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
     }
+    val totalFiredQty = remember(periodLogs) {
+        periodLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
+    }
+    val totalBatchCount = remember(products) {
+        products.filter { !it.isDeleted && it.stokAdedi > 0 && it.sktTarihi > 0L }
+            .distinctBy { 
+                val key = if (it.barkod.isNotBlank() && !it.barkod.startsWith("NO_BARCODE_")) it.barkod else it.urunAdi
+                "${key}_${it.sktTarihi}"
+            }.size
+    }
+    // Raftaki stok kontrolü: Sadece stokAdedi > 0 ve silinmemiş ürünler
     val totalStockQty = remember(products) {
-        products.sumOf { it.stokAdedi }
+        products.filter { !it.isDeleted && it.stokAdedi > 0 }.sumOf { it.stokAdedi }
+    }
+
+    // Yaklaşan SKT Dağılımı (Zaman filtrelerinden bağımsız, anlık durum)
+    val sktDistribution = remember(products, todayMidnight) {
+        val activeWithSkt = products.filter { !it.isDeleted && it.stokAdedi > 0 && it.sktTarihi > 0L }
+        
+        fun countVarieties(list: List<Product>): Int {
+            return list.distinctBy { 
+                if (it.barkod.isNotBlank() && !it.barkod.startsWith("NO_BARCODE_")) it.barkod else it.urunAdi 
+            }.size
+        }
+
+        val expired = countVarieties(activeWithSkt.filter { it.getRemainingDays(todayMidnight) < 0L })
+        val days0to3 = countVarieties(activeWithSkt.filter { it.getRemainingDays(todayMidnight) in 0L..3L })
+        val days4to7 = countVarieties(activeWithSkt.filter { it.getRemainingDays(todayMidnight) in 4L..7L })
+        val days8to15 = countVarieties(activeWithSkt.filter { it.getRemainingDays(todayMidnight) in 8L..15L })
+        val days16to30 = countVarieties(activeWithSkt.filter { it.getRemainingDays(todayMidnight) in 16L..30L })
+        val days30plus = countVarieties(activeWithSkt.filter { 
+            val d = it.getRemainingDays(todayMidnight)
+            d >= 31L && d < 9999L 
+        })
+
+        listOf(
+            SktBarItem("Süresi Geçen", "Geçen", expired, Color(0xFFEF4444)),
+            SktBarItem("0-3 Gün", "0-3 G", days0to3, Color(0xFFF97316)),
+            SktBarItem("4-7 Gün", "4-7 G", days4to7, Color(0xFFF59E0B)),
+            SktBarItem("8-15 Gün", "8-15 G", days8to15, Color(0xFFEAB308)),
+            SktBarItem("16-30 Gün", "16-30 G", days16to30, Color(0xFF06B6D4)),
+            SktBarItem("30+ Gün", "30+ G", days30plus, Color(0xFF10B981))
+        )
     }
 
     // 3. En Çok Satanlar (İlk 5)
@@ -132,41 +182,159 @@ fun AnalyticsScreen(
                 }
             }
 
-            // 1. ÖZET KARTLARI
+            // 1. ÖZET KARTLARI (3 KÜÇÜK KUTU: Satılan, Fire Edilen, Toplam Parti)
             item {
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    // Satılan
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Kutu 1 (Yeşil): Satılan
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
                         border = BorderStroke(1.dp, Color(0xFFBBF7D0))
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Icon(Icons.Default.ShoppingCart, null, tint = Color(0xFF16A34A), modifier = Modifier.size(24.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text("Satılan Ürün", fontSize = 12.sp, color = Color(0xFF166534))
-                            Text("$totalSoldQty Adet", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF15803D))
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFDCFCE7)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.ShoppingCart,
+                                    contentDescription = null,
+                                    tint = Color(0xFF16A34A),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Satılan",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF166534),
+                                maxLines = 1
+                            )
+                            Text(
+                                "$totalSoldQty",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF15803D),
+                                maxLines = 1
+                            )
+                            Text(
+                                "Adet",
+                                fontSize = 10.sp,
+                                color = Color(0xFF166534)
+                            )
                         }
                     }
-                    // Raftaki
+
+                    // Kutu 2 (Kırmızı): Fire Edilen
                     Card(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        border = BorderStroke(1.dp, Color(0xFFFECACA))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFFEE2E2)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.LocalFireDepartment,
+                                    contentDescription = null,
+                                    tint = Color(0xFFDC2626),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Fire Edilen",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF991B1B),
+                                maxLines = 1
+                            )
+                            Text(
+                                "$totalFiredQty",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFFB91C1C),
+                                maxLines = 1
+                            )
+                            Text(
+                                "Adet",
+                                fontSize = 10.sp,
+                                color = Color(0xFF991B1B)
+                            )
+                        }
+                    }
+
+                    // Kutu 3 (Mavi): Toplam Parti
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
                         border = BorderStroke(1.dp, Color(0xFFBFDBFE))
                     ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Icon(Icons.Default.Analytics, null, tint = Color(0xFF2563EB), modifier = Modifier.size(24.dp))
-                            Spacer(Modifier.height(8.dp))
-                            Text("Raftaki Stok", fontSize = 12.sp, color = Color(0xFF1E40AF))
-                            Text("$totalStockQty Adet", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF1D4ED8))
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFDBEAFE)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Inventory2,
+                                    contentDescription = null,
+                                    tint = Color(0xFF2563EB),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Toplam Parti",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color(0xFF1E40AF),
+                                maxLines = 1
+                            )
+                            Text(
+                                "$totalBatchCount",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Black,
+                                color = Color(0xFF1D4ED8),
+                                maxLines = 1
+                            )
+                            Text(
+                                "Parti",
+                                fontSize = 10.sp,
+                                color = Color(0xFF1E40AF)
+                            )
                         }
                     }
                 }
             }
 
-            // 2. SATIŞ GRAFİĞİ (Yer tutucu bir görsel/tasarım)
+            // 2. YAKLAŞAN SKT DAĞILIMI ÇUBUK GRAFİĞİ (ANLIK DURUM)
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -175,20 +343,77 @@ fun AnalyticsScreen(
                     border = BorderStroke(1.dp, Slate200)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Satış Grafiği", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
-                        Text("Son $selectedDays günlük satış trendi", fontSize = 11.sp, color = Slate500)
-                        Spacer(Modifier.height(16.dp))
-                        // Buraya ileride gerçek bir çizgi grafik eklenebilir. Şimdilik şık bir yer tutucu:
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(100.dp),
-                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    "Yaklaşan SKT Dağılımı",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = Slate900
+                                )
+                                Text(
+                                    "Kalan gün vadelerine göre ürün çeşidi sayısı (Anlık)",
+                                    fontSize = 11.sp,
+                                    color = Slate500
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(18.dp))
+
+                        val maxCount = remember(sktDistribution) {
+                            maxOf(1, sktDistribution.maxOfOrNull { it.count } ?: 1)
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(130.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.Bottom
                         ) {
-                            val heights = listOf(0.3f, 0.5f, 0.2f, 0.8f, 0.6f, 0.9f, 0.4f)
-                            heights.forEach { h ->
-                                Box(
-                                    modifier = Modifier.width(24.dp).fillMaxHeight(h).clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)).background(TurquoisePrimary)
-                                )
+                            sktDistribution.forEach { item ->
+                                val heightFraction = if (item.count > 0) {
+                                    maxOf(0.12f, item.count.toFloat() / maxCount.toFloat())
+                                } else {
+                                    0.04f
+                                }
+
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Bottom
+                                ) {
+                                    Text(
+                                        text = "${item.count}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (item.count > 0) item.color else Slate400
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .width(26.dp)
+                                            .height(80.dp * heightFraction)
+                                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
+                                            .background(
+                                                if (item.count > 0) item.color else Slate200
+                                            )
+                                    )
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = item.shortLabel,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Slate700,
+                                        textAlign = TextAlign.Center,
+                                        maxLines = 1
+                                    )
+                                }
                             }
                         }
                     }

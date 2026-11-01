@@ -81,16 +81,16 @@ fun ProductListItemCard(
         if (hasSkt) product.getExpiryStatus(todayMidnight) else ExpiryStatus.NORMAL
     }
 
-    val squareBg: Color = remember(hasSkt, status) {
+    val squareBg: Color = remember(hasSkt, daysLeft) {
         if (!hasSkt) {
             Slate500
         } else {
-            when (status) {
-                ExpiryStatus.EXPIRED -> ExpiredRed
-                ExpiryStatus.CRITICAL -> CriticalOrange
-                ExpiryStatus.SOON -> SoonYellow
-                ExpiryStatus.WARNING -> WarningBlue
-                ExpiryStatus.NORMAL -> NormalGreen
+            when {
+                daysLeft < 0 -> ExpiredRedDark
+                daysLeft in 0..5 -> ExpiredRed
+                daysLeft in 6..15 -> CriticalOrange
+                daysLeft in 16..30 -> WarningBlue
+                else -> NormalGreen
             }
         }
     }
@@ -103,15 +103,15 @@ fun ProductListItemCard(
         } else "SKT: Girilmedi"
     }
 
-    val sktTextColor = remember(hasSkt, status) {
+    val sktTextColor = remember(hasSkt, daysLeft) {
         if (!hasSkt) {
             Slate500
-        } else when (status) {
-            ExpiryStatus.EXPIRED -> ExpiredRedDark
-            ExpiryStatus.CRITICAL -> CriticalOrangeDark
-            ExpiryStatus.SOON -> SoonYellowDark
-            ExpiryStatus.WARNING -> WarningBlueDark
-            ExpiryStatus.NORMAL -> NormalGreenDark
+        } else when {
+            daysLeft < 0 -> ExpiredRedDark
+            daysLeft in 0..5 -> ExpiredRedDark
+            daysLeft in 6..15 -> CriticalOrangeDark
+            daysLeft in 16..30 -> WarningBlueDark
+            else -> NormalGreenDark
         }
     }
 
@@ -188,7 +188,7 @@ fun ProductListItemCard(
                                 text = "GÜNÜ GEÇTİ",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 letterSpacing = 0.3.sp,
                                 lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
@@ -196,12 +196,27 @@ fun ProductListItemCard(
                         }
                     }
                     daysLeft == 0L -> {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(4.dp)) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+                        ) {
                             Text(
-                                text = "SON GÜN",
+                                text = "BUGÜN",
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 13.sp,
+                                fontSize = 15.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "SON",
+                                color = squareTextColor.copy(alpha = 0.95f),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.5.sp,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -211,9 +226,8 @@ fun ProductListItemCard(
                             Text(
                                 text = "YARIN",
                                 color = squareTextColor,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.5.sp,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 17.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -237,8 +251,8 @@ fun ProductListItemCard(
                                 text = "GÜN KALDI",
                                 color = squareTextColor.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.5.sp,
+                                fontSize = 9.5.sp,
+                                letterSpacing = 0.3.sp,
                                 lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
                             )
@@ -383,16 +397,16 @@ fun GroupedProductListItemCard(
         if (validBatches.isNotEmpty()) validBatches.size else if (activeBatches.isNotEmpty()) activeBatches.size else productList.size
     }
 
-    val squareBg: Color = remember(hasSkt, status) {
+    val squareBg: Color = remember(hasSkt, daysLeft) {
         if (!hasSkt) {
             Slate500
         } else {
-            when (status) {
-                ExpiryStatus.EXPIRED -> ExpiredRed
-                ExpiryStatus.CRITICAL -> CriticalOrange
-                ExpiryStatus.SOON -> SoonYellow
-                ExpiryStatus.WARNING -> WarningBlue
-                ExpiryStatus.NORMAL -> NormalGreen
+            when {
+                daysLeft < 0 -> ExpiredRedDark
+                daysLeft in 0..5 -> ExpiredRed
+                daysLeft in 6..15 -> CriticalOrange
+                daysLeft in 16..30 -> WarningBlue
+                else -> NormalGreen
             }
         }
     }
@@ -497,7 +511,7 @@ fun GroupedProductListItemCard(
                                 text = "GÜNÜ GEÇTİ",
                                 color = squareTextColor.copy(alpha = 0.95f),
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.sp,
+                                fontSize = 9.5.sp,
                                 letterSpacing = 0.3.sp,
                                 lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
@@ -505,12 +519,27 @@ fun GroupedProductListItemCard(
                         }
                     }
                     daysLeft == 0L -> {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(4.dp)) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(horizontal = 2.dp, vertical = 4.dp)
+                        ) {
                             Text(
-                                text = "SON GÜN",
+                                text = "BUGÜN",
                                 color = squareTextColor,
                                 fontWeight = FontWeight.Black,
-                                fontSize = 13.sp,
+                                fontSize = 15.sp,
+                                lineHeight = 16.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "SON",
+                                color = squareTextColor.copy(alpha = 0.95f),
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.5.sp,
+                                letterSpacing = 0.5.sp,
+                                lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -520,9 +549,8 @@ fun GroupedProductListItemCard(
                             Text(
                                 text = "YARIN",
                                 color = squareTextColor,
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.5.sp,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 17.sp,
                                 textAlign = TextAlign.Center
                             )
                         }
@@ -546,8 +574,8 @@ fun GroupedProductListItemCard(
                                 text = "GÜN KALDI",
                                 color = squareTextColor.copy(alpha = 0.9f),
                                 fontWeight = FontWeight.ExtraBold,
-                                fontSize = 10.5.sp,
-                                letterSpacing = 0.5.sp,
+                                fontSize = 9.5.sp,
+                                letterSpacing = 0.3.sp,
                                 lineHeight = 11.sp,
                                 textAlign = TextAlign.Center
                             )

@@ -86,8 +86,9 @@ import com.example.ui.theme.TurquoisePrimary
 import com.example.util.ProductImageGenerator
 
 enum class ShareCategory {
-    TODAY_AND_OVERDUE_1,
-    LAST_7_DAYS,
+    TODAY_EXACT,
+    EXPIRED_AND_1_TO_6,
+    DAYS_7_TO_15,
     IMPORTANT
 }
 
@@ -100,32 +101,45 @@ fun WhatsAppShareModal(
     val context = LocalContext.current
     val todayMidnight by com.example.util.rememberTodayMidnight()
 
-    var selectedCategory by remember { mutableStateOf(ShareCategory.TODAY_AND_OVERDUE_1) }
+    var selectedCategory by remember { mutableStateOf(ShareCategory.TODAY_EXACT) }
     var isPreviewMode by remember { mutableStateOf(false) }
     var generatedBitmaps by remember { mutableStateOf<List<Bitmap>>(emptyList()) }
 
-    // Filter lists
-    val todayAndOverdue1Products = remember(allProducts, todayMidnight) {
+    // 4 Kategori Filtre Listeleri:
+    // a) "Bugün Son Olan": getRemainingDays() == 0
+    val todayExactProducts = remember(allProducts, todayMidnight) {
         allProducts.filter { prod ->
-            prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in -1L..0L
+            !prod.isDeleted && prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) == 0L
         }.sortedBy { it.sktTarihi }
     }
 
-    val last7DaysProducts = remember(allProducts, todayMidnight) {
+    // b) "Süresi Geçen / Son 6 Gün": getRemainingDays() < 0 VEYA in 1..6 (Bugün hariç)
+    val expiredAnd1To6Products = remember(allProducts, todayMidnight) {
         allProducts.filter { prod ->
-            prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in 0L..7L
+            if (prod.isDeleted || prod.sktTarihi <= 0L || prod.stokAdedi <= 0) return@filter false
+            val days = prod.getRemainingDays(todayMidnight)
+            days < 0L || days in 1L..6L
         }.sortedBy { it.sktTarihi }
     }
 
+    // c) "7 - 15 Gün": getRemainingDays() in 7..15
+    val days7To15Products = remember(allProducts, todayMidnight) {
+        allProducts.filter { prod ->
+            !prod.isDeleted && prod.sktTarihi > 0L && prod.stokAdedi > 0 && prod.getRemainingDays(todayMidnight) in 7L..15L
+        }.sortedBy { it.sktTarihi }
+    }
+
+    // d) "Önemli": isImportant == true
     val importantProducts = remember(allProducts, todayMidnight) {
         allProducts.filter { prod ->
-            prod.isImportant
+            !prod.isDeleted && prod.isImportant
         }.sortedBy { it.sktTarihi }
     }
 
     val currentCategoryProducts = when (selectedCategory) {
-        ShareCategory.TODAY_AND_OVERDUE_1 -> todayAndOverdue1Products
-        ShareCategory.LAST_7_DAYS -> last7DaysProducts
+        ShareCategory.TODAY_EXACT -> todayExactProducts
+        ShareCategory.EXPIRED_AND_1_TO_6 -> expiredAnd1To6Products
+        ShareCategory.DAYS_7_TO_15 -> days7To15Products
         ShareCategory.IMPORTANT -> importantProducts
     }
 
@@ -134,8 +148,9 @@ fun WhatsAppShareModal(
     // Auto-select all products when category changes or initial load
     LaunchedEffect(selectedCategory) {
         val products = when (selectedCategory) {
-            ShareCategory.TODAY_AND_OVERDUE_1 -> todayAndOverdue1Products
-            ShareCategory.LAST_7_DAYS -> last7DaysProducts
+            ShareCategory.TODAY_EXACT -> todayExactProducts
+            ShareCategory.EXPIRED_AND_1_TO_6 -> expiredAnd1To6Products
+            ShareCategory.DAYS_7_TO_15 -> days7To15Products
             ShareCategory.IMPORTANT -> importantProducts
         }
         selectedProductIds = products.map { it.id }.toSet()
@@ -194,7 +209,7 @@ fun WhatsAppShareModal(
                 // 2. MAIN BODY (SELECTION OR PREVIEW)
                 // =============================================================
                 if (!isPreviewMode) {
-                    // CATEGORY TABS [ SON GÜN / -1 GÜN ] [ SKT SON 7 GÜN ] [ ÖNEMLİ ]
+                    // CATEGORY TABS [ Bugün Son Olan ] [ Süresi Geçen / Son 6 Gün ] [ 7 - 15 Gün ] [ Önemli ]
                     Surface(
                         shape = RoundedCornerShape(24.dp),
                         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
@@ -211,17 +226,17 @@ fun WhatsAppShareModal(
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Tab 1 (ÖNCELİKLİ / BAŞTA): SON GÜN / -1 GÜN GEÇMİŞ
+                            // Tab 1: Bugün Son Olan
                             Box(
                                 modifier = Modifier
                                     .height(36.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(
-                                        if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) TurquoisePrimary else Color.Transparent
+                                        if (selectedCategory == ShareCategory.TODAY_EXACT) TurquoisePrimary else Color.Transparent
                                     )
-                                    .clickable { selectedCategory = ShareCategory.TODAY_AND_OVERDUE_1 }
+                                    .clickable { selectedCategory = ShareCategory.TODAY_EXACT }
                                     .padding(horizontal = 12.dp)
-                                    .testTag("share_tab_today_and_overdue_1"),
+                                    .testTag("share_tab_today_exact"),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
@@ -231,31 +246,65 @@ fun WhatsAppShareModal(
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedCategory == ShareCategory.TODAY_EXACT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Son Gün / -1 Gün (${todayAndOverdue1Products.size})",
+                                        text = "Bugün Son Olan (${todayExactProducts.size})",
                                         fontSize = 11.sp,
-                                        fontWeight = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.TODAY_AND_OVERDUE_1) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (selectedCategory == ShareCategory.TODAY_EXACT) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        color = if (selectedCategory == ShareCategory.TODAY_EXACT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         softWrap = false
                                     )
                                 }
                             }
 
-                            // Tab 2: SKT SON 7 GÜN
+                            // Tab 2: Süresi Geçen / Son 6 Gün
                             Box(
                                 modifier = Modifier
                                     .height(36.dp)
                                     .clip(RoundedCornerShape(18.dp))
                                     .background(
-                                        if (selectedCategory == ShareCategory.LAST_7_DAYS) TurquoisePrimary else Color.Transparent
+                                        if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) TurquoisePrimary else Color.Transparent
                                     )
-                                    .clickable { selectedCategory = ShareCategory.LAST_7_DAYS }
+                                    .clickable { selectedCategory = ShareCategory.EXPIRED_AND_1_TO_6 }
                                     .padding(horizontal = 12.dp)
-                                    .testTag("share_tab_last_7_days"),
+                                    .testTag("share_tab_expired_and_1_to_6"),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Süresi Geçen / Son 6 Gün (${expiredAnd1To6Products.size})",
+                                        fontSize = 11.sp,
+                                        fontWeight = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        color = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+
+                            // Tab 3: 7 - 15 Gün
+                            Box(
+                                modifier = Modifier
+                                    .height(36.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(
+                                        if (selectedCategory == ShareCategory.DAYS_7_TO_15) TurquoisePrimary else Color.Transparent
+                                    )
+                                    .clickable { selectedCategory = ShareCategory.DAYS_7_TO_15 }
+                                    .padding(horizontal = 12.dp)
+                                    .testTag("share_tab_days_7_to_15"),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Row(
@@ -265,21 +314,21 @@ fun WhatsAppShareModal(
                                     Icon(
                                         imageVector = Icons.Default.Schedule,
                                         contentDescription = null,
-                                        tint = if (selectedCategory == ShareCategory.LAST_7_DAYS) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedCategory == ShareCategory.DAYS_7_TO_15) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
-                                        text = "Son 7 Gün (${last7DaysProducts.size})",
+                                        text = "7 - 15 Gün (${days7To15Products.size})",
                                         fontSize = 11.sp,
-                                        fontWeight = if (selectedCategory == ShareCategory.LAST_7_DAYS) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.LAST_7_DAYS) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = if (selectedCategory == ShareCategory.DAYS_7_TO_15) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                        color = if (selectedCategory == ShareCategory.DAYS_7_TO_15) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                         maxLines = 1,
                                         softWrap = false
                                     )
                                 }
                             }
 
-                            // Tab 3: ÖNEMLİ
+                            // Tab 4: Önemli
                             Box(
                                 modifier = Modifier
                                     .height(36.dp)
@@ -414,8 +463,9 @@ fun WhatsAppShareModal(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
                                     text = when (selectedCategory) {
-                                        ShareCategory.TODAY_AND_OVERDUE_1 -> "Son gün veya 1 gün geçmiş süresi dolan ürün kaydı bulunmuyor."
-                                        ShareCategory.LAST_7_DAYS -> "Son 7 gün içinde süresi dolacak ürün kaydı bulunmuyor."
+                                        ShareCategory.TODAY_EXACT -> "Bugün son günü olan ürün kaydı bulunmuyor."
+                                        ShareCategory.EXPIRED_AND_1_TO_6 -> "Süresi geçen veya son 6 gün kalmış ürün kaydı bulunmuyor."
+                                        ShareCategory.DAYS_7_TO_15 -> "7 - 15 gün arasında süresi dolacak ürün kaydı bulunmuyor."
                                         ShareCategory.IMPORTANT -> "Önemli olarak işaretlenmiş ürün bulunmuyor."
                                     },
                                     fontSize = 12.sp,
