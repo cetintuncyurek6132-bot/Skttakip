@@ -388,6 +388,7 @@ fun SktMainApp(
                 if (currentNavRoute == "main") {
                     Column {
                         SktTopAppBar(
+                            activeRoute = activeRoute,
                             searchQuery = searchQuery,
                             onSearchQueryChange = { query -> inventoryViewModel.onSearchQueryChanged(query) },
                             allProducts = allProducts,
@@ -411,46 +412,47 @@ fun SktMainApp(
                         )
                         TopBarLoadingBar(isLoading = isLoading)
 
-                        AnimatedVisibility(
-                            visible = migrationStatus?.isVisible == true,
-                            enter = fadeIn() + expandVertically(),
-                            exit = fadeOut() + shrinkVertically()
-                        ) {
-                            migrationStatus?.let { status ->
-                                Surface(
-                                    color = if (status.isSuccess) EmeraldSuccess else TurquoisePrimary,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                            AnimatedVisibility(
+                                visible = migrationStatus?.isVisible == true,
+                                enter = fadeIn() + expandVertically(),
+                                exit = fadeOut() + shrinkVertically()
+                            ) {
+                                migrationStatus?.let { status ->
+                                    Surface(
+                                        color = if (status.isSuccess) EmeraldSuccess else TurquoisePrimary,
+                                        modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Icon(
-                                            imageVector = if (status.isSuccess) Icons.Default.Check else Icons.Default.Info,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text(
-                                            text = status.message,
-                                            color = Color.White,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        IconButton(
-                                            onClick = { settingsViewModel.dismissMigrationStatus() },
-                                            modifier = Modifier.size(24.dp)
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Icon(
-                                                imageVector = Icons.Default.Close,
-                                                contentDescription = "Kapat",
+                                                imageVector = if (status.isSuccess) Icons.Default.Check else Icons.Default.Info,
+                                                contentDescription = null,
                                                 tint = Color.White,
-                                                modifier = Modifier.size(14.dp)
+                                                modifier = Modifier.size(18.dp)
                                             )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = status.message,
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            IconButton(
+                                                onClick = { settingsViewModel.dismissMigrationStatus() },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Close,
+                                                    contentDescription = "Kapat",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -458,7 +460,6 @@ fun SktMainApp(
                         }
                     }
                 }
-            }
         ) { innerPadding ->
             AppNavHost(
                 navController = navController,

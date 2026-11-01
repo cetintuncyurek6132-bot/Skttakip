@@ -45,10 +45,20 @@ object GeminiTranslator {
             synchronized(this) {
                 if (model == null) {
                     model = try {
-                        Firebase.ai(backend = GenerativeBackend.googleAI())
-                            .generativeModel("gemini-2.0-flash-exp")
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Gemini model oluşturulamadı", e)
+                        val isFirebaseReady = try {
+                            com.google.firebase.FirebaseApp.getInstance() != null
+                        } catch (t: Throwable) {
+                            false
+                        }
+                        if (isFirebaseReady) {
+                            Firebase.ai(backend = GenerativeBackend.googleAI())
+                                .generativeModel("gemini-2.0-flash-exp")
+                        } else {
+                            Log.d(TAG, "Default FirebaseApp is not initialized; using REST API/local translator fallback")
+                            null
+                        }
+                    } catch (e: Throwable) {
+                        Log.w(TAG, "Gemini model oluşturulamadı: ${e.message}")
                         null
                     }
                 }

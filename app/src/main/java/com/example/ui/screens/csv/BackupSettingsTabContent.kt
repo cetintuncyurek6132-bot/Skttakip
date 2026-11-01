@@ -267,20 +267,140 @@ fun BackupSettingsTabContent(
                         .padding(horizontal = 20.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    // BUTON 1: [ 💾 Tüm Verileri Yedek Al ]
-                    ExportOptionCard(
-                        title = "Tüm Verileri Yedek Al (Tam Yedek)",
-                        description = "Ürünler, ürünlere girilen tüm SKT parti adetleri, birim fiyatlar, sayım ve iade takip verilerinin tamamını eksiksiz tek bir .json yedeği olarak dışa aktarır ve paylaşır.",
-                        icon = Icons.Default.Save,
-                        iconBgColor = Color(0xFFECFDF5),
-                        iconColor = Color(0xFF059669),
-                        badgeText = "Önerilen",
-                        badgeColor = Color(0xFF059669),
-                        onClick = {
-                            showExportSheet = false
-                            onTriggerJsonShare()
+                    // BUTON 1: [ 💾 Tüm Verileri Yedek Al (Tam Yedek) ]
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color(0xFFF8FAFC),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFECFDF5)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Save,
+                                        contentDescription = null,
+                                        tint = Color(0xFF059669),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Text(
+                                            text = "Tüm Verileri Yedek Al (Tam Yedek)",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 13.5.sp,
+                                            color = Slate900,
+                                            modifier = Modifier.weight(1f, fill = false),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Surface(
+                                            shape = RoundedCornerShape(6.dp),
+                                            color = Color(0xFF059669).copy(alpha = 0.12f),
+                                            border = BorderStroke(0.8.dp, Color(0xFF059669).copy(alpha = 0.4f))
+                                        ) {
+                                            Text(
+                                                text = "Önerilen",
+                                                fontSize = 10.5.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = Color(0xFF059669),
+                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(3.dp))
+                                    Text(
+                                        text = "Ürünler, SKT parti adetleri, birim fiyatlar, sayım ve iade takip verilerinin tamamını eksiksiz .json olarak yedekler.",
+                                        fontSize = 11.5.sp,
+                                        color = Slate600,
+                                        lineHeight = 16.sp
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Button(
+                                    onClick = {
+                                        showExportSheet = false
+                                        onTriggerJsonExport()
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFF059669)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 9.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.FileDownload,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Cihaza Kaydet (İndirilenler)",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+
+                                OutlinedButton(
+                                    onClick = {
+                                        showExportSheet = false
+                                        onTriggerJsonShare()
+                                    },
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = BorderStroke(1.dp, Color(0xFF059669)),
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        contentColor = Color(0xFF059669)
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 9.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Share,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color(0xFF059669)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Paylaş",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF059669)
+                                    )
+                                }
+                            }
                         }
-                    )
+                    }
 
                     // BUTON 2: [ 📦 Ürünleri Yedek Al ]
                     ExportOptionCard(

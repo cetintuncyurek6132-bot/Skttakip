@@ -126,6 +126,7 @@ import kotlinx.coroutines.delay
 fun SktTopAppBar(
     onBellClick: () -> Unit,
     unreadCount: Int,
+    activeRoute: String = "panel",
     searchQuery: String = "",
     onSearchQueryChange: (String) -> Unit = {},
     allProducts: List<Product> = emptyList(),
@@ -285,59 +286,78 @@ fun SktTopAppBar(
             }
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Manuel Arama Yeri (Search Bar - Açılır / Kapanır)
-            Surface(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clickable {
-                        isSearchExpanded = true
-                    }
-                    .testTag("top_bar_search_field"),
-                shape = RoundedCornerShape(12.dp),
-                color = if (isDark) Color(0xFF1E293B) else Color.White,
-                shadowElevation = 1.dp
-            ) {
-                Row(
+            // Manuel Arama Yeri veya Sayfa Başlığı
+            if (activeRoute == "takip" || activeRoute == "adetsel") {
+                val pageTitle = if (activeRoute == "takip") "İade & Depo Takibi" else "Adetsel Sayım"
+                Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .weight(1f)
+                        .height(38.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Manuel Ara",
-                        tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Slate500,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-
                     Text(
-                        text = if (searchQuery.isNotEmpty()) searchQuery else "Ürün adı, barkod veya kod ara",
-                        color = if (searchQuery.isNotEmpty()) {
-                            MaterialTheme.colorScheme.onSurface
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                        },
-                        fontSize = 12.sp,
-                        fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,
+                        text = pageTitle,
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        overflow = TextOverflow.Ellipsis
                     )
-
-                    IconButton(
-                        onClick = {
-                            onQuickSearchScannerClick()
-                        },
-                        modifier = Modifier.size(24.dp)
+                }
+            } else {
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(38.dp)
+                        .clickable {
+                            isSearchExpanded = true
+                        }
+                        .testTag("top_bar_search_field"),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isDark) Color(0xFF1E293B) else Color.White,
+                    shadowElevation = 1.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "Barkod Tara",
-                            tint = if (isDark) Color(0xFF2DD4BF) else TurquoisePrimary,
-                            modifier = Modifier.size(16.dp)
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Manuel Ara",
+                            tint = if (isDark) MaterialTheme.colorScheme.onSurfaceVariant else Slate500,
+                            modifier = Modifier.size(18.dp)
                         )
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Text(
+                            text = if (searchQuery.isNotEmpty()) searchQuery else "Ürün adı, barkod veya kod ara",
+                            color = if (searchQuery.isNotEmpty()) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                            },
+                            fontSize = 12.sp,
+                            fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        IconButton(
+                            onClick = {
+                                onQuickSearchScannerClick()
+                            },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.QrCodeScanner,
+                                contentDescription = "Barkod Tara",
+                                tint = if (isDark) Color(0xFF2DD4BF) else TurquoisePrimary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
             }

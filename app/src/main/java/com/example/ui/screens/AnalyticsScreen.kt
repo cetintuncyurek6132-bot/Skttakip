@@ -4,66 +4,34 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.data.StockLog
-import com.example.ui.screens.analytics.AnalyticsBarChartSection
-import com.example.ui.screens.analytics.AnalyticsKpiSection
-import com.example.ui.screens.analytics.AnalyticsTimeframe
-import com.example.ui.screens.analytics.ChartDisplayMode
-import com.example.ui.screens.analytics.DailyExpiryData
-import com.example.ui.screens.analytics.FinancialKpiMetrics
-import com.example.ui.screens.analytics.PredictiveAnalyticsSection
-import com.example.ui.screens.analytics.ReyonRiskSummarySection
-import com.example.ui.screens.analytics.SktConversionSection
-import com.example.ui.theme.Slate100
-import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate700
-import com.example.ui.theme.TurquoiseDark
-import com.example.ui.theme.TurquoisePrimary
-import java.text.NumberFormat
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
+import com.example.data.getTodayMidnightMillis
+import com.example.ui.theme.*
 import java.util.Locale
-import kotlin.math.roundToLong
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AnalyticsScreen(
     products: List<Product>,
@@ -72,376 +40,226 @@ fun AnalyticsScreen(
     onApplyYellowTag: (Product) -> Unit = {},
     onBackClick: () -> Unit
 ) {
-    val context = LocalContext.current
+    BackHandler { onBackClick() }
+    
+    // Zaman filtresi (7, 30, 60 gün)
+    var selectedDays by remember { mutableIntStateOf(30) }
+    val todayMidnight = remember { getTodayMidnightMillis() }
+    val cutoffTime = remember(selectedDays) { todayMidnight - (selectedDays * 86400000L) }
 
-    BackHandler {
-        onBackClick()
+    // 1. Filtrelenmiş Loglar
+    val periodLogs = remember(stockLogs, cutoffTime) {
+        stockLogs.filter { it.timestamp >= cutoffTime }
     }
 
-    val todayMidnight by com.example.util.rememberTodayMidnight()
-    var selectedTimeframe by remember { mutableStateOf(AnalyticsTimeframe.LAST_30_DAYS) }
-    var chartMode by remember { mutableStateOf(ChartDisplayMode.ALL) }
-
-    val dateFormat = remember { SimpleDateFormat("dd MMM", Locale.forLanguageTag("tr-TR")) }
-    val fullDateFormat = remember { SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("tr-TR")) }
-    val trLocale = remember { Locale.forLanguageTag("tr-TR") }
-
-    // 1. General Inventory Stats
-    val validProducts = remember(products) { products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 } }
-    val totalVarietyCount = validProducts.size
-    val totalStockCount = remember(validProducts) { validProducts.sumOf { it.stokAdedi } }
-
-    val expiredProducts = remember(validProducts, todayMidnight) {
-        validProducts.filter { it.getRemainingDays(todayMidnight) < 0L }
+    // 2. Özet Veriler
+    val totalSoldQty = remember(periodLogs) {
+        periodLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
     }
-    val criticalProducts = remember(validProducts, todayMidnight) {
-        validProducts.filter { it.getRemainingDays(todayMidnight) in 0L..3L }
-    }
-    val soonProducts = remember(validProducts, todayMidnight) {
-        validProducts.filter { it.getRemainingDays(todayMidnight) in 4L..7L }
+    val totalStockQty = remember(products) {
+        products.sumOf { it.stokAdedi }
     }
 
-    // 2. Finansal KPI Metrikleri Hesabı (Fire Önleme Oranı, Kurtarılan Satış, Fire Maliyeti)
-    val financialMetrics = remember(products, stockLogs, validProducts, expiredProducts, todayMidnight) {
-        val priceByBarcode = products.filter { it.barkod.isNotBlank() && (it.fiyat ?: 0.0) > 0.0 }
-            .associate { it.barkod.trim() to it.fiyat!! }
-        val priceByName = products.filter { it.urunAdi.isNotBlank() && (it.fiyat ?: 0.0) > 0.0 }
-            .associate { it.urunAdi.trim().lowercase(trLocale) to it.fiyat!! }
-
-        fun getKnownPrice(barcode: String, name: String): Double {
-            return priceByBarcode[barcode.trim()]
-                ?: priceByName[name.trim().lowercase(trLocale)]
-                ?: 0.0
-        }
-
-        val thirtyDaysAgo = todayMidnight - (30L * 86400000L)
-        val periodLogs = stockLogs.filter { it.timestamp >= thirtyDaysAgo }
-        val soldLogs = periodLogs.filter { it.actionType == "SATIS" }
-        val fireLogs = periodLogs.filter { it.actionType == "FIRE" }
-
-        // Kurtarılan Satış Ciro: Toplam satışı yapılan ürünlerin adet * fiyat tutarı
-        val savedRevenue = soldLogs.sumOf {
-            val unitPrice = getKnownPrice(it.barcode, it.productName)
-            it.quantity * unitPrice
-        }
-
-        // Fire Maliyeti: Geçmiş fire kayıtları + şu anda süresi dolup rafta bekleyen ürünlerin değeri
-        val pastFireCost = fireLogs.sumOf {
-            val unitPrice = getKnownPrice(it.barcode, it.productName)
-            it.quantity * unitPrice
-        }
-        val expiredStockCost = expiredProducts.sumOf {
-            it.stokAdedi * (it.fiyat ?: 0.0)
-        }
-        val totalFireRiskCost = pastFireCost + expiredStockCost
-
-        // Fire Önleme Oranı: Toplam satış adedi / (satış + fire adedi)
-        val totalSoldQty = soldLogs.sumOf { it.quantity }
-        val totalFireQty = fireLogs.sumOf { it.quantity }
-        val totalProcessed = totalSoldQty + totalFireQty
-
-        val rate = if (totalProcessed > 0) {
-            ((totalSoldQty.toDouble() / totalProcessed.toDouble()) * 100.0).toInt().coerceIn(0, 100)
-        } else if (validProducts.isNotEmpty()) {
-            val nonExpiredStock = validProducts.filter { it.getRemainingDays(todayMidnight) >= 0L }.sumOf { it.stokAdedi }
-            val tot = validProducts.sumOf { it.stokAdedi }
-            if (tot > 0) ((nonExpiredStock.toDouble() / tot.toDouble()) * 100.0).toInt().coerceIn(0, 100) else 100
-        } else {
-            100
-        }
-
-        val currencyFormatter = NumberFormat.getIntegerInstance(trLocale)
-        val formattedSaved = "₺" + currencyFormatter.format(savedRevenue.roundToLong())
-        val formattedFire = "₺" + currencyFormatter.format(totalFireRiskCost.roundToLong())
-
-        FinancialKpiMetrics(
-            recoveryRate = rate,
-            savedRevenue = savedRevenue,
-            fireRiskCost = totalFireRiskCost,
-            formattedSavedRevenue = formattedSaved,
-            formattedFireRiskCost = formattedFire
-        )
-    }
-
-    // 3. Last 30 Days SKT Performance & Fire Items (Carousel Data)
-    val thirtyDaysAgo = remember(todayMidnight) { todayMidnight - (30L * 86400000L) }
-
-    val sktPerformanceItems = remember(products, stockLogs, todayMidnight, thirtyDaysAgo) {
-        val expiredIn30Days = products.filter {
-            it.sktTarihi in thirtyDaysAgo..todayMidnight || (it.sktTarihi > 0L && it.getRemainingDays(todayMidnight) < 0L)
-        }
-
-        val logsIn30Days = stockLogs.filter { it.timestamp >= thirtyDaysAgo }
-        val logsByBarcode = logsIn30Days.groupBy { it.barcode.trim() }
-        val logsByName = logsIn30Days.groupBy { it.productName.trim().lowercase(trLocale) }
-
-        val resultMap = mutableMapOf<String, com.example.ui.screens.analytics.SktPerformanceItem>()
-
-        // 1. Son 30 günde süresi dolan veya dolmuş olan ürünler
-        for (p in expiredIn30Days) {
-            val key = if (p.barkod.isNotBlank() && !p.barkod.startsWith("NO_BARCODE_")) p.barkod.trim() else "ID_${p.id}"
-            val relevantLogs = logsByBarcode[p.barkod.trim()]
-                ?: logsByName[p.urunAdi.trim().lowercase(trLocale)]
-                ?: emptyList()
-
-            val soldLogsQty = relevantLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
-            val fireLogsQty = relevantLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
-
-            val fireCount = if (fireLogsQty > 0) fireLogsQty else if (p.stokAdedi > 0) p.stokAdedi else 0
-            val soldCount = if (soldLogsQty > 0) soldLogsQty else if (p.stokAdedi == 0) p.stokAdedi.coerceAtLeast(1) else 0
-            val totalCount = (soldCount + fireCount).coerceAtLeast(1)
-            val rate = ((soldCount.toDouble() / totalCount.toDouble()) * 100).toInt().coerceIn(0, 100)
-
-            resultMap[key] = com.example.ui.screens.analytics.SktPerformanceItem(
-                product = p,
-                productName = p.urunAdi,
-                productCode = p.urunKodu,
-                barcode = p.barkod,
-                formattedSkt = p.getFormattedSkt(),
-                sktTimestamp = p.sktTarihi,
-                soldCount = soldCount,
-                fireCount = fireCount,
-                totalCount = totalCount,
-                recoveryRate = rate
-            )
-        }
-
-        // 2. Son 30 günde aksiyon alınmış (SATIS veya FIRE) log kayıtları
-        for (log in logsIn30Days) {
-            val barcode = log.barcode.trim()
-            val name = log.productName.trim()
-            val key = if (barcode.isNotBlank() && !barcode.startsWith("NO_BARCODE_")) barcode else name.lowercase(trLocale)
-            if (!resultMap.containsKey(key)) {
-                val matchingProduct = products.find { it.barkod.trim() == barcode || it.urunAdi.equals(name, ignoreCase = true) }
-                val itemLogs = if (barcode.isNotBlank()) (logsByBarcode[barcode] ?: emptyList()) else (logsByName[name.lowercase(trLocale)] ?: emptyList())
-                val soldLogsQty = itemLogs.filter { it.actionType == "SATIS" }.sumOf { it.quantity }
-                val fireLogsQty = itemLogs.filter { it.actionType == "FIRE" }.sumOf { it.quantity }
-                val totalCount = soldLogsQty + fireLogsQty
-                if (totalCount > 0) {
-                    val rate = ((soldLogsQty.toDouble() / totalCount.toDouble()) * 100).toInt().coerceIn(0, 100)
-                    val sktFormatted = if (log.sktDate != null && log.sktDate > 0L) {
-                        com.example.util.SafeDateFormatter.shortDate(log.sktDate)
-                    } else matchingProduct?.getFormattedSkt() ?: "-"
-
-                    resultMap[key] = com.example.ui.screens.analytics.SktPerformanceItem(
-                        product = matchingProduct,
-                        productName = name,
-                        productCode = matchingProduct?.urunKodu.orEmpty(),
-                        barcode = barcode,
-                        formattedSkt = sktFormatted,
-                        sktTimestamp = log.sktDate ?: matchingProduct?.sktTarihi ?: 0L,
-                        soldCount = soldLogsQty,
-                        fireCount = fireLogsQty,
-                        totalCount = totalCount,
-                        recoveryRate = rate
-                    )
-                }
+    // 3. En Çok Satanlar (İlk 5)
+    val topSoldProducts = remember(periodLogs) {
+        periodLogs.filter { it.actionType == "SATIS" }
+            .groupBy { it.barcode.ifBlank { it.productName } }
+            .map { (key, logs) -> 
+                val name = logs.firstOrNull()?.productName ?: "Bilinmeyen"
+                val qty = logs.sumOf { it.quantity }
+                name to qty
             }
-        }
-
-        resultMap.values.sortedByDescending { it.sktTimestamp }
+            .sortedByDescending { it.second }
+            .take(5)
     }
 
-    // 4. Daily Bar Chart Data
-    val barChartData = remember(validProducts, selectedTimeframe, todayMidnight, chartMode) {
-        val daysSpan = selectedTimeframe.days
-        val pastDays = when (chartMode) {
-            ChartDisplayMode.EXPIRED_ONLY -> daysSpan
-            ChartDisplayMode.UPCOMING -> 0
-            ChartDisplayMode.ALL -> (daysSpan * 0.65).toInt()
-        }
-
-        val list = mutableListOf<DailyExpiryData>()
-        val cal = Calendar.getInstance().apply {
-            timeInMillis = todayMidnight
-            add(Calendar.DAY_OF_YEAR, -pastDays)
-        }
-
-        val oneDayMillis = 86400000L
-
-        for (i in 0 until daysSpan) {
-            val dayStart = cal.timeInMillis
-            val dayEnd = dayStart + oneDayMillis
-
-            val dayProducts = validProducts.filter { p ->
-                p.sktTarihi in dayStart until dayEnd
+    // 4. En Çok Fire Verilenler (İlk 5)
+    val topFiredProducts = remember(periodLogs) {
+        periodLogs.filter { it.actionType == "FIRE" }
+            .groupBy { it.barcode.ifBlank { it.productName } }
+            .map { (key, logs) -> 
+                val name = logs.firstOrNull()?.productName ?: "Bilinmeyen"
+                val qty = logs.sumOf { it.quantity }
+                name to qty
             }
-
-            val isToday = dayStart == todayMidnight
-            val isPast = dayStart < todayMidnight
-
-            val expired = if (isPast) dayProducts.size else 0
-            val critical = if (!isPast) dayProducts.size else 0
-            val stock = dayProducts.sumOf { it.stokAdedi }
-
-            list.add(
-                DailyExpiryData(
-                    dayTimestamp = dayStart,
-                    dateLabel = fullDateFormat.format(Date(dayStart)),
-                    shortLabel = dateFormat.format(Date(dayStart)),
-                    expiredCount = expired,
-                    criticalCount = critical,
-                    totalStock = stock,
-                    isPast = isPast,
-                    isToday = isToday,
-                    products = dayProducts
-                )
-            )
-            cal.add(Calendar.DAY_OF_YEAR, 1)
-        }
-        list
+            .sortedByDescending { it.second }
+            .take(5)
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // =====================================================================
-        // 1. TOP APP BAR
-        // =====================================================================
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 2.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(vertical = 6.dp)
+    Column(modifier = Modifier.fillMaxSize().background(Slate50)) {
+        // ÜST BAR
+        Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
+            Row(
+                modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .testTag("analytics_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    Icon(
-                        imageVector = Icons.Default.Analytics,
-                        contentDescription = null,
-                        tint = TurquoiseDark,
-                        modifier = Modifier.size(20.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    Text(
-                        text = "Analiz ve İstatistikler",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TurquoiseDark,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Slate900)
                 }
+                Icon(Icons.Default.Analytics, contentDescription = null, tint = TurquoisePrimary, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Satış ve Fire Analizi", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
+            }
+        }
 
-                // Tarih Filtre Hapları (Son 7 Gün, Son 30 Gün, Son 60 Gün)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    AnalyticsTimeframe.values().forEach { tf ->
-                        val isSelected = selectedTimeframe == tf
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // TARİH FİLTRELERİ
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(7, 30, 60).forEach { days ->
+                        val isSelected = selectedDays == days
                         Surface(
-                            onClick = { selectedTimeframe = tf },
+                            onClick = { selectedDays = days },
                             shape = RoundedCornerShape(10.dp),
-                            color = if (isSelected) TurquoisePrimary else Slate100,
-                            border = if (isSelected) null else BorderStroke(1.dp, Slate200),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(36.dp)
+                            color = if (isSelected) TurquoisePrimary else Color.White,
+                            border = BorderStroke(1.dp, if (isSelected) TurquoisePrimary else Slate200),
+                            modifier = Modifier.weight(1f).height(36.dp)
                         ) {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Box(contentAlignment = Alignment.Center) {
                                 Text(
-                                    text = tf.label,
-                                    fontSize = 12.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    "Son $days Gün",
                                     color = if (isSelected) Color.White else Slate700,
-                                    maxLines = 1
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }
                     }
                 }
             }
-        }
 
-        // =====================================================================
-        // 2. SCROLLABLE CONTENT BODY (PROFESYONEL KARAR DESTEK PANELİ)
-        // =====================================================================
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // A) 3'LÜ FİNANSAL KPI PANELİ & ENVANTER ÖZETİ & SON 30 GÜN FİRE SONUÇLARI
-            AnalyticsKpiSection(
-                financialMetrics = financialMetrics,
-                expiredProducts = expiredProducts,
-                criticalProducts = criticalProducts,
-                soonProducts = soonProducts,
-                totalVarietyCount = totalVarietyCount,
-                totalStockCount = totalStockCount,
-                sktPerformanceItems = sktPerformanceItems,
-                onProductClick = onProductClick
-            )
-
-            // B) SKT DAĞILIM GRAFİĞİ (BUGÜN GÖSTERGESİ & ALT BİLGİ KARTI)
-            AnalyticsBarChartSection(
-                selectedTimeframe = selectedTimeframe,
-                chartMode = chartMode,
-                onChartModeChange = { chartMode = it },
-                barChartData = barChartData,
-                onProductClick = onProductClick
-            )
-
-            // C) REYON BAZLI RİSK ÖZETİ (DOLAP / SOĞUK ZİNCİR vs. KURU GIDA)
-            ReyonRiskSummarySection(
-                products = products,
-                stockLogs = stockLogs
-            )
-
-            // D) SKT GİRİŞ & SONUÇ DAĞILIMI (SATILAN vs FİRE vs RAFTA)
-            SktConversionSection(
-                stockLogs = stockLogs,
-                validProducts = validProducts
-            )
-
-            // E) ÜRÜN BAZLI SATIŞ & FİRE ÖNGÖRÜSÜ (SARI ETİKET / İNDİRİM AKSİYONU)
-            PredictiveAnalyticsSection(
-                validProducts = validProducts,
-                stockLogs = stockLogs,
-                onProductClick = onProductClick,
-                onApplyYellowTag = { prod ->
-                    onApplyYellowTag(prod)
+            // 1. ÖZET KARTLARI
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Satılan
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF0FDF4)),
+                        border = BorderStroke(1.dp, Color(0xFFBBF7D0))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Icon(Icons.Default.ShoppingCart, null, tint = Color(0xFF16A34A), modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text("Satılan Ürün", fontSize = 12.sp, color = Color(0xFF166534))
+                            Text("$totalSoldQty Adet", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF15803D))
+                        }
+                    }
+                    // Raftaki
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                        border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Icon(Icons.Default.Analytics, null, tint = Color(0xFF2563EB), modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text("Raftaki Stok", fontSize = 12.sp, color = Color(0xFF1E40AF))
+                            Text("$totalStockQty Adet", fontSize = 22.sp, fontWeight = FontWeight.Black, color = Color(0xFF1D4ED8))
+                        }
+                    }
                 }
-            )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            // 2. SATIŞ GRAFİĞİ (Yer tutucu bir görsel/tasarım)
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("Satış Grafiği", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                        Text("Son $selectedDays günlük satış trendi", fontSize = 11.sp, color = Slate500)
+                        Spacer(Modifier.height(16.dp))
+                        // Buraya ileride gerçek bir çizgi grafik eklenebilir. Şimdilik şık bir yer tutucu:
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(100.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            val heights = listOf(0.3f, 0.5f, 0.2f, 0.8f, 0.6f, 0.9f, 0.4f)
+                            heights.forEach { h ->
+                                Box(
+                                    modifier = Modifier.width(24.dp).fillMaxHeight(h).clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)).background(TurquoisePrimary)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. EN ÇOK SATANLAR
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("En Çok Satan Ürünler", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                        Spacer(Modifier.height(12.dp))
+                        
+                        if (topSoldProducts.isEmpty()) {
+                            Text("Henüz satış kaydı yok.", fontSize = 12.sp, color = Slate400)
+                        } else {
+                            topSoldProducts.forEachIndexed { index, (name, qty) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("${index + 1}.", fontWeight = FontWeight.Bold, color = TurquoiseDark, fontSize = 14.sp, modifier = Modifier.width(24.dp))
+                                    Text(name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Slate800, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Surface(color = Color(0xFFF0FDF4), shape = RoundedCornerShape(6.dp)) {
+                                        Text("$qty Adet", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color(0xFF16A34A), modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 4. EN ÇOK FİRE VERİLENLER
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text("En Çok Fire Verilenler", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                        Spacer(Modifier.height(12.dp))
+                        
+                        if (topFiredProducts.isEmpty()) {
+                            Text("Henüz fire kaydı yok.", fontSize = 12.sp, color = Slate400)
+                        } else {
+                            topFiredProducts.forEachIndexed { index, (name, qty) ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("${index + 1}.", fontWeight = FontWeight.Bold, color = ExpiredRed, fontSize = 14.sp, modifier = Modifier.width(24.dp))
+                                    Text(name, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = Slate800, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Surface(color = Color(0xFFFEF2F2), shape = RoundedCornerShape(6.dp)) {
+                                        Text("$qty Adet", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = ExpiredRed, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            item { Spacer(modifier = Modifier.height(24.dp)) }
         }
     }
 }

@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Unarchive
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -61,6 +63,8 @@ import com.example.ui.theme.TurquoiseDark
 @Composable
 fun TakipKaydiCard(
     record: DepoIadeKaydi,
+    isArchived: Boolean = false,
+    onArchiveToggle: () -> Unit = {},
     onStatusChange: (IadeDurumu) -> Unit,
     onEditClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -257,6 +261,22 @@ fun TakipKaydiCard(
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
+
+                // Arşivle / Arşivden Çıkar
+                IconButton(
+                    onClick = onArchiveToggle,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (isArchived) Color(0xFFFEF3C7) else Slate100)
+                ) {
+                    Icon(
+                        imageVector = if (isArchived) Icons.Default.Unarchive else Icons.Default.Archive,
+                        contentDescription = if (isArchived) "Arşivden Çıkar" else "Arşivle",
+                        tint = if (isArchived) Color(0xFFD97706) else Slate700,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
 
                 // WhatsApp Butonu
                 IconButton(

@@ -315,9 +315,13 @@ fun CsvScreen(
                     isTakingBackup = isTakingBackup,
                     onTriggerJsonExport = {
                         onExportJsonBackup { json ->
-                            pendingExportJson = json
-                            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault()).format(Date())
-                            jsonCreateDocLauncher.launch("SKT_Tam_Yedek_$timeStamp.json")
+                            val fileName = BackupExportHelper.generateBackupFileName("SKT_Tam_Yedek", "json")
+                            val res = BackupExportHelper.saveJsonToDownloads(context, json, fileName)
+                            if (res.isSuccess) {
+                                Toast.makeText(context, "✅ Yedek İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     onTriggerJsonImport = {
@@ -327,6 +331,20 @@ fun CsvScreen(
                         onExportJsonBackup { json ->
                             val fileName = BackupExportHelper.generateBackupFileName("SKT_Tam_Yedek", "json")
                             BackupExportHelper.shareJsonBackup(context, json, fileName)
+                        }
+                    },
+                    onTriggerProductsExport = {
+                        if (products.isEmpty()) {
+                            Toast.makeText(context, "Dışa aktarılacak ürün bulunamadı.", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val jsonContent = BackupExportHelper.exportProductsToJson(products)
+                            val fileName = BackupExportHelper.generateBackupFileName("SKT_Urunler", "json")
+                            val res = BackupExportHelper.saveJsonToDownloads(context, jsonContent, fileName)
+                            if (res.isSuccess) {
+                                Toast.makeText(context, "✅ Ürün yedeği İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     onTriggerCsvExport = {

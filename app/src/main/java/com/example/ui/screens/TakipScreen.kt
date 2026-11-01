@@ -63,6 +63,7 @@ fun TakipScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedDurumFilter by remember { mutableStateOf<IadeDurumu?>(null) }
     var selectedOncelikFilter by remember { mutableStateOf<IadeOncelik?>(null) }
+    var isArchiveView by remember { mutableStateOf(false) }
 
     // Dialog & Modal State
     var showAddEditDialog by remember { mutableStateOf(false) }
@@ -98,9 +99,10 @@ fun TakipScreen(
             .trim()
     }
 
-    val filteredRecords = remember(records, searchQuery, selectedDurumFilter, selectedOncelikFilter) {
+    val filteredRecords = remember(records, searchQuery, selectedDurumFilter, selectedOncelikFilter, isArchiveView) {
         val normQuery = normalizeSearch(searchQuery)
         records.filter { record ->
+            val matchesArchive = if (isArchiveView) record.isArchived else !record.isArchived
             val matchesQuery = normQuery.isBlank() ||
                     normalizeSearch(record.urunAdi).contains(normQuery) ||
                     normalizeSearch(record.aciklama).contains(normQuery) ||
@@ -109,7 +111,7 @@ fun TakipScreen(
             val matchesDurum = selectedDurumFilter == null || record.durum == selectedDurumFilter
             val matchesOncelik = selectedOncelikFilter == null || record.oncelik == selectedOncelikFilter
 
-            matchesQuery && matchesDurum && matchesOncelik
+            matchesArchive && matchesQuery && matchesDurum && matchesOncelik
         }.sortedWith(
             compareBy<DepoIadeKaydi> { record ->
                 when (record.durum) {
@@ -179,116 +181,6 @@ fun TakipScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // KOMPAKT SAYFA BAŞLIĞI VE İŞLEMLER
-        Surface(
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 1.dp
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(
-                        onClick = onBackClick,
-                        modifier = Modifier
-                            .size(34.dp)
-                            .testTag("takip_back_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Ana Sayfaya Dön",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Column {
-                        Text(
-                            text = "İade & Depo Takibi",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 17.sp
-                            )
-                        )
-                        Text(
-                            text = "${stats.devamEdenSayisi} aktif takip kaydı",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.5.sp
-                            )
-                        )
-                    }
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = { showExportModal = true },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(TurquoisePrimary.copy(alpha = 0.12f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.FileDownload,
-                            contentDescription = "İadeleri Dışa Aktar (CSV / JSON)",
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { openShareAllPreview() },
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(Color(0xFFE8F5E9), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "WhatsApp ile Paylaş",
-                            tint = Color(0xFF2E7D32),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    FilledTonalButton(
-                        onClick = {
-                            editingRecord = null
-                            showAddEditDialog = true
-                        },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = TurquoisePrimary,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                        modifier = Modifier.height(36.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Yeni Kayıt",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-        }
-
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
@@ -328,6 +220,82 @@ fun TakipScreen(
                         bgColor = ExpiredRedContainer,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+
+            // İŞLEM BUTONLARI VE AKTİF KAYIT SAYISI
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${stats.devamEdenSayisi} aktif takip kaydı",
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.sp
+                        )
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        IconButton(
+                            onClick = { showExportModal = true },
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(TurquoisePrimary.copy(alpha = 0.12f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FileDownload,
+                                contentDescription = "İadeleri Dışa Aktar (CSV / JSON)",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { openShareAllPreview() },
+                            modifier = Modifier
+                                .size(34.dp)
+                                .background(Color(0xFFE8F5E9), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "WhatsApp ile Paylaş",
+                                tint = Color(0xFF2E7D32),
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+
+                        FilledTonalButton(
+                            onClick = {
+                                editingRecord = null
+                                showAddEditDialog = true
+                            },
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = TurquoisePrimary,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Yeni Kayıt",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
                 }
             }
 
@@ -433,6 +401,14 @@ fun TakipScreen(
                                     )
                                 )
                             }
+                            item {
+                                FilterChip(
+                                    selected = isArchiveView,
+                                    onClick = { isArchiveView = !isArchiveView },
+                                    label = { Text("Arşiv", fontSize = 12.sp) },
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -507,6 +483,13 @@ fun TakipScreen(
                 items(filteredRecords, key = { it.id }) { record ->
                     TakipKaydiCard(
                         record = record,
+                        isArchived = record.isArchived,
+                        onArchiveToggle = {
+                            val updated = records.map {
+                                if (it.id == record.id) it.copy(isArchived = !it.isArchived) else it
+                            }
+                            saveAndRefresh(updated)
+                        },
                         onClick = {
                             selectedTakipDetail = record
                         },
@@ -602,12 +585,11 @@ fun TakipScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val toRemove = recordToDelete!!
-                        DepoIadeManager.deleteImageFile(toRemove.irsaliyeGorselPath)
-                        val updated = records.filter { it.id != toRemove.id }
+                        DepoIadeManager.deleteImageFile(recordToDelete!!.irsaliyeGorselPath)
+                        val updated = records.filter { it.id != recordToDelete!!.id }
                         saveAndRefresh(updated)
                         recordToDelete = null
-                        Toast.makeText(context, "Kayıt ve görseli silindi.", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Kayıt silindi.", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed)
                 ) {

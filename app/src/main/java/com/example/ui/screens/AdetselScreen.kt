@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.animation.AnimatedVisibility
@@ -544,123 +545,19 @@ fun AdetselScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // TOP HEADER - KOMPAKT VE ŞIK
+        // TAB ROW & İŞLEMLER
         Surface(
             color = MaterialTheme.colorScheme.surface,
             shadowElevation = 1.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(
-                            onClick = onBackClick,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .testTag("adetsel_back_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Geri Dön",
-                                tint = Slate900,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Surface(
-                            shape = CircleShape,
-                            color = TurquoisePrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.FactCheck,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(17.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Adetsel Sayım",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    }
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        IconButton(
-                            onClick = { showExportModal = true },
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(TurquoisePrimary.copy(alpha = 0.12f), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.FileDownload,
-                                contentDescription = "Sayım Sonucunu Dışa Aktar (Excel/CSV)",
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        IconButton(
-                            onClick = {
-                                val listToShare = if (selectedTab == AdetselTab.YAPILDI) {
-                                    if (yapildiList.isNotEmpty()) yapildiList else distinctYapilacakList + yapildiList
-                                } else {
-                                    if (distinctYapilacakList.isNotEmpty()) distinctYapilacakList else distinctYapilacakList + yapildiList
-                                }
-                                openShareSayimPreview(listToShare)
-                            },
-                            modifier = Modifier
-                                .size(30.dp)
-                                .background(Color(0xFFE8F5E9), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "WhatsApp ile Paylaş",
-                                tint = Color(0xFF2E7D32),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        if (selectedTab == AdetselTab.YAPILDI && yapildiList.isNotEmpty()) {
-                            OutlinedButton(
-                                onClick = { showClearCompletedConfirm = true },
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                modifier = Modifier.height(28.dp)
-                            ) {
-                                Icon(imageVector = Icons.Default.ClearAll, contentDescription = null, modifier = Modifier.size(13.dp))
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Text("Temizle", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                // TAB ROW
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
                     // TAB 1: ADETSEL YAPILACAK
                     Surface(
                         modifier = Modifier
@@ -736,9 +633,59 @@ fun AdetselScreen(
                             }
                         }
                     }
+
+                    // Export, Share & Temizle Butonları
+                    IconButton(
+                        onClick = { showExportModal = true },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(TurquoisePrimary.copy(alpha = 0.12f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = "Sayım Sonucunu Dışa Aktar (Excel/CSV)",
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            val listToShare = if (selectedTab == AdetselTab.YAPILDI) {
+                                if (yapildiList.isNotEmpty()) yapildiList else distinctYapilacakList + yapildiList
+                            } else {
+                                if (distinctYapilacakList.isNotEmpty()) distinctYapilacakList else distinctYapilacakList + yapildiList
+                            }
+                            openShareSayimPreview(listToShare)
+                        },
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color(0xFFE8F5E9), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Share,
+                            contentDescription = "WhatsApp ile Paylaş",
+                            tint = Color(0xFF2E7D32),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    if (selectedTab == AdetselTab.YAPILDI && yapildiList.isNotEmpty()) {
+                        OutlinedButton(
+                            onClick = { showClearCompletedConfirm = true },
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.5f)),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = ExpiredRed),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.height(30.dp)
+                        ) {
+                            Icon(imageVector = Icons.Default.ClearAll, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Temizle", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
             }
-        }
 
         // SEARCH & FILTER BAR
         Column(

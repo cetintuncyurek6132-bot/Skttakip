@@ -128,6 +128,7 @@ object DataBackupManager {
             if (d.hatirlatmaTarihiMillis != null) dObj.put("hatirlatmaTarihiMillis", d.hatirlatmaTarihiMillis)
             dObj.put("olusturmaTarihiMillis", d.olusturmaTarihiMillis)
             dObj.put("guncellemeTarihiMillis", d.guncellemeTarihiMillis)
+            dObj.put("isArchived", d.isArchived)
             depoArray.put(dObj)
         }
         root.put("depoIadeKayitlari", depoArray)
@@ -670,7 +671,8 @@ object DataBackupManager {
             hatirlatmaTarihi = hatirlatmaTarihi,
             hatirlatmaTarihiMillis = hatirlatmaTarihiMillis,
             olusturmaTarihiMillis = olusturmaTarihiMillis,
-            guncellemeTarihiMillis = guncellemeTarihiMillis
+            guncellemeTarihiMillis = guncellemeTarihiMillis,
+            isArchived = obj.optBoolean("isArchived", false)
         )
     }
 
