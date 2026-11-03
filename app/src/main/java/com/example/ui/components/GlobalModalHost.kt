@@ -307,11 +307,9 @@ fun GlobalModalHost(
                             inventoryViewModel.openEditProductModal(productFound)
                         },
                         onNotFound = { barcodeNotFound ->
-                            // Kamera kapanmayacak, modal açılmayacak. BarcodeScannerSheet içindeki
-                            // ScannerProductDetailsSection alt panelinde ProductNotFoundPreviewCard
-                            // otomatik olarak gösterilecek. Kullanıcı kart içindeki "Yeni Ürün Ekle" 
-                            // butonuna basana kadar kamera açık kalır.
-                            android.util.Log.d("GlobalModalHost", "Ürün bulunamadı, kart gösteriliyor: $barcodeNotFound")
+                            val notFoundClean = parseShelfQrPayload(barcodeNotFound).barcode.ifBlank { barcodeNotFound }.trim()
+                            onDismissBarcodeScanner()
+                            inventoryViewModel.openAddProductModal(prefilledBarcode = notFoundClean)
                         }
                     )
                 }

@@ -203,7 +203,7 @@ fun ScannerProductDetailsSection(
                 ProductNotFoundPreviewCard(
                     barcode = activeBarcode,
                     onAddProduct = {
-                        val cleanBarcode = parsedActiveQr.barcode.ifBlank { activeBarcode }
+                        val cleanBarcode = parsedActiveQr.barcode.ifBlank { activeBarcode }.trim()
                         onBarcodeDetected(cleanBarcode)
                     },
                     onClearDetail = onClearDetail
