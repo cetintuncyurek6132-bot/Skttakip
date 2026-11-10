@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.Card
@@ -121,25 +122,23 @@ fun CompactYapilacakCard(
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
-                    if (kayit.beklenenAdet > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = TurquoiseLight.copy(alpha = 0.15f),
-                            border = BorderStroke(0.5.dp, TurquoisePrimary.copy(alpha = 0.3f))
-                        ) {
-                            Text(
-                                text = "Adet: ${kayit.beklenenAdet}",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TurquoiseDark,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = TurquoiseLight.copy(alpha = 0.18f),
+                        border = BorderStroke(0.6.dp, TurquoisePrimary.copy(alpha = 0.4f))
+                    ) {
+                        Text(
+                            text = "Raf Adedi: ${kayit.sayilanAdet}",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                        )
                     }
                 }
             }
 
-            // Sağ: SAY Butonu & Kaldır X Butonu
+            // Sağ: Yapıldı Butonu & Kaldır X Butonu
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -157,13 +156,13 @@ fun CompactYapilacakCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.FactCheck,
+                            imageVector = Icons.Default.Check,
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = "SAY",
+                            text = "Yapıldı",
                             fontSize = 11.5.sp,
                             fontWeight = FontWeight.Black,
                             color = Color.White

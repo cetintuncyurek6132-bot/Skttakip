@@ -243,7 +243,7 @@ fun GlobalModalHost(
             onAddToAdetsel = { prod ->
                 adetselViewModel.addToAdetsel(prod) { isSuccess ->
                     if (isSuccess) {
-                        Toast.makeText(context, "${prod.urunAdi} adetsel listesine eklendi", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Ürün sayım listesine eklendi", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
                     }

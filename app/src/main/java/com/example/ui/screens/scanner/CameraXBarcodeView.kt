@@ -105,13 +105,20 @@ fun CameraXBarcodeView(
     }
 
     // 3. SÜREKLİ ODAK (CONTINUOUS AUTO-FOCUS)
-    LaunchedEffect(isPaused, isBatterySaverMode) {
+    LaunchedEffect(isPaused, isBatterySaverMode, isQrMode) {
         if (!isPaused && !isBatterySaverMode) {
+            triggerAutoFocus()
             while (isActive) {
-                delay(5000L) // 2.6sn → 5sn
+                delay(if (isQrMode) 2000L else 3500L)
                 triggerAutoFocus()
             }
         }
+    }
+
+    LaunchedEffect(isQrMode) {
+        lastEmittedRef.set(Pair("", 0L))
+        scanCooldownUntilRef.set(0L)
+        triggerAutoFocus()
     }
 
     fun rebindCamera() {
@@ -146,35 +153,27 @@ fun CameraXBarcodeView(
         }
     }
 
-    // 1. ML KIT BARKOD TARAYICI: İhtiyaca göre 1D veya QR formatlarını filtreleyen optimize istemci
-    val barcodeScanner = remember(isQrMode) {
-        val builder = BarcodeScannerOptions.Builder()
-        if (isQrMode) {
-            // QR / 2D formatlar
-            builder.setBarcodeFormats(
-                Barcode.FORMAT_QR_CODE,
-                Barcode.FORMAT_DATA_MATRIX,
-                Barcode.FORMAT_AZTEC,
-                Barcode.FORMAT_PDF417
-            )
-        } else {
-            // 1D barkod formatları (EAN, UPC, Code128 vs.)
-            builder.setBarcodeFormats(
-                Barcode.FORMAT_EAN_13,
-                Barcode.FORMAT_EAN_8,
-                Barcode.FORMAT_UPC_A,
-                Barcode.FORMAT_UPC_E,
-                Barcode.FORMAT_CODE_128,
-                Barcode.FORMAT_CODE_39,
-                Barcode.FORMAT_CODE_93,
-                Barcode.FORMAT_ITF,
-                Barcode.FORMAT_CODABAR
-            )
-        }
+    // 1. ML KIT BARKOD & QR TARAYICI: Tüm 1D ve 2D (QR, DataMatrix, Aztec, PDF417) formatları destekleyen kalıcı istemci
+    val barcodeScanner = remember {
+        val builder = BarcodeScannerOptions.Builder().setBarcodeFormats(
+            Barcode.FORMAT_QR_CODE,
+            Barcode.FORMAT_DATA_MATRIX,
+            Barcode.FORMAT_AZTEC,
+            Barcode.FORMAT_PDF417,
+            Barcode.FORMAT_EAN_13,
+            Barcode.FORMAT_EAN_8,
+            Barcode.FORMAT_UPC_A,
+            Barcode.FORMAT_UPC_E,
+            Barcode.FORMAT_CODE_128,
+            Barcode.FORMAT_CODE_39,
+            Barcode.FORMAT_CODE_93,
+            Barcode.FORMAT_ITF,
+            Barcode.FORMAT_CODABAR
+        )
         BarcodeScanning.getClient(builder.build())
     }
 
-    DisposableEffect(barcodeScanner) {
+    DisposableEffect(Unit) {
         onDispose {
             try {
                 barcodeScanner.close()
@@ -463,7 +462,8 @@ private fun processImageProxy(
                     ScannerFilterMode.ONLY_QR_CODE -> {
                         b.format == Barcode.FORMAT_QR_CODE ||
                         b.format == Barcode.FORMAT_DATA_MATRIX ||
-                        b.format == Barcode.FORMAT_AZTEC
+                        b.format == Barcode.FORMAT_AZTEC ||
+                        b.format == Barcode.FORMAT_PDF417
                     }
                     ScannerFilterMode.ALL -> true
                 }

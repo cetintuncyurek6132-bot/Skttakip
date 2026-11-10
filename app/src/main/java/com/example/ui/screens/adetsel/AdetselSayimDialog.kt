@@ -190,12 +190,24 @@ fun AdetselSayimDialog(
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Kod: ${kayit.getDisplayCode()}",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate500
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Kod: ${kayit.getDisplayCode()}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate500
+                            )
+                            Text(
+                                text = "Raf Adedi: ${kayit.sayilanAdet}",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark
+                            )
+                        }
                     }
                 }
 
@@ -215,23 +227,24 @@ fun AdetselSayimDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // 1. TAM (FARK: 0)
+                    // 1. TAM (FARK: 0) - Doğrudan TAM olarak kaydedip taşır
                     StatusSelectionPill(
-                        label = "TAM (0)",
-                        subLabel = "Fark Yok",
+                        label = "Tam",
+                        subLabel = "0 Fark",
                         isSelected = selectedSonuc == "TAM",
                         activeBg = NormalGreenDark,
                         onClick = {
                             selectedSonuc = "TAM"
                             discrepancyText = "0"
+                            onSave("TAM", 0, notlar)
                         },
                         modifier = Modifier.weight(1f)
                     )
 
                     // 2. EKSİK
                     StatusSelectionPill(
-                        label = "EKSİK (-)",
-                        subLabel = "Eksik Var",
+                        label = "Eksik",
+                        subLabel = "Eksik Var (-)",
                         isSelected = selectedSonuc == "EKSIK",
                         activeBg = ExpiredRedDark,
                         onClick = {
@@ -243,8 +256,8 @@ fun AdetselSayimDialog(
 
                     // 3. FAZLA
                     StatusSelectionPill(
-                        label = "FAZLA (+)",
-                        subLabel = "Fazla Var",
+                        label = "Fazla",
+                        subLabel = "Fazla Var (+)",
                         isSelected = selectedSonuc == "FAZLA",
                         activeBg = WarningBlueDark,
                         onClick = {
@@ -278,13 +291,13 @@ fun AdetselSayimDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
                                 Text(
-                                    text = "Tam (0 Fark)",
+                                    text = if (kayit.sayilanAdet > 0) "Sayıldı (${kayit.sayilanAdet} Adet)" else "Tam (0 Fark)",
                                     fontWeight = FontWeight.Black,
                                     fontSize = 13.sp,
                                     color = NormalGreenDark
                                 )
                                 Text(
-                                    text = "Sayımda eksik veya fazla adet bulunmuyor (Tam).",
+                                    text = if (kayit.sayilanAdet > 0) "Ürün raftaki ${kayit.sayilanAdet} adet ile sayıldı olarak işaretlenecek." else "Sayımda eksik veya fazla adet bulunmuyor (Tam).",
                                     fontSize = 11.sp,
                                     color = Slate700
                                 )
@@ -463,7 +476,7 @@ fun AdetselSayimDialog(
                             text = when (selectedSonuc) {
                                 "EKSIK" -> "Eksik Kaydet"
                                 "FAZLA" -> "Fazla Kaydet"
-                                else -> "Tam Kaydet"
+                                else -> if (kayit.sayilanAdet > 0) "Sayıldı Olarak Kaydet" else "Tam Kaydet"
                             },
                             fontWeight = FontWeight.Black,
                             fontSize = 12.5.sp,

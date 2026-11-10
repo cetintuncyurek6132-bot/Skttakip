@@ -348,7 +348,7 @@ object ShelfQrParser {
         // 8. Plain single barcode or product code string
         return ShelfQrData(
             barcode = if (digitsOnly.length in 8..14) digitsOnly else trimmed,
-            productCode = if (digitsOnly.length in 4..11) digitsOnly else trimmed,
+            productCode = null,
             isShelfQr = false
         )
     }

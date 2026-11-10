@@ -145,13 +145,8 @@ fun AdetselQuickCountBottomSheet(
         keyboardController?.hide()
         focusManager.clearFocus()
 
-        // Veritabanındaki o anki mevcut stok adedi (currentStock) otomatik kutunun içine yazılır
-        val currentStock = allProducts.filter {
-            (prod.barkod.isNotBlank() && it.barkod == prod.barkod) ||
-            (prod.urunKodu.isNotBlank() && it.urunKodu == prod.urunKodu)
-        }.sumOf { it.stokAdedi }.let { if (it > 0) it else prod.stokAdedi }
-
-        countQuantityText = currentStock.toString()
+        // Raftaki sayım adedi (kullanıcı girer, eski stokla uğraşılmaz)
+        countQuantityText = ""
     }
 
     // Dinamik Arama Sonuçları (Debounce edilmiş sorgu ile arama)
@@ -249,11 +244,16 @@ fun AdetselQuickCountBottomSheet(
                                 if (matched != null) {
                                     selectProduct(matched)
                                 } else {
-                                    HapticFeedbackHelper.triggerWarningHaptic(context)
-                                    scannedProduct = null
-                                    isProductNotFound = true
-                                    notFoundQuery = clean
-                                    countQuantityText = ""
+                                    // Sistemde kayıtlı olmasa dahi doğrudan raftaki adet girilip sayıma eklenebilir
+                                    val fallbackProduct = Product(
+                                        barkod = clean,
+                                        urunKodu = clean,
+                                        urunAdi = "Ürün $clean",
+                                        kategori = "Genel",
+                                        sktTarihi = 0L,
+                                        stokAdedi = 0
+                                    )
+                                    selectProduct(fallbackProduct)
                                 }
                             }
                         }
@@ -376,11 +376,16 @@ fun AdetselQuickCountBottomSheet(
                         if (firstMatch != null) {
                             selectProduct(firstMatch)
                         } else if (manualSearchQuery.isNotBlank()) {
-                            HapticFeedbackHelper.triggerWarningHaptic(context)
-                            isProductNotFound = true
-                            notFoundQuery = manualSearchQuery.trim()
-                            scannedProduct = null
-                            countQuantityText = ""
+                            val clean = manualSearchQuery.trim()
+                            val fallbackProduct = Product(
+                                barkod = if (clean.all { it.isDigit() }) clean else "",
+                                urunKodu = clean,
+                                urunAdi = clean,
+                                kategori = "Genel",
+                                sktTarihi = 0L,
+                                stokAdedi = 0
+                            )
+                            selectProduct(fallbackProduct)
                         }
                     }
                 ),
@@ -540,7 +545,7 @@ fun AdetselQuickCountBottomSheet(
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                text = "Sayım Adedi:",
+                                text = "Raftaki Adet:",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -573,12 +578,15 @@ fun AdetselQuickCountBottomSheet(
 
                             Spacer(modifier = Modifier.width(10.dp))
 
-                            // Adet Giriş Kutusu (Klavyeden yazılabilir, varsayılan mevcut stok)
+                            // Adet Giriş Kutusu (Klavyeden yazılabilir, kullanıcının girdiği adet)
                             OutlinedTextField(
                                 value = countQuantityText,
                                 onValueChange = { newVal ->
                                     val filtered = newVal.filter { it.isDigit() }
                                     countQuantityText = filtered
+                                },
+                                placeholder = {
+                                    Text("0", textAlign = TextAlign.Center, color = Slate500, modifier = Modifier.fillMaxWidth())
                                 },
                                 modifier = Modifier
                                     .width(90.dp)
@@ -695,8 +703,7 @@ fun AdetselQuickCountBottomSheet(
                 }
 
                 // "Sayıma Ekle" butonu: Kutuda yazan adedi doğrudan sayım listesine ekler/günceller, modalı kapatır.
-                // Okunan barkod veya aranan ürün sistemde yoksa: Sayıma Ekle butonu pasif kalır.
-                val isSaveEnabled = scannedProduct != null && !isProductNotFound && countQuantityText.toIntOrNull() != null
+                val isSaveEnabled = scannedProduct != null
                 Button(
                     onClick = {
                         val prod = scannedProduct ?: return@Button

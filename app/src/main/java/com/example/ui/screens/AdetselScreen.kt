@@ -256,13 +256,7 @@ fun AdetselScreen(
                     val existing = distinctYapilacakList.find { it.productId == product.id || (it.barkod.isNotBlank() && it.barkod == product.barkod) }
                         ?: yapildiList.find { it.productId == product.id || (it.barkod.isNotBlank() && it.barkod == product.barkod) }
                     if (existing != null) {
-                        val fark = countedQty - existing.beklenenAdet
-                        val sonuc = when {
-                            fark == 0 -> "TAM"
-                            fark < 0 -> "EKSIK"
-                            else -> "FAZLA"
-                        }
-                        onSaveSayim(existing, sonuc, fark, "")
+                        onSaveSayim(existing.copy(sayilanAdet = countedQty, yapildiMi = false), "", 0, "")
                     } else {
                         onAddToAdetsel?.invoke(product) { _ -> }
                     }

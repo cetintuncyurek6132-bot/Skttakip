@@ -35,6 +35,9 @@ import com.example.ui.viewmodel.AdetselViewModel
 import com.example.ui.viewmodel.InventoryViewModel
 import com.example.ui.viewmodel.SettingsViewModel
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+
 @Composable
 fun AppNavHost(
     navController: NavHostController,
@@ -71,33 +74,19 @@ fun AppNavHost(
         modifier = Modifier
             .fillMaxSize()
             .padding(innerPadding),
-        enterTransition = {
-            slideIntoContainer(
-                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(180))
-        },
-        exitTransition = {
-            slideOutOfContainer(
-                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(180))
-        },
-        popEnterTransition = {
-            slideIntoContainer(
-                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(180))
-        },
-        popExitTransition = {
-            slideOutOfContainer(
-                towards = androidx.compose.animation.AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(180, easing = androidx.compose.animation.core.FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(180))
-        }
+        enterTransition = { EnterTransition.None },
+        exitTransition = { ExitTransition.None },
+        popEnterTransition = { EnterTransition.None },
+        popExitTransition = { ExitTransition.None }
     ) {
         // 4 ANA SEKME (HORIZONTAL PAGER İLE DÜZENLİ GEÇİŞ)
-        composable("main") {
+        composable(
+            route = "main",
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None }
+        ) {
             val sktProductCount = remember(allProducts) {
                 allProducts.count { it.sktTarihi > 0L && it.stokAdedi > 0 }
             }
@@ -106,7 +95,7 @@ fun AppNavHost(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize(),
                 userScrollEnabled = false,
-                beyondViewportPageCount = 1,
+                beyondViewportPageCount = 0,
                 key = { page ->
                     when (page) {
                         0 -> "panel"
@@ -201,7 +190,7 @@ fun AppNavHost(
                                     val msg = when (sonuc) {
                                         "EKSIK" -> "${kayit.urunAdi} ($fark Adet Eksik) kaydedildi"
                                         "FAZLA" -> "${kayit.urunAdi} (+$fark Fazla) kaydedildi"
-                                        else -> "${kayit.urunAdi} (Tam) kaydedildi"
+                                        else -> "${kayit.urunAdi} sayıldı olarak kaydedildi"
                                     }
                                     Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                                 }
@@ -227,7 +216,13 @@ fun AppNavHost(
         }
 
         // 5. CSV VERİ AKTARIMI & AYARLAR (TAM EKRAN ALT SAYFA)
-        composable("csv") {
+        composable(
+            route = "csv",
+            enterTransition = { fadeIn(animationSpec = tween(140)) },
+            exitTransition = { fadeOut(animationSpec = tween(140)) },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { fadeOut(animationSpec = tween(140)) }
+        ) {
             val barcodeSoundId by settingsViewModel.barcodeSoundId.collectAsState()
             val labelFixSoundId by settingsViewModel.labelFixSoundId.collectAsState()
             CsvScreen(
@@ -285,7 +280,13 @@ fun AppNavHost(
         }
 
         // 6. ANALİZ VE İSTATİSTİKLER (ANALYTICS & CHARTS)
-        composable("analytics") {
+        composable(
+            route = "analytics",
+            enterTransition = { fadeIn(animationSpec = tween(140)) },
+            exitTransition = { fadeOut(animationSpec = tween(140)) },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { fadeOut(animationSpec = tween(140)) }
+        ) {
             AnalyticsScreen(
                 products = allProducts,
                 stockLogs = stockLogs,

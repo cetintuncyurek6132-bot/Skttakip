@@ -46,8 +46,9 @@ class AdetselViewModel(
     fun saveDirectCount(
         product: Product,
         countedQty: Int,
+        notlar: String = "",
         onComplete: (() -> Unit)? = null
-    ) = adetselSayimManager.saveDirectCount(product, countedQty, onComplete)
+    ) = adetselSayimManager.saveDirectCount(product, countedQty, notlar, onComplete)
 
     class Factory(private val repository: ProductRepository) : ViewModelProvider.Factory {
         @Suppress("UNCHECKED_CAST")

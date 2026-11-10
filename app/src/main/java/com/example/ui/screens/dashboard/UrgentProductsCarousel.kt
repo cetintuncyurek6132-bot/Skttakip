@@ -8,15 +8,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.filled.AddCircleOutline
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -39,13 +42,13 @@ import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedBorder
-import com.example.ui.theme.ExpiredRedDark
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SoonYellowBorder
+import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import kotlinx.coroutines.delay
 
@@ -61,87 +64,121 @@ fun UrgentProductsCarousel(
     urgentProducts: List<Product>,
     todayMidnight: Long,
     onProductClick: (Product) -> Unit,
-    onViewAllClick: (() -> Unit)? = null
+    onViewAllClick: (() -> Unit)? = null,
+    onAddProductClick: (() -> Unit)? = null
 ) {
-    if (urgentProducts.isNotEmpty()) {
-        val pagerState = rememberPagerState(pageCount = { urgentProducts.size })
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        // Vitrin Başlık Çubuğu (Her durumda görünür, sağda mini Ekle butonu ile)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Sol: Turuncu nokta + "Acil Müdahale Vitrini" + varsa adet sayacı
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(if (urgentProducts.isNotEmpty()) CriticalOrange else EmeraldSuccess)
+                )
+                Text(
+                    text = "Acil Müdahale Vitrini",
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
 
-        LaunchedEffect(urgentProducts.size) {
-            if (urgentProducts.size > 1) {
-                while (true) {
-                    delay(3500L)
-                    if (!pagerState.isScrollInProgress) {
-                        val nextPage = (pagerState.currentPage + 1) % urgentProducts.size
-                        try {
-                            pagerState.animateScrollToPage(
-                                page = nextPage,
-                                animationSpec = tween(durationMillis = 650)
+                if (urgentProducts.isNotEmpty()) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier = if (onViewAllClick != null) {
+                            Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { onViewAllClick() }
+                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                        } else {
+                            Modifier
+                        }
+                    ) {
+                        Text(
+                            text = "(${urgentProducts.size})",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = CriticalOrange,
+                            maxLines = 1,
+                            softWrap = false
+                        )
+                        if (onViewAllClick != null) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                contentDescription = "Tümünü Gör",
+                                tint = CriticalOrange,
+                                modifier = Modifier.size(9.dp)
                             )
-                        } catch (_: Exception) {}
+                        }
+                    }
+                }
+            }
+
+            // Sağ: Şık, mini "Ekle" butonu/ikonu
+            if (onAddProductClick != null) {
+                Surface(
+                    onClick = onAddProductClick,
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color(0xFFF0FDFA),
+                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
+                    modifier = Modifier.testTag("dashboard_header_add_product_button")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AddCircleOutline,
+                            contentDescription = "Ürün / SKT Ekle",
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = "Ekle",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark,
+                            maxLines = 1
+                        )
                     }
                 }
             }
         }
 
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Vitrin Başlık Çubuğu
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Sol: Turuncu nokta + "Acil Müdahale Vitrini"
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(CriticalOrange)
-                    )
-                    Text(
-                        text = "Acil Müdahale Vitrini",
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                }
+        if (urgentProducts.isNotEmpty()) {
+            val pagerState = rememberPagerState(pageCount = { urgentProducts.size })
 
-                // Sağ: "$count Adet" sade sayaç (asla alt satıra kırılmaz)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = if (onViewAllClick != null) {
-                        Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable { onViewAllClick() }
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    } else {
-                        Modifier
-                    }
-                ) {
-                    Text(
-                        text = "${urgentProducts.size} Adet",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CriticalOrange,
-                        maxLines = 1,
-                        softWrap = false
-                    )
-                    if (onViewAllClick != null) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                            contentDescription = "Tümünü Gör",
-                            tint = CriticalOrange,
-                            modifier = Modifier.size(10.dp)
-                        )
+            LaunchedEffect(urgentProducts.size) {
+                if (urgentProducts.size > 1) {
+                    while (true) {
+                        delay(3500L)
+                        if (!pagerState.isScrollInProgress) {
+                            val nextPage = (pagerState.currentPage + 1) % urgentProducts.size
+                            try {
+                                pagerState.animateScrollToPage(
+                                    page = nextPage,
+                                    animationSpec = tween(durationMillis = 650)
+                                )
+                            } catch (_: Exception) {}
+                        }
                     }
                 }
             }
@@ -340,54 +377,54 @@ fun UrgentProductsCarousel(
                     }
                 }
             }
-        }
-    } else {
-        // EĞER ACİL ÜRÜN YOKSA (BOŞ DURUM)
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFF0FDF4),
-            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-            shadowElevation = 1.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+        } else {
+            // EĞER ACİL ÜRÜN YOKSA (BOŞ DURUM)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFFDCFCE7)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Shield,
-                        contentDescription = null,
-                        tint = EmeraldSuccess,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFDCFCE7)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Shield,
+                            contentDescription = null,
+                            tint = EmeraldSuccess,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
 
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Text(
-                        text = "Tüm Reyonlar Güvende",
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF166534)
-                    )
-                    Text(
-                        text = "Acil müdahale gerektiren (0-7 gün) ürün bulunmuyor.",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Color(0xFF15803D)
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = "Tüm Reyonlar Güvende",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF166534)
+                        )
+                        Text(
+                            text = "Acil müdahale gerektiren (0-7 gün) ürün bulunmuyor.",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF15803D)
+                        )
+                    }
                 }
             }
         }

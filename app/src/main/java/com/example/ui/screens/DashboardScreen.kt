@@ -2,16 +2,11 @@ package com.example.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,37 +15,20 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.AssignmentLate
-import androidx.compose.material.icons.filled.EditNote
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,13 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -74,33 +50,17 @@ import com.example.auth.UserManager
 import com.example.data.DepoIadeManager
 import com.example.data.IadeDurumu
 import com.example.data.Product
-import com.example.data.getDisplayName
 import com.example.ui.DashboardState
 import com.example.ui.ProductFilter
-import com.example.ui.theme.CriticalOrange
-import com.example.ui.theme.CriticalOrangeBorder
-import com.example.ui.theme.CriticalOrangeDark
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedContainer
 import com.example.ui.theme.ExpiredRedDark
-import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate50
-import com.example.ui.theme.Slate500
-import com.example.ui.theme.Slate600
-import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
-import com.example.ui.theme.SoonYellowBorder
-import com.example.ui.theme.SoonYellowDark
-import com.example.ui.theme.TurquoiseDark
-import com.example.ui.theme.TurquoisePrimary
-import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -175,7 +135,6 @@ fun DashboardScreen(
     val ongoingDepoRecords = remember(depoRecords) {
         depoRecords.filter { it.durum == IadeDurumu.DEVAM_EDIYOR }
     }
-    val pendingDepoCount = rejectedDepoRecords.size + missingDocDepoRecords.size + ongoingDepoRecords.size
 
     // 5. Sabah Açılış Rutini (SharedPreferences tabanlı günlük 4 maddelik checklist)
     val routineItems = remember {
@@ -297,20 +256,23 @@ fun DashboardScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 12.dp)
             .testTag("dashboard_screen_root"),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // =====================================================================
         // 1. DİNAMİK VE OTOMATİK SOLA AKAN ACİL ÜRÜN VİTRİNİ (HORIZONTAL PAGER)
+        //    + Sağ Üstte Mini "Ekle" Butonu
         // =====================================================================
         com.example.ui.screens.dashboard.UrgentProductsCarousel(
             urgentProducts = urgentProducts,
             todayMidnight = todayMidnight,
             onProductClick = onProductClick,
-            onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.URGENT_0_TO_7) }
+            onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.URGENT_0_TO_7) },
+            onAddProductClick = { onQuickActionClick("add_product") }
         )
 
         // =====================================================================
-        // 2. 3'LÜ SABAH OPERASYON KARTLARI (Büyük, Dokunmatik ve Net Rakamlar)
+        // 2. SABAH OPERASYON GÖREVLERİ + MİNİ ANALİZ & İSTATİSTİKLER ROZETİ
+        //    + 3'LÜ YATAY KOMPAKT KARTLAR
         // =====================================================================
         com.example.ui.screens.dashboard.MorningOperationCardsSection(
             expiredVariety = expiredVariety,
@@ -319,98 +281,22 @@ fun DashboardScreen(
             criticalTotalStock = criticalTotalStock,
             soonVariety = soonVariety,
             soonTotalStock = soonTotalStock,
-            onFilterSelectAndNavigate = onFilterSelectAndNavigate
+            onFilterSelectAndNavigate = onFilterSelectAndNavigate,
+            onAnalyticsClick = { onQuickActionClick("analytics") }
         )
 
         // =====================================================================
-        // 3. DÜNDEN DEVREDENLER & BEKLEYEN İŞLER (Adetsel Sayım)
-        // =====================================================================
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, if (pendingAdetselCount > 0) Color(0xFFFDBA74) else Slate200),
-            shadowElevation = 1.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(if (pendingAdetselCount > 0) Color(0xFFFFEDD5) else Color(0xFFDCFCE7)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (pendingAdetselCount > 0) Icons.Default.AssignmentLate else Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = if (pendingAdetselCount > 0) Color(0xFFEA580C) else EmeraldSuccess,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
-                ) {
-                    Text(
-                        text = "Adetsel Sayım Kontrolü",
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                    Text(
-                        text = if (pendingAdetselCount > 0)
-                            "Dünden kalan $pendingAdetselCount kalem sayım tamamlanmadı"
-                        else
-                            "Sayım: Güncel",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Slate500
-                    )
-                }
-
-                if (pendingAdetselCount > 0) {
-                    Button(
-                        onClick = { onQuickActionClick("adetsel") },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEA580C)),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                        modifier = Modifier.height(32.dp)
-                    ) {
-                        Text("İncele", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // 4. DEPO İADE & TAKİP KARTI (Dinamik Gerçek Durum)
+        // 3. OPERASYONEL DURUM (TEK SATIRDA: Adetsel Sayım Kontrolü & Depo İade Takibi)
         // =====================================================================
         val isDepoRedAlert = rejectedDepoRecords.isNotEmpty() || missingDocDepoRecords.isNotEmpty()
         val hasOngoingDepo = ongoingDepoRecords.isNotEmpty()
         val hasAnyDepoAction = isDepoRedAlert || hasOngoingDepo
 
-        val depoCardTitle = if (isDepoRedAlert) "Depo İade Alarmı" else "Depo İade Takibi"
-        val depoCardSubtitle = when {
-            rejectedDepoRecords.isNotEmpty() -> {
-                val first = rejectedDepoRecords.first()
-                "${rejectedDepoRecords.size} Kayıt Reddedildi (Depo Reddi) • ${first.redNedeni}"
-            }
-            missingDocDepoRecords.isNotEmpty() -> {
-                val first = missingDocDepoRecords.first()
-                "${missingDocDepoRecords.size} Kayıtta Eksik Belge (Eksik Belge) • ${first.urunAdi}"
-            }
-            ongoingDepoRecords.isNotEmpty() -> {
-                val first = ongoingDepoRecords.first()
-                "${ongoingDepoRecords.size} Kayıt Süreçte • ${first.redNedeni}"
-            }
-            else -> "Depoya sevk edilecek açık iade evrakı bulunmuyor."
+        val depoStatusText = when {
+            rejectedDepoRecords.isNotEmpty() -> "${rejectedDepoRecords.size} Reddedildi"
+            missingDocDepoRecords.isNotEmpty() -> "${missingDocDepoRecords.size} Eksik Belge"
+            ongoingDepoRecords.isNotEmpty() -> "${ongoingDepoRecords.size} Süreçte"
+            else -> "Açık Evrak Yok"
         }
 
         val depoBorderColor = when {
@@ -431,76 +317,129 @@ fun DashboardScreen(
         val depoTextColor = when {
             isDepoRedAlert -> ExpiredRedDark
             hasOngoingDepo -> Color(0xFFC2410C)
-            else -> Slate500
-        }
-        val depoButtonColor = when {
-            isDepoRedAlert -> ExpiredRed
-            hasOngoingDepo -> Color(0xFFEA580C)
-            else -> TurquoisePrimary
+            else -> Color(0xFF15803D)
         }
 
-        Surface(
-            onClick = { onQuickActionClick("takip") },
-            shape = RoundedCornerShape(14.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, depoBorderColor),
-            shadowElevation = 1.dp,
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            // Sol Kutu: Adetsel Sayım Kontrolü
+            Surface(
+                onClick = { onQuickActionClick("adetsel") },
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, if (pendingAdetselCount > 0) Color(0xFFFDBA74) else Slate200),
+                shadowElevation = 1.dp,
+                modifier = Modifier.weight(1f)
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(depoIconBg),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = if (hasAnyDepoAction) Icons.Default.LocalShipping else Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = depoIconTint,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(if (pendingAdetselCount > 0) Color(0xFFFFEDD5) else Color(0xFFDCFCE7)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (pendingAdetselCount > 0) Icons.Default.AssignmentLate else Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = if (pendingAdetselCount > 0) Color(0xFFEA580C) else EmeraldSuccess,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
 
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp)
-                ) {
-                    Text(
-                        text = depoCardTitle,
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                    Text(
-                        text = depoCardSubtitle,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = depoTextColor
-                    )
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        Text(
+                            text = "Adetsel Sayım",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = if (pendingAdetselCount > 0)
+                                "$pendingAdetselCount Bekleyen"
+                            else
+                                "Sayım: Güncel",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Color(0xFF15803D),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
+            }
 
-                Button(
-                    onClick = { onQuickActionClick("takip") },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = depoButtonColor),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                    modifier = Modifier.height(32.dp)
+            // Sağ Kutu: Depo İade Takibi
+            Surface(
+                onClick = { onQuickActionClick("takip") },
+                shape = RoundedCornerShape(12.dp),
+                color = Color.White,
+                border = BorderStroke(1.dp, depoBorderColor),
+                shadowElevation = 1.dp,
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text("İncele", fontSize = 11.5.sp, fontWeight = FontWeight.Bold)
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(depoIconBg),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (hasAnyDepoAction) Icons.Default.LocalShipping else Icons.Default.CheckCircle,
+                            contentDescription = null,
+                            tint = depoIconTint,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        Text(
+                            text = "Depo İade Takibi",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = depoStatusText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = depoTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
 
         // =====================================================================
-        // 5. SABAH AÇILIŞ RUTİNİ (GÜNLÜK HIZLI CHECKLIST)
+        // 4. SABAH AÇILIŞ RUTİNİ (GÜNLÜK HIZLI CHECKLIST)
         // =====================================================================
         com.example.ui.screens.dashboard.MorningOpeningRoutineCard(
             routineItems = routineItems,
@@ -509,164 +448,39 @@ fun DashboardScreen(
         )
 
         // =====================================================================
-        // 6. WHATSAPP SABAH RAPORU & HIZLI KISAYOLLAR
+        // 5. WHATSAPP SABAH RAPORU PAYLAŞ BUTONU
         // =====================================================================
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+        Surface(
+            onClick = { shareMorningCockpitOnWhatsApp() },
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFF0FDF4),
+            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            // WhatsApp Vardiya Raporu Paylaş Butonu
-            Surface(
-                onClick = { shareMorningCockpitOnWhatsApp() },
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFF0FDF4),
-                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = null,
-                        tint = Color(0xFF16A34A),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Sabah Vardiya Raporunu WhatsApp'tan Paylaş",
-                        fontSize = 13.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF15803D)
-                    )
-                }
-            }
-
-            // Hızlı Kısayol Butonları (Barkod Tara, Yeni Ürün)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Surface(
-                    onClick = { onQuickActionClick("scan") },
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Slate200),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 11.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = null,
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Barkod Tara",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate800
-                        )
-                    }
-                }
-
-                Surface(
-                    onClick = { onQuickActionClick("add_product") },
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.White,
-                    border = BorderStroke(1.dp, Slate200),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(vertical = 11.dp, horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AddCircleOutline,
-                            contentDescription = null,
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Ürün / SKT Ekle",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate800
-                        )
-                    }
-                }
-            }
-
-            // Analiz & İstatistikler Butonu
-            Surface(
-                onClick = { onQuickActionClick("analytics") },
-                shape = RoundedCornerShape(14.dp),
-                color = Color(0xFFF0FDFA),
-                border = BorderStroke(1.dp, Color(0xFF99F6E4)),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("dashboard_analytics_button")
+                    .padding(horizontal = 16.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.15f),
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.Analytics,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = "Analiz & İstatistikler",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = TurquoiseDark
-                            )
-                            Text(
-                                text = "SKT risk grafikleri ve son 30 gün analizi",
-                                fontSize = 11.5.sp,
-                                color = Slate600
-                            )
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Detay",
-                        tint = TurquoiseDark,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                    tint = Color(0xFF16A34A),
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Sabah Vardiya Raporunu WhatsApp'tan Paylaş",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF15803D)
+                )
             }
         }
 
-        // 6. Tasarım ve Ergonomi: Alt bar ile doğal ve şık mesafe
-        Spacer(modifier = Modifier.height(16.dp))
+        // 6. Alt gezinme çubuğunun (BottomBar) içeriğin üstünü kapatmaması için 80.dp boşluk
+        Spacer(modifier = Modifier.height(80.dp))
     }
 }

@@ -82,12 +82,6 @@ class AdetselSayimManager(
             }
 
             val code = if (product.urunKodu.isNotBlank()) product.urunKodu else product.barkod
-            val allProds = repository.productDao.getAllProductsList()
-            val totalStok = allProds.filter {
-                (product.barkod.isNotBlank() && it.barkod == product.barkod) ||
-                (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu)
-            }.sumOf { it.stokAdedi }.let { if (it > 0) it else product.stokAdedi }
-
             val kayit = AdetselKayit(
                 productId = product.id,
                 urunAdi = product.urunAdi,
@@ -96,7 +90,10 @@ class AdetselSayimManager(
                 kategori = product.kategori,
                 eklenmeTarihi = System.currentTimeMillis(),
                 yapildiMi = false,
-                beklenenAdet = totalStok
+                sayimSonucu = "",
+                sayilanAdet = 0,
+                farkAdet = 0,
+                beklenenAdet = 0
             )
             val id = repository.insertAdetselKayit(kayit)
             withContext(Dispatchers.Main) {
@@ -109,15 +106,16 @@ class AdetselSayimManager(
         kayit: AdetselKayit,
         sonuc: String,
         fark: Int,
-        sayilanAdet: Int = kayit.beklenenAdet + fark,
+        sayilanAdet: Int = if (kayit.sayilanAdet > 0) kayit.sayilanAdet else maxOf(0, fark),
         notlar: String = "",
         onComplete: (() -> Unit)? = null
     ) {
         scope.launch(Dispatchers.IO) {
+            val finalSayilan = if (kayit.sayilanAdet > 0) kayit.sayilanAdet else if (sayilanAdet > 0) sayilanAdet else 0
             val updated = kayit.copy(
                 yapildiMi = true,
                 sayimSonucu = sonuc,
-                sayilanAdet = sayilanAdet,
+                sayilanAdet = finalSayilan,
                 farkAdet = fark,
                 notlar = notlar,
                 islemTarihi = System.currentTimeMillis()
@@ -155,20 +153,16 @@ class AdetselSayimManager(
     }
 
     /**
-     * Directly adds or updates a product count with the specified quantity in the sayım list.
+     * Directly adds or updates a product count with the specified shelf quantity in the YAPILACAK list.
+     * No DB stock comparison is performed; beklenenAdet and farkAdet are 0, sayimSonucu is "", and yapildiMi is false.
      */
     fun saveDirectCount(
         product: Product,
         countedQty: Int,
+        notlar: String = "",
         onComplete: (() -> Unit)? = null
     ) {
         scope.launch(Dispatchers.IO) {
-            val allProds = repository.productDao.getAllProductsList()
-            val totalStok = allProds.filter {
-                (product.barkod.isNotBlank() && it.barkod == product.barkod) ||
-                (product.urunKodu.isNotBlank() && it.urunKodu == product.urunKodu)
-            }.sumOf { it.stokAdedi }.let { if (it > 0) it else product.stokAdedi }
-
             val allKayitlar = repository.getAllAdetselKayitlarList()
             val existingKayit = allKayitlar.find { existing ->
                 (product.id > 0 && existing.productId == product.id) ||
@@ -177,21 +171,14 @@ class AdetselSayimManager(
                 (product.urunAdi.isNotBlank() && existing.urunAdi.trim().equals(product.urunAdi.trim(), ignoreCase = true))
             }
 
-            val beklenenAdet = if (existingKayit != null && existingKayit.beklenenAdet > 0) existingKayit.beklenenAdet else totalStok
-            val fark = countedQty - beklenenAdet
-            val sonuc = when {
-                fark == 0 -> "TAM"
-                fark < 0 -> "EKSIK"
-                else -> "FAZLA"
-            }
-
             if (existingKayit != null) {
                 val updated = existingKayit.copy(
-                    yapildiMi = true,
-                    sayimSonucu = sonuc,
+                    yapildiMi = false,
+                    sayimSonucu = "",
                     sayilanAdet = countedQty,
-                    farkAdet = fark,
-                    beklenenAdet = beklenenAdet,
+                    farkAdet = 0,
+                    beklenenAdet = 0,
+                    notlar = if (notlar.isNotBlank()) notlar else existingKayit.notlar,
                     islemTarihi = System.currentTimeMillis()
                 )
                 repository.updateAdetselKayit(updated)
@@ -204,11 +191,12 @@ class AdetselSayimManager(
                     barkod = product.barkod,
                     kategori = product.kategori,
                     eklenmeTarihi = System.currentTimeMillis(),
-                    yapildiMi = true,
-                    sayimSonucu = sonuc,
+                    yapildiMi = false,
+                    sayimSonucu = "",
                     sayilanAdet = countedQty,
-                    farkAdet = fark,
-                    beklenenAdet = beklenenAdet,
+                    farkAdet = 0,
+                    beklenenAdet = 0,
+                    notlar = notlar,
                     islemTarihi = System.currentTimeMillis()
                 )
                 repository.insertAdetselKayit(newKayit)

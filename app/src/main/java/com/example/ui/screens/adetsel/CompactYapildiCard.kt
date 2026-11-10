@@ -50,6 +50,8 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
+import com.example.ui.theme.TurquoiseLight
+import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.theme.WarningBlueBorder
 import com.example.ui.theme.WarningBlueContainer
 import com.example.ui.theme.WarningBlueDark
@@ -76,20 +78,20 @@ fun CompactYapildiCard(
             statusText = ExpiredRedDark
             statusBorder = ExpiredRedBorder
             val miktar = if (absFark == 0) 1 else absFark
-            statusLabel = "EKSİK: -$miktar Adet"
+            statusLabel = "$miktar Adet Eksik"
         }
         "FAZLA" -> {
             statusBg = WarningBlueContainer
             statusText = WarningBlueDark
             statusBorder = WarningBlueBorder
             val miktar = if (absFark == 0) 1 else absFark
-            statusLabel = "FAZLA: +$miktar Adet"
+            statusLabel = "$miktar Adet Fazla"
         }
         else -> {
             statusBg = NormalGreenContainer
             statusText = NormalGreenDark
             statusBorder = NormalGreenBorder
-            statusLabel = "TAM (0 Fark)"
+            statusLabel = "TAM"
         }
     }
 
@@ -106,7 +108,7 @@ fun CompactYapildiCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Durum Rozeti Kutusu
+                // Durum Rozeti Kutusu (TAM, X Adet Eksik, X Adet Fazla)
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = statusBg,
@@ -149,7 +151,7 @@ fun CompactYapildiCard(
             Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
@@ -166,7 +168,22 @@ fun CompactYapildiCard(
                     )
                 }
 
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = TurquoiseLight.copy(alpha = 0.18f),
+                    border = BorderStroke(0.6.dp, TurquoisePrimary.copy(alpha = 0.4f))
+                ) {
+                    Text(
+                        text = "Raf Adedi: ${kayit.sayilanAdet}",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TurquoiseDark,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+
                 if (kayit.notlar.isNotBlank()) {
+                    Spacer(modifier = Modifier.weight(1f))
                     Text(
                         text = "Not: ${kayit.notlar}",
                         fontSize = 11.sp,

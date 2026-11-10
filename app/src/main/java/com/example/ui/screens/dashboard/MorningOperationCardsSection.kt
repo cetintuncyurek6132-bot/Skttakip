@@ -2,7 +2,6 @@ package com.example.ui.screens.dashboard
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,10 +11,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Warning
@@ -40,9 +40,12 @@ import com.example.ui.theme.CriticalOrangeDark
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedDark
+import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.SoonYellowBorder
 import com.example.ui.theme.SoonYellowDark
+import com.example.ui.theme.TurquoiseDark
+import com.example.ui.theme.TurquoisePrimary
 
 @Composable
 fun MorningOperationCardsSection(
@@ -52,7 +55,8 @@ fun MorningOperationCardsSection(
     criticalTotalStock: Int,
     soonVariety: Int,
     soonTotalStock: Int,
-    onFilterSelectAndNavigate: (ProductFilter) -> Unit
+    onFilterSelectAndNavigate: (ProductFilter) -> Unit,
+    onAnalyticsClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -62,50 +66,127 @@ fun MorningOperationCardsSection(
             text = "Sabah Operasyon Görevleri",
             fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            color = Slate900
+            color = Slate900,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
 
-        // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçen)
-        MorningOperationCard(
-            title = "Raftan Çekilecekler",
-            varietyCount = expiredVariety,
-            totalStockCount = expiredTotalStock,
-            badgeColor = ExpiredRed,
-            bgColor = Color(0xFFFFF5F5),
-            borderColor = ExpiredRedBorder,
-            textColor = ExpiredRedDark,
-            icon = Icons.Default.Warning,
-            testTag = "op_card_expired",
-            onClick = { onFilterSelectAndNavigate(ProductFilter.EXPIRED) }
-        )
+        // "Sabah Operasyon Görevleri" başlığının hemen altında mini "Analiz & İstatistikler" grafik rozeti/butonu
+        if (onAnalyticsClick != null) {
+            Surface(
+                onClick = onAnalyticsClick,
+                shape = RoundedCornerShape(10.dp),
+                color = Color(0xFFF0FDFA),
+                border = BorderStroke(1.dp, Color(0xFF99F6E4)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("dashboard_analytics_button")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(TurquoisePrimary.copy(alpha = 0.16f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Analytics,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Analiz & İstatistikler",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = TurquoiseDark,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "• SKT & Satış/Fire Grafiği",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Slate600,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
 
-        // 🟠 Kart 2: Sıcak Satış (1-2 Gün)
-        MorningOperationCard(
-            title = "Sıcak Satış (1-2 Gün)",
-            varietyCount = criticalVariety,
-            totalStockCount = criticalTotalStock,
-            badgeColor = CriticalOrange,
-            bgColor = Color(0xFFFFF9F2),
-            borderColor = CriticalOrangeBorder,
-            textColor = CriticalOrangeDark,
-            icon = Icons.Default.NotificationsActive,
-            testTag = "op_card_critical",
-            onClick = { onFilterSelectAndNavigate(ProductFilter.CRITICAL) }
-        )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Analiz & İstatistikler",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
 
-        // 🟡 Kart 3: Yakın Takip (3-7 Gün)
-        MorningOperationCard(
-            title = "Yakın Takip (3-7 Gün)",
-            varietyCount = soonVariety,
-            totalStockCount = soonTotalStock,
-            badgeColor = SoonYellowDark,
-            bgColor = Color(0xFFFEFDF0),
-            borderColor = SoonYellowBorder,
-            textColor = Color(0xFF92400E),
-            icon = Icons.Default.CalendarToday,
-            testTag = "op_card_soon",
-            onClick = { onFilterSelectAndNavigate(ProductFilter.SOON) }
-        )
+        // Yan yana dizilen 3'lü eşit genişlikte kompakt kritik görev kartları
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçen) - Açık Kırmızı
+            MorningOperationCard(
+                modifier = Modifier.weight(1f),
+                title = "Raftan Çekilecekler",
+                varietyCount = expiredVariety,
+                totalStockCount = expiredTotalStock,
+                badgeColor = ExpiredRed,
+                bgColor = Color(0xFFFFF5F5),
+                borderColor = ExpiredRedBorder,
+                textColor = ExpiredRedDark,
+                icon = Icons.Default.Warning,
+                testTag = "op_card_expired",
+                onClick = { onFilterSelectAndNavigate(ProductFilter.EXPIRED) }
+            )
+
+            // 🟠 Kart 2: Sıcak Satış (1-2 Gün) - Açık Turuncu
+            MorningOperationCard(
+                modifier = Modifier.weight(1f),
+                title = "Sıcak Satış (1-2 Gün)",
+                varietyCount = criticalVariety,
+                totalStockCount = criticalTotalStock,
+                badgeColor = CriticalOrange,
+                bgColor = Color(0xFFFFF9F2),
+                borderColor = CriticalOrangeBorder,
+                textColor = CriticalOrangeDark,
+                icon = Icons.Default.NotificationsActive,
+                testTag = "op_card_critical",
+                onClick = { onFilterSelectAndNavigate(ProductFilter.CRITICAL) }
+            )
+
+            // 🟡 Kart 3: Yakın Takip (3-7 Gün) - Açık Sarı
+            MorningOperationCard(
+                modifier = Modifier.weight(1f),
+                title = "Yakın Takip (3-7 Gün)",
+                varietyCount = soonVariety,
+                totalStockCount = soonTotalStock,
+                badgeColor = SoonYellowDark,
+                bgColor = Color(0xFFFEFDF0),
+                borderColor = SoonYellowBorder,
+                textColor = Color(0xFF92400E),
+                icon = Icons.Default.CalendarToday,
+                testTag = "op_card_soon",
+                onClick = { onFilterSelectAndNavigate(ProductFilter.SOON) }
+            )
+        }
     }
 }
 
@@ -120,74 +201,76 @@ fun MorningOperationCard(
     textColor: Color,
     icon: ImageVector,
     testTag: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         color = bgColor,
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = 1.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .testTag(testTag)
+        modifier = modifier.testTag(testTag)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(badgeColor.copy(alpha = 0.15f)),
-                contentAlignment = Alignment.Center
+            // Üst: Küçük ikon ve durum başlığı
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = badgeColor,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeColor.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = badgeColor,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
                 Text(
                     text = title,
-                    fontSize = 13.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate900,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "$varietyCount Çeşit • $totalStockCount Adet",
-                    fontSize = 16.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = textColor,
-                    letterSpacing = (-0.3).sp
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.85f))
-                    .border(1.dp, borderColor.copy(alpha = 0.6f), CircleShape),
-                contentAlignment = Alignment.Center
+            // Orta: Kalın çeşit sayısı ve altında adet sayısı
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(1.dp)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "İncele",
-                    tint = textColor,
-                    modifier = Modifier.size(13.dp)
+                Text(
+                    text = "$varietyCount Çeşit",
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    letterSpacing = (-0.2).sp
+                )
+                Text(
+                    text = "$totalStockCount Adet",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textColor.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }

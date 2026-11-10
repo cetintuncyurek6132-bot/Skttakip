@@ -233,7 +233,6 @@ fun ProductDetailModal(
                                 indication = ripple(bounded = true, color = Color.White)
                             ) {
                                 onAddToAdetsel(currentProduct)
-                                Toast.makeText(context, "Ürün sayım listesine eklendi", Toast.LENGTH_SHORT).show()
                             }
                             .padding(horizontal = 8.dp)
                             .testTag("detail_add_to_adetsel_button"),

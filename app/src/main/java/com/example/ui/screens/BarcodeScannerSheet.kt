@@ -216,6 +216,21 @@ fun BarcodeScannerSheet(
         }
     }
 
+    LaunchedEffect(isFixQrMode) {
+        if (isFixQrMode) {
+            activeBarcode = ""
+            manualBarcode = ""
+            isIndefiniteLockActive = false
+            isCooldownActive = false
+            resumeCooldownUntil = 0L
+            isProcessingScan = false
+            lastScannedCode = ""
+            lastScannedTime = 0L
+            keyboardController?.hide()
+            focusManager.clearFocus()
+        }
+    }
+
     // FULL SCREEN DIALOG (Tam Sayfa)
     Dialog(
         onDismissRequest = safeDismiss,
@@ -225,7 +240,7 @@ fun BarcodeScannerSheet(
         )
     ) {
         val hasProductDetail = activeBarcode.isNotBlank()
-        val isCameraAnalysisPaused = isCooldownActive || isIndefiniteLockActive || (isKeyboardVisible && manualBarcode.isNotBlank())
+        val isCameraAnalysisPaused = if (isFixQrMode) false else (isCooldownActive || isIndefiniteLockActive || (isKeyboardVisible && manualBarcode.isNotBlank()))
         val bottomWeight = if (isKeyboardVisible) 0.84f else if (hasProductDetail) 0.73f else 0.35f
         val topAreaWeight = if (isFixQrMode) 0.72f else (1.0f - bottomWeight)
 
@@ -252,7 +267,7 @@ fun BarcodeScannerSheet(
                     },
                     onBarcodeScanned = { barcode ->
                         val now = System.currentTimeMillis()
-                        if (now < resumeCooldownUntil || isCooldownActive || isIndefiniteLockActive) {
+                        if (!isFixQrMode && (now < resumeCooldownUntil || isCooldownActive || isIndefiniteLockActive)) {
                             return@CameraXBarcodeView
                         }
                         val trimmedBar = barcode.trim()
@@ -262,7 +277,7 @@ fun BarcodeScannerSheet(
 
                         if (isFixQrMode) {
                             // 1. ETİKET DÜZELTME SERİ DÖNGÜSÜ (Kamerayı dondurmaz, seri okur)
-                            if (isProcessingScan || trimmedBar == lastScannedCode) {
+                            if (isProcessingScan || (trimmedBar == lastScannedCode && (now - lastScannedTime) < 1500L)) {
                                 return@CameraXBarcodeView
                             }
                             isProcessingScan = true

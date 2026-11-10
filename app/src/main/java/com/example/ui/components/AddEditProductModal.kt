@@ -105,7 +105,16 @@ fun AddEditProductModal(
     }
     var urunKodu by remember(product, prefilledBarcode) {
         mutableStateOf(
-            healedProduct?.urunKodu ?: parsedPrefill?.productCode ?: ""
+            healedProduct?.urunKodu ?: (
+                if (parsedPrefill?.isShelfQr == true && 
+                    !parsedPrefill.productCode.isNullOrBlank() && 
+                    parsedPrefill.productCode != parsedPrefill.barcode
+                ) {
+                    parsedPrefill.productCode
+                } else {
+                    ""
+                }
+            )
         )
     }
     var urunAdi by remember(product, prefilledBarcode) { mutableStateOf(healedProduct?.urunAdi ?: parsedPrefill?.productName ?: "") }
@@ -161,7 +170,11 @@ fun AddEditProductModal(
         } else if (prefilledBarcode.isNotBlank()) {
             val parsed = parseShelfQrPayload(prefilledBarcode)
             if (parsed.barcode.isNotBlank()) barkod = parsed.barcode
-            if (!parsed.productCode.isNullOrBlank()) urunKodu = parsed.productCode
+            urunKodu = if (parsed.isShelfQr && !parsed.productCode.isNullOrBlank() && parsed.productCode != parsed.barcode) {
+                parsed.productCode
+            } else {
+                ""
+            }
             if (!parsed.productName.isNullOrBlank()) {
                 urunAdi = parsed.productName
                 kategori = com.example.util.CategoryClassifier.classify(parsed.productName)
@@ -595,7 +608,7 @@ fun AddEditProductModal(
                             val candidate = Product(
                                 id = product?.id ?: 0,
                                 barkod = enteredBarkod.ifBlank { if (enteredCode.isNotBlank()) "2500$enteredCode" else "NO_BARCODE_${(enteredName + enteredCode).hashCode().toString().replace("-", "N")}" },
-                                urunKodu = enteredCode.ifBlank { "0000" },
+                                urunKodu = enteredCode,
                                 urunAdi = enteredName,
                                 kategori = enteredCategory,
                                 sktTarihi = product?.sktTarihi ?: 0L,
