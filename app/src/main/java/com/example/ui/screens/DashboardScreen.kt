@@ -102,16 +102,16 @@ fun DashboardScreen(
     val expiredVariety = expiredProducts.size
     val expiredTotalStock = expiredProducts.sumOf { it.stokAdedi }
 
-    // 🟠 Kart 2: Sıcak Satışa Al (Sarı Etiket / Son 1-2 Gün: daysLeft in 0..1)
+    // 🟠 Kart 2: Sıcak Satışa Al (Sarı Etiket / Son 1-2 Gün: daysLeft in 0..2)
     val criticalProducts = remember(products, todayMidnight) {
-        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 0..1 }
+        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 0..2 }
     }
     val criticalVariety = criticalProducts.size
     val criticalTotalStock = criticalProducts.sumOf { it.stokAdedi }
 
-    // 🟡 Kart 3: Yakın Takip (3 - 7 Gün Kalanlar: daysLeft in 2..7)
+    // 🟡 Kart 3: Yakın Takip (3 - 7 Gün Kalanlar: daysLeft in 3..7)
     val soonProducts = remember(products, todayMidnight) {
-        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 2..7 }
+        products.filter { it.sktTarihi > 0L && it.stokAdedi > 0 && it.getRemainingDays(todayMidnight) in 3..7 }
     }
     val soonVariety = soonProducts.size
     val soonTotalStock = soonProducts.sumOf { it.stokAdedi }
