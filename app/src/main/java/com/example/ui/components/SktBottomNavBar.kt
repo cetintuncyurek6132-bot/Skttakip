@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,12 +40,14 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +57,7 @@ import com.example.ui.theme.Slate500
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
+import kotlin.math.roundToInt
 
 @Composable
 fun SktBottomNavBar(
@@ -202,7 +210,41 @@ fun BottomNavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val itemColor = if (selected) TurquoisePrimary else Slate500
+    val itemColor by animateColorAsState(
+        targetValue = if (selected) TurquoisePrimary else Slate500,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "nav_item_color"
+    )
+
+    val iconSize by animateDpAsState(
+        targetValue = if (selected) 26.dp else 22.dp,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "nav_icon_size"
+    )
+
+    val iconScale by animateFloatAsState(
+        targetValue = if (selected) 1.06f else 1.0f,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "nav_icon_scale"
+    )
+
+    val capsuleColor by animateColorAsState(
+        targetValue = if (selected) TurquoisePrimary.copy(alpha = 0.14f) else Color.Transparent,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "nav_capsule_color"
+    )
+
+    val capsuleHorizontalPadding by animateDpAsState(
+        targetValue = if (selected) 14.dp else 8.dp,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "nav_capsule_padding"
+    )
+
+    val fontWeightValue by animateFloatAsState(
+        targetValue = if (selected) 700f else 500f,
+        animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing),
+        label = "nav_font_weight"
+    )
 
     Column(
         modifier = modifier
@@ -218,15 +260,20 @@ fun BottomNavItem(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(12.dp))
-                .background(if (selected) TurquoisePrimary.copy(alpha = 0.12f) else Color.Transparent)
-                .padding(horizontal = 12.dp, vertical = 3.dp),
+                .background(capsuleColor)
+                .padding(horizontal = capsuleHorizontalPadding, vertical = 3.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (selected) activeIcon else inactiveIcon,
                 contentDescription = label,
                 tint = itemColor,
-                modifier = Modifier.size(22.dp)
+                modifier = Modifier
+                    .size(iconSize)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    }
             )
         }
 
@@ -235,10 +282,11 @@ fun BottomNavItem(
         Text(
             text = label,
             fontSize = 10.sp,
-            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            fontWeight = FontWeight(fontWeightValue.roundToInt().coerceIn(400, 800)),
             color = itemColor,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }
 }
+

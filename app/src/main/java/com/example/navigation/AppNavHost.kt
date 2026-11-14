@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -15,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -106,110 +108,124 @@ fun AppNavHost(
                     }
                 }
             ) { page ->
-                when (page) {
-                    0 -> {
-                        // 1. ANA SAYFA (PANEL / GÖSTERGE PANELİ)
-                        DashboardScreen(
-                            state = dashboardState,
-                            products = allProducts,
-                            pendingAdetselCount = yapilacakAdetsel.size,
-                            onQuickActionClick = { action ->
-                                when (action) {
-                                    "add_product" -> inventoryViewModel.openAddProductModal()
-                                    "scan" -> onOpenScanner(ScannerOpenMode.BARCODE_SEARCH)
-                                    "analytics" -> navigateToTab("analytics")
-                                    "csv" -> navigateToTab("csv")
-                                    "adetsel" -> navigateToTab("adetsel")
-                                    "reports", "takip" -> navigateToTab("takip")
-                                    else -> navigateToTab("products")
-                                }
-                            },
-                            onFilterSelectAndNavigate = { filter ->
-                                inventoryViewModel.onFilterSelected(filter)
-                                navigateToTab("products")
-                            },
-                            onProductClick = { prod ->
-                                inventoryViewModel.openProductDetailModal(prod)
-                            },
-                            onViewAllProductsClick = {
-                                inventoryViewModel.onFilterSelected(ProductFilter.ALL)
-                                navigateToTab("products")
-                            },
-                            onAvatarClick = onOpenProfile,
-                            onNotificationClick = onOpenNotifications
-                        )
-                    }
-                    1 -> {
-                        // 2. ÜRÜNLER (PRODUCTS)
-                        ProductsScreen(
-                            products = filteredProducts,
-                            allProducts = allProducts,
-                            totalRegisteredCount = sktProductCount,
-                            searchQuery = searchQuery,
-                            selectedFilter = selectedFilter,
-                            selectedGroupFilter = selectedGroupFilter,
-                            startDateFilter = startDateFilter,
-                            endDateFilter = endDateFilter,
-                            onSearchQueryChange = { q -> inventoryViewModel.onSearchQueryChanged(q) },
-                            onFilterSelect = { f -> inventoryViewModel.onFilterSelected(f) },
-                            onGroupFilterSelect = { group -> inventoryViewModel.onGroupFilterSelected(group) },
-                            onDateRangeSelect = { start, end -> inventoryViewModel.setDateRangeFilter(start, end) },
-                            onClearDateRange = { inventoryViewModel.clearDateRangeFilter() },
-                            onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
-                            onDeleteProduct = { prod -> inventoryViewModel.deleteProduct(prod) },
-                            onAddProductClick = { inventoryViewModel.openAddProductModal() },
-                            onQuickAddSkt = { prod -> inventoryViewModel.openAddSktModal(prod) },
-                            onOpenQrFixMode = { onOpenScanner(ScannerOpenMode.LABEL_FIX) }
-                        )
-                    }
-                    2 -> {
-                        // 3. İADE & DEPO RED TAKİBİ
-                        TakipScreen(
-                            products = allProducts,
-                            onBackClick = { navigateToTab("panel") },
-                            onOpenScanner = { onOpenScanner(ScannerOpenMode.BARCODE_SEARCH) }
-                        )
-                    }
-                    3 -> {
-                        // 4. ADETSEL SAYIM
-                        AdetselScreen(
-                            yapilacakList = yapilacakAdetsel,
-                            yapildiList = yapildiAdetsel,
-                            allProducts = allProducts,
-                            adetselViewModel = adetselViewModel,
-                            onAddToAdetsel = { prod, onComplete ->
-                                adetselViewModel.addToAdetsel(prod, onComplete)
-                            },
-                            onSaveSayim = { kayit, sonuc, fark, notlar ->
-                                adetselViewModel.saveAdetselSayim(
-                                    kayit = kayit,
-                                    sonuc = sonuc,
-                                    fark = fark,
-                                    notlar = notlar
-                                ) {
-                                    val msg = when (sonuc) {
-                                        "EKSIK" -> "${kayit.urunAdi} ($fark Adet Eksik) kaydedildi"
-                                        "FAZLA" -> "${kayit.urunAdi} (+$fark Fazla) kaydedildi"
-                                        else -> "${kayit.urunAdi} sayıldı olarak kaydedildi"
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            val pageOffset = kotlin.math.abs(
+                                (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
+                            ).coerceIn(0f, 1f)
+                            alpha = 1f - (0.5f * pageOffset)
+                            val scale = 1f - (0.05f * pageOffset)
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                ) {
+                    when (page) {
+                        0 -> {
+                            // 1. ANA SAYFA (PANEL / GÖSTERGE PANELİ)
+                            DashboardScreen(
+                                state = dashboardState,
+                                products = allProducts,
+                                pendingAdetselCount = yapilacakAdetsel.size,
+                                onQuickActionClick = { action ->
+                                    when (action) {
+                                        "add_product" -> inventoryViewModel.openAddProductModal()
+                                        "scan" -> onOpenScanner(ScannerOpenMode.BARCODE_SEARCH)
+                                        "analytics" -> navigateToTab("analytics")
+                                        "csv" -> navigateToTab("csv")
+                                        "adetsel" -> navigateToTab("adetsel")
+                                        "reports", "takip" -> navigateToTab("takip")
+                                        else -> navigateToTab("products")
                                     }
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            onUndoSayim = { kayit ->
-                                adetselViewModel.undoAdetselKayit(kayit)
-                                Toast.makeText(context, "${kayit.urunAdi} sayım listesine geri alındı.", Toast.LENGTH_SHORT).show()
-                            },
-                            onDeleteKayit = { id ->
-                                adetselViewModel.deleteAdetselKayit(id)
-                            },
-                            onClearCompleted = {
-                                adetselViewModel.clearCompletedAdetselKayitlar()
-                                Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
-                            },
-                            onOpenScanner = onOpenScanner,
-                            onNavigateToProducts = { navigateToTab("products") },
-                            onBackClick = { navigateToTab("panel") }
-                        )
+                                },
+                                onFilterSelectAndNavigate = { filter ->
+                                    inventoryViewModel.onFilterSelected(filter)
+                                    navigateToTab("products")
+                                },
+                                onProductClick = { prod ->
+                                    inventoryViewModel.openProductDetailModal(prod)
+                                },
+                                onViewAllProductsClick = {
+                                    inventoryViewModel.onFilterSelected(ProductFilter.ALL)
+                                    navigateToTab("products")
+                                },
+                                onAvatarClick = onOpenProfile,
+                                onNotificationClick = onOpenNotifications
+                            )
+                        }
+                        1 -> {
+                            // 2. ÜRÜNLER (PRODUCTS)
+                            ProductsScreen(
+                                products = filteredProducts,
+                                allProducts = allProducts,
+                                totalRegisteredCount = sktProductCount,
+                                searchQuery = searchQuery,
+                                selectedFilter = selectedFilter,
+                                selectedGroupFilter = selectedGroupFilter,
+                                startDateFilter = startDateFilter,
+                                endDateFilter = endDateFilter,
+                                onSearchQueryChange = { q -> inventoryViewModel.onSearchQueryChanged(q) },
+                                onFilterSelect = { f -> inventoryViewModel.onFilterSelected(f) },
+                                onGroupFilterSelect = { group -> inventoryViewModel.onGroupFilterSelected(group) },
+                                onDateRangeSelect = { start, end -> inventoryViewModel.setDateRangeFilter(start, end) },
+                                onClearDateRange = { inventoryViewModel.clearDateRangeFilter() },
+                                onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
+                                onDeleteProduct = { prod -> inventoryViewModel.deleteProduct(prod) },
+                                onAddProductClick = { inventoryViewModel.openAddProductModal() },
+                                onQuickAddSkt = { prod -> inventoryViewModel.openAddSktModal(prod) },
+                                onOpenQrFixMode = { onOpenScanner(ScannerOpenMode.LABEL_FIX) }
+                            )
+                        }
+                        2 -> {
+                            // 3. İADE & DEPO RED TAKİBİ
+                            TakipScreen(
+                                products = allProducts,
+                                onBackClick = { navigateToTab("panel") },
+                                onOpenScanner = { onOpenScanner(ScannerOpenMode.BARCODE_SEARCH) }
+                            )
+                        }
+                        3 -> {
+                            // 4. ADETSEL SAYIM
+                            AdetselScreen(
+                                yapilacakList = yapilacakAdetsel,
+                                yapildiList = yapildiAdetsel,
+                                allProducts = allProducts,
+                                adetselViewModel = adetselViewModel,
+                                onAddToAdetsel = { prod, onComplete ->
+                                    adetselViewModel.addToAdetsel(prod, onComplete)
+                                },
+                                onSaveSayim = { kayit, sonuc, fark, notlar ->
+                                    adetselViewModel.saveAdetselSayim(
+                                        kayit = kayit,
+                                        sonuc = sonuc,
+                                        fark = fark,
+                                        notlar = notlar
+                                    ) {
+                                        val msg = when (sonuc) {
+                                            "EKSIK" -> "${kayit.urunAdi} ($fark Adet Eksik) kaydedildi"
+                                            "FAZLA" -> "${kayit.urunAdi} (+$fark Fazla) kaydedildi"
+                                            else -> "${kayit.urunAdi} sayıldı olarak kaydedildi"
+                                        }
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                onUndoSayim = { kayit ->
+                                    adetselViewModel.undoAdetselKayit(kayit)
+                                    Toast.makeText(context, "${kayit.urunAdi} sayım listesine geri alındı.", Toast.LENGTH_SHORT).show()
+                                },
+                                onDeleteKayit = { id ->
+                                    adetselViewModel.deleteAdetselKayit(id)
+                                },
+                                onClearCompleted = {
+                                    adetselViewModel.clearCompletedAdetselKayitlar()
+                                    Toast.makeText(context, "Tamamlanan sayımlar temizlendi", Toast.LENGTH_SHORT).show()
+                                },
+                                onOpenScanner = onOpenScanner,
+                                onNavigateToProducts = { navigateToTab("products") },
+                                onBackClick = { navigateToTab("panel") }
+                            )
+                        }
                     }
                 }
             }
