@@ -224,7 +224,7 @@ fun ProductDetailSktTabContent(
             onClick = onAddNewSktClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(46.dp)
+                .height(48.dp)
                 .testTag("detail_add_new_skt_button"),
             colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
@@ -235,14 +235,14 @@ fun ProductDetailSktTabContent(
                 imageVector = Icons.Default.Add,
                 contentDescription = "SKT Ekle",
                 tint = Color.White,
-                modifier = Modifier.size(19.dp)
+                modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "SKT Ekle",
                 fontWeight = FontWeight.Bold,
                 color = Color.White,
-                fontSize = 13.sp
+                fontSize = 14.5.sp
             )
         }
 
@@ -257,8 +257,8 @@ fun ProductDetailSktTabContent(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "Kayıtlı Partiler",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 if (selectedRiskFilter != SktRiskFilter.ALL) {
@@ -304,7 +304,7 @@ fun ProductDetailSktTabContent(
 
             Text(
                 text = "${displayedSktProducts.size} / ${allValidSktProducts.size} Parti",
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 color = TurquoiseDark
             )
@@ -328,9 +328,9 @@ fun ProductDetailSktTabContent(
                         } else {
                             "Henüz SKT girilmemiş."
                         },
-                        fontSize = 12.5.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(2.dp))
@@ -340,7 +340,8 @@ fun ProductDetailSktTabContent(
                         } else {
                             "Yeni SKT eklemek için butona dokunun."
                         },
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
                         color = Slate500,
                         textAlign = TextAlign.Center
                     )
@@ -404,8 +405,8 @@ fun ProductDetailSktTabContent(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
                                             text = dateStr,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 14.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
                                             color = MaterialTheme.colorScheme.onSurface
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
@@ -416,7 +417,7 @@ fun ProductDetailSktTabContent(
                                             Text(
                                                 text = badgeText,
                                                 fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Black,
+                                                fontWeight = FontWeight.ExtraBold,
                                                 color = badgeTextColor,
                                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                             )
@@ -425,7 +426,7 @@ fun ProductDetailSktTabContent(
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Text(
                                         text = "Miktar: ${item.stokAdedi} adet",
-                                        fontSize = 11.5.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = TurquoiseDark
                                     )
@@ -440,7 +441,7 @@ fun ProductDetailSktTabContent(
                                     Icon(
                                         imageVector = Icons.Default.Edit,
                                         contentDescription = "SKT Düzenle",
-                                        tint = Color(0xFF94A3B8),
+                                        tint = Slate500,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }
@@ -451,7 +452,7 @@ fun ProductDetailSktTabContent(
                                     Icon(
                                         imageVector = Icons.Default.Delete,
                                         contentDescription = "SKT Sil",
-                                        tint = Color(0xFF94A3B8),
+                                        tint = Slate500,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 }

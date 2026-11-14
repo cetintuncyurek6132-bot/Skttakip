@@ -1,44 +1,45 @@
 package com.example.ui.components
 
 import android.widget.Toast
-import com.example.ui.screens.DateOcrScannerDialog
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.EditCalendar
+import androidx.compose.material.icons.outlined.EventAvailable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,20 +53,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
-import com.example.ui.theme.Slate500
+import com.example.ui.screens.DateOcrScannerDialog
+import com.example.ui.theme.AppFontFamily
+import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate50
+import com.example.ui.theme.Slate600
+import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import java.util.Calendar
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,261 +126,284 @@ fun AddSktModal(
 
     AppBottomSheetWrapper(
         onDismissRequest = onDismiss
-    ) { dismissSheet ->
-        // 1. MODAL HEADER
+    ) { _ ->
+        // 1) BAŞLIK VE MODERN PASTEL İKON KUTUSU (20.sp, ExtraBold, Slate900)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = TurquoisePrimary.copy(alpha = 0.14f),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isEditMode) Icons.Outlined.EditCalendar else Icons.Outlined.EventAvailable,
+                            contentDescription = null,
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                Text(
+                    text = if (isEditMode) "Tarih ve Adet Düzenle" else "SKT ve Adet Girişi",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Slate900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Kapat",
+                    tint = Slate700,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        // KAYDIRILABİLİR FORM İÇERİĞİ
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 1) ÜRÜN BİLGİ KUTUSU (Slate50 arka plan, 16.dp yuvarlak köşe, ferah iç boşluk)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Slate50,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = product.urunAdi.uppercase(),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 19.sp
+                    )
+                    val codeDisplay = if (product.urunKodu.isNotBlank()) {
+                        "Kod: ${product.urunKodu}  •  Barkod: ${product.barkod}"
+                    } else {
+                        "Barkod: ${product.barkod}"
+                    }
+                    Text(
+                        text = codeDisplay,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Slate600,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // 2 & 3) TARİH SEÇİM ALANI VE HIZLI TARİH ÇİPLERİ
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Son Kullanma Tarihi",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Slate700,
+                    modifier = Modifier.padding(start = 2.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Tarih Seçme Kutusu (48.dp)
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = Slate50,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = ripple(bounded = true, color = TurquoiseDark)
+                            ) { showDatePicker = true }
+                            .testTag("input_new_skt_date")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = com.example.util.SafeDateFormatter.shortDate(selectedDateMillis),
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.CalendarToday,
+                                contentDescription = "Tarih Seç",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
+
+                    // "Tarih Oku" Butonu (48.dp, Açık Turkuaz Arka Plan, Turkuaz Yazı)
+                    Surface(
+                        onClick = { showOcrScanner = true },
+                        modifier = Modifier.height(48.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = TurquoisePrimary.copy(alpha = 0.14f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.CameraAlt,
+                                contentDescription = "Tarih Oku",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Tarih Oku",
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark
+                            )
+                        }
+                    }
+                }
+
+                // 3) HIZLI TARİH ÇİPLERİ (+15 Gün, +1 Ay vb. - 8.dp boşluk, RoundedCornerShape(50), hafif gri arka plan)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .horizontalScroll(rememberScrollState())
+                        .padding(top = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = TurquoisePrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(30.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isEditMode) Icons.Default.Edit else Icons.Default.Add,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
+                    val presets = listOf(
+                        "+15 Gün" to {
+                            val c = Calendar.getInstance()
+                            c.add(Calendar.DAY_OF_YEAR, 15)
+                            c.timeInMillis
+                        },
+                        "+1 Ay" to {
+                            val c = Calendar.getInstance()
+                            c.add(Calendar.MONTH, 1)
+                            c.timeInMillis
+                        },
+                        "+2 Ay" to {
+                            val c = Calendar.getInstance()
+                            c.add(Calendar.MONTH, 2)
+                            c.timeInMillis
+                        },
+                        "+3 Ay" to {
+                            val c = Calendar.getInstance()
+                            c.add(Calendar.MONTH, 3)
+                            c.timeInMillis
+                        },
+                        "+6 Ay" to {
+                            val c = Calendar.getInstance()
+                            c.add(Calendar.MONTH, 6)
+                            c.timeInMillis
+                        },
+                        "+1 Yıl" to {
+                            val c = Calendar.getInstance()
+                            c.add(Calendar.YEAR, 1)
+                            c.timeInMillis
+                        },
+                        "Yıl Sonu" to {
+                            val c = Calendar.getInstance()
+                            c.set(Calendar.MONTH, Calendar.DECEMBER)
+                            c.set(Calendar.DAY_OF_MONTH, 31)
+                            c.timeInMillis
                         }
-                        Text(
-                            text = if (isEditMode) "Tarih ve Adet Düzenle" else "SKT ve Adet Girişi",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
-                            tint = Slate500,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // 2. PRODUCT INFO CARD
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFF8FAFC),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = product.urunAdi,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        val codeDisplay = if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu} | Barkod: ${product.barkod}" else "Barkod: ${product.barkod}"
-                        Text(
-                            text = codeDisplay,
-                            fontSize = 10.5.sp,
-                            color = Slate500
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 3. NEW SKT DATE & OCR SCANNER BUTTON
-                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(
-                        text = "Son Kullanma Tarihi",
-                        fontSize = 11.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TurquoiseDark
                     )
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    presets.forEach { (label, dateCalc) ->
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = Color(0xFFF8FAFC),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .clickable { showDatePicker = true }
-                                .testTag("input_new_skt_date")
+                            onClick = { selectedDateMillis = dateCalc() },
+                            shape = RoundedCornerShape(50),
+                            color = Color(0xFFF1F5F9),
+                            modifier = Modifier.height(34.dp)
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 12.dp)
                             ) {
                                 Text(
-                                    text = com.example.util.SafeDateFormatter.shortDate(selectedDateMillis),
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900
+                                    text = label,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Slate800
                                 )
-                                Icon(
-                                    imageVector = Icons.Default.CalendarToday,
-                                    contentDescription = "Tarih Seç",
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-
-                        Surface(
-                            onClick = { showOcrScanner = true },
-                            modifier = Modifier.height(46.dp),
-                            shape = RoundedCornerShape(16.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.12f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.CameraAlt,
-                                    contentDescription = "Tarih Oku",
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Text(
-                                    "Tarih Oku",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TurquoiseDark
-                                )
-                            }
-                        }
-                    }
-
-                    // Hızlı SKT Tarih Kısayolları (Tek dokunuşla tarih belirleme)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState())
-                            .padding(top = 2.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val presets = listOf(
-                            "+15 Gün" to {
-                                val c = Calendar.getInstance()
-                                c.add(Calendar.DAY_OF_YEAR, 15)
-                                c.timeInMillis
-                            },
-                            "+1 Ay" to {
-                                val c = Calendar.getInstance()
-                                c.add(Calendar.MONTH, 1)
-                                c.timeInMillis
-                            },
-                            "+2 Ay" to {
-                                val c = Calendar.getInstance()
-                                c.add(Calendar.MONTH, 2)
-                                c.timeInMillis
-                            },
-                            "+3 Ay" to {
-                                val c = Calendar.getInstance()
-                                c.add(Calendar.MONTH, 3)
-                                c.timeInMillis
-                            },
-                            "+6 Ay" to {
-                                val c = Calendar.getInstance()
-                                c.add(Calendar.MONTH, 6)
-                                c.timeInMillis
-                            },
-                            "+1 Yıl" to {
-                                val c = Calendar.getInstance()
-                                c.add(Calendar.YEAR, 1)
-                                c.timeInMillis
-                            },
-                            "Yıl Sonu" to {
-                                val c = Calendar.getInstance()
-                                c.set(Calendar.MONTH, Calendar.DECEMBER)
-                                c.set(Calendar.DAY_OF_MONTH, 31)
-                                c.timeInMillis
-                            }
-                        )
-                        presets.forEach { (label, dateCalc) ->
-                            Surface(
-                                onClick = {
-                                    selectedDateMillis = dateCalc()
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                color = Color(0xFFF1F5F9),
-                                modifier = Modifier.height(28.dp)
-                            ) {
-                                Box(
-                                    contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 8.dp)
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TurquoiseDark
-                                    )
-                                }
                             }
                         }
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // 4. SKT QUANTITY STEPPER (KOMPAKT MİKTAR VE HIZLI KISAYOLLAR)
+            // 4) ADET SEÇİCİ (STEPPER) - Birleşik Kapsül (Pill) + Pastel "+1, +5, +10, +24" Kısayolları
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Slate50,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    // Üst Satır: "SKT Adedi" Başlığı ve Yuvarlak Pastel Hızlı Ekleme Butonları (+1, +5, +10, +24)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "📦 SKT Adedi",
+                            text = "SKT Adedi",
                             fontWeight = FontWeight.ExtraBold,
-                            fontSize = 12.sp,
+                            fontSize = 14.sp,
                             color = Slate900
                         )
 
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             listOf(1, 5, 10, 24).forEach { addCount ->
@@ -383,17 +412,17 @@ fun AddSktModal(
                                         val current = stokAdedi.toIntOrNull() ?: 0
                                         stokAdedi = (current + addCount).toString()
                                     },
-                                    shape = RoundedCornerShape(5.dp),
-                                    color = Color(0xFFE2E8F0),
-                                    modifier = Modifier.height(22.dp)
+                                    shape = RoundedCornerShape(50),
+                                    color = TurquoisePrimary.copy(alpha = 0.14f),
+                                    modifier = Modifier.height(28.dp)
                                 ) {
                                     Box(
-                                        modifier = Modifier.padding(horizontal = 5.dp),
+                                        modifier = Modifier.padding(horizontal = 9.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
                                             text = "+$addCount",
-                                            fontSize = 10.sp,
+                                            fontSize = 11.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = TurquoiseDark
                                         )
@@ -403,91 +432,108 @@ fun AddSktModal(
                         }
                     }
 
+                    // Alt Satır: Tek Kapsül (Pill) İçinde [ - | 1 | + ]
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedCornerShape(50),
                             color = Color.White,
-                            border = BorderStroke(1.2.dp, TurquoisePrimary),
-                            modifier = Modifier.height(42.dp)
+                            border = BorderStroke(1.2.dp, TurquoisePrimary.copy(alpha = 0.65f)),
+                            modifier = Modifier.height(48.dp)
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(3.dp)
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
+                                // Eksi (-) Butonu
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(TurquoisePrimary.copy(alpha = 0.15f))
-                                        .clickable {
+                                        .fillMaxHeight()
+                                        .width(52.dp)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple(bounded = true, color = TurquoiseDark)
+                                        ) {
                                             val current = stokAdedi.toIntOrNull() ?: 0
                                             if (current > 1) stokAdedi = (current - 1).toString()
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        "-",
-                                        fontSize = 20.sp,
+                                        text = "−",
+                                        fontSize = 22.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = TurquoiseDark
                                     )
                                 }
 
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = Color(0xFFF1F5F9),
-                                    modifier = Modifier
-                                        .padding(horizontal = 4.dp)
-                                        .width(68.dp)
-                                        .height(36.dp)
-                                ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        BasicTextField(
-                                            value = stokAdedi,
-                                            onValueChange = { newValue ->
-                                                if (newValue.all { it.isDigit() } && newValue.length <= 4) {
-                                                    stokAdedi = newValue
-                                                }
-                                            },
-                                            singleLine = true,
-                                            textStyle = androidx.compose.ui.text.TextStyle(
-                                                textAlign = TextAlign.Center,
-                                                fontWeight = FontWeight.Black,
-                                                fontSize = 18.sp,
-                                                color = Slate900
-                                            ),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                            cursorBrush = SolidColor(TurquoiseDark),
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .testTag("skt_modal_quantity_input")
-                                        )
-                                    }
-                                }
-
+                                // İnce Dikey Ayırıcı Çizgi
                                 Box(
                                     modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(TurquoisePrimary)
-                                        .clickable {
+                                        .width(1.dp)
+                                        .height(24.dp)
+                                        .background(Slate200)
+                                )
+
+                                // Ortadaki Büyük ve Tok Sayı Girişi
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier
+                                        .width(76.dp)
+                                        .fillMaxHeight()
+                                ) {
+                                    BasicTextField(
+                                        value = stokAdedi,
+                                        onValueChange = { newValue ->
+                                            if (newValue.all { it.isDigit() } && newValue.length <= 4) {
+                                                stokAdedi = newValue
+                                            }
+                                        },
+                                        singleLine = true,
+                                        textStyle = TextStyle(
+                                            fontFamily = AppFontFamily,
+                                            textAlign = TextAlign.Center,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 20.sp,
+                                            color = Slate900
+                                        ),
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        cursorBrush = SolidColor(TurquoiseDark),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("skt_modal_quantity_input")
+                                    )
+                                }
+
+                                // İnce Dikey Ayırıcı Çizgi
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .height(24.dp)
+                                        .background(Slate200)
+                                )
+
+                                // Artı (+) Butonu
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxHeight()
+                                        .width(52.dp)
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = ripple(bounded = true, color = TurquoiseDark)
+                                        ) {
                                             val current = stokAdedi.toIntOrNull() ?: 0
                                             stokAdedi = (current + 1).toString()
                                         },
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        "+",
-                                        fontSize = 20.sp,
+                                        text = "+",
+                                        fontSize = 22.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = Color.White
+                                        color = TurquoiseDark
                                     )
                                 }
                             }
@@ -495,86 +541,101 @@ fun AddSktModal(
                     }
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-            // 5. ACTION BUTTONS
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                    val context = LocalContext.current
-                    if (!isEditMode) {
-                        Button(
-                            onClick = {
-                                if (isSaving) return@Button
-                                isSaving = true
-                                val count = stokAdedi.toIntOrNull()?.coerceAtLeast(1) ?: 1
-                                onSaveSkt(product, selectedDateMillis, count)
-                                Toast.makeText(context, "SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
-                                hasAddedBatchInSession = true
-                                lastSavedDateMillis = selectedDateMillis
-                                lastSavedAdetStr = "1"
-                                stokAdedi = "1"
-                                isSaving = false
-                            },
-                            enabled = !isSaving,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .testTag("submit_add_skt_button"),
-                            colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.Add, contentDescription = "Ekle", tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Ekle",
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-
-                    Button(
-                        onClick = {
-                            if (isSaving) return@Button
-                            isSaving = true
-                            val isAlreadyCommitted = hasAddedBatchInSession &&
-                                    (lastSavedDateMillis == selectedDateMillis) &&
-                                    (lastSavedAdetStr == stokAdedi)
-                            if (!isAlreadyCommitted) {
-                                val count = stokAdedi.toIntOrNull()?.coerceAtLeast(1) ?: 1
-                                onSaveSkt(product, selectedDateMillis, count)
-                                val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
-                                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                            } else {
-                                Toast.makeText(context, "Kaydedildi", Toast.LENGTH_SHORT).show()
-                            }
-                            onDismiss()
-                        },
-                        enabled = !isSaving,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .testTag("save_and_close_skt_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = if (isEditMode) TurquoisePrimary else Slate900),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Kaydet", tint = Color.White, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Kaydet",
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 13.sp
-                        )
-                    }
+        // 5) ALT BUTONLAR (Ekle / Kaydet: 52.dp yükseklik, RoundedCornerShape(16.dp), Ekle açık turkuaz, Kaydet ana Turkuaz)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val context = LocalContext.current
+            if (!isEditMode) {
+                Button(
+                    onClick = {
+                        if (isSaving) return@Button
+                        isSaving = true
+                        val count = stokAdedi.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                        onSaveSkt(product, selectedDateMillis, count)
+                        Toast.makeText(context, "SKT eklendi ($count adet)", Toast.LENGTH_SHORT).show()
+                        hasAddedBatchInSession = true
+                        lastSavedDateMillis = selectedDateMillis
+                        lastSavedAdetStr = "1"
+                        stokAdedi = "1"
+                        isSaving = false
+                    },
+                    enabled = !isSaving,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                        .testTag("submit_add_skt_button"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TurquoisePrimary.copy(alpha = 0.15f),
+                        contentColor = TurquoiseDark
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Ekle",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Ekle",
+                        fontWeight = FontWeight.Bold,
+                        color = TurquoiseDark,
+                        fontSize = 15.sp
+                    )
                 }
+            }
+
+            Button(
+                onClick = {
+                    if (isSaving) return@Button
+                    isSaving = true
+                    val isAlreadyCommitted = hasAddedBatchInSession &&
+                            (lastSavedDateMillis == selectedDateMillis) &&
+                            (lastSavedAdetStr == stokAdedi)
+                    if (!isAlreadyCommitted) {
+                        val count = stokAdedi.toIntOrNull()?.coerceAtLeast(1) ?: 1
+                        onSaveSkt(product, selectedDateMillis, count)
+                        val msg = if (isEditMode) "SKT güncellendi ($count adet)" else "Kaydedildi"
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(context, "Kaydedildi", Toast.LENGTH_SHORT).show()
+                    }
+                    onDismiss()
+                },
+                enabled = !isSaving,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+                    .testTag("save_and_close_skt_button"),
+                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Kaydet",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Kaydet",
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    fontSize = 15.sp
+                )
+            }
+        }
     }
 }

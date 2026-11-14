@@ -115,8 +115,8 @@ fun MorningOpeningRoutineCard(
                     }
                     Text(
                         text = "Sabah Açılış Rutini",
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
                         color = Slate900
                     )
                 }
@@ -132,9 +132,9 @@ fun MorningOpeningRoutineCard(
                     ) {
                         Text(
                             text = if (isAllCompleted) "Tamamlandı ✨" else "$completedRoutineCount / ${routineItems.size}",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (isAllCompleted) EmeraldSuccess else Slate700,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isAllCompleted) EmeraldSuccess else Slate800,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
@@ -216,9 +216,9 @@ fun MorningOpeningRoutineCard(
 
                             Text(
                                 text = title,
-                                fontSize = 13.sp,
-                                fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
-                                color = if (isChecked) Slate600 else Slate800,
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isChecked) Slate700 else Slate900,
                                 textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
                                 modifier = Modifier.weight(1f)
                             )

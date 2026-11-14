@@ -48,7 +48,7 @@ private val LightColorScheme =
     surfaceVariant = Slate100,
     onBackground = Slate900,
     onSurface = Slate900,
-    onSurfaceVariant = Slate500,
+    onSurfaceVariant = Slate700,
     outline = Slate200,
     outlineVariant = Slate300
   )
@@ -72,7 +72,12 @@ fun MyApplicationTheme(
     }
 
   MaterialTheme(colorScheme = colorScheme, typography = Typography) {
-    ProvideTextStyle(value = TextStyle(fontFamily = AppFontFamily)) {
+    ProvideTextStyle(
+      value = TextStyle(
+        fontFamily = AppFontFamily,
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+      )
+    ) {
       content()
     }
   }

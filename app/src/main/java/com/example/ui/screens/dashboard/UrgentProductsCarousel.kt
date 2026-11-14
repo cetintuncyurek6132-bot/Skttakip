@@ -85,8 +85,8 @@ fun UrgentProductsCarousel(
                 )
                 Text(
                     text = "Acil Müdahale Vitrini",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Slate900,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -107,8 +107,8 @@ fun UrgentProductsCarousel(
                     ) {
                         Text(
                             text = "(${urgentProducts.size})",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
                             color = CriticalOrange,
                             maxLines = 1,
                             softWrap = false
@@ -136,7 +136,7 @@ fun UrgentProductsCarousel(
                     modifier = Modifier.testTag("dashboard_header_add_product_button")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 13.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
@@ -144,12 +144,12 @@ fun UrgentProductsCarousel(
                             imageVector = Icons.Outlined.AddCircleOutline,
                             contentDescription = "Ürün / SKT Ekle",
                             tint = TurquoiseDark,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                         Text(
                             text = "Ekle",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
                             color = TurquoiseDark,
                             maxLines = 1
                         )
@@ -267,15 +267,15 @@ fun UrgentProductsCarousel(
                                 Text(
                                     text = badgeInfo.numberText,
                                     fontSize = if (badgeInfo.numberText == "!") 22.sp else 19.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = badgeInfo.textColor,
                                     lineHeight = 20.sp
                                 )
                                 Text(
                                     text = badgeInfo.labelText,
                                     fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = badgeInfo.textColor.copy(alpha = 0.85f),
+                                    fontWeight = FontWeight.Bold,
+                                    color = badgeInfo.textColor,
                                     letterSpacing = 0.2.sp,
                                     maxLines = 1
                                 )
@@ -289,8 +289,8 @@ fun UrgentProductsCarousel(
                         ) {
                             Text(
                                 text = product.getDisplayName(),
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Slate900,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -303,11 +303,11 @@ fun UrgentProductsCarousel(
                                 Text(
                                     text = "SKT: ${product.getFormattedSkt()}",
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = FontWeight.Bold,
                                     color = when {
                                         daysLeft <= 0L -> ExpiredRed
                                         daysLeft in 1L..2L -> CriticalOrange
-                                        else -> Color(0xFFD97706)
+                                        else -> Color(0xFFB45309)
                                     },
                                     maxLines = 1,
                                     softWrap = false
@@ -316,13 +316,13 @@ fun UrgentProductsCarousel(
                                     Text(
                                         text = "•",
                                         fontSize = 11.sp,
-                                        color = Color(0xFF94A3B8)
+                                        color = Slate500
                                     )
                                     Text(
                                         text = "Kod: ${product.urunKodu}",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = Slate500,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Slate800,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis
                                     )
@@ -338,9 +338,9 @@ fun UrgentProductsCarousel(
                         ) {
                             Text(
                                 text = "${product.stokAdedi} Adet",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Slate800,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900,
                                 maxLines = 1,
                                 softWrap = false,
                                 modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
@@ -411,14 +411,14 @@ fun UrgentProductsCarousel(
                     ) {
                         Text(
                             text = "Tüm Reyonlar Güvende",
-                            fontSize = 14.5.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
                             color = Color(0xFF065F46)
                         )
                         Text(
                             text = "Acil müdahale gerektiren (0-7 gün) ürün bulunmuyor.",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Normal,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
                             color = Color(0xFF047857)
                         )
                     }

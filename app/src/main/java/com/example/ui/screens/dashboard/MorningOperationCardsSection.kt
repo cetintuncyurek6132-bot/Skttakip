@@ -61,8 +61,8 @@ fun MorningOperationCardsSection(
     ) {
         Text(
             text = "Sabah Operasyon Görevleri",
-            fontSize = 15.sp,
-            fontWeight = FontWeight.Bold,
+            fontSize = 15.5.sp,
+            fontWeight = FontWeight.ExtraBold,
             color = Slate900,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
@@ -108,8 +108,8 @@ fun MorningOperationCardsSection(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Analiz & İstatistikler",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
                             color = TurquoiseDark,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -117,8 +117,8 @@ fun MorningOperationCardsSection(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "• SKT & Satış/Fire Grafiği",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Normal,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
                             color = Slate600,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -240,7 +240,7 @@ fun MorningOperationCard(
                 Text(
                     text = title,
                     fontSize = 10.5.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = Slate900,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -255,8 +255,8 @@ fun MorningOperationCard(
             ) {
                 Text(
                     text = "$varietyCount Çeşit",
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -264,9 +264,9 @@ fun MorningOperationCard(
                 )
                 Text(
                     text = "$totalStockCount Adet",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = textColor.copy(alpha = 0.8f),
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

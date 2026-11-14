@@ -366,8 +366,8 @@ fun DashboardScreen(
                     ) {
                         Text(
                             text = "Adetsel Sayım",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -377,8 +377,8 @@ fun DashboardScreen(
                                 "$pendingAdetselCount Bekleyen"
                             else
                                 "Sayım: Güncel",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Color(0xFF15803D),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -424,16 +424,16 @@ fun DashboardScreen(
                     ) {
                         Text(
                             text = "Depo İade Takibi",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
                             text = depoStatusText,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = depoTextColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -479,8 +479,8 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Sabah Vardiya Raporunu WhatsApp'tan Paylaş",
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFF15803D)
                 )
             }

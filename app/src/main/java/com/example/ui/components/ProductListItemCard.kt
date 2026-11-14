@@ -273,10 +273,10 @@ fun ProductListItemCard(
                     // 1. Satır: Ürün Adı
                     Text(
                         text = product.getDisplayName().uppercase(),
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 13.5.sp,
                         maxLines = 2,
-                        lineHeight = 16.sp,
+                        lineHeight = 17.sp,
                         overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -292,7 +292,8 @@ fun ProductListItemCard(
                         if (displayCode.isNotBlank()) {
                             Text(
                                 text = "Kod: $displayCode",
-                                fontSize = 11.sp,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate500,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -305,7 +306,7 @@ fun ProductListItemCard(
                         }
                         Text(
                             text = sktSummaryText,
-                            fontSize = 11.sp,
+                            fontSize = 11.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = sktTextColor,
                             maxLines = 1,
@@ -602,7 +603,7 @@ fun GroupedProductListItemCard(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = mainProduct.getDisplayName().uppercase(),
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             fontSize = 14.sp,
                             maxLines = 2,
                             lineHeight = 18.sp,
@@ -616,7 +617,7 @@ fun GroupedProductListItemCard(
                             Text(
                                 text = "Kod: $groupCode",
                                 fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate500,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis

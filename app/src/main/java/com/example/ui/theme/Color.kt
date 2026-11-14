@@ -42,13 +42,13 @@ val EmeraldSuccess = Color(0xFF10B981)
 val AmberWarning = Color(0xFFF59E0B)
 
 // Standard Surface & Slate Colors
-val Slate900 = Color(0xFF0F172A) // Arka Plan
-val Slate800 = Color(0xFF1E293B) // Kart Arka Plan
-val Slate700 = Color(0xFF334155) // Kenarlık & Çizgiler
-val Slate600 = Color(0xFF475569) // İkincil Vurgular
-val Slate500 = Color(0xFF64748B) // Alt Açıklamalar
-val Slate400 = Color(0xFF94A3B8) // İkincil Yazı
-val Slate300 = Color(0xFFCBD5E1) // Açık Gri Metin
+val Slate900 = Color(0xFF0F172A) // Arka Plan & Ana Başlık
+val Slate800 = Color(0xFF1E293B) // Kart Arka Plan & Tok Metin
+val Slate700 = Color(0xFF334155) // Koyu Gri Metin & Çizgiler
+val Slate600 = Color(0xFF334155) // İkincil Vurgular (Koyulaştırıldı)
+val Slate500 = Color(0xFF334155) // Alt Açıklamalar (Slate700 tonuna çekildi)
+val Slate400 = Color(0xFF475569) // İkincil Yazı (Slate600 tonuna çekildi)
+val Slate300 = Color(0xFFCBD5E1) // Açık Gri Çizgi
 val Slate200 = Color(0xFFE2E8F0)
 val Slate100 = Color(0xFFF1F5F9)
 val Slate50 = Color(0xFFF8FAFC)

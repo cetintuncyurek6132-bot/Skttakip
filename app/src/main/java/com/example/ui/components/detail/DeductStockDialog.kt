@@ -1,13 +1,8 @@
 package com.example.ui.components.detail
 
 import android.widget.Toast
-import com.example.ui.components.AppBottomSheetWrapper
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -15,26 +10,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
@@ -47,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
@@ -56,19 +53,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
 import com.example.data.getDisplayName
+import com.example.ui.components.AppBottomSheetWrapper
+import com.example.ui.theme.AppFontFamily
 import com.example.ui.theme.ExpiredRed
 import com.example.ui.theme.Slate200
-import com.example.ui.theme.Slate500
+import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate800
+import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
-
-
-import androidx.compose.material3.ExperimentalMaterial3Api
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,219 +74,249 @@ fun DeductStockDialog(
     onDeduct: (amount: Int, reason: String) -> Unit
 ) {
     val context = LocalContext.current
-    val dateStr = if (batch.sktTarihi > 0L) com.example.util.SafeDateFormatter.shortDate(batch.sktTarihi) else "SKT Girilmedi"
+    val dateStr = if (batch.sktTarihi > 0L) {
+        com.example.util.SafeDateFormatter.shortDate(batch.sktTarihi)
+    } else {
+        "SKT Girilmedi"
+    }
 
     var deductAmountText by remember(batch) {
         mutableStateOf(if (batch.stokAdedi > 0) "1" else "0")
     }
-    var isSaving by remember { mutableStateOf(false) }
 
     AppBottomSheetWrapper(
-        onDismissRequest = onDismiss
-    ) { dismissSheet ->
-        // 1. BAŞLIK VE KAPAT BUTONU
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = TurquoisePrimary.copy(alpha = 0.12f),
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarToday,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Adet Düşme İşlemi",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark
-                        )
-                    }
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.45f)
+    ) { _ ->
+        // 1) BAŞLIK VE SADE KAPAT BUTONU (20.sp, ExtraBold, Koyu)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Adet Düşme İşlemi",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Slate900,
+                modifier = Modifier.weight(1f)
+            )
 
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(30.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
-                            tint = Slate500,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Kapat",
+                    tint = Slate700,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
 
-                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
-
-                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
+        // FORM İÇERİĞİ
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            // 2) ÜRÜN BİLGİ KARTI (Slate50 arka plan, 16.dp yuvarlak köşeler)
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Slate50,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // 2. SEÇİLEN PARTİ BİLGİ KARTI
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFFF8FAFC),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
+                    Text(
+                        text = batch.getDisplayName().uppercase(),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 19.sp
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = batch.getDisplayName().uppercase(),
-                            fontSize = 13.sp,
+                            text = "SKT: $dateStr",
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            color = Slate800
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+
+                        Surface(
+                            shape = RoundedCornerShape(50),
+                            color = if (batch.stokAdedi > 0) {
+                                TurquoisePrimary.copy(alpha = 0.16f)
+                            } else {
+                                ExpiredRed.copy(alpha = 0.15f)
+                            }
                         ) {
                             Text(
-                                text = "📅 SKT: $dateStr",
+                                text = "Mevcut: ${batch.stokAdedi} Adet",
                                 fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TurquoiseDark
+                                fontWeight = FontWeight.ExtraBold,
+                                color = if (batch.stokAdedi > 0) TurquoiseDark else ExpiredRed,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                             )
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (batch.stokAdedi > 0) TurquoisePrimary.copy(alpha = 0.15f) else ExpiredRed.copy(alpha = 0.15f)
+                        }
+                    }
+                }
+            }
+
+            // 3) ADET SEÇİCİ (STEPPER) - Tek Bir Kapsül (Pill) + Sağında Şık "Tümü" Butonu
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Düşülecek Adet:",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Birleşik Kapsül (Pill) Stepper: [ - | 1 | + ]
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Slate50,
+                        border = BorderStroke(1.2.dp, TurquoisePrimary.copy(alpha = 0.65f)),
+                        modifier = Modifier.height(46.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Eksi (-) Butonu
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(44.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(bounded = true, color = TurquoiseDark)
+                                    ) {
+                                        val q = deductAmountText.toIntOrNull() ?: 1
+                                        if (q > 1) deductAmountText = (q - 1).toString()
+                                    },
+                                contentAlignment = Alignment.Center
                             ) {
                                 Text(
-                                    text = "Mevcut: ${batch.stokAdedi} Adet",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = if (batch.stokAdedi > 0) TurquoiseDark else ExpiredRed,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                    text = "−",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark
+                                )
+                            }
+
+                            // İnce Dikey Ayırıcı Çizgi
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(22.dp)
+                                    .background(Slate200)
+                            )
+
+                            // Ortadaki Büyük ve Tok Sayı Girişi
+                            Box(
+                                modifier = Modifier
+                                    .width(56.dp)
+                                    .fillMaxHeight(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                BasicTextField(
+                                    value = deductAmountText,
+                                    onValueChange = { input ->
+                                        val filtered = input.filter { it.isDigit() }.take(4)
+                                        deductAmountText = filtered
+                                    },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    cursorBrush = SolidColor(TurquoiseDark),
+                                    textStyle = TextStyle(
+                                        fontFamily = AppFontFamily,
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate900,
+                                        textAlign = TextAlign.Center
+                                    ),
+                                    singleLine = true,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("deduct_dialog_amount_field")
+                                )
+                            }
+
+                            // İnce Dikey Ayırıcı Çizgi
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(22.dp)
+                                    .background(Slate200)
+                            )
+
+                            // Artı (+) Butonu
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(44.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(bounded = true, color = TurquoiseDark)
+                                    ) {
+                                        val q = deductAmountText.toIntOrNull() ?: 0
+                                        val maxLimit = if (batch.stokAdedi > 0) batch.stokAdedi else 999
+                                        if (q < maxLimit) deductAmountText = (q + 1).toString()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "+",
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark
                                 )
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 3. MİKTAR SEÇİMİ (- / + / "Tümü" / Doğrudan Giriş)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Düşülecek Adet:",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate700
-                    )
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        // - butonu
-                        val counterBtnShape = RoundedCornerShape(14.dp)
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(counterBtnShape)
-                                .background(Color(0xFFF1F5F9))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true)
-                                ) {
-                                    val q = deductAmountText.toIntOrNull() ?: 1
-                                    if (q > 1) deductAmountText = (q - 1).toString()
-                                },
-                            contentAlignment = Alignment.Center
+                    // Kapsülün Hemen Sağında Küçük ve Şık "Tümü" Butonu
+                    if (batch.stokAdedi > 0) {
+                        Surface(
+                            onClick = { deductAmountText = batch.stokAdedi.toString() },
+                            shape = RoundedCornerShape(50),
+                            color = TurquoisePrimary.copy(alpha = 0.14f),
+                            modifier = Modifier.height(38.dp)
                         ) {
-                            Text("-", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate700)
-                        }
-
-                        // Sayı kutusu
-                        BasicTextField(
-                            value = deductAmountText,
-                            onValueChange = { input ->
-                                val filtered = input.filter { it.isDigit() }.take(4)
-                                deductAmountText = filtered
-                            },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            textStyle = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A),
-                                textAlign = TextAlign.Center
-                            ),
-                            singleLine = true,
-                            modifier = Modifier
-                                .width(60.dp)
-                                .height(38.dp)
-                                .clip(counterBtnShape)
-                                .background(Color(0xFFF8FAFC), counterBtnShape)
-                                .padding(horizontal = 4.dp, vertical = 7.dp)
-                                .testTag("deduct_dialog_amount_field")
-                        )
-
-                        // + butonu
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(counterBtnShape)
-                                .background(Color(0xFFF1F5F9))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = ripple(bounded = true)
-                                ) {
-                                    val q = deductAmountText.toIntOrNull() ?: 0
-                                    val maxLimit = if (batch.stokAdedi > 0) batch.stokAdedi else 999
-                                    if (q < maxLimit) deductAmountText = (q + 1).toString()
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("+", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate700)
-                        }
-
-                        // Tümü Butonu
-                        if (batch.stokAdedi > 0) {
                             Box(
-                                modifier = Modifier
-                                    .height(38.dp)
-                                    .clip(counterBtnShape)
-                                    .background(TurquoisePrimary.copy(alpha = 0.15f))
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = ripple(bounded = true, color = TurquoiseDark)
-                                    ) { deductAmountText = batch.stokAdedi.toString() }
-                                    .padding(horizontal = 10.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Tümü",
-                                    fontSize = 12.sp,
+                                    fontSize = 12.5.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TurquoiseDark
                                 )
@@ -298,98 +324,101 @@ fun DeductStockDialog(
                         }
                     }
                 }
+            }
+        }
 
-                // Form Column Kapanışı
-                }
+        Spacer(modifier = Modifier.height(20.dp))
 
-                // 4. EYLEM BUTONLARI: "SATILDI" (Yeşil) ve "FİRE" (Kırmızı)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    // Sol Buton: Satıldı
-                    Button(
-                        onClick = {
-                            val qty = deductAmountText.toIntOrNull() ?: 1
-                            if (qty <= 0) {
-                                Toast.makeText(context, "Lütfen geçerli bir adet girin", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            if (batch.stokAdedi <= 0) {
-                                Toast.makeText(context, "Bu partide adet bulunmuyor", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val safeQty = minOf(qty, batch.stokAdedi)
-                            onDeduct(safeQty, "Satıldı")
-                        },
-                        enabled = batch.stokAdedi > 0,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF16A34A),
-                            disabledContainerColor = Color(0xFFCBD5E1)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .testTag("dialog_action_satildi_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CheckCircle,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Satıldı",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+        // 4) AKSİYON BUTONLARI: "Satıldı" (Zümrüt Yeşili 0xFF10B981) ve "Fire" (Yumuşak Kırmızı 0xFFEF4444)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Sol Buton: Satıldı
+            Button(
+                onClick = {
+                    val qty = deductAmountText.toIntOrNull() ?: 1
+                    if (qty <= 0) {
+                        Toast.makeText(context, "Lütfen geçerli bir adet girin", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
-
-                    // Sağ Buton: Fire
-                    Button(
-                        onClick = {
-                            val qty = deductAmountText.toIntOrNull() ?: 1
-                            if (qty <= 0) {
-                                Toast.makeText(context, "Lütfen geçerli bir adet girin", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            if (batch.stokAdedi <= 0) {
-                                Toast.makeText(context, "Bu partide adet bulunmuyor", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            val safeQty = minOf(qty, batch.stokAdedi)
-                            onDeduct(safeQty, "Fire")
-                        },
-                        enabled = batch.stokAdedi > 0,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFDC2626),
-                            disabledContainerColor = Color(0xFFCBD5E1)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(46.dp)
-                            .testTag("dialog_action_fire_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DeleteOutline,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Fire",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
+                    if (batch.stokAdedi <= 0) {
+                        Toast.makeText(context, "Bu partide adet bulunmuyor", Toast.LENGTH_SHORT).show()
+                        return@Button
                     }
-                }
+                    val safeQty = minOf(qty, batch.stokAdedi)
+                    onDeduct(safeQty, "Satıldı")
+                },
+                enabled = batch.stokAdedi > 0,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF10B981),
+                    disabledContainerColor = Color(0xFFCBD5E1)
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+                    .testTag("dialog_action_satildi_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Satıldı",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+
+            // Sağ Buton: Fire
+            Button(
+                onClick = {
+                    val qty = deductAmountText.toIntOrNull() ?: 1
+                    if (qty <= 0) {
+                        Toast.makeText(context, "Lütfen geçerli bir adet girin", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (batch.stokAdedi <= 0) {
+                        Toast.makeText(context, "Bu partide adet bulunmuyor", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    val safeQty = minOf(qty, batch.stokAdedi)
+                    onDeduct(safeQty, "Fire")
+                },
+                enabled = batch.stokAdedi > 0,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFEF4444),
+                    disabledContainerColor = Color(0xFFCBD5E1)
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(52.dp)
+                    .testTag("dialog_action_fire_button")
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.DeleteOutline,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Fire",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+            }
+        }
     }
 }

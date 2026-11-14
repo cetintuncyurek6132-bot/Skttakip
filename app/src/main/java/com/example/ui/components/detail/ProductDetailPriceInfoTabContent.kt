@@ -66,7 +66,7 @@ fun ProductDetailPriceInfoTabContent(
             ) {
                 Text(
                     text = "Satış Fiyatı",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate500
                 )
@@ -84,7 +84,7 @@ fun ProductDetailPriceInfoTabContent(
                             Text(
                                 text = "₺$formattedVal",
                                 fontSize = 28.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
@@ -92,28 +92,28 @@ fun ProductDetailPriceInfoTabContent(
                         Text(
                             text = "Fiyat Girilmedi",
                             fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = Slate500
                         )
                     }
 
                     Button(
                         onClick = onQrPriceClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary.copy(alpha = 0.12f)),
-                        shape = RoundedCornerShape(10.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary.copy(alpha = 0.14f)),
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                         modifier = Modifier.testTag("detail_qr_price_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
                             contentDescription = "QR Fiyat",
                             tint = TurquoiseDark,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(17.dp)
                         )
-                        Spacer(modifier = Modifier.width(5.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (priceVal != null && priceVal > 0) "QR ile Güncelle" else "QR ile Fiyat Ekle",
-                            fontSize = 11.5.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark
                         )
@@ -137,7 +137,7 @@ fun ProductDetailPriceInfoTabContent(
             ) {
                 Text(
                     text = "Barkod ve Kod Bilgileri",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate500
                 )
@@ -157,14 +157,14 @@ fun ProductDetailPriceInfoTabContent(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "Barkod:",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = Slate500
                         )
                     }
                     Text(
                         text = product.barkod.ifBlank { "-" },
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -186,14 +186,14 @@ fun ProductDetailPriceInfoTabContent(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Ürün Kodu:",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate500
                             )
                         }
                         Text(
                             text = product.urunKodu,
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -209,8 +209,8 @@ fun ProductDetailPriceInfoTabContent(
                     ) {
                         Text(
                             text = "⚠️ Barkod ile ürün kodu aynı. Raf etiketindeki QR'ı okutarak gerçek barkodu güncelleyebilirsiniz.",
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = SoonYellowDark,
                             modifier = Modifier.padding(8.dp)
                         )

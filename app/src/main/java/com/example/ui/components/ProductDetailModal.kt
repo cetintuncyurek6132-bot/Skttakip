@@ -212,8 +212,8 @@ fun ProductDetailModal(
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Ürün Detayı",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         color = TurquoiseDark
                     )
                 }
@@ -226,7 +226,7 @@ fun ProductDetailModal(
                     val adetselShape = RoundedCornerShape(8.dp)
                     Box(
                         modifier = Modifier
-                            .height(32.dp)
+                            .height(34.dp)
                             .clip(adetselShape)
                             .background(TurquoiseDark)
                             .clickable(
@@ -235,13 +235,13 @@ fun ProductDetailModal(
                             ) {
                                 onAddToAdetsel(currentProduct)
                             }
-                            .padding(horizontal = 8.dp)
+                            .padding(horizontal = 9.dp)
                             .testTag("detail_add_to_adetsel_button"),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Calculate,
@@ -252,7 +252,7 @@ fun ProductDetailModal(
                             Text(
                                 text = "Sayıma Ekle",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp,
+                                fontSize = 12.sp,
                                 color = Color.White
                             )
                         }
@@ -262,20 +262,20 @@ fun ProductDetailModal(
                     val editShape = RoundedCornerShape(8.dp)
                     Box(
                         modifier = Modifier
-                            .height(32.dp)
+                            .height(34.dp)
                             .clip(editShape)
                             .border(BorderStroke(1.2.dp, TurquoiseDark), editShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = TurquoiseDark)
                             ) { onEditClick(currentProduct) }
-                            .padding(horizontal = 8.dp)
+                            .padding(horizontal = 9.dp)
                             .testTag("detail_edit_product_button"),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -286,7 +286,7 @@ fun ProductDetailModal(
                             Text(
                                 text = "Düzenle",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 11.5.sp,
+                                fontSize = 12.sp,
                                 color = TurquoiseDark
                             )
                         }
@@ -307,7 +307,7 @@ fun ProductDetailModal(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Kapat",
-                            tint = Slate500,
+                            tint = Slate700,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -352,12 +352,12 @@ fun ProductDetailModal(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = currentProduct.getDisplayName().uppercase(),
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            lineHeight = 18.sp
+                            lineHeight = 19.sp
                         )
                         Spacer(modifier = Modifier.height(3.dp))
                         Row(
@@ -368,21 +368,21 @@ fun ProductDetailModal(
                             if (productCodeDisplay.isNotBlank()) {
                                 Text(
                                     text = "Kod: $productCodeDisplay",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = TurquoiseDark
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate700
                                 )
                             }
                             Text(
                                 text = "•",
-                                fontSize = 10.sp,
-                                color = Slate500
+                                fontSize = 11.sp,
+                                color = Slate700
                             )
                             Text(
                                 text = "Toplam: $totalStockCount Adet",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (totalStockCount >= 10) Color(0xFF4338CA) else Slate700
+                                color = if (totalStockCount >= 10) Color(0xFF4338CA) else TurquoiseDark
                             )
                         }
                     }
@@ -497,7 +497,7 @@ private fun ProductDetailTabButton(
     val tabShape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier
-            .height(40.dp)
+            .height(42.dp)
             .clip(tabShape)
             .background(if (isSelected) TurquoiseDark else Color(0xFFF1F5F9))
             .clickable(
@@ -511,12 +511,12 @@ private fun ProductDetailTabButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Text(text = tab.emoji, fontSize = 12.sp)
+            Text(text = tab.emoji, fontSize = 13.sp)
             Spacer(modifier = Modifier.width(5.dp))
             Text(
                 text = tab.title,
-                fontSize = 12.sp,
-                fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold,
+                fontSize = 13.sp,
+                fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
                 color = if (isSelected) Color.White else Slate700
             )
         }

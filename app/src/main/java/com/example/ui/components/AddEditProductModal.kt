@@ -2,6 +2,10 @@ package com.example.ui.components
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,37 +14,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.QrCodeScanner
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,26 +49,35 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.data.Product
-import com.example.data.isDolapProduct
 import com.example.data.parseShelfQrPayload
 import com.example.ui.screens.ProductNameOcrScannerDialog
-import com.example.ui.theme.CriticalOrange
-import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.AppFontFamily
+import com.example.ui.theme.ExpiredRedDark
+import com.example.ui.theme.Slate200
+import com.example.ui.theme.Slate50
+import com.example.ui.theme.Slate600
+import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import com.example.util.ProductDataHealer
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,8 +115,8 @@ fun AddEditProductModal(
     var urunKodu by remember(product, prefilledBarcode) {
         mutableStateOf(
             healedProduct?.urunKodu ?: (
-                if (parsedPrefill?.isShelfQr == true && 
-                    !parsedPrefill.productCode.isNullOrBlank() && 
+                if (parsedPrefill?.isShelfQr == true &&
+                    !parsedPrefill.productCode.isNullOrBlank() &&
                     parsedPrefill.productCode != parsedPrefill.barcode
                 ) {
                     parsedPrefill.productCode
@@ -117,7 +126,9 @@ fun AddEditProductModal(
             )
         )
     }
-    var urunAdi by remember(product, prefilledBarcode) { mutableStateOf(healedProduct?.urunAdi ?: parsedPrefill?.productName ?: "") }
+    var urunAdi by remember(product, prefilledBarcode) {
+        mutableStateOf(healedProduct?.urunAdi ?: parsedPrefill?.productName ?: "")
+    }
     val initialCategory = remember(healedProduct, parsedPrefill) {
         if (healedProduct != null) {
             com.example.util.CategoryClassifier.classify(healedProduct.urunAdi, healedProduct.kategori)
@@ -138,13 +149,12 @@ fun AddEditProductModal(
             } ?: ""
         )
     }
-    var isImportant by remember(product, prefilledBarcode) { mutableStateOf(healedProduct?.isImportant ?: false) }
+    var isImportant by remember(product, prefilledBarcode) {
+        mutableStateOf(healedProduct?.isImportant ?: false)
+    }
 
     // Sadece iki reyon kategorisi (Dolap ve Gıda)
-    val categories = listOf(
-        "Dolap",
-        "Gıda"
-    )
+    val categories = listOf("Dolap", "Gıda")
     var expandedCategoryMenu by remember { mutableStateOf(false) }
 
     var showFullQrScanner by remember { mutableStateOf(false) }
@@ -158,11 +168,11 @@ fun AddEditProductModal(
             urunKodu = healed.urunKodu
             urunAdi = healed.urunAdi
             kategori = if (healed.kategori.isNotBlank()) {
-                healed.kategori  // Mevcut kategoriyi koru
+                healed.kategori
             } else {
                 com.example.util.CategoryClassifier.classifyCategory(healed.urunAdi)
             }
-            userOverrodeCategory = false  // Reset
+            userOverrodeCategory = false
             fiyatText = healed.fiyat?.let { f ->
                 if (f % 1.0 == 0.0) f.toInt().toString() else f.toString()
             } ?: ""
@@ -194,466 +204,524 @@ fun AddEditProductModal(
         }
     }
 
+    if (showFullQrScanner) {
+        PriceQrScannerDialog(
+            expectedBarcode = if (product != null) (product.barkod.ifBlank { barkod.trim() }) else "",
+            expectedProductCode = if (product != null) (product.urunKodu.ifBlank { urunKodu.trim() }) else "",
+            expectedProductName = product?.urunAdi ?: urunAdi.trim(),
+            onDismiss = { showFullQrScanner = false },
+            onPriceScanned = { scannedPrice, rawQr ->
+                val shelfData = parseShelfQrPayload(rawQr)
+                if (shelfData.barcode.isNotBlank()) {
+                    barkod = shelfData.barcode
+                }
+                if (!shelfData.productCode.isNullOrBlank()) {
+                    urunKodu = shelfData.productCode
+                }
+                val finalPrice = shelfData.price ?: scannedPrice
+                if (finalPrice > 0.0) {
+                    fiyatText = if (finalPrice % 1.0 == 0.0) finalPrice.toInt().toString() else finalPrice.toString()
+                }
+                if (!shelfData.productName.isNullOrBlank()) {
+                    urunAdi = shelfData.productName
+                    kategori = com.example.util.CategoryClassifier.classify(shelfData.productName)
+                    userOverrodeCategory = false
+                }
+                Toast.makeText(context, "Raf etiketi okundu", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (showProductNameOcrScanner) {
+        ProductNameOcrScannerDialog(
+            onDismiss = { showProductNameOcrScanner = false },
+            onProductNameDetected = { detectedName ->
+                val formatted = detectedName.uppercase(Locale.forLanguageTag("tr-TR"))
+                urunAdi = formatted
+                kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
+                userOverrodeCategory = false
+                showProductNameOcrScanner = false
+                Toast.makeText(context, "Yazı okundu: $formatted", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
     AppBottomSheetWrapper(
         onDismissRequest = onDismiss
-    ) { dismissSheet ->
-        // 1. ÜST BİLGİ VE BAŞLIK ALANI (HERO HEADER)
-                if (product != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(end = 8.dp)
-                        ) {
-                            Text(
-                                text = (if (urunAdi.isNotBlank()) urunAdi else product.urunAdi).ifBlank { "Ürünü Düzenle" },
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "Kod: ${(if (urunKodu.isNotBlank()) urunKodu else product.urunKodu).ifBlank { "-" }}  •  Barkod: ${if (barkod.isNotBlank()) barkod else product.barkod.ifBlank { "-" }}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Yeni Ürün Ekle",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark
-                        )
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Kapat",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
+    ) { _ ->
+        // 1) ÜST BAŞLIK (22.sp, ExtraBold, Koyu Renk, Sağ Üstte İnce Kapat X İkonu)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 16.dp, top = 4.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = if (product != null) "Ürünü Düzenle" else "Yeni Ürün Ekle",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Slate900,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                    thickness = 1.dp
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Kapat",
+                    tint = Slate700,
+                    modifier = Modifier.size(22.dp)
                 )
+            }
+        }
 
-                // FORM İÇERİĞİ (Ezilmeyi önleyen kaydırılabilir gövde)
-                Column(
+        // KAYDIRILABİLİR FORM İÇERİĞİ
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.Top
+        ) {
+            // Kompakt "Raf Etiketi Oku" Butonu (48.dp, Açık Turkuaz Arka Plan, Turkuaz Yazı)
+            Surface(
+                onClick = { showFullQrScanner = true },
+                shape = RoundedCornerShape(16.dp),
+                color = TurquoisePrimary.copy(alpha = 0.14f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .testTag("scan_qr_label_button")
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    // 2. "RAF ETİKETİ OKU" BUTONU (Daha Kompakt: 42.dp)
-                    Button(
-                        onClick = { showFullQrScanner = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(42.dp)
-                            .testTag("scan_qr_label_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
-                    ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "Raf Etiketi Oku",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Raf Etiketi Oku",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
-
-                if (showFullQrScanner) {
-                    PriceQrScannerDialog(
-                        expectedBarcode = if (product != null) (product.barkod.ifBlank { barkod.trim() }) else "",
-                        expectedProductCode = if (product != null) (product.urunKodu.ifBlank { urunKodu.trim() }) else "",
-                        expectedProductName = product?.urunAdi ?: urunAdi.trim(),
-                        onDismiss = { showFullQrScanner = false },
-                        onPriceScanned = { scannedPrice, rawQr ->
-                            val shelfData = parseShelfQrPayload(rawQr)
-                            if (shelfData.barcode.isNotBlank()) {
-                                barkod = shelfData.barcode
-                            }
-                            if (!shelfData.productCode.isNullOrBlank()) {
-                                urunKodu = shelfData.productCode
-                            }
-                            val finalPrice = shelfData.price ?: scannedPrice
-                            if (finalPrice > 0.0) {
-                                fiyatText = if (finalPrice % 1.0 == 0.0) finalPrice.toInt().toString() else finalPrice.toString()
-                            }
-                            if (!shelfData.productName.isNullOrBlank()) {
-                                urunAdi = shelfData.productName
-                                kategori = com.example.util.CategoryClassifier.classify(shelfData.productName)
-                                userOverrodeCategory = false
-                            }
-                            Toast.makeText(context, "Raf etiketi okundu", Toast.LENGTH_SHORT).show()
-                        }
+                    Icon(
+                        imageVector = Icons.Outlined.QrCodeScanner,
+                        contentDescription = "Raf Etiketi Oku",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(20.dp)
                     )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Barkod ve Ürün Kodu giriş ve düzenleme alanları (Yeni eklemede ve düzenleme modunda her zaman görünür ve düzenlenebilir)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = barkod,
-                        onValueChange = { barkod = it },
-                        label = { Text("Barkod") },
-                        modifier = Modifier
-                            .weight(1.1f)
-                            .testTag("input_barkod"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedBorderColor = TurquoisePrimary,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedLabelColor = TurquoiseDark,
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC)
-                        )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Raf Etiketi Oku",
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TurquoiseDark
                     )
-                    OutlinedTextField(
-                        value = urunKodu,
-                        onValueChange = { urunKodu = it },
-                        label = { Text("Ürün Kodu") },
-                        modifier = Modifier.weight(0.9f),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedBorderColor = TurquoisePrimary,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedLabelColor = TurquoiseDark,
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC)
-                        )
-                    )
-                }
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 3. ÜRÜN ADI ALANI (Kamera Trailing Icon'u ile)
-                OutlinedTextField(
-                    value = urunAdi,
-                    onValueChange = {
-                        val formatted = it.uppercase(java.util.Locale.forLanguageTag("tr-TR"))
-                        urunAdi = formatted
-                        if (!userOverrodeCategory && formatted.isNotBlank()) {
-                            kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
-                        }
-                    },
-                    label = { Text("Ürün Adı") },
-                    placeholder = { Text("Örn: Klasik Peynir 350g") },
-                    trailingIcon = {
-                        IconButton(
-                            onClick = { showProductNameOcrScanner = true },
-                            modifier = Modifier.testTag("scan_product_name_ocr_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Yazı Oku",
-                                tint = TurquoisePrimary
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("input_urun_adi"),
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters
-                    ),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = TurquoisePrimary,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedLabelColor = TurquoiseDark,
-                        focusedContainerColor = Color(0xFFF8FAFC),
-                        unfocusedContainerColor = Color(0xFFF8FAFC)
-                    )
-                )
-
-                if (showProductNameOcrScanner) {
-                    ProductNameOcrScannerDialog(
-                        onDismiss = { showProductNameOcrScanner = false },
-                        onProductNameDetected = { detectedName ->
-                            val formatted = detectedName.uppercase(java.util.Locale.forLanguageTag("tr-TR"))
-                            urunAdi = formatted
-                            kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
-                            userOverrodeCategory = false
-                            showProductNameOcrScanner = false
-                            Toast.makeText(context, "Yazı okundu: $formatted", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 4. REYON VE FİYAT (Derli toplu yan yana hizalama)
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    // Reyon Seçimi
-                    Box(modifier = Modifier.weight(1f)) {
-                        ExposedDropdownMenuBox(
-                            expanded = expandedCategoryMenu,
-                            onExpandedChange = { expandedCategoryMenu = !expandedCategoryMenu },
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            OutlinedTextField(
-                                value = kategori,
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Reyon") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCategoryMenu) },
-                                modifier = Modifier
-                                    .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                                    .fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(16.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    focusedBorderColor = TurquoisePrimary,
-                                    unfocusedBorderColor = Color.Transparent,
-                                    focusedLabelColor = TurquoiseDark,
-                                    focusedContainerColor = Color(0xFFF8FAFC),
-                                    unfocusedContainerColor = Color(0xFFF8FAFC)
-                                )
-                            )
-                            ExposedDropdownMenu(
-                                expanded = expandedCategoryMenu,
-                                onDismissRequest = { expandedCategoryMenu = false }
-                            ) {
-                                categories.forEach { cat ->
-                                    DropdownMenuItem(
-                                        text = { Text(cat, fontSize = 13.sp) },
-                                        onClick = {
-                                            kategori = cat
-                                            userOverrodeCategory = true  // Artık otomatik override etme
-                                            expandedCategoryMenu = false
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Fiyat (₺) Alanı
-                    OutlinedTextField(
-                        value = fiyatText,
-                        onValueChange = { fiyatText = it },
-                        label = { Text("Fiyat (₺)") },
-                        placeholder = { Text("0.00") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .testTag("input_fiyat"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            focusedBorderColor = TurquoisePrimary,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedLabelColor = TurquoiseDark,
-                            focusedContainerColor = Color(0xFFF8FAFC),
-                            unfocusedContainerColor = Color(0xFFF8FAFC)
-                        )
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // 5. ÖNEMLİ ÜRÜN SWITCH ALANI
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFFF8FAFC),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("⭐", fontSize = 15.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Önemli Ürün",
-                                fontWeight = FontWeight.Medium,
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Switch(
-                            checked = isImportant,
-                            onCheckedChange = { isImportant = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = CriticalOrange
-                            )
-                        )
-                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 6. ALT BUTONLAR VE AKSİYONLAR: "Sil" ve "Güncelle / Kaydet"
+            // 2 & 3) BARKOD VE ÜRÜN KODU (Yan yana, weight(1f), 12.dp boşluk)
             Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (product != null && onDelete != null) {
-                        TextButton(
-                            onClick = {
-                                if (isSaving) return@TextButton
-                                isSaving = true
-                                onDelete(product)
-                            },
-                            enabled = !isSaving,
-                            colors = ButtonDefaults.textButtonColors(contentColor = ExpiredRed),
-                            shape = RoundedCornerShape(10.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                ModernProductInputField(
+                    label = "Barkod",
+                    value = barkod,
+                    onValueChange = { barkod = it },
+                    placeholder = "869...",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    inputTestTag = "input_barkod",
+                    modifier = Modifier.weight(1f)
+                )
+
+                ModernProductInputField(
+                    label = "Ürün Kodu",
+                    value = urunKodu,
+                    onValueChange = { urunKodu = it },
+                    placeholder = "Örn: 1300...",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3) ÜRÜN ADI (Tam genişlikte, sağında düzgün hizalı kamera ikonu)
+            ModernProductInputField(
+                label = "Ürün Adı",
+                value = urunAdi,
+                onValueChange = {
+                    val formatted = it.uppercase(Locale.forLanguageTag("tr-TR"))
+                    urunAdi = formatted
+                    if (!userOverrodeCategory && formatted.isNotBlank()) {
+                        kategori = com.example.util.CategoryClassifier.classifyCategory(formatted)
+                    }
+                },
+                placeholder = "Örn: KLASİK PEYNİR 350G",
+                keyboardOptions = KeyboardOptions(
+                    capitalization = KeyboardCapitalization.Characters
+                ),
+                inputTestTag = "input_urun_adi",
+                trailingContent = {
+                    IconButton(
+                        onClick = { showProductNameOcrScanner = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("scan_product_name_ocr_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.CameraAlt,
+                            contentDescription = "Yazı Oku",
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 3) REYON (Dropdown) VE FİYAT (Yan yana, weight(1f), 12.dp boşluk)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Reyon Seçici
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Reyon",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate600,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        val fieldShape = RoundedCornerShape(16.dp)
+                        Row(
                             modifier = Modifier
-                                .weight(0.7f)
-                                .height(44.dp)
+                                .fillMaxWidth()
+                                .height(54.dp)
+                                .clip(fieldShape)
+                                .background(Slate50)
+                                .then(
+                                    if (expandedCategoryMenu) {
+                                        Modifier.border(1.5.dp, TurquoisePrimary, fieldShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true, color = TurquoisePrimary)
+                                ) { expandedCategoryMenu = true }
+                                .padding(horizontal = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Delete,
-                                contentDescription = "Sil",
-                                modifier = Modifier.size(18.dp)
+                            Text(
+                                text = kategori,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Sil", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Icon(
+                                imageVector = Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = "Reyon Seç",
+                                tint = Slate700,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = expandedCategoryMenu,
+                            onDismissRequest = { expandedCategoryMenu = false },
+                            containerColor = Color.White,
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            categories.forEach { cat ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = cat,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Slate900
+                                        )
+                                    },
+                                    onClick = {
+                                        kategori = cat
+                                        userOverrodeCategory = true
+                                        expandedCategoryMenu = false
+                                    }
+                                )
+                            }
                         }
                     }
+                }
 
+                // Fiyat Alanı
+                ModernProductInputField(
+                    label = "Fiyat (₺)",
+                    value = fiyatText,
+                    onValueChange = { fiyatText = it },
+                    placeholder = "0.00",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    inputTestTag = "input_fiyat",
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 4) ÖNEMLİ ÜRÜN SWITCH'İ (Kutusu olmayan temiz Row, Turkuaz Switch)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "⭐",
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        text = "Önemli Ürün",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                }
+
+                Switch(
+                    checked = isImportant,
+                    onCheckedChange = { isImportant = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = TurquoisePrimary,
+                        uncheckedThumbColor = Color.White,
+                        uncheckedTrackColor = Slate200,
+                        uncheckedBorderColor = Color.Transparent
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // 5) ALT BUTONLAR (52.dp yükseklik, 16.dp yuvarlak köşe, Düzenleme modunda solda 0.3f Sil, sağda 0.7f Güncelle/Kaydet)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (product != null && onDelete != null) {
                     Button(
                         onClick = {
                             if (isSaving) return@Button
-                            val enteredName = urunAdi.trim()
-                            val enteredBarkod = barkod.trim()
-                            val enteredCode = urunKodu.trim()
-                            val enteredCategory = kategori.trim()
-
-                            // Fiyat Girişi: 2 basamağa yuvarlayarak IEEE 754 sapmalarını engelle
-                            val trimmedFiyat = fiyatText.trim().replace(',', '.')
-                            val validFiyat = if (trimmedFiyat.isNotBlank()) {
-                                trimmedFiyat.toDoubleOrNull()?.takeIf { it > 0.0 }?.let { parsedDouble ->
-                                    (Math.round(parsedDouble * 100.0) / 100.0)
-                                }
-                            } else {
-                                null
-                            }
-
-                            val candidate = Product(
-                                id = product?.id ?: 0,
-                                barkod = enteredBarkod.ifBlank { if (enteredCode.isNotBlank()) "2500$enteredCode" else "NO_BARCODE_${(enteredName + enteredCode).hashCode().toString().replace("-", "N")}" },
-                                urunKodu = enteredCode,
-                                urunAdi = enteredName,
-                                kategori = enteredCategory,
-                                sktTarihi = product?.sktTarihi ?: 0L,
-                                stokAdedi = product?.stokAdedi ?: 0,
-                                fiyat = validFiyat,
-                                isImportant = isImportant
-                            )
-                            val finalHealed = ProductDataHealer.autoHealProduct(candidate)
-
-                            if (finalHealed.urunAdi.isNotBlank()) {
-                                isSaving = true
-                                onSave(
-                                    finalHealed.barkod,
-                                    finalHealed.urunKodu,
-                                    finalHealed.urunAdi,
-                                    finalHealed.kategori,
-                                    finalHealed.sktTarihi,
-                                    finalHealed.stokAdedi,
-                                    false,
-                                    finalHealed.fiyat,
-                                    finalHealed.isImportant
-                                )
-                            } else {
-                                Toast.makeText(context, "Lütfen ürün adını girin", Toast.LENGTH_SHORT).show()
-                            }
+                            isSaving = true
+                            onDelete(product)
                         },
                         enabled = !isSaving,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFFEE2E2),
+                            contentColor = ExpiredRedDark
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp),
                         modifier = Modifier
-                            .weight(1.3f)
-                            .height(46.dp)
-                            .testTag("save_product_button"),
-                        colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                        shape = RoundedCornerShape(16.dp)
+                            .weight(0.3f)
+                            .height(52.dp)
                     ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DeleteOutline,
+                            contentDescription = "Sil",
+                            tint = ExpiredRedDark,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (product != null) "Güncelle" else "Kaydet",
+                            text = "Sil",
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            fontSize = 13.sp
+                            fontSize = 14.5.sp,
+                            color = ExpiredRedDark,
+                            maxLines = 1
                         )
                     }
                 }
+
+                Button(
+                    onClick = {
+                        if (isSaving) return@Button
+                        val enteredName = urunAdi.trim()
+                        val enteredBarkod = barkod.trim()
+                        val enteredCode = urunKodu.trim()
+                        val enteredCategory = kategori.trim()
+
+                        val trimmedFiyat = fiyatText.trim().replace(',', '.')
+                        val validFiyat = if (trimmedFiyat.isNotBlank()) {
+                            trimmedFiyat.toDoubleOrNull()?.takeIf { it > 0.0 }?.let { parsedDouble ->
+                                (Math.round(parsedDouble * 100.0) / 100.0)
+                            }
+                        } else {
+                            null
+                        }
+
+                        val candidate = Product(
+                            id = product?.id ?: 0,
+                            barkod = enteredBarkod.ifBlank {
+                                if (enteredCode.isNotBlank()) "2500$enteredCode"
+                                else "NO_BARCODE_${(enteredName + enteredCode).hashCode().toString().replace("-", "N")}"
+                            },
+                            urunKodu = enteredCode,
+                            urunAdi = enteredName,
+                            kategori = enteredCategory,
+                            sktTarihi = product?.sktTarihi ?: 0L,
+                            stokAdedi = product?.stokAdedi ?: 0,
+                            fiyat = validFiyat,
+                            isImportant = isImportant
+                        )
+                        val finalHealed = ProductDataHealer.autoHealProduct(candidate)
+
+                        if (finalHealed.urunAdi.isNotBlank()) {
+                            isSaving = true
+                            onSave(
+                                finalHealed.barkod,
+                                finalHealed.urunKodu,
+                                finalHealed.urunAdi,
+                                finalHealed.kategori,
+                                finalHealed.sktTarihi,
+                                finalHealed.stokAdedi,
+                                false,
+                                finalHealed.fiyat,
+                                finalHealed.isImportant
+                            )
+                        } else {
+                            Toast.makeText(context, "Lütfen ürün adını girin", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    enabled = !isSaving,
+                    modifier = Modifier
+                        .weight(if (product != null && onDelete != null) 0.7f else 1f)
+                        .height(52.dp)
+                        .testTag("save_product_button"),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Text(
+                        text = if (product != null) "Güncelle" else "Kaydet",
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModernProductInputField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    inputTestTag: String? = null,
+    trailingContent: (@Composable () -> Unit)? = null
+) {
+    var isFocused by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val boxShape = RoundedCornerShape(16.dp)
+
+    Column(modifier = modifier) {
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isFocused) TurquoiseDark else Slate600,
+            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp)
+                .clip(boxShape)
+                .background(Slate50)
+                .then(
+                    if (isFocused) {
+                        Modifier.border(BorderStroke(1.5.dp, TurquoisePrimary), boxShape)
+                    } else {
+                        Modifier
+                    }
+                )
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusRequester.requestFocus()
+                }
+                .padding(start = 14.dp, end = if (trailingContent != null) 6.dp else 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF94A3B8),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    keyboardOptions = keyboardOptions,
+                    cursorBrush = SolidColor(TurquoisePrimary),
+                    textStyle = TextStyle(
+                        fontFamily = AppFontFamily,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { isFocused = it.isFocused }
+                        .then(
+                            if (inputTestTag != null) Modifier.testTag(inputTestTag) else Modifier
+                        )
+                )
+            }
+
+            if (trailingContent != null) {
+                Spacer(modifier = Modifier.width(4.dp))
+                trailingContent()
+            }
+        }
     }
 }
