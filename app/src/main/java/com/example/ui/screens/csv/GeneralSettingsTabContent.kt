@@ -610,12 +610,20 @@ private fun ToneSelectionDialog(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.example.ui.components.AppModalBlurState.onModalOpened()
+        onDispose {
+            com.example.ui.components.AppModalBlurState.onModalClosed()
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        containerColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.35f),
+        dragHandle = { com.example.ui.components.PremiumSheetDragHandle() }
     ) {
         Column(
             modifier = Modifier

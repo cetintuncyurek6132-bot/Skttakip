@@ -158,12 +158,20 @@ fun AdetselQuickCountBottomSheet(
         }
     }
 
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        com.example.ui.components.AppModalBlurState.onModalOpened()
+        onDispose {
+            com.example.ui.components.AppModalBlurState.onModalClosed()
+        }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        dragHandle = { BottomSheetDefaults.DragHandle() }
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        containerColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.35f),
+        dragHandle = { com.example.ui.components.PremiumSheetDragHandle() }
     ) {
         Column(
             modifier = Modifier
@@ -392,12 +400,12 @@ fun AdetselQuickCountBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("quick_count_search_field"),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TurquoiseDark,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f),
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    focusedBorderColor = TurquoisePrimary,
+                    unfocusedBorderColor = Color.Transparent,
+                    focusedContainerColor = Color(0xFFF8FAFC),
+                    unfocusedContainerColor = Color(0xFFF8FAFC)
                 ),
                 textStyle = TextStyle(
                     fontSize = 13.5.sp,
@@ -410,9 +418,8 @@ fun AdetselQuickCountBottomSheet(
                 Spacer(modifier = Modifier.height(6.dp))
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC)
                 ) {
                     if (searchResults.isNotEmpty()) {
                         Column(modifier = Modifier.padding(6.dp)) {
@@ -498,9 +505,8 @@ fun AdetselQuickCountBottomSheet(
                 val prod = scannedProduct!!
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f))
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC)
                 ) {
                     Column(modifier = Modifier.padding(14.dp)) {
                         // 1. Ürün İsmi (Kalın ve okunaklı)
@@ -554,9 +560,8 @@ fun AdetselQuickCountBottomSheet(
 
                             // Eksi (-) Butonu
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(1.dp, Slate200),
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFE2E8F0),
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clickable {
@@ -603,10 +608,12 @@ fun AdetselQuickCountBottomSheet(
                                     keyboardType = KeyboardType.Number,
                                     imeAction = ImeAction.Done
                                 ),
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = TurquoiseDark,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                                    focusedBorderColor = TurquoisePrimary,
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
                                 )
                             )
 
@@ -614,9 +621,8 @@ fun AdetselQuickCountBottomSheet(
 
                             // Artı (+) Butonu
                             Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(1.dp, Slate200),
+                                shape = RoundedCornerShape(14.dp),
+                                color = Color(0xFFE2E8F0),
                                 modifier = Modifier
                                     .size(44.dp)
                                     .clickable {
@@ -685,21 +691,23 @@ fun AdetselQuickCountBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // "Vazgeç" butonu: Modalı kapatır, hiçbir şey kaydetmez
-                OutlinedButton(
+                Surface(
                     onClick = onDismiss,
                     modifier = Modifier
                         .weight(1f)
                         .height(48.dp)
                         .testTag("quick_count_cancel_button"),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.2.dp, MaterialTheme.colorScheme.outline)
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF1F5F9)
                 ) {
-                    Text(
-                        text = "Vazgeç",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "Vazgeç",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = Slate700
+                        )
+                    }
                 }
 
                 // "Sayıma Ekle" butonu: Kutuda yazan adedi doğrudan sayım listesine ekler/günceller, modalı kapatır.
@@ -716,7 +724,7 @@ fun AdetselQuickCountBottomSheet(
                         .weight(1.3f)
                         .height(48.dp)
                         .testTag("quick_count_save_button"),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = TurquoiseDark,
                         disabledContainerColor = Slate200

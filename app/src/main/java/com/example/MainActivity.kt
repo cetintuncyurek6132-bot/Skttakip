@@ -50,6 +50,7 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -329,6 +330,16 @@ fun SktMainApp(
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
 
+    val activeModalCount by com.example.ui.components.AppModalBlurState.activeModalCount.collectAsStateWithLifecycle()
+    val isModalOpen = isAddEditModalOpen ||
+        detailProduct != null ||
+        addSktProduct != null ||
+        isNotificationDialogOpen ||
+        isProfileDialogOpen ||
+        isBarcodeScannerOpen ||
+        isQuickSearchScannerOpen ||
+        activeModalCount > 0
+
     // Auto-dismiss migration bar after 3 seconds
     LaunchedEffect(migrationStatus) {
         if (migrationStatus?.isVisible == true) {
@@ -371,11 +382,22 @@ fun SktMainApp(
         }
     }
 
+    val blurModifier = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        Modifier.blur(radius = if (isModalOpen) 16.dp else 0.dp)
+    } else {
+        Modifier
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            containerColor = MaterialTheme.colorScheme.background,
-            bottomBar = {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(blurModifier)
+        ) {
+            Scaffold(
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                containerColor = MaterialTheme.colorScheme.background,
+                bottomBar = {
                 SktBottomNavBar(
                     currentRoute = activeRoute,
                     onNavigate = { target -> navigateToTab(target) },
@@ -495,6 +517,7 @@ fun SktMainApp(
                 onOpenProfile = { isProfileDialogOpen = true },
                 onOpenNotifications = { isNotificationDialogOpen = true }
             )
+            }
         }
 
         // TÜM GLOBAL DİYALOG VE MODAL YÖNETİMİ

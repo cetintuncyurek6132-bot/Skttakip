@@ -20,10 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AssignmentLate
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.outlined.AssignmentLate
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.LocalShipping
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -54,10 +54,7 @@ import com.example.ui.DashboardState
 import com.example.ui.ProductFilter
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.ExpiredRedBorder
-import com.example.ui.theme.ExpiredRedContainer
 import com.example.ui.theme.ExpiredRedDark
-import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate900
 import java.text.SimpleDateFormat
@@ -254,9 +251,9 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(Slate50)
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
             .testTag("dashboard_screen_root"),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // =====================================================================
         // 1. DİNAMİK VE OTOMATİK SOLA AKAN ACİL ÜRÜN VİTRİNİ (HORIZONTAL PAGER)
@@ -299,13 +296,18 @@ fun DashboardScreen(
             else -> "Açık Evrak Yok"
         }
 
+        val depoCardBg = when {
+            isDepoRedAlert -> Color(0xFFFFF5F5)
+            hasOngoingDepo -> Color(0xFFFFFBF5)
+            else -> Color(0xFFF3FAF6)
+        }
         val depoBorderColor = when {
-            isDepoRedAlert -> ExpiredRedBorder
-            hasOngoingDepo -> Color(0xFFFDBA74)
-            else -> Slate200
+            isDepoRedAlert -> Color(0xFFFECACA)
+            hasOngoingDepo -> Color(0xFFFED7AA)
+            else -> Color(0xFFD1FAE5)
         }
         val depoIconBg = when {
-            isDepoRedAlert -> ExpiredRedContainer
+            isDepoRedAlert -> Color(0xFFFEE2E2)
             hasOngoingDepo -> Color(0xFFFFEDD5)
             else -> Color(0xFFDCFCE7)
         }
@@ -320,48 +322,51 @@ fun DashboardScreen(
             else -> Color(0xFF15803D)
         }
 
+        val adetselCardBg = if (pendingAdetselCount > 0) Color(0xFFFFFBF5) else Color(0xFFF3FAF6)
+        val adetselBorderColor = if (pendingAdetselCount > 0) Color(0xFFFED7AA) else Color(0xFFD1FAE5)
+
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             // Sol Kutu: Adetsel Sayım Kontrolü
             Surface(
                 onClick = { onQuickActionClick("adetsel") },
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White,
-                border = BorderStroke(1.dp, if (pendingAdetselCount > 0) Color(0xFFFDBA74) else Slate200),
-                shadowElevation = 1.dp,
+                shape = RoundedCornerShape(18.dp),
+                color = adetselCardBg,
+                border = BorderStroke(1.dp, adetselBorderColor),
+                shadowElevation = 0.8.dp,
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(if (pendingAdetselCount > 0) Color(0xFFFFEDD5) else Color(0xFFDCFCE7)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (pendingAdetselCount > 0) Icons.Default.AssignmentLate else Icons.Default.CheckCircle,
+                            imageVector = if (pendingAdetselCount > 0) Icons.Outlined.AssignmentLate else Icons.Outlined.CheckCircle,
                             contentDescription = null,
                             tint = if (pendingAdetselCount > 0) Color(0xFFEA580C) else EmeraldSuccess,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
                             text = "Adetsel Sayım",
-                            fontSize = 11.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate900,
                             maxLines = 1,
@@ -373,7 +378,7 @@ fun DashboardScreen(
                             else
                                 "Sayım: Güncel",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Color(0xFF15803D),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -385,41 +390,41 @@ fun DashboardScreen(
             // Sağ Kutu: Depo İade Takibi
             Surface(
                 onClick = { onQuickActionClick("takip") },
-                shape = RoundedCornerShape(12.dp),
-                color = Color.White,
+                shape = RoundedCornerShape(18.dp),
+                color = depoCardBg,
                 border = BorderStroke(1.dp, depoBorderColor),
-                shadowElevation = 1.dp,
+                shadowElevation = 0.8.dp,
                 modifier = Modifier.weight(1f)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(30.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .background(depoIconBg),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = if (hasAnyDepoAction) Icons.Default.LocalShipping else Icons.Default.CheckCircle,
+                            imageVector = if (hasAnyDepoAction) Icons.Outlined.LocalShipping else Icons.Outlined.CheckCircle,
                             contentDescription = null,
                             tint = depoIconTint,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
 
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Text(
                             text = "Depo İade Takibi",
-                            fontSize = 11.5.sp,
+                            fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate900,
                             maxLines = 1,
@@ -428,7 +433,7 @@ fun DashboardScreen(
                         Text(
                             text = depoStatusText,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Medium,
                             color = depoTextColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -448,24 +453,25 @@ fun DashboardScreen(
         )
 
         // =====================================================================
-        // 5. WHATSAPP SABAH RAPORU PAYLAŞ BUTONU
+        // 5. WHATSAPP SABAH RAPORU PAYLAŞ BUTONU (STADIUM SHAPE)
         // =====================================================================
         Surface(
             onClick = { shareMorningCockpitOnWhatsApp() },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(50),
             color = Color(0xFFF0FDF4),
             border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+            shadowElevation = 0.8.dp,
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 13.dp),
+                    .padding(horizontal = 18.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = Icons.Outlined.Share,
                     contentDescription = null,
                     tint = Color(0xFF16A34A),
                     modifier = Modifier.size(18.dp)
@@ -474,7 +480,7 @@ fun DashboardScreen(
                 Text(
                     text = "Sabah Vardiya Raporunu WhatsApp'tan Paylaş",
                     fontSize = 13.5.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = Color(0xFF15803D)
                 )
             }

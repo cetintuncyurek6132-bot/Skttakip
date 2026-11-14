@@ -279,15 +279,15 @@ fun AddEditProductModal(
                         .padding(horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // 2. "RAF ETİKETİ OKU" BUTONU (Daha Kompakt: 40.dp)
+                    // 2. "RAF ETİKETİ OKU" BUTONU (Daha Kompakt: 42.dp)
                     Button(
                         onClick = { showFullQrScanner = true },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(40.dp)
+                            .height(42.dp)
                             .testTag("scan_qr_label_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(16.dp),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                     ) {
                     Row(
@@ -353,15 +353,16 @@ fun AddEditProductModal(
                             .weight(1.1f)
                             .testTag("input_barkod"),
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = TurquoisePrimary,
+                            unfocusedBorderColor = Color.Transparent,
                             focusedLabelColor = TurquoiseDark,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            focusedContainerColor = Color(0xFFF8FAFC),
+                            unfocusedContainerColor = Color(0xFFF8FAFC)
                         )
                     )
                     OutlinedTextField(
@@ -370,15 +371,16 @@ fun AddEditProductModal(
                         label = { Text("Ürün Kodu") },
                         modifier = Modifier.weight(0.9f),
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = TurquoisePrimary,
+                            unfocusedBorderColor = Color.Transparent,
                             focusedLabelColor = TurquoiseDark,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            focusedContainerColor = Color(0xFFF8FAFC),
+                            unfocusedContainerColor = Color(0xFFF8FAFC)
                         )
                     )
                 }
@@ -412,7 +414,7 @@ fun AddEditProductModal(
                         .fillMaxWidth()
                         .testTag("input_urun_adi"),
                     singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Characters
                     ),
@@ -420,9 +422,10 @@ fun AddEditProductModal(
                         focusedTextColor = MaterialTheme.colorScheme.onSurface,
                         unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                         focusedBorderColor = TurquoisePrimary,
+                        unfocusedBorderColor = Color.Transparent,
                         focusedLabelColor = TurquoiseDark,
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        focusedContainerColor = Color(0xFFF8FAFC),
+                        unfocusedContainerColor = Color(0xFFF8FAFC)
                     )
                 )
 
@@ -464,14 +467,15 @@ fun AddEditProductModal(
                                     .menuAnchor(MenuAnchorType.PrimaryNotEditable)
                                     .fillMaxWidth(),
                                 singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedTextColor = MaterialTheme.colorScheme.onSurface,
                                     unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                                     focusedBorderColor = TurquoisePrimary,
+                                    unfocusedBorderColor = Color.Transparent,
                                     focusedLabelColor = TurquoiseDark,
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                                    focusedContainerColor = Color(0xFFF8FAFC),
+                                    unfocusedContainerColor = Color(0xFFF8FAFC)
                                 )
                             )
                             ExposedDropdownMenu(
@@ -502,15 +506,16 @@ fun AddEditProductModal(
                             .weight(1f)
                             .testTag("input_fiyat"),
                         singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(16.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = MaterialTheme.colorScheme.onSurface,
                             unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
                             focusedBorderColor = TurquoisePrimary,
+                            unfocusedBorderColor = Color.Transparent,
                             focusedLabelColor = TurquoiseDark,
-                            focusedContainerColor = MaterialTheme.colorScheme.surface,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                            focusedContainerColor = Color(0xFFF8FAFC),
+                            unfocusedContainerColor = Color(0xFFF8FAFC)
                         )
                     )
                 }
@@ -519,9 +524,8 @@ fun AddEditProductModal(
 
                 // 5. ÖNEMLİ ÜRÜN SWITCH ALANI
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    border = BorderStroke(1.dp, if (isImportant) CriticalOrange else Color.Transparent),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
@@ -638,10 +642,10 @@ fun AddEditProductModal(
                         enabled = !isSaving,
                         modifier = Modifier
                             .weight(1.3f)
-                            .height(44.dp)
+                            .height(46.dp)
                             .testTag("save_product_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text(
                             text = if (product != null) "Güncelle" else "Kaydet",

@@ -180,9 +180,8 @@ fun AddSktModal(
                 ) {
                     // 2. PRODUCT INFO CARD
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                     Column(
@@ -223,19 +222,18 @@ fun AddSktModal(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Color.White,
-                            border = BorderStroke(1.5.dp, TurquoisePrimary),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFFF8FAFC),
                             modifier = Modifier
                                 .weight(1f)
-                                .height(44.dp)
+                                .height(46.dp)
                                 .clickable { showDatePicker = true }
                                 .testTag("input_new_skt_date")
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 10.dp),
+                                    .padding(horizontal = 12.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -254,30 +252,30 @@ fun AddSktModal(
                             }
                         }
 
-                        OutlinedButton(
+                        Surface(
                             onClick = { showOcrScanner = true },
-                            modifier = Modifier.height(44.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            border = BorderStroke(1.2.dp, TurquoisePrimary),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(
-                                containerColor = Color.White,
-                                contentColor = TurquoiseDark
-                            )
+                            modifier = Modifier.height(46.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.12f)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = "Tarih Oku",
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                "Tarih Oku",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TurquoiseDark
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CameraAlt,
+                                    contentDescription = "Tarih Oku",
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Text(
+                                    "Tarih Oku",
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark
+                                )
+                            }
                         }
                     }
 
@@ -333,18 +331,17 @@ fun AddSktModal(
                                 onClick = {
                                     selectedDateMillis = dateCalc()
                                 },
-                                shape = RoundedCornerShape(6.dp),
+                                shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFFF1F5F9),
-                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.4f)),
-                                modifier = Modifier.height(26.dp)
+                                modifier = Modifier.height(28.dp)
                             ) {
                                 Box(
                                     contentAlignment = Alignment.Center,
-                                    modifier = Modifier.padding(horizontal = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 8.dp)
                                 ) {
                                     Text(
                                         text = label,
-                                        fontSize = 10.sp,
+                                        fontSize = 10.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = TurquoiseDark
                                     )
@@ -360,10 +357,9 @@ fun AddSktModal(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(10.dp))
-                        .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(10.dp))
-                        .padding(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -527,11 +523,11 @@ fun AddSktModal(
                             enabled = !isSaving,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(42.dp)
+                                .height(46.dp)
                                 .testTag("submit_add_skt_button"),
                             colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                            shape = RoundedCornerShape(10.dp)
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                            shape = RoundedCornerShape(16.dp)
                         ) {
                             Icon(imageVector = Icons.Default.Add, contentDescription = "Ekle", tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(4.dp))
@@ -564,11 +560,11 @@ fun AddSktModal(
                         enabled = !isSaving,
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
+                            .height(46.dp)
                             .testTag("save_and_close_skt_button"),
                         colors = ButtonDefaults.buttonColors(containerColor = if (isEditMode) TurquoisePrimary else Slate900),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-                        shape = RoundedCornerShape(10.dp)
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Icon(imageVector = Icons.Default.CheckCircle, contentDescription = "Kaydet", tint = Color.White, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))

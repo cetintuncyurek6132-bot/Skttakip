@@ -25,8 +25,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Checklist
-import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,10 +48,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.EmeraldSuccess
-import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
-import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate800
@@ -75,9 +73,9 @@ fun MorningOpeningRoutineCard(
     )
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, if (isAllCompleted) Color(0xFFBBF7D0) else Slate200),
+        shape = RoundedCornerShape(20.dp),
+        color = if (isAllCompleted) Color(0xFFF3FAF6) else Color(0xFFF8FAFC),
+        border = BorderStroke(1.dp, if (isAllCompleted) Color(0xFFD1FAE5) else Color(0xFFE2E8F0)),
         shadowElevation = 1.dp,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -92,25 +90,33 @@ fun MorningOpeningRoutineCard(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = ripple(bounded = true, color = TurquoiseDark)
                     ) { isExpanded = !isExpanded }
-                    .padding(horizontal = 16.dp, vertical = 13.dp)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
                     .testTag("morning_routine_header"),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Checklist,
-                        contentDescription = null,
-                        tint = if (isAllCompleted) EmeraldSuccess else TurquoiseDark,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(if (isAllCompleted) Color(0xFFD1FAE5) else Color(0xFFE0F2FE)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Checklist,
+                            contentDescription = null,
+                            tint = if (isAllCompleted) EmeraldSuccess else TurquoiseDark,
+                            modifier = Modifier.size(17.dp)
+                        )
+                    }
                     Text(
                         text = "Sabah Açılış Rutini",
                         fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         color = Slate900
                     )
                 }
@@ -120,27 +126,29 @@ fun MorningOpeningRoutineCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = if (isAllCompleted) Color(0xFFDCFCE7) else Slate100
+                        shape = RoundedCornerShape(50),
+                        color = if (isAllCompleted) Color(0xFFD1FAE5) else Color.White,
+                        border = BorderStroke(1.dp, if (isAllCompleted) Color(0xFFA7F3D0) else Slate200)
                     ) {
                         Text(
                             text = if (isAllCompleted) "Tamamlandı ✨" else "$completedRoutineCount / ${routineItems.size}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = if (isAllCompleted) EmeraldSuccess else Slate700,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
 
                     Box(
                         modifier = Modifier
-                            .size(26.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
-                            .background(Slate100),
+                            .background(Color.White)
+                            .border(1.dp, Slate200, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.KeyboardArrowDown,
+                            imageVector = Icons.Outlined.KeyboardArrowDown,
                             contentDescription = if (isExpanded) "Daralt" else "Genişlet",
                             tint = Slate700,
                             modifier = Modifier
@@ -160,8 +168,8 @@ fun MorningOpeningRoutineCard(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Spacer(modifier = Modifier.height(2.dp))
                     routineItems.forEachIndexed { index, title ->
@@ -169,30 +177,30 @@ fun MorningOpeningRoutineCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isChecked) Color(0xFFF0FDF4) else Slate50)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (isChecked) Color(0xFFF0FDF4) else Color.White)
                                 .border(
                                     1.dp,
                                     if (isChecked) Color(0xFFBBF7D0) else Slate200,
-                                    RoundedCornerShape(12.dp)
+                                    RoundedCornerShape(16.dp)
                                 )
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = ripple(bounded = true, color = EmeraldSuccess)
                                 ) { onToggleRoutineItem(index) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Box(
                                 modifier = Modifier
                                     .size(24.dp)
-                                    .clip(RoundedCornerShape(6.dp))
+                                    .clip(CircleShape)
                                     .background(if (isChecked) EmeraldSuccess else Color.White)
                                     .border(
                                         width = if (isChecked) 0.dp else 1.5.dp,
                                         color = if (isChecked) Color.Transparent else Slate400,
-                                        shape = RoundedCornerShape(6.dp)
+                                        shape = CircleShape
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -201,7 +209,7 @@ fun MorningOpeningRoutineCard(
                                         imageVector = Icons.Default.Check,
                                         contentDescription = "Tamamlandı",
                                         tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                             }
@@ -209,7 +217,7 @@ fun MorningOpeningRoutineCard(
                             Text(
                                 text = title,
                                 fontSize = 13.sp,
-                                fontWeight = if (isChecked) FontWeight.SemiBold else FontWeight.Medium,
+                                fontWeight = if (isChecked) FontWeight.Medium else FontWeight.Normal,
                                 color = if (isChecked) Slate600 else Slate800,
                                 textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
                                 modifier = Modifier.weight(1f)

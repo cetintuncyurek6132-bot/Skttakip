@@ -142,10 +142,11 @@ fun ProductDetailModal(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+        containerColor = Color.White,
+        scrimColor = Color.Black.copy(alpha = 0.35f),
         dragHandle = {
-            BottomSheetDefaults.DragHandle(
+            PremiumSheetDragHandle(
                 modifier = Modifier.pointerInput(Unit) {
                     detectHorizontalDragGestures(
                         onDragStart = { totalDragX = 0f },
@@ -315,10 +316,8 @@ fun ProductDetailModal(
 
             // 2. FERAH ÜRÜN ÖZET KARTI (Ürün Adı + Kod + Toplam Adet)
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Slate200),
-                shadowElevation = 1.dp,
+                shape = RoundedCornerShape(16.dp),
+                color = Color(0xFFF8FAFC),
                 modifier = Modifier
                     .fillMaxWidth()
                     .pointerInput(Unit) {
@@ -495,13 +494,12 @@ private fun ProductDetailTabButton(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val tabShape = RoundedCornerShape(10.dp)
+    val tabShape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier
-            .height(38.dp)
+            .height(40.dp)
             .clip(tabShape)
-            .background(if (isSelected) TurquoiseDark else Slate100)
-            .border(BorderStroke(1.dp, if (isSelected) TurquoiseDark else Slate200), tabShape)
+            .background(if (isSelected) TurquoiseDark else Color(0xFFF1F5F9))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true, color = if (isSelected) Color.White else TurquoiseDark)

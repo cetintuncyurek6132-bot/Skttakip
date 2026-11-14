@@ -8,19 +8,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.AddCircleOutline
-import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.automirrored.outlined.ArrowForwardIos
+import androidx.compose.material.icons.outlined.AddCircleOutline
+import androidx.compose.material.icons.outlined.VerifiedUser
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,16 +36,12 @@ import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.data.getDisplayName
 import com.example.ui.theme.CriticalOrange
-import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.EmeraldSuccess
 import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.ExpiredRedBorder
-import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
-import com.example.ui.theme.SoonYellowBorder
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 import kotlinx.coroutines.delay
@@ -69,18 +63,18 @@ fun UrgentProductsCarousel(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Vitrin Başlık Çubuğu (Her durumda görünür, sağda mini Ekle butonu ile)
+        // Vitrin Başlık Çubuğu (Her durumda görünür, sağda Stadium "+ Ekle" butonu ile)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Sol: Turuncu nokta + "Acil Müdahale Vitrini" + varsa adet sayacı
+            // Sol: Pastel gösterge noktası + "Acil Müdahale Vitrini" + varsa adet sayacı
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.weight(1f)
             ) {
                 Box(
@@ -91,7 +85,7 @@ fun UrgentProductsCarousel(
                 )
                 Text(
                     text = "Acil Müdahale Vitrini",
-                    fontSize = 14.5.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate900,
                     maxLines = 1,
@@ -101,12 +95,12 @@ fun UrgentProductsCarousel(
                 if (urgentProducts.isNotEmpty()) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
                         modifier = if (onViewAllClick != null) {
                             Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(50))
                                 .clickable { onViewAllClick() }
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         } else {
                             Modifier
                         }
@@ -114,14 +108,14 @@ fun UrgentProductsCarousel(
                         Text(
                             text = "(${urgentProducts.size})",
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = CriticalOrange,
                             maxLines = 1,
                             softWrap = false
                         )
                         if (onViewAllClick != null) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowForwardIos,
                                 contentDescription = "Tümünü Gör",
                                 tint = CriticalOrange,
                                 modifier = Modifier.size(9.dp)
@@ -131,30 +125,31 @@ fun UrgentProductsCarousel(
                 }
             }
 
-            // Sağ: Şık, mini "Ekle" butonu/ikonu
+            // Sağ: Şık, Stadium (RoundedCornerShape(50)) mini "Ekle" butonu ve Outlined ikon
             if (onAddProductClick != null) {
                 Surface(
                     onClick = onAddProductClick,
-                    shape = RoundedCornerShape(8.dp),
+                    shape = RoundedCornerShape(50),
                     color = Color(0xFFF0FDFA),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
+                    border = BorderStroke(1.dp, Color(0xFFCCFBF1)),
+                    shadowElevation = 0.5.dp,
                     modifier = Modifier.testTag("dashboard_header_add_product_button")
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.AddCircleOutline,
+                            imageVector = Icons.Outlined.AddCircleOutline,
                             contentDescription = "Ürün / SKT Ekle",
                             tint = TurquoiseDark,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(15.dp)
                         )
                         Text(
                             text = "Ekle",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = TurquoiseDark,
                             maxLines = 1
                         )
@@ -187,7 +182,7 @@ fun UrgentProductsCarousel(
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth(),
-                pageSpacing = 10.dp
+                pageSpacing = 12.dp
             ) { page ->
                 val product = urgentProducts[page]
                 val daysLeft = product.getRemainingDays(todayMidnight)
@@ -196,52 +191,56 @@ fun UrgentProductsCarousel(
                     daysLeft < 0 -> {
                         val absDays = kotlin.math.abs(daysLeft)
                         UrgentBadgeInfo(
-                            bgColor = ExpiredRed,
-                            textColor = Color.White,
+                            bgColor = Color(0xFFFEE2E2),
+                            textColor = Color(0xFFB91C1C),
                             numberText = if (absDays > 99) "99+" else absDays.toString(),
                             labelText = "GÜN GEÇTİ"
                         )
                     }
                     daysLeft == 0L -> {
                         UrgentBadgeInfo(
-                            bgColor = ExpiredRed,
-                            textColor = Color.White,
+                            bgColor = Color(0xFFFEE2E2),
+                            textColor = Color(0xFFB91C1C),
                             numberText = "!",
                             labelText = "BUGÜN"
                         )
                     }
                     daysLeft in 1L..2L -> {
                         UrgentBadgeInfo(
-                            bgColor = CriticalOrange,
-                            textColor = Color.White,
+                            bgColor = Color(0xFFFFEDD5),
+                            textColor = Color(0xFFC2410C),
                             numberText = daysLeft.toString(),
                             labelText = "GÜN KALDI"
                         )
                     }
                     else -> {
                         UrgentBadgeInfo(
-                            bgColor = Color(0xFFD97706),
-                            textColor = Color.White,
+                            bgColor = Color(0xFFFEF3C7),
+                            textColor = Color(0xFFB45309),
                             numberText = daysLeft.toString(),
                             labelText = "GÜN KALDI"
                         )
                     }
                 }
 
+                val cardPastelBg = when {
+                    daysLeft <= 0L -> Color(0xFFFFFBFB)
+                    daysLeft in 1L..2L -> Color(0xFFFFFCFA)
+                    else -> Color(0xFFFFFEFA)
+                }
+
+                val cardBorderColor = when {
+                    daysLeft <= 0L -> Color(0xFFFECACA).copy(alpha = 0.7f)
+                    daysLeft in 1L..2L -> Color(0xFFFED7AA).copy(alpha = 0.75f)
+                    else -> Color(0xFFFDE68A).copy(alpha = 0.8f)
+                }
+
                 Surface(
                     onClick = { onProductClick(product) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = Color.White,
-                    border = BorderStroke(
-                        1.dp,
-                        when {
-                            daysLeft < 0 -> ExpiredRedBorder
-                            daysLeft == 0L -> ExpiredRedBorder
-                            daysLeft in 1L..2L -> CriticalOrangeBorder
-                            else -> SoonYellowBorder
-                        }
-                    ),
-                    shadowElevation = 2.dp,
+                    shape = RoundedCornerShape(20.dp),
+                    color = cardPastelBg,
+                    border = BorderStroke(1.dp, cardBorderColor),
+                    shadowElevation = 1.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("urgent_product_carousel_card")
@@ -249,15 +248,15 @@ fun UrgentProductsCarousel(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Sol Aciliyet Rozeti
+                        // Sol Pastel Aciliyet Rozeti
                         Box(
                             modifier = Modifier
                                 .size(width = 62.dp, height = 58.dp)
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(16.dp))
                                 .background(badgeInfo.bgColor),
                             contentAlignment = Alignment.Center
                         ) {
@@ -267,17 +266,17 @@ fun UrgentProductsCarousel(
                             ) {
                                 Text(
                                     text = badgeInfo.numberText,
-                                    fontSize = if (badgeInfo.numberText == "!") 23.sp else 20.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontSize = if (badgeInfo.numberText == "!") 22.sp else 19.sp,
+                                    fontWeight = FontWeight.Bold,
                                     color = badgeInfo.textColor,
                                     lineHeight = 20.sp
                                 )
                                 Text(
                                     text = badgeInfo.labelText,
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White.copy(alpha = 0.95f),
-                                    letterSpacing = 0.3.sp,
+                                    fontSize = 9.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = badgeInfo.textColor.copy(alpha = 0.85f),
+                                    letterSpacing = 0.2.sp,
                                     maxLines = 1
                                 )
                             }
@@ -286,27 +285,25 @@ fun UrgentProductsCarousel(
                         // Orta: Ürün Adı, SKT Tarihi ve Kod
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(3.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            // 1. Satır: Ürün Adı
                             Text(
                                 text = product.getDisplayName(),
                                 fontSize = 14.5.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate900,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
 
-                            // 2. Satır: SKT Tarihi (Öncelikli & Renkli) • Kod
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
                                     text = "SKT: ${product.getFormattedSkt()}",
                                     fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
+                                    fontWeight = FontWeight.SemiBold,
                                     color = when {
                                         daysLeft <= 0L -> ExpiredRed
                                         daysLeft in 1L..2L -> CriticalOrange
@@ -333,20 +330,20 @@ fun UrgentProductsCarousel(
                             }
                         }
 
-                        // Sağ: Sabit Adet Rozeti
+                        // Sağ: Stadium Adet Rozeti
                         Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = Slate100,
+                            shape = RoundedCornerShape(50),
+                            color = Color(0xFFF1F5F9),
                             border = BorderStroke(1.dp, Slate200)
                         ) {
                             Text(
                                 text = "${product.stokAdedi} Adet",
                                 fontSize = 12.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate800,
                                 maxLines = 1,
                                 softWrap = false,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                                modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp)
                             )
                         }
                     }
@@ -378,51 +375,51 @@ fun UrgentProductsCarousel(
                 }
             }
         } else {
-            // EĞER ACİL ÜRÜN YOKSA (BOŞ DURUM)
+            // EĞER ACİL ÜRÜN YOKSA (PASTEL TAZELİK GÜVENCESİ KARTI)
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF0FDF4),
-                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFFF3FAF6),
+                border = BorderStroke(1.dp, Color(0xFFD1FAE5)),
                 shadowElevation = 1.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(14.dp),
+                        .padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFDCFCE7)),
+                            .background(Color(0xFFD1FAE5).copy(alpha = 0.65f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Shield,
+                            imageVector = Icons.Outlined.VerifiedUser,
                             contentDescription = null,
-                            tint = EmeraldSuccess,
+                            tint = Color(0xFF059669),
                             modifier = Modifier.size(22.dp)
                         )
                     }
 
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Text(
                             text = "Tüm Reyonlar Güvende",
                             fontSize = 14.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF166534)
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF065F46)
                         )
                         Text(
                             text = "Acil müdahale gerektiren (0-7 gün) ürün bulunmuyor.",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Normal,
-                            color = Color(0xFF15803D)
+                            color = Color(0xFF047857)
                         )
                     }
                 }

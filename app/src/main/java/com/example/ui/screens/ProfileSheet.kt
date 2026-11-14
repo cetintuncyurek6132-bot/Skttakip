@@ -76,8 +76,8 @@ fun ProfileSheet(
                 .fillMaxWidth(0.94f)
                 .wrapContentHeight()
                 .heightIn(max = 680.dp),
-            shape = RoundedCornerShape(24.dp),
-            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(32.dp),
+            color = Color.White,
             shadowElevation = 12.dp
         ) {
             Column(
@@ -178,9 +178,9 @@ fun ProfileSheet(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 if (!isEditing) {
@@ -241,6 +241,13 @@ fun ProfileSheet(
                                         onValueChange = { tempName = it },
                                         label = { Text("Kullanıcı Adı") },
                                         singleLine = true,
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = TurquoisePrimary,
+                                            unfocusedBorderColor = Color.Transparent,
+                                            focusedContainerColor = Color.White,
+                                            unfocusedContainerColor = Color.White
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -250,6 +257,13 @@ fun ProfileSheet(
                                         onValueChange = { tempBranch = it },
                                         label = { Text("Açıklama / Not") },
                                         singleLine = true,
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = TurquoisePrimary,
+                                            unfocusedBorderColor = Color.Transparent,
+                                            focusedContainerColor = Color.White,
+                                            unfocusedContainerColor = Color.White
+                                        ),
                                         modifier = Modifier.fillMaxWidth()
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
@@ -283,9 +297,9 @@ fun ProfileSheet(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFE2FAFB)),
-                            border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFFCFB)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
@@ -345,9 +359,9 @@ fun ProfileSheet(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Row(
@@ -449,9 +463,9 @@ fun ProfileSheet(
 
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            border = BorderStroke(1.dp, Slate200.copy(alpha = 0.3f))
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(modifier = Modifier.padding(14.dp)) {
                                 Text(

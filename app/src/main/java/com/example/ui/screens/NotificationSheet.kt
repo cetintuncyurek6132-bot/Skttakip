@@ -143,8 +143,8 @@ fun NotificationSheet(
                 .fillMaxWidth(0.92f)
                 .wrapContentHeight()
                 .heightIn(max = 620.dp),
-            shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(32.dp),
+            color = Color.White,
             shadowElevation = 10.dp
         ) {
             Column(
@@ -242,9 +242,8 @@ fun NotificationSheet(
                     if (totalAlertCount == 0) {
                         // HİÇBİR UYARI YOKSA TEMİZ DURUM KARTI
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(16.dp),
                             color = NormalGreenContainer.copy(alpha = 0.7f),
-                            border = BorderStroke(1.dp, NormalGreen.copy(alpha = 0.4f)),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -414,7 +413,7 @@ private fun NotificationSummaryCard(
     onClick: () -> Unit,
     testTag: String
 ) {
-    val cardShape = RoundedCornerShape(14.dp)
+    val cardShape = RoundedCornerShape(16.dp)
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -426,8 +425,7 @@ private fun NotificationSummaryCard(
             )
             .testTag(testTag),
         shape = cardShape,
-        color = containerColor,
-        border = BorderStroke(1.dp, borderColor)
+        color = containerColor
     ) {
         Row(
             modifier = Modifier

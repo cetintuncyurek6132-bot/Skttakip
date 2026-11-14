@@ -256,12 +256,12 @@ fun QuickSearchScannerSheet(
                     ?.getFormattedSkt() ?: prod.getFormattedSkt()
 
                 Card(
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = BorderStroke(1.4.dp, TurquoisePrimary.copy(alpha = 0.5f)),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = ripple(bounded = true)
@@ -444,9 +444,8 @@ fun QuickSearchScannerSheet(
             } else {
                 // Henüz Okutulmadı - Rehber Metin
                 Surface(
-                    color = Slate50,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Slate200),
+                    color = Color(0xFFF8FAFC),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(

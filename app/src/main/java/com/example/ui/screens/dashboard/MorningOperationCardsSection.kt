@@ -8,17 +8,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Analytics
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Analytics
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,14 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.ProductFilter
 import com.example.ui.theme.CriticalOrange
-import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.CriticalOrangeDark
 import com.example.ui.theme.ExpiredRed
-import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedDark
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate900
-import com.example.ui.theme.SoonYellowBorder
 import com.example.ui.theme.SoonYellowDark
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
@@ -60,7 +57,7 @@ fun MorningOperationCardsSection(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text(
             text = "Sabah Operasyon Görevleri",
@@ -71,13 +68,14 @@ fun MorningOperationCardsSection(
             overflow = TextOverflow.Ellipsis
         )
 
-        // "Sabah Operasyon Görevleri" başlığının hemen altında mini "Analiz & İstatistikler" grafik rozeti/butonu
+        // "Sabah Operasyon Görevleri" başlığının hemen altında Stadium (RoundedCornerShape(50)) mini "Analiz & İstatistikler" butonu
         if (onAnalyticsClick != null) {
             Surface(
                 onClick = onAnalyticsClick,
-                shape = RoundedCornerShape(10.dp),
+                shape = RoundedCornerShape(50),
                 color = Color(0xFFF0FDFA),
-                border = BorderStroke(1.dp, Color(0xFF99F6E4)),
+                border = BorderStroke(1.dp, Color(0xFFCCFBF1)),
+                shadowElevation = 0.5.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("dashboard_analytics_button")
@@ -85,7 +83,7 @@ fun MorningOperationCardsSection(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
+                        .padding(horizontal = 14.dp, vertical = 9.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -95,23 +93,23 @@ fun MorningOperationCardsSection(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(24.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(TurquoisePrimary.copy(alpha = 0.16f)),
+                                .size(26.dp)
+                                .clip(CircleShape)
+                                .background(TurquoisePrimary.copy(alpha = 0.14f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Analytics,
+                                imageVector = Icons.Outlined.Analytics,
                                 contentDescription = null,
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Analiz & İstatistikler",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
                             color = TurquoiseDark,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -120,7 +118,7 @@ fun MorningOperationCardsSection(
                         Text(
                             text = "• SKT & Satış/Fire Grafiği",
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
+                            fontWeight = FontWeight.Normal,
                             color = Slate600,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -128,61 +126,61 @@ fun MorningOperationCardsSection(
                     }
 
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
                         contentDescription = "Analiz & İstatistikler",
                         tint = TurquoiseDark,
-                        modifier = Modifier.size(14.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
         }
 
-        // Yan yana dizilen 3'lü eşit genişlikte kompakt kritik görev kartları
+        // Yan yana dizilen 3'lü eşit genişlikte pastel kompakt kritik görev kartları (18.dp yuvarlak köşeler)
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçen) - Açık Kırmızı
+            // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçen) - Pastel Kırmızı/Pembe
             MorningOperationCard(
                 modifier = Modifier.weight(1f),
                 title = "Raftan Çekilecekler",
                 varietyCount = expiredVariety,
                 totalStockCount = expiredTotalStock,
                 badgeColor = ExpiredRed,
-                bgColor = Color(0xFFFFF5F5),
-                borderColor = ExpiredRedBorder,
+                bgColor = Color(0xFFFFF7F7),
+                borderColor = Color(0xFFFECACA).copy(alpha = 0.7f),
                 textColor = ExpiredRedDark,
-                icon = Icons.Default.Warning,
+                icon = Icons.Outlined.WarningAmber,
                 testTag = "op_card_expired",
                 onClick = { onFilterSelectAndNavigate(ProductFilter.EXPIRED) }
             )
 
-            // 🟠 Kart 2: Sıcak Satış (1-2 Gün) - Açık Turuncu
+            // 🟠 Kart 2: Sıcak Satış (1-2 Gün) - Pastel Şeftali/Turuncu
             MorningOperationCard(
                 modifier = Modifier.weight(1f),
                 title = "Sıcak Satış (1-2 Gün)",
                 varietyCount = criticalVariety,
                 totalStockCount = criticalTotalStock,
                 badgeColor = CriticalOrange,
-                bgColor = Color(0xFFFFF9F2),
-                borderColor = CriticalOrangeBorder,
+                bgColor = Color(0xFFFFFBF5),
+                borderColor = Color(0xFFFED7AA).copy(alpha = 0.75f),
                 textColor = CriticalOrangeDark,
-                icon = Icons.Default.NotificationsActive,
+                icon = Icons.Outlined.NotificationsActive,
                 testTag = "op_card_critical",
                 onClick = { onFilterSelectAndNavigate(ProductFilter.CRITICAL) }
             )
 
-            // 🟡 Kart 3: Yakın Takip (3-7 Gün) - Açık Sarı
+            // 🟡 Kart 3: Yakın Takip (3-7 Gün) - Pastel Krem/Sarı
             MorningOperationCard(
                 modifier = Modifier.weight(1f),
                 title = "Yakın Takip (3-7 Gün)",
                 varietyCount = soonVariety,
                 totalStockCount = soonTotalStock,
                 badgeColor = SoonYellowDark,
-                bgColor = Color(0xFFFEFDF0),
-                borderColor = SoonYellowBorder,
+                bgColor = Color(0xFFFEFEF5),
+                borderColor = Color(0xFFFDE68A).copy(alpha = 0.8f),
                 textColor = Color(0xFF92400E),
-                icon = Icons.Default.CalendarToday,
+                icon = Icons.Outlined.CalendarToday,
                 testTag = "op_card_soon",
                 onClick = { onFilterSelectAndNavigate(ProductFilter.SOON) }
             )
@@ -206,7 +204,7 @@ fun MorningOperationCard(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(18.dp),
         color = bgColor,
         border = BorderStroke(1.dp, borderColor),
         shadowElevation = 1.dp,
@@ -215,34 +213,34 @@ fun MorningOperationCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 9.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp)
+                .padding(horizontal = 10.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Üst: Küçük ikon ve durum başlığı
+            // Üst: Küçük Outlined ikon ve durum başlığı
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(20.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(badgeColor.copy(alpha = 0.16f)),
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(badgeColor.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = badgeColor,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(13.dp)
                     )
                 }
 
                 Text(
                     text = title,
                     fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = Slate900,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -253,12 +251,12 @@ fun MorningOperationCard(
             // Orta: Kalın çeşit sayısı ve altında adet sayısı
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(1.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = "$varietyCount Çeşit",
                     fontSize = 14.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontWeight = FontWeight.Bold,
                     color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -267,8 +265,8 @@ fun MorningOperationCard(
                 Text(
                     text = "$totalStockCount Adet",
                     fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = textColor.copy(alpha = 0.85f),
+                    fontWeight = FontWeight.Medium,
+                    color = textColor.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

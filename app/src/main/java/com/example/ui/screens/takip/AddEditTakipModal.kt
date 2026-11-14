@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -269,8 +270,7 @@ fun AddEditTakipModal(
         onDismissRequest = onDismiss,
         enableHorizontalSwipeDismiss = false,
         preventDismissOnDrag = true,
-        dismissOnScrim = false,
-        dragHandle = null
+        dismissOnScrim = false
     ) { dismissSheet ->
         // Üst Başlık Barı (Header): SOL: Kaydet, ORTA: Başlık, SAĞ: Kapat (X)
         Row(
@@ -348,7 +348,13 @@ fun AddEditTakipModal(
                                 },
                                 placeholder = { Text("Ürün kodu veya barkod girip Enter'a basın...", color = Slate400, fontSize = 13.5.sp) },
                                 singleLine = true,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = TurquoisePrimary,
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedContainerColor = Color(0xFFF8FAFC),
+                                    unfocusedContainerColor = Color(0xFFF8FAFC)
+                                ),
                                 keyboardOptions = KeyboardOptions(
                                     imeAction = ImeAction.Search
                                 ),
@@ -445,7 +451,13 @@ fun AddEditTakipModal(
                                     onValueChange = { urunAdi = it.uppercase(java.util.Locale.forLanguageTag("tr-TR")) },
                                     placeholder = { Text("Örn: Süt 1L Yarım Yağlı...", color = Slate400, fontSize = 14.sp) },
                                     singleLine = true,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = TurquoisePrimary,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        focusedContainerColor = Color(0xFFF8FAFC),
+                                        unfocusedContainerColor = Color(0xFFF8FAFC)
+                                    ),
                                     keyboardOptions = KeyboardOptions(
                                         capitalization = KeyboardCapitalization.Characters
                                     ),
@@ -491,11 +503,10 @@ fun AddEditTakipModal(
                             )
 
                             Box(modifier = Modifier.fillMaxWidth()) {
-                                OutlinedCard(
+                                Surface(
                                     onClick = { showRedNedeniDropdown = true },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.outlinedCardColors(containerColor = Slate50),
-                                    border = BorderStroke(1.dp, Slate200),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFFF8FAFC),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -539,7 +550,13 @@ fun AddEditTakipModal(
                                     placeholder = { Text("Red / iade nedenini detaylı belirtin...", color = Slate400, fontSize = 13.sp) },
                                     label = { Text("Red İade Nedeni Yazın *", fontSize = 11.5.sp, color = TurquoiseDark) },
                                     singleLine = true,
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = TurquoisePrimary,
+                                        unfocusedBorderColor = Color.Transparent,
+                                        focusedContainerColor = Color(0xFFF8FAFC),
+                                        unfocusedContainerColor = Color(0xFFF8FAFC)
+                                    ),
                                     textStyle = TextStyle(fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface),
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -641,11 +658,10 @@ fun AddEditTakipModal(
                                     text = "İade Tarihi",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
                                 )
-                                OutlinedCard(
+                                Surface(
                                     onClick = { showDatePickerForIade = true },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.outlinedCardColors(containerColor = Slate50),
-                                    border = BorderStroke(1.dp, Slate200),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFFF8FAFC),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -667,11 +683,10 @@ fun AddEditTakipModal(
                                     text = "Takip Hatırlatıcısı",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate700)
                                 )
-                                OutlinedCard(
+                                Surface(
                                     onClick = { showDatePickerForHatirlatma = true },
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.outlinedCardColors(containerColor = Slate50),
-                                    border = BorderStroke(1.dp, Slate200),
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = Color(0xFFF8FAFC),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -700,7 +715,13 @@ fun AddEditTakipModal(
                             placeholder = { Text("Örn: İrsaliye numarası, ambar teslim tutanağı, şoför adı vb...", color = Slate400, fontSize = 13.sp) },
                             minLines = 2,
                             maxLines = 4,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = TurquoisePrimary,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedContainerColor = Color(0xFFF8FAFC),
+                                unfocusedContainerColor = Color(0xFFF8FAFC)
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }

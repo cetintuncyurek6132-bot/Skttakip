@@ -188,12 +188,19 @@ fun BackupSettingsTabContent(
     // 3. DIŞA AKTARMA MODAL BOTTOM SHEET
     // ========================================================
     if (showExportSheet) {
+        androidx.compose.runtime.DisposableEffect(Unit) {
+            com.example.ui.components.AppModalBlurState.onModalOpened()
+            onDispose {
+                com.example.ui.components.AppModalBlurState.onModalClosed()
+            }
+        }
         ModalBottomSheet(
             onDismissRequest = { showExportSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            dragHandle = { BottomSheetDefaults.DragHandle() }
+            containerColor = Color.White,
+            scrimColor = Color.Black.copy(alpha = 0.35f),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            dragHandle = { com.example.ui.components.PremiumSheetDragHandle() }
         ) {
             Column(
                 modifier = Modifier
@@ -453,12 +460,19 @@ fun BackupSettingsTabContent(
     // 4. İÇE AKTARMA MODAL BOTTOM SHEET
     // ========================================================
     if (showImportSheet) {
+        androidx.compose.runtime.DisposableEffect(Unit) {
+            com.example.ui.components.AppModalBlurState.onModalOpened()
+            onDispose {
+                com.example.ui.components.AppModalBlurState.onModalClosed()
+            }
+        }
         ModalBottomSheet(
             onDismissRequest = { showImportSheet = false },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-            containerColor = MaterialTheme.colorScheme.surface,
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            dragHandle = { BottomSheetDefaults.DragHandle() }
+            containerColor = Color.White,
+            scrimColor = Color.Black.copy(alpha = 0.35f),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            dragHandle = { com.example.ui.components.PremiumSheetDragHandle() }
         ) {
             Column(
                 modifier = Modifier

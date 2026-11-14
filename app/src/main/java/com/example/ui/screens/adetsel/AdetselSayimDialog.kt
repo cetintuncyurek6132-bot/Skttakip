@@ -175,9 +175,8 @@ fun AdetselSayimDialog(
                 ) {
                     // Product Info Box
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF8FAFC),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                     Column(modifier = Modifier.padding(10.dp)) {
@@ -273,9 +272,8 @@ fun AdetselSayimDialog(
                 // DİNAMİK FARK GİRİŞİ ALANI
                 if (selectedSonuc == "TAM") {
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = NormalGreenContainer,
-                        border = BorderStroke(1.dp, NormalGreenBorder),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -327,9 +325,8 @@ fun AdetselSayimDialog(
                         ) {
                             // Minus Button (-1)
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
-                                color = Slate100,
-                                border = BorderStroke(1.2.dp, Slate300),
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFFF1F5F9),
                                 modifier = Modifier
                                     .size(48.dp)
                                     .clickable { adjustDiscrepancy(-1) }
@@ -346,9 +343,8 @@ fun AdetselSayimDialog(
 
                             // Sayı Giriş Alanı - Geniş, ferah ve persistent (klavye açılıp kapanmasını önler)
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = activeContainer,
-                                border = BorderStroke(1.5.dp, activeBorder),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(52.dp)
@@ -392,7 +388,7 @@ fun AdetselSayimDialog(
 
                             // Plus Button (+1)
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(16.dp),
                                 color = activeColor,
                                 modifier = Modifier
                                     .size(48.dp)
@@ -420,11 +416,13 @@ fun AdetselSayimDialog(
                     placeholder = { Text("Açıklama / Not (isteğe bağlı)...", fontSize = 11.5.sp, color = Slate500) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(16.dp),
                     textStyle = TextStyle(fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = TurquoiseDark,
-                        unfocusedBorderColor = Slate300
+                        focusedBorderColor = TurquoisePrimary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color(0xFFF8FAFC),
+                        unfocusedContainerColor = Color(0xFFF8FAFC)
                     )
                 )
             }
@@ -438,14 +436,17 @@ fun AdetselSayimDialog(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    OutlinedButton(
+                    Surface(
                         onClick = onDismiss,
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp),
-                        shape = RoundedCornerShape(10.dp)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF1F5F9)
                     ) {
-                        Text("Vazgeç", color = Slate700, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        Box(contentAlignment = Alignment.Center) {
+                            Text("Vazgeç", color = Slate700, fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
+                        }
                     }
 
                     Button(
@@ -460,8 +461,8 @@ fun AdetselSayimDialog(
                         },
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp),
-                        shape = RoundedCornerShape(10.dp),
+                            .height(44.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = when (selectedSonuc) {
                                 "EKSIK" -> ExpiredRedDark
@@ -498,12 +499,11 @@ fun StatusSelectionPill(
 ) {
     Surface(
         modifier = modifier
-            .height(46.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .height(48.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() },
-        color = if (isSelected) activeBg else Slate100,
-        shape = RoundedCornerShape(10.dp),
-        border = if (isSelected) null else BorderStroke(1.dp, Slate200)
+        color = if (isSelected) activeBg else Color(0xFFF8FAFC),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),

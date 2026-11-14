@@ -148,9 +148,8 @@ fun DeductStockDialog(
                 ) {
                     // 2. SEÇİLEN PARTİ BİLGİ KARTI
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Slate200),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                     Column(
@@ -214,12 +213,12 @@ fun DeductStockDialog(
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         // - butonu
-                        val counterBtnShape = RoundedCornerShape(8.dp)
+                        val counterBtnShape = RoundedCornerShape(14.dp)
                         Box(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(counterBtnShape)
-                                .background(Color(0xFFE2E8F0))
+                                .background(Color(0xFFF1F5F9))
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = ripple(bounded = true)
@@ -251,8 +250,7 @@ fun DeductStockDialog(
                                 .width(60.dp)
                                 .height(38.dp)
                                 .clip(counterBtnShape)
-                                .background(Color.White, counterBtnShape)
-                                .border(1.2.dp, Color(0xFFCBD5E1), counterBtnShape)
+                                .background(Color(0xFFF8FAFC), counterBtnShape)
                                 .padding(horizontal = 4.dp, vertical = 7.dp)
                                 .testTag("deduct_dialog_amount_field")
                         )
@@ -262,7 +260,7 @@ fun DeductStockDialog(
                             modifier = Modifier
                                 .size(38.dp)
                                 .clip(counterBtnShape)
-                                .background(Color(0xFFE2E8F0))
+                                .background(Color(0xFFF1F5F9))
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = ripple(bounded = true)
@@ -283,12 +281,11 @@ fun DeductStockDialog(
                                     .height(38.dp)
                                     .clip(counterBtnShape)
                                     .background(TurquoisePrimary.copy(alpha = 0.15f))
-                                    .border(BorderStroke(1.2.dp, TurquoiseDark), counterBtnShape)
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = ripple(bounded = true, color = TurquoiseDark)
                                     ) { deductAmountText = batch.stokAdedi.toString() }
-                                    .padding(horizontal = 9.dp),
+                                    .padding(horizontal = 10.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -332,7 +329,7 @@ fun DeductStockDialog(
                             containerColor = Color(0xFF16A34A),
                             disabledContainerColor = Color(0xFFCBD5E1)
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(46.dp)
@@ -373,7 +370,7 @@ fun DeductStockDialog(
                             containerColor = Color(0xFFDC2626),
                             disabledContainerColor = Color(0xFFCBD5E1)
                         ),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(16.dp),
                         modifier = Modifier
                             .weight(1f)
                             .height(46.dp)

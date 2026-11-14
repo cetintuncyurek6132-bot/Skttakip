@@ -224,11 +224,11 @@ fun ProductDetailSktTabContent(
             onClick = onAddNewSktClick,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
+                .height(46.dp)
                 .testTag("detail_add_new_skt_button"),
             colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp),
-            shape = RoundedCornerShape(12.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
         ) {
             Icon(
@@ -364,13 +364,11 @@ fun ProductDetailSktTabContent(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-                        shadowElevation = 1.5.dp,
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF8FAFC),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(16.dp))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = TurquoiseDark)
@@ -477,17 +475,20 @@ private fun ClickableRiskCard(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val cardShape = RoundedCornerShape(12.dp)
+    val cardShape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier
             .clip(cardShape)
-            .background(if (isSelected) containerColor else containerColor.copy(alpha = 0.65f))
-            .border(BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) accentColor else borderColor), cardShape)
+            .background(if (isSelected) containerColor else containerColor.copy(alpha = 0.55f))
+            .then(
+                if (isSelected) Modifier.border(BorderStroke(1.5.dp, accentColor), cardShape)
+                else Modifier
+            )
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = ripple(bounded = true, color = accentColor)
             ) { onClick() }
-            .padding(vertical = 8.dp, horizontal = 4.dp),
+            .padding(vertical = 10.dp, horizontal = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(

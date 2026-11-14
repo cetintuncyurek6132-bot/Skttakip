@@ -135,9 +135,9 @@ fun TakipDetailSheet(
         ) {
             // Ürün ve Tarih Bilgisi
             Card(
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Slate50),
-                border = BorderStroke(1.dp, Slate200),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(
@@ -258,8 +258,7 @@ fun TakipDetailSheet(
             // Red / İade Nedeni
             Surface(
                 color = Color(0xFFFFFBEB),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Row(
@@ -293,9 +292,8 @@ fun TakipDetailSheet(
             // Açıklama Metni (Eksiksiz ve Ferah)
             if (record.aciklama.isNotBlank()) {
                 Surface(
-                    color = Slate50,
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, Slate200),
+                    color = Color(0xFFF8FAFC),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
@@ -334,8 +332,7 @@ fun TakipDetailSheet(
             if (record.hatirlatmaTarihi.isNotBlank()) {
                 Surface(
                     color = TurquoisePrimary.copy(alpha = 0.08f),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.25f)),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
