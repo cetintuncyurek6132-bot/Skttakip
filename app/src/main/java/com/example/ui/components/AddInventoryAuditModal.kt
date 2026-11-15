@@ -23,8 +23,10 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Payments
@@ -56,6 +58,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.InventoryAuditEntity
 import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedContainer
 import com.example.ui.theme.ExpiredRedDark
@@ -85,10 +88,23 @@ private data class ModalCategoryChipSpec(
     val activeBorder: Color
 )
 
+private fun formatEditableNumber(value: Double): String {
+    if (value <= 0.0) return ""
+    return if (value % 1.0 == 0.0) {
+        value.toLong().toString()
+    } else {
+        value.toString()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddInventoryAuditModal(
     initialCategory: String = "GIDA",
+    editingAudit: InventoryAuditEntity? = null,
+    isWeeklyEntryMode: Boolean = false,
+    lockedAuditDateMillis: Long? = null,
+    initialTargetRatio: Double? = null,
     onDismiss: () -> Unit,
     onSave: (
         category: String,
@@ -99,14 +115,41 @@ fun AddInventoryAuditModal(
         notes: String
     ) -> Unit
 ) {
-    var selectedCategory by remember(initialCategory) {
-        mutableStateOf(initialCategory.ifBlank { "GIDA" })
+    val isEditMode = editingAudit != null && !isWeeklyEntryMode
+    val isDateReadOnly = isWeeklyEntryMode && lockedAuditDateMillis != null
+
+    var selectedCategory by remember(initialCategory, editingAudit?.id, isWeeklyEntryMode) {
+        mutableStateOf(editingAudit?.category?.ifBlank { initialCategory } ?: initialCategory.ifBlank { "GIDA" })
     }
-    var selectedDateMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var revenueText by remember { mutableStateOf("") }
-    var fireCostText by remember { mutableStateOf("") }
-    var targetRatioText by remember { mutableStateOf("1.0") }
-    var notesText by remember { mutableStateOf("") }
+    var selectedDateMillis by remember(editingAudit?.id, editingAudit?.auditDateMillis, lockedAuditDateMillis, isWeeklyEntryMode) {
+        mutableLongStateOf(
+            when {
+                isDateReadOnly -> lockedAuditDateMillis!!
+                editingAudit != null -> editingAudit.auditDateMillis
+                else -> System.currentTimeMillis()
+            }
+        )
+    }
+    var revenueText by remember(editingAudit?.id, editingAudit?.revenue, isWeeklyEntryMode) {
+        mutableStateOf(if (isEditMode && editingAudit != null) formatEditableNumber(editingAudit.revenue) else "")
+    }
+    var fireCostText by remember(editingAudit?.id, editingAudit?.fireCost, isWeeklyEntryMode) {
+        mutableStateOf(if (isEditMode && editingAudit != null) formatEditableNumber(editingAudit.fireCost) else "")
+    }
+    var targetRatioText by remember(editingAudit?.id, editingAudit?.targetRatio, initialTargetRatio, isWeeklyEntryMode) {
+        mutableStateOf(
+            when {
+                isEditMode && editingAudit != null && editingAudit.targetRatio > 0.0 ->
+                    formatEditableNumber(editingAudit.targetRatio)
+                initialTargetRatio != null && initialTargetRatio > 0.0 ->
+                    formatEditableNumber(initialTargetRatio)
+                else -> "1.0"
+            }
+        )
+    }
+    var notesText by remember(editingAudit?.id, editingAudit?.notes, isWeeklyEntryMode) {
+        mutableStateOf(if (isEditMode && editingAudit != null) editingAudit.notes else "")
+    }
     var showCalendarDialog by remember { mutableStateOf(false) }
 
     val categoryOptions = remember {
@@ -179,7 +222,7 @@ fun AddInventoryAuditModal(
     }
     val isOverTarget = parsedFireCost > maxAllowedFire
 
-    if (showCalendarDialog) {
+    if (showCalendarDialog && !isDateReadOnly) {
         CustomBoxedCalendarDialog(
             initialDateMillis = selectedDateMillis,
             onDismissRequest = { showCalendarDialog = false },
@@ -218,7 +261,7 @@ fun AddInventoryAuditModal(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = Icons.AutoMirrored.Filled.FactCheck,
+                                imageVector = if (isEditMode) Icons.Default.Edit else Icons.AutoMirrored.Filled.FactCheck,
                                 contentDescription = null,
                                 tint = TurquoiseDark,
                                 modifier = Modifier.size(22.dp)
@@ -228,13 +271,21 @@ fun AddInventoryAuditModal(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Envanter & Finansal Kayıt",
+                            text = when {
+                                isWeeklyEntryMode -> "Yeni Haftalık Veri Gir"
+                                isEditMode -> "Envanter Kaydını Düzenle"
+                                else -> "Envanter & Finansal Kayıt"
+                            },
                             fontSize = 19.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900
                         )
                         Text(
-                            text = "Ciro, fire tutarı ve hedef oranı girin",
+                            text = when {
+                                isWeeklyEntryMode -> "Envanter tarihi sabit tutulur, haftalık veriler yeni kayıt olarak eklenir"
+                                isEditMode -> "Son girilen kaydın ciro, fire ve hedef oranını düzeltin"
+                                else -> "Ciro, fire tutarı ve hedef oranı girin"
+                            },
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Slate700
@@ -279,7 +330,11 @@ fun AddInventoryAuditModal(
                     categoryOptions.forEach { option ->
                         val isSelected = selectedCategory.equals(option.key, ignoreCase = true)
                         Surface(
-                            onClick = { selectedCategory = option.key },
+                            onClick = {
+                                if (!isWeeklyEntryMode) {
+                                    selectedCategory = option.key
+                                }
+                            },
                             shape = RoundedCornerShape(14.dp),
                             color = if (isSelected) option.activeBg else Slate50,
                             border = BorderStroke(
@@ -319,71 +374,129 @@ fun AddInventoryAuditModal(
                 }
             }
 
-            // 3. TARİH SEÇME ALANI
+            // 3. ENVANTER TARİHİ ALANI (Haftalık veri girişinde kilitli / readOnly)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "Tarih",
+                    text = "Envanter Tarihi",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate800
                 )
 
-                Surface(
-                    onClick = { showCalendarDialog = true },
-                    shape = RoundedCornerShape(16.dp),
-                    color = Slate50,
-                    border = BorderStroke(1.2.dp, TurquoisePrimary.copy(alpha = 0.45f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("add_inventory_audit_date_button")
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                if (isDateReadOnly) {
+                    OutlinedTextField(
+                        value = formattedSelectedDate,
+                        onValueChange = {},
+                        readOnly = true,
+                        singleLine = true,
+                        leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.CalendarMonth,
                                 contentDescription = null,
-                                tint = TurquoiseDark,
+                                tint = Slate700,
                                 modifier = Modifier.size(19.dp)
                             )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = formattedSelectedDate,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate900
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = TurquoisePrimary.copy(alpha = 0.14f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                        },
+                        trailingIcon = {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Slate200.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(end = 8.dp)
                             ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Kilitli Tarih",
+                                        tint = Slate700,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Kilitli",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate700
+                                    )
+                                }
+                            }
+                        },
+                        textStyle = TextStyle(
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Slate700
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Slate200,
+                            unfocusedBorderColor = Slate200,
+                            focusedContainerColor = Slate50,
+                            unfocusedContainerColor = Slate50
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("add_inventory_audit_date_readonly")
+                    )
+                } else {
+                    Surface(
+                        onClick = { showCalendarDialog = true },
+                        shape = RoundedCornerShape(16.dp),
+                        color = Slate50,
+                        border = BorderStroke(1.2.dp, TurquoisePrimary.copy(alpha = 0.45f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("add_inventory_audit_date_button")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.EditCalendar,
-                                    contentDescription = "Tarih Değiştir",
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = null,
                                     tint = TurquoiseDark,
-                                    modifier = Modifier.size(14.dp)
+                                    modifier = Modifier.size(19.dp)
                                 )
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = "Tarih Seç",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TurquoiseDark
+                                    text = formattedSelectedDate,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Slate900
                                 )
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = TurquoisePrimary.copy(alpha = 0.14f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EditCalendar,
+                                        contentDescription = "Tarih Değiştir",
+                                        tint = TurquoiseDark,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Tarih Seç",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TurquoiseDark
+                                    )
+                                }
                             }
                         }
                     }
@@ -564,9 +677,10 @@ fun AddInventoryAuditModal(
                 val boxBorder = if (isOverTarget) ExpiredRedBorder else NormalGreenBorder
                 val boxText = if (isOverTarget) ExpiredRedDark else NormalGreenDark
                 val remainingFireAllowance = maxOf(0.0, maxAllowedFire - parsedFireCost)
+                val excessFireAmount = maxOf(0.0, parsedFireCost - maxAllowedFire)
 
                 val analysisMessage = if (isOverTarget) {
-                    "⚠️ Hedefi aştınız! Maksimum ${moneyFormatter.format(maxAllowedFire)} TL fire yapmalıydınız."
+                    "⚠️ Hedefi aştınız! Maksimum ${moneyFormatter.format(maxAllowedFire)} TL fire yapmalıydınız (${moneyFormatter.format(excessFireAmount)} TL aşım)."
                 } else {
                     "✅ Harika! Hedefin altındasınız, ${moneyFormatter.format(remainingFireAllowance)} TL daha fire yapabilirsiniz."
                 }
@@ -695,7 +809,7 @@ fun AddInventoryAuditModal(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Envanteri Kaydet",
+                    text = if (isEditMode) "Değişiklikleri Kaydet" else "Envanteri Kaydet",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White

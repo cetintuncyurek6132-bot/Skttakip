@@ -344,6 +344,9 @@ fun AppNavHost(
                         targetRatio = targetRatio
                     )
                 },
+                onUpdateAudit = { updatedAudit ->
+                    inventoryViewModel.updateInventoryAudit(updatedAudit)
+                },
                 onDeleteAudit = { id ->
                     inventoryViewModel.deleteInventoryAudit(id)
                 },

@@ -272,17 +272,18 @@ fun MorningOperationCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 10.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Üst: İkon üstte, başlık altta (Column yapısı)
+            // Üst: İkon üstte, başlık altta (Ortalanmış simetrik Column yapısı)
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
-                horizontalAlignment = Alignment.Start
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(26.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
                         .background(badgeColor.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
@@ -291,7 +292,7 @@ fun MorningOperationCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = badgeColor,
-                        modifier = Modifier.size(15.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
 
@@ -303,14 +304,16 @@ fun MorningOperationCard(
                     maxLines = 2,
                     lineHeight = 14.sp,
                     overflow = TextOverflow.Ellipsis,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // Alt: Kalın çeşit sayısı ve altında adet sayısı
+            // Alt: Kalın çeşit sayısı ve altında adet sayısı (Ortalanmış)
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "$varietyCount Çeşit",
@@ -319,7 +322,9 @@ fun MorningOperationCard(
                     color = textColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    letterSpacing = (-0.2).sp
+                    letterSpacing = (-0.2).sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Text(
                     text = "$totalStockCount Adet",
@@ -327,7 +332,9 @@ fun MorningOperationCard(
                     fontWeight = FontWeight.SemiBold,
                     color = textColor,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }

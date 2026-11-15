@@ -9,6 +9,7 @@ import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.data.StockLog
 import com.example.data.StockMovement
+import com.example.data.computeAuditPeriod
 import com.example.data.getTodayMidnightMillis
 import com.example.data.isDolapProduct
 import com.example.data.matchesSearchQuery
@@ -17,6 +18,7 @@ import com.example.ui.ProductFilter
 import com.example.ui.ProductGroupFilter
 import com.example.util.ProductCsvImporter
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,6 +30,28 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
+
+data class WeeklyAuditTrend(
+    val category: String,
+    val latestAudit: InventoryAuditEntity?,
+    val previousAudit: InventoryAuditEntity?,
+    val currentRatio: Double,
+    val previousRatio: Double?,
+    val progressDiff: Double?, // Mevcut Oran - Önceki Oran (Eksi değer = iyileşme, Artı değer = kötüleşme)
+    val isImproved: Boolean
+)
+
+data class MonthlyAuditSummary(
+    val category: String,
+    val year: Int,
+    val month: Int,
+    val recordCount: Int,
+    val averageRevenue: Double,
+    val averageFireCost: Double,
+    val averageRatio: Double,
+    val previousMonthAverageRatio: Double?,
+    val monthlyProgressDiff: Double?
+)
 
 class InventoryViewModel(
     private val repository: ProductRepository
@@ -98,6 +122,131 @@ class InventoryViewModel(
             initialValue = emptyList()
         )
 
+    fun getAuditsByCategory(category: String): Flow<List<InventoryAuditEntity>> {
+        return repository.getAuditsByCategory(category.trim())
+    }
+
+    /**
+     * Haftalık trend hesaplama:
+     * - Aynı kategoriye ait en son iki kaydı (updatedAt sırasına göre en yeni 2 kayıt) alır.
+     * - Mevcut Oran = (Son Fire / Son Ciro) * 100
+     * - Önceki Oran = (Önceki Fire / Önceki Ciro) * 100
+     * - İlerleme Farkı = Mevcut Oran - Önceki Oran (Eksi değer = iyileşme, Artı = kötüleşme)
+     */
+    fun calculateWeeklyTrend(
+        category: String,
+        auditsList: List<InventoryAuditEntity> = allInventoryAudits.value
+    ): WeeklyAuditTrend {
+        val sortedForCategory = auditsList
+            .filter { it.category.equals(category.trim(), ignoreCase = true) }
+            .sortedWith(
+                compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                    .thenByDescending { it.auditDateMillis }
+                    .thenByDescending { it.createdAt }
+            )
+
+        val latest = sortedForCategory.getOrNull(0)
+        val previous = sortedForCategory.getOrNull(1)
+
+        val currentRatio = if (latest != null && latest.revenue > 0.0) {
+            (latest.fireCost / latest.revenue) * 100.0
+        } else {
+            0.0
+        }
+
+        val previousRatio = if (previous != null && previous.revenue > 0.0) {
+            (previous.fireCost / previous.revenue) * 100.0
+        } else {
+            null
+        }
+
+        val progressDiff = if (previousRatio != null) {
+            currentRatio - previousRatio
+        } else {
+            null
+        }
+
+        return WeeklyAuditTrend(
+            category = category.trim(),
+            latestAudit = latest,
+            previousAudit = previous,
+            currentRatio = currentRatio,
+            previousRatio = previousRatio,
+            progressDiff = progressDiff,
+            isImproved = progressDiff != null && progressDiff < 0.0
+        )
+    }
+
+    /**
+     * Aylık bazda ortalama hesaplama:
+     * İçinde bulunulan aya ait kayıtların ortalamasını ve bir önceki ayın ortalamasıyla farkını hesaplar.
+     */
+    fun calculateMonthlyAverage(
+        category: String,
+        auditsList: List<InventoryAuditEntity> = allInventoryAudits.value,
+        referenceMillis: Long = System.currentTimeMillis()
+    ): MonthlyAuditSummary {
+        val refCal = Calendar.getInstance().apply { timeInMillis = referenceMillis }
+        val currentYear = refCal.get(Calendar.YEAR)
+        val currentMonth = refCal.get(Calendar.MONTH)
+
+        val prevCal = (refCal.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
+        val prevYear = prevCal.get(Calendar.YEAR)
+        val prevMonth = prevCal.get(Calendar.MONTH)
+
+        val categoryAudits = auditsList.filter { it.category.equals(category.trim(), ignoreCase = true) }
+
+        val currentMonthRecords = categoryAudits.filter { audit ->
+            val ts = if (audit.updatedAt > 0L) audit.updatedAt else audit.createdAt
+            val c = Calendar.getInstance().apply { timeInMillis = ts }
+            c.get(Calendar.YEAR) == currentYear && c.get(Calendar.MONTH) == currentMonth
+        }
+
+        val prevMonthRecords = categoryAudits.filter { audit ->
+            val ts = if (audit.updatedAt > 0L) audit.updatedAt else audit.createdAt
+            val c = Calendar.getInstance().apply { timeInMillis = ts }
+            c.get(Calendar.YEAR) == prevYear && c.get(Calendar.MONTH) == prevMonth
+        }
+
+        val avgRevenue = if (currentMonthRecords.isNotEmpty()) {
+            currentMonthRecords.map { it.revenue }.average()
+        } else 0.0
+
+        val avgFire = if (currentMonthRecords.isNotEmpty()) {
+            currentMonthRecords.map { it.fireCost }.average()
+        } else 0.0
+
+        val currentMonthRatios = currentMonthRecords.mapNotNull {
+            if (it.revenue > 0.0) (it.fireCost / it.revenue) * 100.0 else null
+        }
+        val avgRatio = if (currentMonthRatios.isNotEmpty()) {
+            currentMonthRatios.average()
+        } else 0.0
+
+        val prevMonthRatios = prevMonthRecords.mapNotNull {
+            if (it.revenue > 0.0) (it.fireCost / it.revenue) * 100.0 else null
+        }
+        val prevAvgRatio = if (prevMonthRatios.isNotEmpty()) {
+            prevMonthRatios.average()
+        } else null
+
+        val monthlyDiff = if (prevAvgRatio != null && currentMonthRatios.isNotEmpty()) {
+            avgRatio - prevAvgRatio
+        } else null
+
+        return MonthlyAuditSummary(
+            category = category.trim(),
+            year = currentYear,
+            month = currentMonth + 1,
+            recordCount = currentMonthRecords.size,
+            averageRevenue = avgRevenue,
+            averageFireCost = avgFire,
+            averageRatio = avgRatio,
+            previousMonthAverageRatio = prevAvgRatio,
+            monthlyProgressDiff = monthlyDiff
+        )
+    }
+
     fun recordInventoryAudit(
         category: String,
         notes: String = "",
@@ -108,6 +257,7 @@ class InventoryViewModel(
         onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
             val audit = InventoryAuditEntity(
                 category = category.trim(),
                 auditDateMillis = auditDateMillis,
@@ -115,7 +265,9 @@ class InventoryViewModel(
                 fireCost = fireCost.coerceAtLeast(0.0),
                 targetRatio = targetRatio.coerceAtLeast(0.0),
                 notes = notes.trim(),
-                createdAt = System.currentTimeMillis()
+                createdAt = now,
+                updatedAt = now,
+                auditPeriod = computeAuditPeriod(now)
             )
             repository.insertInventoryAudit(audit)
             withContext(Dispatchers.Main) {
@@ -129,7 +281,31 @@ class InventoryViewModel(
         onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.insertInventoryAudit(audit)
+            val now = System.currentTimeMillis()
+            val auditToSave = audit.copy(
+                id = 0,
+                updatedAt = now,
+                auditPeriod = computeAuditPeriod(now)
+            )
+            repository.insertInventoryAudit(auditToSave)
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    fun updateInventoryAudit(
+        audit: InventoryAuditEntity,
+        onComplete: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            // Sadece en son girilen veriyi düzeltmek için mevcut kaydı günceller
+            val updatedRecord = audit.copy(
+                updatedAt = if (audit.updatedAt > 0L) audit.updatedAt else now,
+                auditPeriod = audit.auditPeriod.ifBlank { computeAuditPeriod(now) }
+            )
+            repository.updateInventoryAudit(updatedRecord)
             withContext(Dispatchers.Main) {
                 onComplete?.invoke()
             }

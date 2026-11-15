@@ -151,6 +151,8 @@ object JsonExportManager {
             obj.put("targetRatio", audit.targetRatio)
             obj.put("notes", audit.notes)
             obj.put("createdAt", audit.createdAt)
+            obj.put("updatedAt", audit.updatedAt)
+            obj.put("auditPeriod", audit.auditPeriod)
             auditArray.put(obj)
         }
         root.put("inventoryAudits", auditArray)

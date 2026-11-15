@@ -56,7 +56,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
+import com.example.data.computeAuditPeriod
 import com.example.ui.components.AddInventoryAuditModal
+import com.example.ui.components.InventoryCategoryDetailModal
 import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.CriticalOrangeContainer
 import com.example.ui.theme.CriticalOrangeDark
@@ -102,6 +104,7 @@ fun InventoryTrackingScreen(
         targetRatio: Double,
         notes: String
     ) -> Unit,
+    onUpdateAudit: (InventoryAuditEntity) -> Unit = {},
     onDeleteAudit: (id: Int) -> Unit = {},
     onBackClick: () -> Unit
 ) {
@@ -111,7 +114,12 @@ fun InventoryTrackingScreen(
 
     val context = LocalContext.current
     val todayMidnight by com.example.util.rememberTodayMidnight()
-    var activeCategoryForModal by remember { mutableStateOf<String?>(null) }
+    var selectedDetailCategory by remember { mutableStateOf<String?>(null) }
+    var activeCategoryForAddModal by remember { mutableStateOf<String?>(null) }
+    var editingAuditForModal by remember { mutableStateOf<InventoryAuditEntity?>(null) }
+    var isWeeklyEntryModalMode by remember { mutableStateOf(false) }
+    var weeklyLockedDateMillis by remember { mutableStateOf<Long?>(null) }
+    var weeklyInitialTargetRatio by remember { mutableStateOf<Double?>(null) }
 
     val categories = remember {
         listOf(
@@ -158,19 +166,101 @@ fun InventoryTrackingScreen(
         DecimalFormat("0.##", symbols)
     }
 
-    // Kategori kartına veya sağ üst "Ekle" butonuna tıklandığında açılan ModalBottomSheet
-    activeCategoryForModal?.let { initialCategory ->
+    // Kategori kartına tıklandığında açılan "Mevcut Durum ve Akıllı Analiz" Detay Alt Sayfası
+    if (selectedDetailCategory != null && activeCategoryForAddModal == null && editingAuditForModal == null) {
+        val currentCat = selectedDetailCategory!!
+        val sortedForCategory = remember(audits, currentCat) {
+            audits.filter { it.category.equals(currentCat, ignoreCase = true) }
+                .sortedWith(
+                    compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                        .thenByDescending { it.auditDateMillis }
+                        .thenByDescending { it.createdAt }
+                )
+        }
+        val latestForCategory = sortedForCategory.firstOrNull()
+        val initialAuditDateForCategory = sortedForCategory.lastOrNull()?.auditDateMillis
+            ?: latestForCategory?.auditDateMillis
+        InventoryCategoryDetailModal(
+            category = currentCat,
+            latestAudit = latestForCategory,
+            categoryHistory = sortedForCategory,
+            targetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0,
+            onDismiss = { selectedDetailCategory = null },
+            onEditClick = { auditToEdit ->
+                isWeeklyEntryModalMode = false
+                weeklyLockedDateMillis = null
+                weeklyInitialTargetRatio = null
+                if (auditToEdit != null) {
+                    editingAuditForModal = auditToEdit
+                } else {
+                    activeCategoryForAddModal = currentCat
+                }
+            },
+            onAddNewAuditClick = { catKey ->
+                editingAuditForModal = null
+                activeCategoryForAddModal = catKey
+                isWeeklyEntryModalMode = true
+                weeklyLockedDateMillis = initialAuditDateForCategory ?: System.currentTimeMillis()
+                weeklyInitialTargetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
+            }
+        )
+    }
+
+    // Yeni Sayım Ekleme, Haftalık Veri Girme veya Mevcut Sayımı Düzenleme Modalı
+    if (activeCategoryForAddModal != null || editingAuditForModal != null) {
+        val targetEdit = editingAuditForModal
+        val initialCat = targetEdit?.category ?: activeCategoryForAddModal ?: "GIDA"
         AddInventoryAuditModal(
-            initialCategory = initialCategory,
-            onDismiss = { activeCategoryForModal = null },
+            initialCategory = initialCat,
+            editingAudit = targetEdit,
+            isWeeklyEntryMode = isWeeklyEntryModalMode,
+            lockedAuditDateMillis = weeklyLockedDateMillis,
+            initialTargetRatio = weeklyInitialTargetRatio,
+            onDismiss = {
+                activeCategoryForAddModal = null
+                editingAuditForModal = null
+                isWeeklyEntryModalMode = false
+                weeklyLockedDateMillis = null
+                weeklyInitialTargetRatio = null
+            },
             onSave = { chosenCategory, pickedDateMillis, revenue, fireCost, targetRatio, notes ->
-                onRecordAudit(chosenCategory, pickedDateMillis, revenue, fireCost, targetRatio, notes)
-                activeCategoryForModal = null
-                Toast.makeText(
-                    context,
-                    "$chosenCategory envanteri kaydedildi",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (targetEdit != null && !isWeeklyEntryModalMode) {
+                    // "Düzenle" (Kalem): Yeni kayıt eklemez, sadece mevcut son kaydı günceller
+                    val updated = targetEdit.copy(
+                        category = chosenCategory,
+                        auditDateMillis = pickedDateMillis,
+                        revenue = revenue,
+                        fireCost = fireCost,
+                        targetRatio = targetRatio,
+                        notes = notes
+                    )
+                    onUpdateAudit(updated)
+                    selectedDetailCategory = chosenCategory
+                    editingAuditForModal = null
+                    Toast.makeText(
+                        context,
+                        "$chosenCategory kaydı düzeltildi",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    // "+ Yeni Haftalık Veri Gir" veya yeni envanter: Veritabanına YENİ BİR KAYIT olarak ekler
+                    val effectiveAuditDate = if (isWeeklyEntryModalMode && weeklyLockedDateMillis != null) {
+                        weeklyLockedDateMillis!!
+                    } else {
+                        pickedDateMillis
+                    }
+                    onRecordAudit(chosenCategory, effectiveAuditDate, revenue, fireCost, targetRatio, notes)
+                    selectedDetailCategory = chosenCategory
+                    activeCategoryForAddModal = null
+                    isWeeklyEntryModalMode = false
+                    weeklyLockedDateMillis = null
+                    weeklyInitialTargetRatio = null
+                    Toast.makeText(
+                        context,
+                        "$chosenCategory haftalık verisi kaydedildi",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             }
         )
     }
@@ -239,7 +329,13 @@ fun InventoryTrackingScreen(
                 }
 
                 Surface(
-                    onClick = { activeCategoryForModal = "GIDA" },
+                    onClick = {
+                        editingAuditForModal = null
+                        isWeeklyEntryModalMode = false
+                        weeklyLockedDateMillis = null
+                        weeklyInitialTargetRatio = null
+                        activeCategoryForAddModal = "GIDA"
+                    },
                     shape = RoundedCornerShape(12.dp),
                     color = TurquoisePrimary.copy(alpha = 0.14f),
                     border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
@@ -267,7 +363,7 @@ fun InventoryTrackingScreen(
             }
         }
 
-        // ANA İÇERİK: YAN YANA 3 KOMPAKT KART + GEÇMİŞ ENVANTER KAYITLARI LİSTESİ
+        // ANA İÇERİK: YAN YANA 3 KOMPAKT KART + GENEL HAFTALIK TREND + GEÇMİŞ ENVANTER KAYITLARI LİSTESİ
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
@@ -280,10 +376,16 @@ fun InventoryTrackingScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     categories.forEach { spec ->
-                        val latestAudit = remember(audits, spec.key) {
+                        val sortedCategoryAudits = remember(audits, spec.key) {
                             audits.filter { it.category.equals(spec.key, ignoreCase = true) }
-                                .maxByOrNull { it.auditDateMillis }
+                                .sortedWith(
+                                    compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                                        .thenByDescending { it.auditDateMillis }
+                                        .thenByDescending { it.createdAt }
+                                )
                         }
+                        val latestAudit = sortedCategoryAudits.getOrNull(0)
+                        val previousAudit = sortedCategoryAudits.getOrNull(1)
 
                         val daysElapsed = remember(latestAudit, todayMidnight) {
                             if (latestAudit == null || latestAudit.auditDateMillis <= 0L) {
@@ -297,13 +399,24 @@ fun InventoryTrackingScreen(
                             if (daysElapsed == null) null else 90L - daysElapsed
                         }
 
+                        val currentRatioVal = remember(latestAudit) {
+                            if (latestAudit != null && latestAudit.revenue > 0.0) {
+                                (latestAudit.fireCost / latestAudit.revenue) * 100.0
+                            } else null
+                        }
+
+                        val prevRatioVal = remember(previousAudit) {
+                            if (previousAudit != null && previousAudit.revenue > 0.0) {
+                                (previousAudit.fireCost / previousAudit.revenue) * 100.0
+                            } else null
+                        }
+
                         // Envanter Oranı: (Fire / Ciro) * 100
-                        val ratioPercentText = remember(latestAudit) {
+                        val ratioPercentText = remember(latestAudit, currentRatioVal) {
                             if (latestAudit == null) {
                                 "%-"
-                            } else if (latestAudit.revenue > 0.0) {
-                                val r = (latestAudit.fireCost / latestAudit.revenue) * 100.0
-                                "%${ratioFormatter.format(r)}"
+                            } else if (currentRatioVal != null) {
+                                "%${ratioFormatter.format(currentRatioVal)}"
                             } else {
                                 "%0"
                             }
@@ -344,7 +457,7 @@ fun InventoryTrackingScreen(
                         }
 
                         Card(
-                            onClick = { activeCategoryForModal = spec.key },
+                            onClick = { selectedDetailCategory = spec.key },
                             modifier = Modifier
                                 .weight(1f)
                                 .testTag("inventory_card_${spec.key}"),
@@ -389,16 +502,35 @@ fun InventoryTrackingScreen(
                                     textAlign = TextAlign.Center
                                 )
 
-                                // Envanter Oranı: Ortada Büyük ve Tok "%X"
-                                Text(
-                                    text = ratioPercentText,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = Slate900,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
-                                )
+                                // Envanter Oranı: Ortada Büyük ve Tok "%X" + Yanında Trend Oku (↓ / ↑)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = ratioPercentText,
+                                        fontSize = 19.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Slate900,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        textAlign = TextAlign.Center
+                                    )
+                                    if (currentRatioVal != null && prevRatioVal != null) {
+                                        val diff = currentRatioVal - prevRatioVal
+                                        if (abs(diff) > 0.0001) {
+                                            val isDown = diff < 0.0
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text(
+                                                text = if (isDown) "↓" else "↑",
+                                                fontSize = 15.sp,
+                                                fontWeight = FontWeight.Black,
+                                                color = if (isDown) NormalGreenDark else ExpiredRedDark
+                                            )
+                                        }
+                                    }
+                                }
 
                                 // Geçen Gün
                                 Text(
@@ -425,6 +557,184 @@ fun InventoryTrackingScreen(
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
                                         modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 1.B ÜST PANELDE TAM GENİŞLİKTE "GENEL HAFTALIK TREND" KARTI
+            item {
+                val perCategorySorted = remember(audits, categories) {
+                    categories.map { spec ->
+                        audits.filter { it.category.equals(spec.key, ignoreCase = true) }
+                            .sortedWith(
+                                compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                                    .thenByDescending { it.auditDateMillis }
+                                    .thenByDescending { it.createdAt }
+                            )
+                    }
+                }
+
+                val thisWeekEntries = remember(perCategorySorted) {
+                    perCategorySorted.mapNotNull { it.getOrNull(0) }
+                }
+                val lastWeekEntries = remember(perCategorySorted) {
+                    perCategorySorted.mapNotNull { it.getOrNull(1) }
+                }
+
+                val thisWeekTotalRevenue = thisWeekEntries.sumOf { it.revenue }
+                val thisWeekTotalFire = thisWeekEntries.sumOf { it.fireCost }
+                val thisWeekRatio = if (thisWeekTotalRevenue > 0.0) {
+                    (thisWeekTotalFire / thisWeekTotalRevenue) * 100.0
+                } else null
+
+                val lastWeekTotalRevenue = lastWeekEntries.sumOf { it.revenue }
+                val lastWeekTotalFire = lastWeekEntries.sumOf { it.fireCost }
+                val lastWeekRatio = if (lastWeekTotalRevenue > 0.0) {
+                    (lastWeekTotalFire / lastWeekTotalRevenue) * 100.0
+                } else null
+
+                val hasComparison = thisWeekRatio != null && lastWeekRatio != null
+                val ratioDiff = if (hasComparison) thisWeekRatio!! - lastWeekRatio!! else 0.0
+                val isImproved = hasComparison && ratioDiff < -0.0001
+                val isWorsened = hasComparison && ratioDiff > 0.0001
+
+                val badgeBg = when {
+                    isImproved -> NormalGreenContainer
+                    isWorsened -> ExpiredRedContainer
+                    else -> TurquoisePrimary.copy(alpha = 0.14f)
+                }
+                val badgeBorder = when {
+                    isImproved -> NormalGreenBorder
+                    isWorsened -> ExpiredRedBorder
+                    else -> TurquoisePrimary.copy(alpha = 0.35f)
+                }
+                val badgeText = when {
+                    isImproved -> NormalGreenDark
+                    isWorsened -> ExpiredRedDark
+                    else -> TurquoiseDark
+                }
+                val statusLabel = when {
+                    isImproved -> "↓ İyileşme Var"
+                    isWorsened -> "↑ Kötüleşme Var"
+                    hasComparison -> "Değişim Yok"
+                    thisWeekRatio != null -> "İlk Hafta Verisi"
+                    else -> "Veri Bekleniyor"
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("general_weekly_trend_card"),
+                    shape = RoundedCornerShape(18.dp),
+                    color = Slate50,
+                    border = BorderStroke(1.2.dp, Slate200)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Genel Haftalık Trend",
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900
+                            )
+
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = badgeBg,
+                                border = BorderStroke(1.dp, badgeBorder)
+                            ) {
+                                Text(
+                                    text = statusLabel,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = badgeText,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            // Bu Hafta Kutusu
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Slate200)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "Bu Hafta: Oran ${if (thisWeekRatio != null) "%${ratioFormatter.format(thisWeekRatio)}" else "%-"}",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate900,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = "Toplam Fire / Toplam Ciro",
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Slate700,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            // Geçen Hafta Kutusu
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp),
+                                color = Color.White,
+                                border = BorderStroke(1.dp, Slate200)
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Text(
+                                        text = "Geçen Hafta: Oran ${if (lastWeekRatio != null) "%${ratioFormatter.format(lastWeekRatio)}" else "%-"}",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate800,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (hasComparison) {
+                                            val diffStr = ratioFormatter.format(abs(ratioDiff))
+                                            if (isImproved) "%$diffStr düşüş sağlandı" else if (isWorsened) "%$diffStr artış oluştu" else "Oran sabit kaldı"
+                                        } else {
+                                            "Önceki hafta kaydı yok"
+                                        },
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = if (isImproved) NormalGreenDark else if (isWorsened) ExpiredRedDark else Slate700,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                             }

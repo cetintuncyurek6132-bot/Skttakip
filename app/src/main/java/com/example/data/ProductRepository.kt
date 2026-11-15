@@ -42,6 +42,10 @@ class ProductRepository(
         inventoryAuditDao?.getAllAuditsList() ?: emptyList()
     }
 
+    fun getAuditsByCategory(category: String): Flow<List<InventoryAuditEntity>> {
+        return (inventoryAuditDao?.getAuditsByCategory(category) ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    }
+
     suspend fun getLatestAuditForCategory(category: String): InventoryAuditEntity? = withContext(Dispatchers.IO) {
         inventoryAuditDao?.getLatestAuditForCategory(category)
     }

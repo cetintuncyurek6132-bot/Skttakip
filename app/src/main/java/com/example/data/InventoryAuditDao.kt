@@ -22,13 +22,16 @@ interface InventoryAuditDao {
     @Delete
     suspend fun deleteAudit(audit: InventoryAuditEntity)
 
-    @Query("SELECT * FROM inventory_audits ORDER BY auditDateMillis DESC, createdAt DESC")
+    @Query("SELECT * FROM inventory_audits ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC")
     fun getAllAuditsFlow(): Flow<List<InventoryAuditEntity>>
 
-    @Query("SELECT * FROM inventory_audits ORDER BY auditDateMillis DESC, createdAt DESC")
+    @Query("SELECT * FROM inventory_audits ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC")
     suspend fun getAllAuditsList(): List<InventoryAuditEntity>
 
-    @Query("SELECT * FROM inventory_audits WHERE category = :category ORDER BY auditDateMillis DESC, createdAt DESC LIMIT 1")
+    @Query("SELECT * FROM inventory_audits WHERE category = :category ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC")
+    fun getAuditsByCategory(category: String): Flow<List<InventoryAuditEntity>>
+
+    @Query("SELECT * FROM inventory_audits WHERE category = :category ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC LIMIT 1")
     suspend fun getLatestAuditForCategory(category: String): InventoryAuditEntity?
 
     @Query("DELETE FROM inventory_audits WHERE id = :id")

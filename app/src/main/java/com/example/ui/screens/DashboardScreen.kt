@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,10 +16,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AssignmentLate
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -246,199 +246,204 @@ fun DashboardScreen(
         }
     }
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(Slate50)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp, vertical = 16.dp)
             .testTag("dashboard_screen_root"),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 80.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // =====================================================================
         // 1. DİNAMİK VE OTOMATİK SOLA AKAN ACİL ÜRÜN VİTRİNİ (HORIZONTAL PAGER)
         //    + Sağ Üstte Mini "Ekle" Butonu
         // =====================================================================
-        com.example.ui.screens.dashboard.UrgentProductsCarousel(
-            urgentProducts = urgentProducts,
-            todayMidnight = todayMidnight,
-            onProductClick = onProductClick,
-            onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.URGENT_0_TO_7) },
-            onAddProductClick = { onQuickActionClick("add_product") }
-        )
+        item {
+            com.example.ui.screens.dashboard.UrgentProductsCarousel(
+                urgentProducts = urgentProducts,
+                todayMidnight = todayMidnight,
+                onProductClick = onProductClick,
+                onViewAllClick = { onFilterSelectAndNavigate(ProductFilter.URGENT_0_TO_7) },
+                onAddProductClick = { onQuickActionClick("add_product") }
+            )
+        }
 
         // =====================================================================
         // 2. SABAH OPERASYON GÖREVLERİ + MİNİ ANALİZ & İSTATİSTİKLER ROZETİ
         //    + 3'LÜ YATAY KOMPAKT KARTLAR
         // =====================================================================
-        com.example.ui.screens.dashboard.MorningOperationCardsSection(
-            expiredVariety = expiredVariety,
-            expiredTotalStock = expiredTotalStock,
-            criticalVariety = criticalVariety,
-            criticalTotalStock = criticalTotalStock,
-            soonVariety = soonVariety,
-            soonTotalStock = soonTotalStock,
-            onFilterSelectAndNavigate = onFilterSelectAndNavigate,
-            onAnalyticsClick = { onQuickActionClick("analytics") },
-            onInventoryTrackingClick = { onQuickActionClick("envanter") }
-        )
+        item {
+            com.example.ui.screens.dashboard.MorningOperationCardsSection(
+                expiredVariety = expiredVariety,
+                expiredTotalStock = expiredTotalStock,
+                criticalVariety = criticalVariety,
+                criticalTotalStock = criticalTotalStock,
+                soonVariety = soonVariety,
+                soonTotalStock = soonTotalStock,
+                onFilterSelectAndNavigate = onFilterSelectAndNavigate,
+                onAnalyticsClick = { onQuickActionClick("analytics") },
+                onInventoryTrackingClick = { onQuickActionClick("envanter") }
+            )
+        }
 
         // =====================================================================
         // 3. OPERASYONEL DURUM (TEK SATIRDA: Adetsel Sayım Kontrolü & Depo İade Takibi)
         // =====================================================================
-        val isDepoRedAlert = rejectedDepoRecords.isNotEmpty() || missingDocDepoRecords.isNotEmpty()
-        val hasOngoingDepo = ongoingDepoRecords.isNotEmpty()
-        val hasAnyDepoAction = isDepoRedAlert || hasOngoingDepo
+        item {
+            val isDepoRedAlert = rejectedDepoRecords.isNotEmpty() || missingDocDepoRecords.isNotEmpty()
+            val hasOngoingDepo = ongoingDepoRecords.isNotEmpty()
+            val hasAnyDepoAction = isDepoRedAlert || hasOngoingDepo
 
-        val depoStatusText = when {
-            rejectedDepoRecords.isNotEmpty() -> "${rejectedDepoRecords.size} Reddedildi"
-            missingDocDepoRecords.isNotEmpty() -> "${missingDocDepoRecords.size} Eksik Belge"
-            ongoingDepoRecords.isNotEmpty() -> "${ongoingDepoRecords.size} Süreçte"
-            else -> "Açık Evrak Yok"
-        }
-
-        val depoCardBg = when {
-            isDepoRedAlert -> Color(0xFFFFF5F5)
-            hasOngoingDepo -> Color(0xFFFFFBF5)
-            else -> Color(0xFFF3FAF6)
-        }
-        val depoBorderColor = when {
-            isDepoRedAlert -> Color(0xFFFECACA)
-            hasOngoingDepo -> Color(0xFFFED7AA)
-            else -> Color(0xFFD1FAE5)
-        }
-        val depoIconBg = when {
-            isDepoRedAlert -> Color(0xFFFEE2E2)
-            hasOngoingDepo -> Color(0xFFFFEDD5)
-            else -> Color(0xFFDCFCE7)
-        }
-        val depoIconTint = when {
-            isDepoRedAlert -> ExpiredRed
-            hasOngoingDepo -> Color(0xFFEA580C)
-            else -> EmeraldSuccess
-        }
-        val depoTextColor = when {
-            isDepoRedAlert -> ExpiredRedDark
-            hasOngoingDepo -> Color(0xFFC2410C)
-            else -> Color(0xFF15803D)
-        }
-
-        val adetselCardBg = if (pendingAdetselCount > 0) Color(0xFFFFFBF5) else Color(0xFFF3FAF6)
-        val adetselBorderColor = if (pendingAdetselCount > 0) Color(0xFFFED7AA) else Color(0xFFD1FAE5)
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // Sol Kutu: Adetsel Sayım Kontrolü
-            Surface(
-                onClick = { onQuickActionClick("adetsel") },
-                shape = RoundedCornerShape(18.dp),
-                color = adetselCardBg,
-                border = BorderStroke(1.dp, adetselBorderColor),
-                shadowElevation = 0.8.dp,
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(if (pendingAdetselCount > 0) Color(0xFFFFEDD5) else Color(0xFFDCFCE7)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (pendingAdetselCount > 0) Icons.Outlined.AssignmentLate else Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = if (pendingAdetselCount > 0) Color(0xFFEA580C) else EmeraldSuccess,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = "Adetsel Sayım",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = if (pendingAdetselCount > 0)
-                                "$pendingAdetselCount Bekleyen"
-                            else
-                                "Sayım: Güncel",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Color(0xFF15803D),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
+            val depoStatusText = when {
+                rejectedDepoRecords.isNotEmpty() -> "${rejectedDepoRecords.size} Reddedildi"
+                missingDocDepoRecords.isNotEmpty() -> "${missingDocDepoRecords.size} Eksik Belge"
+                ongoingDepoRecords.isNotEmpty() -> "${ongoingDepoRecords.size} Süreçte"
+                else -> "Açık Evrak Yok"
             }
 
-            // Sağ Kutu: Depo İade Takibi
-            Surface(
-                onClick = { onQuickActionClick("takip") },
-                shape = RoundedCornerShape(18.dp),
-                color = depoCardBg,
-                border = BorderStroke(1.dp, depoBorderColor),
-                shadowElevation = 0.8.dp,
-                modifier = Modifier.weight(1f)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(depoIconBg),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (hasAnyDepoAction) Icons.Outlined.LocalShipping else Icons.Outlined.CheckCircle,
-                            contentDescription = null,
-                            tint = depoIconTint,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+            val depoCardBg = when {
+                isDepoRedAlert -> Color(0xFFFFF5F5)
+                hasOngoingDepo -> Color(0xFFFFFBF5)
+                else -> Color(0xFFF3FAF6)
+            }
+            val depoBorderColor = when {
+                isDepoRedAlert -> Color(0xFFFECACA)
+                hasOngoingDepo -> Color(0xFFFED7AA)
+                else -> Color(0xFFD1FAE5)
+            }
+            val depoIconBg = when {
+                isDepoRedAlert -> Color(0xFFFEE2E2)
+                hasOngoingDepo -> Color(0xFFFFEDD5)
+                else -> Color(0xFFDCFCE7)
+            }
+            val depoIconTint = when {
+                isDepoRedAlert -> ExpiredRed
+                hasOngoingDepo -> Color(0xFFEA580C)
+                else -> EmeraldSuccess
+            }
+            val depoTextColor = when {
+                isDepoRedAlert -> ExpiredRedDark
+                hasOngoingDepo -> Color(0xFFC2410C)
+                else -> Color(0xFF15803D)
+            }
 
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+            val adetselCardBg = if (pendingAdetselCount > 0) Color(0xFFFFFBF5) else Color(0xFFF3FAF6)
+            val adetselBorderColor = if (pendingAdetselCount > 0) Color(0xFFFED7AA) else Color(0xFFD1FAE5)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Sol Kutu: Adetsel Sayım Kontrolü
+                Surface(
+                    onClick = { onQuickActionClick("adetsel") },
+                    shape = RoundedCornerShape(18.dp),
+                    color = adetselCardBg,
+                    border = BorderStroke(1.dp, adetselBorderColor),
+                    shadowElevation = 0.8.dp,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Text(
-                            text = "Depo İade Takibi",
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = depoStatusText,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = depoTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(if (pendingAdetselCount > 0) Color(0xFFFFEDD5) else Color(0xFFDCFCE7)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (pendingAdetselCount > 0) Icons.Outlined.AssignmentLate else Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = if (pendingAdetselCount > 0) Color(0xFFEA580C) else EmeraldSuccess,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "Adetsel Sayım",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = if (pendingAdetselCount > 0)
+                                    "$pendingAdetselCount Bekleyen"
+                                else
+                                    "Sayım: Güncel",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (pendingAdetselCount > 0) Color(0xFFC2410C) else Color(0xFF15803D),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+
+                // Sağ Kutu: Depo İade Takibi
+                Surface(
+                    onClick = { onQuickActionClick("takip") },
+                    shape = RoundedCornerShape(18.dp),
+                    color = depoCardBg,
+                    border = BorderStroke(1.dp, depoBorderColor),
+                    shadowElevation = 0.8.dp,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(depoIconBg),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (hasAnyDepoAction) Icons.Outlined.LocalShipping else Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = depoIconTint,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Text(
+                                text = "Depo İade Takibi",
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = depoStatusText,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = depoTextColor,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
@@ -447,49 +452,50 @@ fun DashboardScreen(
         // =====================================================================
         // 4. SABAH AÇILIŞ RUTİNİ (GÜNLÜK HIZLI CHECKLIST)
         // =====================================================================
-        com.example.ui.screens.dashboard.MorningOpeningRoutineCard(
-            routineItems = routineItems,
-            checkedStates = checkedStates,
-            onToggleRoutineItem = { toggleRoutineItem(it) }
-        )
+        item {
+            com.example.ui.screens.dashboard.MorningOpeningRoutineCard(
+                routineItems = routineItems,
+                checkedStates = checkedStates,
+                onToggleRoutineItem = { toggleRoutineItem(it) }
+            )
+        }
 
         // =====================================================================
         // 5. WHATSAPP SABAH RAPORU PAYLAŞ BUTONU (STADIUM SHAPE)
         // =====================================================================
-        Surface(
-            onClick = { shareMorningCockpitOnWhatsApp() },
-            shape = RoundedCornerShape(50),
-            color = Color(0xFFF0FDF4),
-            border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
-            shadowElevation = 0.8.dp,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+        item {
+            Surface(
+                onClick = { shareMorningCockpitOnWhatsApp() },
+                shape = RoundedCornerShape(50),
+                color = Color(0xFFF0FDF4),
+                border = BorderStroke(1.dp, Color(0xFFBBF7D0)),
+                shadowElevation = 0.8.dp,
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Share,
-                    contentDescription = null,
-                    tint = Color(0xFF16A34A),
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Vardiya Raporu Paylaş",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF15803D),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Share,
+                        contentDescription = null,
+                        tint = Color(0xFF16A34A),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Vardiya Raporu Paylaş",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF15803D),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
-
-        // 6. Alt gezinme çubuğunun (BottomBar) içeriğin üstünü kapatmaması için 80.dp boşluk
-        Spacer(modifier = Modifier.height(80.dp))
     }
 }

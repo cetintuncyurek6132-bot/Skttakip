@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -272,63 +274,71 @@ fun AddEditTakipModal(
         preventDismissOnDrag = true,
         dismissOnScrim = false
     ) { dismissSheet ->
-        // Üst Başlık Barı (Header): SOL: Kaydet, ORTA: Başlık, SAĞ: Kapat (X)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            // SOL: Kaydet Butonu
-            Button(
-                onClick = { saveAction() },
-                enabled = isFormValid,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = TurquoisePrimary,
-                    disabledContainerColor = Slate200,
-                    contentColor = Color.White,
-                    disabledContentColor = Slate400
-                ),
-                shape = RoundedCornerShape(10.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Icon(Icons.Default.Save, contentDescription = "Kaydet", modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Kaydet", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-            }
-
-            // ORTA: Başlık
-            Text(
-                text = if (existingRecord == null) "Yeni Takip Kaydı" else "Kaydı Düzenle",
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900,
-                    fontSize = 16.5.sp
-                ),
-                modifier = Modifier.weight(1f),
-                textAlign = TextAlign.Center
-            )
-
-            // SAĞ: Kapatma Butonu
-            IconButton(
-                onClick = { dismissSheet() },
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(Icons.Default.Close, contentDescription = "Kapat", tint = Slate500, modifier = Modifier.size(20.dp))
-            }
-        }
-
-        HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .fillMaxHeight(0.88f)
+                .imePadding()
         ) {
+            // Üst Başlık Barı (Header): SOL: Kaydet, ORTA: Başlık, SAĞ: Kapat (X)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // SOL: Kaydet Butonu
+                Button(
+                    onClick = { saveAction() },
+                    enabled = isFormValid,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TurquoisePrimary,
+                        disabledContainerColor = Slate200,
+                        contentColor = Color.White,
+                        disabledContentColor = Slate400
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Kaydet", modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Kaydet", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+
+                // ORTA: Başlık
+                Text(
+                    text = if (existingRecord == null) "Yeni Takip Kaydı" else "Kaydı Düzenle",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900,
+                        fontSize = 16.5.sp
+                    ),
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center
+                )
+
+                // SAĞ: Kapatma Butonu
+                IconButton(
+                    onClick = { dismissSheet() },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = "Kapat", tint = Slate500, modifier = Modifier.size(20.dp))
+                }
+            }
+
+            HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+
+            // Sadece Form Elemanlarını Saran Kaydırılabilir Column (weight(1f) + verticalScroll)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                     // 1. ÜRÜN KODU & ÜRÜN ADI (KOD YAZIP ENTERLEYİNCE BİLGİLER GELİR)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             // Ürün Kodu Giriş Alanı
@@ -783,47 +793,50 @@ fun AddEditTakipModal(
                             }
                         }
 
-                HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
+            }
 
-                // Kaydet & İptal Butonları
-                Row(
+            HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+
+            // Sabit Alt Alan: Kaydet & İptal Butonları (Kaydırılabilir Column'un DIŞINDA)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { dismissSheet() },
+                    shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .weight(1f)
+                        .height(48.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = onDismiss,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    ) {
-                        Text("İptal")
-                    }
-
-                    Button(
-                        onClick = { saveAction() },
-                        enabled = isFormValid,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = TurquoisePrimary,
-                            disabledContainerColor = Slate200,
-                            contentColor = Color.White,
-                            disabledContentColor = Slate400
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
-                    ) {
-                        Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Kaydet", fontWeight = FontWeight.Bold)
-                    }
+                    Text("İptal", fontWeight = FontWeight.Bold)
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = { saveAction() },
+                    enabled = isFormValid,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TurquoisePrimary,
+                        disabledContainerColor = Slate200,
+                        contentColor = Color.White,
+                        disabledContentColor = Slate400
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Kaydet", fontWeight = FontWeight.Bold)
+                }
             }
+        }
     }
 
     // TARİH SEÇİCİ MODALLAR

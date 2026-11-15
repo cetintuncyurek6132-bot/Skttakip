@@ -195,6 +195,8 @@ object DataBackupManager {
             auditObj.put("targetRatio", audit.targetRatio)
             auditObj.put("notes", audit.notes)
             auditObj.put("createdAt", audit.createdAt)
+            auditObj.put("updatedAt", audit.updatedAt)
+            auditObj.put("auditPeriod", audit.auditPeriod)
             inventoryAuditArray.put(auditObj)
         }
         root.put("inventoryAudits", inventoryAuditArray)
@@ -813,6 +815,8 @@ object DataBackupManager {
         val targetRatio = obj.optDouble("targetRatio", 0.0).let { if (it.isNaN() || it < 0.0) 0.0 else it }
         val notes = obj.optString("notes", "").ifBlank { obj.optString("notlar", "") }
         val createdAt = obj.optLong("createdAt", auditDateMillis)
+        val updatedAt = obj.optLong("updatedAt", createdAt).let { if (it > 0L) it else createdAt }
+        val auditPeriod = obj.optString("auditPeriod", "").ifBlank { computeAuditPeriod(updatedAt) }
 
         return InventoryAuditEntity(
             id = 0,
@@ -822,7 +826,9 @@ object DataBackupManager {
             fireCost = fireCost,
             targetRatio = targetRatio,
             notes = notes,
-            createdAt = createdAt
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+            auditPeriod = auditPeriod
         )
     }
 
