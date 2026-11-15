@@ -144,7 +144,7 @@ fun ProductDetailModal(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         scrimColor = Color.Black.copy(alpha = 0.35f),
         dragHandle = {
             PremiumSheetDragHandle(

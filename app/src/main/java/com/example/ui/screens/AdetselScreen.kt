@@ -120,6 +120,7 @@ fun AdetselScreen(
     yapildiList: List<AdetselKayit>,
     allProducts: List<Product> = emptyList(),
     adetselViewModel: AdetselViewModel? = null,
+    exportAdetselTrigger: Int = 0,
     onAddToAdetsel: ((Product, ((Boolean) -> Unit)?) -> Unit)? = null,
     onSaveSayim: (kayit: AdetselKayit, sonuc: String, fark: Int, notlar: String) -> Unit,
     onUndoSayim: (AdetselKayit) -> Unit,
@@ -161,6 +162,12 @@ fun AdetselScreen(
     var sharePreviewRecords by remember { mutableStateOf<List<AdetselKayit>?>(null) }
     var sharePreviewTextMessage by remember { mutableStateOf("") }
     var selectedSayimDetail by remember { mutableStateOf<AdetselKayit?>(null) }
+
+    LaunchedEffect(exportAdetselTrigger) {
+        if (exportAdetselTrigger > 0) {
+            showExportModal = true
+        }
+    }
 
     val distinctYapilacakList = remember(yapilacakList) {
         val trLocale = java.util.Locale.forLanguageTag("tr-TR")

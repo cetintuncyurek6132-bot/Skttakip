@@ -38,6 +38,7 @@ import com.example.R
 import com.example.ui.theme.TurquoisePrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 @Composable
 fun AppSplashScreen(
@@ -53,80 +54,85 @@ fun AppSplashScreen(
     val exitScale = remember { Animatable(1f) }
 
     LaunchedEffect(Unit) {
-        // Aşama 1: Logo ve arka turkuaz ışıltının akıcı girişi (~300 ms)
-        val logoAlphaJob = launch {
-            logoAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-                )
-            )
-        }
-        val logoScaleJob = launch {
-            logoScale.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 300,
-                    easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-                )
-            )
-        }
-        val glowJob = launch {
-            glowAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 350,
-                    easing = LinearEasing
-                )
-            )
-        }
+        try {
+            withTimeoutOrNull(1600L) {
+                // Aşama 1: Logo ve arka turkuaz ışıltının akıcı girişi (~300 ms)
+                val logoAlphaJob = launch {
+                    logoAlpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = 300,
+                            easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+                        )
+                    )
+                }
+                val logoScaleJob = launch {
+                    logoScale.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = 300,
+                            easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
+                        )
+                    )
+                }
+                val glowJob = launch {
+                    glowAlpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = 350,
+                            easing = LinearEasing
+                        )
+                    )
+                }
 
-        // Aşama 2: Yükleme göstergesi ve versiyon etiketinin girişi (~250 ms)
-        delay(60)
-        val footerJob = launch {
-            footerAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = 280,
-                    easing = LinearOutSlowInEasing
-                )
-            )
+                // Aşama 2: Yükleme göstergesi ve versiyon etiketinin girişi (~250 ms)
+                delay(60)
+                val footerJob = launch {
+                    footerAlpha.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = LinearOutSlowInEasing
+                        )
+                    )
+                }
+
+                logoAlphaJob.join()
+                logoScaleJob.join()
+                glowJob.join()
+                footerJob.join()
+
+                // Aşama 3: Logoların ekranda stabil kalması (~450 ms)
+                delay(450)
+
+                // Aşama 4: Birlikte yumuşak fade-out (~220 ms)
+                val exitAlphaJob = launch {
+                    exitAlpha.animateTo(
+                        targetValue = 0f,
+                        animationSpec = tween(
+                            durationMillis = 220,
+                            easing = FastOutLinearInEasing
+                        )
+                    )
+                }
+                val exitScaleJob = launch {
+                    exitScale.animateTo(
+                        targetValue = 0.96f,
+                        animationSpec = tween(
+                            durationMillis = 220,
+                            easing = FastOutLinearInEasing
+                        )
+                    )
+                }
+
+                exitAlphaJob.join()
+                exitScaleJob.join()
+            }
+        } catch (_: Throwable) {
+        } finally {
+            // Splash tamamlandı, her koşulda ana ekrana devret
+            onSplashFinished()
         }
-
-        logoAlphaJob.join()
-        logoScaleJob.join()
-        glowJob.join()
-        footerJob.join()
-
-        // Aşama 3: Logoların ekranda stabil kalması (~550 ms)
-        delay(550)
-
-        // Aşama 4: Birlikte yumuşak fade-out (~250 ms)
-        val exitAlphaJob = launch {
-            exitAlpha.animateTo(
-                targetValue = 0f,
-                animationSpec = tween(
-                    durationMillis = 250,
-                    easing = FastOutLinearInEasing
-                )
-            )
-        }
-        val exitScaleJob = launch {
-            exitScale.animateTo(
-                targetValue = 0.96f,
-                animationSpec = tween(
-                    durationMillis = 250,
-                    easing = FastOutLinearInEasing
-                )
-            )
-        }
-
-        exitAlphaJob.join()
-        exitScaleJob.join()
-
-        // Splash tamamlandı, ana ekrana devret
-        onSplashFinished()
     }
 
     // Tam siyah zemin ve dokunmaları emen koruma katmanı

@@ -2,50 +2,42 @@ package com.example.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.intl.Locale
 import androidx.compose.ui.text.intl.LocaleList
 import androidx.compose.ui.unit.sp
-import com.example.R
 
 val TurkishLocaleList = LocaleList(Locale("tr-TR"))
 
-val UbuntuFontFamily = FontFamily(
-    Font(R.font.ubuntu_regular, FontWeight.Normal),
-    Font(R.font.ubuntu_medium, FontWeight.Medium),
-    Font(R.font.ubuntu_bold, FontWeight.Bold)
-)
-
-val ManropeFontFamily: FontFamily = UbuntuFontFamily
-val InterFontFamily: FontFamily = UbuntuFontFamily
-val AppFontFamily: FontFamily = UbuntuFontFamily
+val ManropeFontFamily: FontFamily = FontFamily.Default
+val InterFontFamily: FontFamily = FontFamily.Default
+val AppFontFamily: FontFamily = FontFamily.Default
 
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 57.sp,
         lineHeight = 64.sp,
         localeList = TurkishLocaleList
     ),
     displayMedium = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 45.sp,
         lineHeight = 52.sp,
         localeList = TurkishLocaleList
     ),
     displaySmall = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 36.sp,
         lineHeight = 44.sp,
         localeList = TurkishLocaleList
     ),
     headlineLarge = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 32.sp,
         lineHeight = 40.sp,
@@ -53,7 +45,7 @@ val Typography = Typography(
         localeList = TurkishLocaleList
     ),
     headlineMedium = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 28.sp,
         lineHeight = 36.sp,
@@ -61,14 +53,14 @@ val Typography = Typography(
         localeList = TurkishLocaleList
     ),
     headlineSmall = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 24.sp,
         lineHeight = 32.sp,
         localeList = TurkishLocaleList
     ),
     titleLarge = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 21.sp,
         lineHeight = 28.sp,
@@ -76,7 +68,7 @@ val Typography = Typography(
         localeList = TurkishLocaleList
     ),
     titleMedium = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 16.sp,
         lineHeight = 24.sp,
@@ -84,7 +76,7 @@ val Typography = Typography(
         localeList = TurkishLocaleList
     ),
     titleSmall = TextStyle(
-        fontFamily = UbuntuFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
@@ -92,48 +84,48 @@ val Typography = Typography(
         localeList = TurkishLocaleList
     ),
     bodyLarge = TextStyle(
-        fontFamily = UbuntuFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         letterSpacing = 0.1.sp,
         localeList = TurkishLocaleList
     ),
     bodyMedium = TextStyle(
-        fontFamily = UbuntuFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp,
         localeList = TurkishLocaleList
     ),
     bodySmall = TextStyle(
-        fontFamily = UbuntuFontFamily,
-        fontWeight = FontWeight.Normal,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.15.sp,
         localeList = TurkishLocaleList
     ),
     labelLarge = TextStyle(
-        fontFamily = UbuntuFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         letterSpacing = 0.1.sp,
         localeList = TurkishLocaleList
     ),
     labelMedium = TextStyle(
-        fontFamily = UbuntuFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.15.sp,
         localeList = TurkishLocaleList
     ),
     labelSmall = TextStyle(
-        fontFamily = UbuntuFontFamily,
-        fontWeight = FontWeight.Medium,
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
         fontSize = 11.sp,
         lineHeight = 16.sp,
         letterSpacing = 0.15.sp,

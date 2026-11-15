@@ -3,28 +3,41 @@ package com.example.data
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import java.io.File
 
 class ProductRepository(
     val productDao: ProductDao,
-    val reportDao: InspectionReportDao,
     val adetselDao: AdetselDao? = null,
-    val stockMovementDao: StockMovementDao? = null,
     val stockLogDao: StockLogDao? = null,
     val inventoryAuditDao: InventoryAuditDao? = null
 ) {
-    val allProducts: Flow<List<Product>> = productDao.getAllProducts().flowOn(Dispatchers.IO)
-    val allReports: Flow<List<InspectionReport>> = reportDao.getAllReports().flowOn(Dispatchers.IO)
-    val allAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getAllAdetselKayitlari() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
-    val yapilacakAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapilacakKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
-    val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
-    val allStockMovements: Flow<List<StockMovement>> = (stockMovementDao?.getAllStockMovements() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
-    val allStockLogs: Flow<List<StockLog>> = (stockLogDao?.getAllLogs() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
-    val allInventoryAudits: Flow<List<InventoryAuditEntity>> = (inventoryAuditDao?.getAllAuditsFlow() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
-    val totalSoldQuantity: Flow<Int> = (stockLogDao?.getTotalSoldQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)).flowOn(Dispatchers.IO)
-    val totalFireQuantity: Flow<Int> = (stockLogDao?.getTotalFireQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)).flowOn(Dispatchers.IO)
+    val allProducts: Flow<List<Product>> = productDao.getAllProducts()
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+    val allAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getAllAdetselKayitlari() ?: kotlinx.coroutines.flow.emptyFlow())
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+    val yapilacakAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapilacakKayitlar() ?: kotlinx.coroutines.flow.emptyFlow())
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+    val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow())
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+    val allStockLogs: Flow<List<StockLog>> = (stockLogDao?.getAllLogs() ?: kotlinx.coroutines.flow.emptyFlow())
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+    val allInventoryAudits: Flow<List<InventoryAuditEntity>> = (inventoryAuditDao?.getAllAuditsFlow() ?: kotlinx.coroutines.flow.emptyFlow())
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
+    val totalSoldQuantity: Flow<Int> = (stockLogDao?.getTotalSoldQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0))
+        .catch { emit(0) }
+        .flowOn(Dispatchers.IO)
+    val totalFireQuantity: Flow<Int> = (stockLogDao?.getTotalFireQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0))
+        .catch { emit(0) }
+        .flowOn(Dispatchers.IO)
 
     suspend fun insertInventoryAudit(audit: InventoryAuditEntity): Long = withContext(Dispatchers.IO) {
         inventoryAuditDao?.insertAudit(audit) ?: 0L
@@ -86,28 +99,6 @@ class ProductRepository(
         stockLogDao?.getAllLogsList() ?: emptyList()
     }
 
-    suspend fun logStockMovement(
-        barkod: String,
-        urunAdi: String,
-        adet: Int,
-        islemTuru: String,
-        tarih: Long = System.currentTimeMillis()
-    ): Long {
-        if (stockMovementDao == null || adet <= 0) return 0L
-        val movement = StockMovement(
-            barkod = barkod,
-            urunAdi = urunAdi,
-            adet = adet,
-            islemTuru = islemTuru,
-            tarih = tarih
-        )
-        return stockMovementDao.insertMovement(movement)
-    }
-
-    suspend fun getAllStockMovementsDirect(): List<StockMovement> {
-        return stockMovementDao?.getAllStockMovementsList() ?: emptyList()
-    }
-
     suspend fun insertAdetselKayit(kayit: AdetselKayit): Long {
         return adetselDao?.insertAdetselKayit(kayit) ?: 0L
     }
@@ -149,7 +140,6 @@ class ProductRepository(
     }
 
     suspend fun updateProduct(product: Product): Int {
-        // Kullanıcı seçimini KORU - ProductDataHealer zaten healleme yapacak
         val cleaned = if (product.kategori.isBlank()) {
             product.copy(kategori = com.example.util.CategoryClassifier.classifyCategory(product.urunAdi))
         } else {
@@ -241,20 +231,14 @@ class ProductRepository(
     suspend fun resetAllData() {
         productDao.deleteAllProducts()
         adetselDao?.deleteAllAdetselKayitlar()
-        stockMovementDao?.deleteAllMovements()
         stockLogDao?.deleteAllLogs()
         inventoryAuditDao?.deleteAllAudits()
-    }
-
-    suspend fun insertReport(report: InspectionReport): Long {
-        return reportDao.insertReport(report)
     }
 
     suspend fun createUnifiedBackupJson(context: Context): String {
         return DataBackupManager.createUnifiedBackupJson(
             context = context,
             productDao = productDao,
-            reportDao = reportDao,
             adetselDao = adetselDao,
             stockLogDao = stockLogDao,
             inventoryAuditDao = inventoryAuditDao
@@ -265,7 +249,6 @@ class ProductRepository(
         return DataBackupManager.saveAutoBackupToStorage(
             context = context,
             productDao = productDao,
-            reportDao = reportDao,
             adetselDao = adetselDao,
             stockLogDao = stockLogDao,
             inventoryAuditDao = inventoryAuditDao,
@@ -282,7 +265,6 @@ class ProductRepository(
             context = context,
             jsonString = jsonString,
             productDao = productDao,
-            reportDao = reportDao,
             adetselDao = adetselDao,
             stockLogDao = stockLogDao,
             inventoryAuditDao = inventoryAuditDao,

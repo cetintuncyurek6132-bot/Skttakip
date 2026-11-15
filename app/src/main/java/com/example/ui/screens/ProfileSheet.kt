@@ -110,49 +110,12 @@ fun ProfileSheet(
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Kullanıcı Profili",
-                                fontWeight = FontWeight.Black,
-                                fontSize = 16.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = ExpiredRed.copy(alpha = 0.12f),
-                                border = BorderStroke(1.dp, ExpiredRed.copy(alpha = 0.35f)),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        com.example.auth.UserManager.logout()
-                                        onDismiss()
-                                        Toast.makeText(context, "Oturum kapatıldı.", Toast.LENGTH_SHORT).show()
-                                    }
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.Logout,
-                                        contentDescription = "Çıkış Yap",
-                                        tint = ExpiredRed,
-                                        modifier = Modifier.size(13.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "Çıkış Yap",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ExpiredRed
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = "Kullanıcı Profili",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 16.sp,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                     IconButton(
                         onClick = onDismiss,

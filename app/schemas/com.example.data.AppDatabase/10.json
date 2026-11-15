@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 10,
-    "identityHash": "5c39692479b3fbce6fe504fe61e51bec",
+    "identityHash": "a7937f1de6e02c6b42ac216dda396c13",
     "entities": [
       {
         "tableName": "products",
@@ -272,54 +272,6 @@
         }
       },
       {
-        "tableName": "stock_movements",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `barkod` TEXT NOT NULL, `urunAdi` TEXT NOT NULL, `adet` INTEGER NOT NULL, `islemTuru` TEXT NOT NULL, `tarih` INTEGER NOT NULL)",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "barkod",
-            "columnName": "barkod",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "urunAdi",
-            "columnName": "urunAdi",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "adet",
-            "columnName": "adet",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "islemTuru",
-            "columnName": "islemTuru",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
-            "fieldPath": "tarih",
-            "columnName": "tarih",
-            "affinity": "INTEGER",
-            "notNull": true
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        }
-      },
-      {
         "tableName": "stock_logs",
         "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `barcode` TEXT NOT NULL, `productName` TEXT NOT NULL, `actionType` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `sktDate` INTEGER, `daysRemaining` INTEGER, `timestamp` INTEGER NOT NULL)",
         "fields": [
@@ -452,7 +404,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '5c39692479b3fbce6fe504fe61e51bec')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a7937f1de6e02c6b42ac216dda396c13')"
     ]
   }
 }

@@ -1,6 +1,5 @@
 package com.example.ui.screens
 
-import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,7 +26,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -36,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +50,6 @@ import com.example.ui.screens.products.ProductsGroupedList
 import com.example.ui.components.WhatsAppShareModal
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
-import com.example.util.ProductImageGenerator
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -79,7 +75,6 @@ fun ProductsScreen(
     onQuickAddSkt: (Product) -> Unit = {},
     onOpenQrFixMode: () -> Unit = {}
 ) {
-    val context = LocalContext.current
     val todayMidnight by com.example.util.rememberTodayMidnight()
     val listState = rememberLazyListState()
     var isDateRangeModalOpen by remember { mutableStateOf(false) }
@@ -87,13 +82,6 @@ fun ProductsScreen(
     val dateFormat = remember { SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("tr-TR")) }
 
     val hasDateFilter = startDateFilter != null || endDateFilter != null
-
-    // Liste aşağıya kaydırıldığında WhatsApp butonunun yuvarlağa dönüşmesi (Extended FAB collapse)
-    val isFabExpanded by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset < 15
-        }
-    }
 
     LaunchedEffect(selectedFilter, selectedGroupFilter, searchQuery, startDateFilter, endDateFilter) {
         if (listState.firstVisibleItemIndex > 0) {

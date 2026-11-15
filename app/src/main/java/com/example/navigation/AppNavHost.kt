@@ -69,7 +69,10 @@ fun AppNavHost(
     navigateToTab: (String) -> Unit,
     onOpenScanner: (mode: ScannerOpenMode) -> Unit,
     onOpenProfile: () -> Unit,
-    onOpenNotifications: () -> Unit
+    onOpenNotifications: () -> Unit,
+    addTakipTrigger: Int = 0,
+    exportTakipTrigger: Int = 0,
+    exportAdetselTrigger: Int = 0
 ) {
     NavHost(
         navController = navController,
@@ -184,7 +187,9 @@ fun AppNavHost(
                             TakipScreen(
                                 products = allProducts,
                                 onBackClick = { navigateToTab("panel") },
-                                onOpenScanner = { onOpenScanner(ScannerOpenMode.BARCODE_SEARCH) }
+                                onOpenScanner = { onOpenScanner(ScannerOpenMode.BARCODE_SEARCH) },
+                                addTakipTrigger = addTakipTrigger,
+                                exportTakipTrigger = exportTakipTrigger
                             )
                         }
                         3 -> {
@@ -194,6 +199,7 @@ fun AppNavHost(
                                 yapildiList = yapildiAdetsel,
                                 allProducts = allProducts,
                                 adetselViewModel = adetselViewModel,
+                                exportAdetselTrigger = exportAdetselTrigger,
                                 onAddToAdetsel = { prod, onComplete ->
                                     adetselViewModel.addToAdetsel(prod, onComplete)
                                 },

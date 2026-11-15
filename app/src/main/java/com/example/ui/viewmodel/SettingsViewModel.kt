@@ -114,7 +114,6 @@ class SettingsViewModel(
                     DataMigrationManager.performStartupDataProtectionCheck(
                         context = context,
                         productDao = repository.productDao,
-                        reportDao = repository.reportDao,
                         adetselDao = repository.adetselDao
                     )
                 } catch (t: Throwable) {

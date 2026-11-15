@@ -123,12 +123,10 @@ class MainActivity : ComponentActivity() {
         }
 
         val repository = ProductRepository(
-            db.productDao(),
-            db.reportDao(),
-            db.adetselDao(),
-            db.stockMovementDao(),
-            db.stockLogDao(),
-            db.inventoryAuditDao()
+            productDao = db.productDao(),
+            adetselDao = db.adetselDao(),
+            stockLogDao = db.stockLogDao(),
+            inventoryAuditDao = db.inventoryAuditDao()
         )
         mainViewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
         inventoryViewModel = ViewModelProvider(this, InventoryViewModel.Factory(repository))[InventoryViewModel::class.java]
@@ -312,7 +310,6 @@ fun SktMainApp(
     val migrationStatus by settingsViewModel.migrationStatus.collectAsStateWithLifecycle()
     val yapilacakAdetsel by adetselViewModel.yapilacakAdetselKayitlari.collectAsStateWithLifecycle()
     val yapildiAdetsel by adetselViewModel.yapildiAdetselKayitlari.collectAsStateWithLifecycle()
-    val stockMovements by inventoryViewModel.allStockMovements.collectAsStateWithLifecycle()
     val stockLogs by inventoryViewModel.allStockLogs.collectAsStateWithLifecycle()
 
     val userName by settingsViewModel.userName.collectAsStateWithLifecycle()
@@ -334,6 +331,11 @@ fun SktMainApp(
     var scannerOpenMode by remember { mutableStateOf(ScannerOpenMode.BARCODE_SEARCH) }
     var isNotificationDialogOpen by remember { mutableStateOf(false) }
     var isProfileDialogOpen by remember { mutableStateOf(false) }
+
+    // TopBar modül aksiyon tetikleyicileri (İade Takip & Adetsel Sayım)
+    var addTakipTrigger by remember { mutableStateOf(0) }
+    var exportTakipTrigger by remember { mutableStateOf(0) }
+    var exportAdetselTrigger by remember { mutableStateOf(0) }
 
     val activeModalCount by com.example.ui.components.AppModalBlurState.activeModalCount.collectAsStateWithLifecycle()
     val isModalOpen = isAddEditModalOpen ||
@@ -438,7 +440,10 @@ fun SktMainApp(
                             showHomeButton = activeRoute != "panel",
                             onHomeClick = {
                                 navigateToTab("panel")
-                            }
+                            },
+                            onAddTakipClick = { addTakipTrigger++ },
+                            onExportTakipClick = { exportTakipTrigger++ },
+                            onExportAdetselClick = { exportAdetselTrigger++ }
                         )
                         TopBarLoadingBar(isLoading = isLoading)
 
@@ -521,7 +526,10 @@ fun SktMainApp(
                     isBarcodeScannerOpen = true
                 },
                 onOpenProfile = { isProfileDialogOpen = true },
-                onOpenNotifications = { isNotificationDialogOpen = true }
+                onOpenNotifications = { isNotificationDialogOpen = true },
+                addTakipTrigger = addTakipTrigger,
+                exportTakipTrigger = exportTakipTrigger,
+                exportAdetselTrigger = exportAdetselTrigger
             )
             }
         }

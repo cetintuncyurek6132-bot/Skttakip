@@ -40,7 +40,7 @@ object DataMigrationManager {
     suspend fun performStartupDataProtectionCheck(
         context: Context,
         productDao: ProductDao,
-        reportDao: InspectionReportDao,
+        reportDao: InspectionReportDao? = null,
         adetselDao: AdetselDao? = null
     ) = withContext(Dispatchers.IO) {
         try {

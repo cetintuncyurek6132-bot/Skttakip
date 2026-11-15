@@ -125,7 +125,6 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         Product::class,
         InspectionReport::class,
         AdetselKayit::class,
-        StockMovement::class,
         StockLog::class,
         InventoryAuditEntity::class
     ],
@@ -136,10 +135,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun productDao(): ProductDao
     abstract fun inspectionReportDao(): InspectionReportDao
     abstract fun adetselDao(): AdetselDao
-    abstract fun stockMovementDao(): StockMovementDao
     abstract fun stockLogDao(): StockLogDao
     abstract fun inventoryAuditDao(): InventoryAuditDao
-    fun reportDao(): InspectionReportDao = inspectionReportDao()
 
     /**
      * Executes the given block in an atomic database transaction.
@@ -150,14 +147,65 @@ abstract class AppDatabase : RoomDatabase() {
     }
 
     companion object {
+        private const val EXPECTED_V10_IDENTITY_HASH = "a7937f1de6e02c6b42ac216dda396c13"
+
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        private fun healDatabaseBeforeRoomOpen(context: Context) {
+            try {
+                val dbFile = context.getDatabasePath("skt_takip_database")
+                if (!dbFile.exists()) return
+
+                val sqliteDb = android.database.sqlite.SQLiteDatabase.openDatabase(
+                    dbFile.absolutePath,
+                    null,
+                    android.database.sqlite.SQLiteDatabase.OPEN_READWRITE
+                )
+                sqliteDb.use { db ->
+                    if (db.version == 10) {
+                        // Ensure all required tables, columns, and indices exist without touching existing data
+                        try {
+                            db.execSQL("ALTER TABLE products ADD COLUMN resimUrl TEXT DEFAULT NULL")
+                        } catch (_: Throwable) {}
+                        try {
+                            db.execSQL("ALTER TABLE products ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+                        } catch (_: Throwable) {}
+                        try {
+                            db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_barkod` ON `products` (`barkod`)")
+                            db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_urunKodu` ON `products` (`urunKodu`)")
+                            db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sktTarihi` ON `products` (`sktTarihi`)")
+                        } catch (_: Throwable) {}
+
+                        try {
+                            db.execSQL("CREATE TABLE IF NOT EXISTS `inspection_reports` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `tarih` INTEGER NOT NULL, `reyonAdi` TEXT NOT NULL, `tarananUrunSayisi` INTEGER NOT NULL, `suresiGecenSayisi` INTEGER NOT NULL, `kritikUrunSayisi` INTEGER NOT NULL, `fireTutari` REAL NOT NULL)")
+                            db.execSQL("CREATE TABLE IF NOT EXISTS `adetsel_kayitlar` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `productId` INTEGER NOT NULL, `urunAdi` TEXT NOT NULL, `urunKodu` TEXT NOT NULL, `barkod` TEXT NOT NULL, `kategori` TEXT NOT NULL, `eklenmeTarihi` INTEGER NOT NULL, `yapildiMi` INTEGER NOT NULL, `sayimSonucu` TEXT NOT NULL, `beklenenAdet` INTEGER NOT NULL, `sayilanAdet` INTEGER NOT NULL, `farkAdet` INTEGER NOT NULL, `notlar` TEXT NOT NULL, `islemTarihi` INTEGER NOT NULL)")
+                            db.execSQL("CREATE TABLE IF NOT EXISTS `stock_logs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `barcode` TEXT NOT NULL, `productName` TEXT NOT NULL, `actionType` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `sktDate` INTEGER, `daysRemaining` INTEGER, `timestamp` INTEGER NOT NULL)")
+                            db.execSQL("CREATE TABLE IF NOT EXISTS `inventory_audits` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `category` TEXT NOT NULL, `auditDateMillis` INTEGER NOT NULL, `revenue` REAL NOT NULL DEFAULT 0.0, `fireCost` REAL NOT NULL DEFAULT 0.0, `targetRatio` REAL NOT NULL DEFAULT 0.0, `notes` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL DEFAULT 0, `auditPeriod` TEXT NOT NULL DEFAULT '')")
+                        } catch (_: Throwable) {}
+
+                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN revenue REAL NOT NULL DEFAULT 0.0") } catch (_: Throwable) {}
+                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN fireCost REAL NOT NULL DEFAULT 0.0") } catch (_: Throwable) {}
+                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN targetRatio REAL NOT NULL DEFAULT 0.0") } catch (_: Throwable) {}
+                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0") } catch (_: Throwable) {}
+                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN auditPeriod TEXT NOT NULL DEFAULT ''") } catch (_: Throwable) {}
+
+                        // Sync room_master_table identity_hash so removing dead StockMovement entity at version 10 never triggers IllegalStateException
+                        db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)")
+                        db.execSQL("INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '$EXPECTED_V10_IDENTITY_HASH')")
+                    }
+                }
+            } catch (t: Throwable) {
+                android.util.Log.w("AppDatabase", "Pre-open schema heal skipped: ${t.message}")
+            }
+        }
 
         fun getDatabase(
             context: Context,
             scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
         ): AppDatabase {
             return INSTANCE ?: synchronized(this) {
+                healDatabaseBeforeRoomOpen(context.applicationContext)
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,

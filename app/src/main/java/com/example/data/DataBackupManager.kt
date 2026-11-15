@@ -78,7 +78,7 @@ object DataBackupManager {
     suspend fun createUnifiedBackupJson(
         context: Context,
         productDao: ProductDao,
-        reportDao: InspectionReportDao,
+        reportDao: InspectionReportDao? = null,
         adetselDao: AdetselDao? = null,
         stockLogDao: StockLogDao? = null,
         inventoryAuditDao: InventoryAuditDao? = null
@@ -211,7 +211,7 @@ object DataBackupManager {
     suspend fun saveAutoBackupToStorage(
         context: Context,
         productDao: ProductDao,
-        reportDao: InspectionReportDao,
+        reportDao: InspectionReportDao? = null,
         adetselDao: AdetselDao? = null,
         stockLogDao: StockLogDao? = null,
         inventoryAuditDao: InventoryAuditDao? = null,
@@ -309,7 +309,7 @@ object DataBackupManager {
         context: Context,
         jsonString: String,
         productDao: ProductDao,
-        reportDao: InspectionReportDao,
+        reportDao: InspectionReportDao? = null,
         adetselDao: AdetselDao? = null,
         stockLogDao: StockLogDao? = null,
         inventoryAuditDao: InventoryAuditDao? = null,
@@ -498,9 +498,11 @@ object DataBackupManager {
                 }
 
                 // 3. Inspection Reports
-                for (ir in parsedReports) {
-                    reportDao.insertReport(ir.copy(id = 0))
-                    inspectionRestored++
+                if (reportDao != null) {
+                    for (ir in parsedReports) {
+                        reportDao.insertReport(ir.copy(id = 0))
+                        inspectionRestored++
+                    }
                 }
 
                 // 4. Stok Hareketleri (StockLog / Satış / Fire)

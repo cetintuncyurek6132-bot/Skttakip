@@ -56,7 +56,9 @@ import java.util.Locale
 fun TakipScreen(
     products: List<Product> = emptyList(),
     onBackClick: () -> Unit = {},
-    onOpenScanner: () -> Unit = {}
+    onOpenScanner: () -> Unit = {},
+    addTakipTrigger: Int = 0,
+    exportTakipTrigger: Int = 0
 ) {
     val context = LocalContext.current
     var records by remember { mutableStateOf(DepoIadeManager.loadRecords(context)) }
@@ -74,6 +76,19 @@ fun TakipScreen(
     var sharePreviewRecords by remember { mutableStateOf<List<DepoIadeKaydi>?>(null) }
     var sharePreviewTextMessage by remember { mutableStateOf("") }
     var showExportModal by remember { mutableStateOf(false) }
+
+    LaunchedEffect(addTakipTrigger) {
+        if (addTakipTrigger > 0) {
+            editingRecord = null
+            showAddEditDialog = true
+        }
+    }
+
+    LaunchedEffect(exportTakipTrigger) {
+        if (exportTakipTrigger > 0) {
+            showExportModal = true
+        }
+    }
 
     fun refreshRecords() {
         records = DepoIadeManager.loadRecords(context)

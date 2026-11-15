@@ -40,9 +40,11 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Inventory2
@@ -137,7 +139,10 @@ fun SktTopAppBar(
     onAvatarClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     showHomeButton: Boolean = false,
-    onHomeClick: () -> Unit = {}
+    onHomeClick: () -> Unit = {},
+    onAddTakipClick: () -> Unit = {},
+    onExportTakipClick: () -> Unit = {},
+    onExportAdetselClick: () -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -286,23 +291,117 @@ fun SktTopAppBar(
             }
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Manuel Arama Yeri veya Sayfa Başlığı
+            // Manuel Arama Yeri veya Sayfa Başlığı + Üst Aksiyon Butonları
             if (activeRoute == "takip" || activeRoute == "adetsel") {
                 val pageTitle = if (activeRoute == "takip") "İade & Depo Takibi" else "Adetsel Sayım"
-                Box(
+                Row(
                     modifier = Modifier
                         .weight(1f)
                         .height(38.dp),
-                    contentAlignment = Alignment.Center
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
                         text = pageTitle,
                         color = Color.White,
-                        fontSize = 18.sp,
+                        fontSize = 15.5.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+
+                    if (activeRoute == "takip") {
+                        Surface(
+                            onClick = onAddTakipClick,
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White,
+                            shadowElevation = 2.dp,
+                            modifier = Modifier
+                                .height(30.dp)
+                                .testTag("top_bar_add_takip_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Yeni Takip Kaydı",
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Yeni",
+                                    color = TurquoiseDark,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = onExportTakipClick,
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
+                            modifier = Modifier
+                                .height(30.dp)
+                                .testTag("top_bar_export_takip_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FileDownload,
+                                    contentDescription = "Dışa Aktar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Dışa Aktar",
+                                    color = Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    } else if (activeRoute == "adetsel") {
+                        Surface(
+                            onClick = onExportAdetselClick,
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White.copy(alpha = 0.2f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.45f)),
+                            modifier = Modifier
+                                .height(30.dp)
+                                .testTag("top_bar_export_adetsel_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.FileDownload,
+                                    contentDescription = "Dışa Aktar",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Dışa Aktar",
+                                    color = Color.White,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
                 }
             } else {
                 Surface(

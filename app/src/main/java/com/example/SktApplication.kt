@@ -65,6 +65,16 @@ class SktApplication : Application() {
 
             // Main UI thread error: attempt safe restart into MainActivity without looping
             try {
+                val prefs = getSharedPreferences("safe_startup_prefs", MODE_PRIVATE)
+                val lastRestart = prefs.getLong("last_crash_restart_ts", 0L)
+                val now = System.currentTimeMillis()
+                if (now - lastRestart < 10_000L) {
+                    Log.e(TAG, "Crash loop detected within 10s; delegating to default handler.", throwable)
+                    defaultHandler?.uncaughtException(thread, throwable)
+                    return@setDefaultUncaughtExceptionHandler
+                }
+                prefs.edit().putLong("last_crash_restart_ts", now).commit()
+
                 val intent = Intent(this, MainActivity::class.java).apply {
                     addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                 }

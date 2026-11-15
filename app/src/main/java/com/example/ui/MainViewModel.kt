@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.ExpiryStatus
-import com.example.data.InspectionReport
 import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.data.getTodayMidnightMillis
@@ -84,18 +83,10 @@ class MainViewModel(
             initialValue = emptyList()
         )
 
-    val allReports: StateFlow<List<InspectionReport>> = repository.allReports
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
     val dashboardState: StateFlow<DashboardState> = combine(
         allProducts,
-        allReports,
         _notificationsRead
-    ) { products, reports, isRead ->
+    ) { products, isRead ->
         val todayMidnight = getTodayMidnightMillis()
         var expired = 0
         var critical = 0

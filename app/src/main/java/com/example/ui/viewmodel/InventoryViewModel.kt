@@ -8,7 +8,6 @@ import com.example.data.InventoryAuditEntity
 import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.data.StockLog
-import com.example.data.StockMovement
 import com.example.data.computeAuditPeriod
 import com.example.data.getTodayMidnightMillis
 import com.example.data.isDolapProduct
@@ -91,14 +90,6 @@ class InventoryViewModel(
 
     // All products flow from repository
     val allProducts: StateFlow<List<Product>> = repository.allProducts
-        .distinctUntilChanged()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
-
-    val allStockMovements: StateFlow<List<StockMovement>> = repository.allStockMovements
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -788,13 +779,6 @@ class InventoryViewModel(
                     daysRemaining = daysRemaining,
                     timestamp = System.currentTimeMillis()
                 )
-            )
-
-            repository.logStockMovement(
-                barkod = product.barkod,
-                urunAdi = product.urunAdi,
-                adet = safeAmount,
-                islemTuru = normalizedType
             )
 
             val existingBatches = if (product.barkod.isNotBlank() && !product.barkod.startsWith("NO_BARCODE_")) {
