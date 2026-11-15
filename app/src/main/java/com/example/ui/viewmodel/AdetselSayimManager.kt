@@ -63,20 +63,36 @@ class AdetselSayimManager(
     }
 
     fun addToAdetsel(product: Product, onComplete: ((Boolean) -> Unit)? = null) {
+        addToAdetsel(product, 0, onComplete)
+    }
+
+    fun addToAdetsel(product: Product, sayilanAdet: Int, onComplete: ((Boolean) -> Unit)? = null) {
         scope.launch(Dispatchers.IO) {
             val pendingList = repository.getPendingAdetselKayitlarList()
 
             // Check if already in pending adetsel list to prevent duplicates
-            val isAlreadyPending = pendingList.any { existing ->
+            val existingPending = pendingList.find { existing ->
                 (product.id > 0 && existing.productId == product.id) ||
                 (product.barkod.isNotBlank() && existing.barkod.equals(product.barkod, ignoreCase = true)) ||
                 (product.urunKodu.isNotBlank() && existing.urunKodu.equals(product.urunKodu, ignoreCase = true)) ||
                 (product.urunAdi.isNotBlank() && existing.urunAdi.trim().equals(product.urunAdi.trim(), ignoreCase = true))
             }
 
-            if (isAlreadyPending) {
-                withContext(Dispatchers.Main) {
-                    onComplete?.invoke(false)
+            if (existingPending != null) {
+                if (sayilanAdet > 0) {
+                    repository.updateAdetselKayit(
+                        existingPending.copy(
+                            sayilanAdet = sayilanAdet,
+                            islemTarihi = System.currentTimeMillis()
+                        )
+                    )
+                    withContext(Dispatchers.Main) {
+                        onComplete?.invoke(true)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        onComplete?.invoke(false)
+                    }
                 }
                 return@launch
             }
@@ -91,7 +107,7 @@ class AdetselSayimManager(
                 eklenmeTarihi = System.currentTimeMillis(),
                 yapildiMi = false,
                 sayimSonucu = "",
-                sayilanAdet = 0,
+                sayilanAdet = maxOf(0, sayilanAdet),
                 farkAdet = 0,
                 beklenenAdet = 0
             )

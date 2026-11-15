@@ -90,6 +90,7 @@ import com.example.ui.viewmodel.AdetselViewModel
 import com.example.util.HapticFeedbackHelper
 import com.example.ui.screens.adetsel.AdetselFilterChip
 import com.example.ui.screens.adetsel.AdetselSayimDialog
+import com.example.ui.screens.adetsel.AdetselSayimDetailModal
 import com.example.ui.screens.adetsel.AdetselSharePreviewModal
 import com.example.ui.screens.adetsel.CompactYapilacakCard
 import com.example.ui.screens.adetsel.CompactYapildiCard
@@ -159,6 +160,7 @@ fun AdetselScreen(
     var showExportModal by remember { mutableStateOf(false) }
     var sharePreviewRecords by remember { mutableStateOf<List<AdetselKayit>?>(null) }
     var sharePreviewTextMessage by remember { mutableStateOf("") }
+    var selectedSayimDetail by remember { mutableStateOf<AdetselKayit?>(null) }
 
     val distinctYapilacakList = remember(yapilacakList) {
         yapilacakList.distinctBy { item ->
@@ -1011,7 +1013,8 @@ fun AdetselScreen(
                             CompactYapildiCard(
                                 kayit = kayit,
                                 onUndo = { onUndoSayim(kayit) },
-                                onDelete = { itemToDelete = kayit }
+                                onDelete = { itemToDelete = kayit },
+                                onClick = { selectedSayimDetail = kayit }
                             )
                         }
                     }
@@ -1132,6 +1135,13 @@ fun AdetselScreen(
             records = activePreviewList,
             formattedTextMessage = sharePreviewTextMessage,
             onDismiss = { sharePreviewRecords = null }
+        )
+    }
+
+    selectedSayimDetail?.let { detailKayit ->
+        AdetselSayimDetailModal(
+            kayit = detailKayit,
+            onDismiss = { selectedSayimDetail = null }
         )
     }
 }

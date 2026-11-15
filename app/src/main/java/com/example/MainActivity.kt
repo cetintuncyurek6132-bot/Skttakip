@@ -127,7 +127,8 @@ class MainActivity : ComponentActivity() {
             db.reportDao(),
             db.adetselDao(),
             db.stockMovementDao(),
-            db.stockLogDao()
+            db.stockLogDao(),
+            db.inventoryAuditDao()
         )
         mainViewModel = ViewModelProvider(this, MainViewModel.Factory(repository))[MainViewModel::class.java]
         inventoryViewModel = ViewModelProvider(this, InventoryViewModel.Factory(repository))[InventoryViewModel::class.java]
@@ -374,6 +375,7 @@ fun SktMainApp(
                 "products" -> "products"
                 "adetsel" -> "adetsel"
                 "csv" -> "csv"
+                "envanter" -> "envanter"
                 "panel" -> "panel"
                 else -> target
             }

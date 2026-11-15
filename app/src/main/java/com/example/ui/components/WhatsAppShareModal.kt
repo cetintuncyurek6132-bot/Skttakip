@@ -159,73 +159,82 @@ fun WhatsAppShareModal(
     AppBottomSheetWrapper(
         onDismissRequest = onDismiss
     ) { dismissSheet ->
-        // =============================================================
-        // 1. MODAL HEADER
-        // =============================================================
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Görsel Önizleme",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = if (isPreviewMode) {
-                                if (generatedBitmaps.size > 1) "Toplam ${generatedBitmaps.size} sayfa görsel üretildi" else "1 sayfa görsel hazırlandı"
-                            } else {
-                                "WhatsApp'ta paylaşılacak ürünleri seçin"
-                            },
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier
-                            .size(36.dp)
-                            .testTag("close_share_modal_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Kapat",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(top = 4.dp, bottom = 16.dp)
+        ) {
+            // =============================================================
+            // 1. MODAL HEADER
+            // =============================================================
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Görsel Önizleme",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = if (isPreviewMode) {
+                            if (generatedBitmaps.size > 1) "Toplam ${generatedBitmaps.size} sayfa görsel üretildi" else "1 sayfa görsel hazırlandı"
+                        } else {
+                            "WhatsApp'ta paylaşılacak ürünleri seçin"
+                        },
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Slate700
+                    )
                 }
 
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 10.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier
+                        .size(36.dp)
+                        .testTag("close_share_modal_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Kapat",
+                        tint = Slate700
+                    )
+                }
+            }
 
-                // =============================================================
-                // 2. MAIN BODY (SELECTION OR PREVIEW)
-                // =============================================================
-                if (!isPreviewMode) {
-                    // CATEGORY TABS [ Bugün Son Olan ] [ Süresi Geçen / Son 6 Gün ] [ 7 - 15 Gün ] [ Önemli ]
-                    Surface(
-                        shape = RoundedCornerShape(24.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 10.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            // =============================================================
+            // 2. MAIN BODY (SELECTION OR PREVIEW)
+            // =============================================================
+            if (!isPreviewMode) {
+                // CATEGORY TABS [ Bugün Son Olan ] [ Süresi Geçen / Son 6 Gün ] [ 7 - 15 Gün ] [ Önemli ]
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = Color(0xFFF1F5F9),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                ) {
+                    androidx.compose.foundation.lazy.LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(44.dp)
+                            .height(46.dp),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(44.dp)
-                                .horizontalScroll(rememberScrollState())
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                        item {
                             // Tab 1: Bugün Son Olan
                             Box(
                                 modifier = Modifier
@@ -246,20 +255,22 @@ fun WhatsAppShareModal(
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = if (selectedCategory == ShareCategory.TODAY_EXACT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedCategory == ShareCategory.TODAY_EXACT) Color.White else Slate700,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "Bugün Son Olan (${todayExactProducts.size})",
-                                        fontSize = 11.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.TODAY_EXACT) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.TODAY_EXACT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (selectedCategory == ShareCategory.TODAY_EXACT) Color.White else Slate700,
                                         maxLines = 1,
                                         softWrap = false
                                     )
                                 }
                             }
+                        }
 
+                        item {
                             // Tab 2: Süresi Geçen / Son 6 Gün
                             Box(
                                 modifier = Modifier
@@ -280,20 +291,22 @@ fun WhatsAppShareModal(
                                     Icon(
                                         imageVector = Icons.Default.Warning,
                                         contentDescription = null,
-                                        tint = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) Color.White else Slate700,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "Süresi Geçen / Son 6 Gün (${expiredAnd1To6Products.size})",
-                                        fontSize = 11.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (selectedCategory == ShareCategory.EXPIRED_AND_1_TO_6) Color.White else Slate700,
                                         maxLines = 1,
                                         softWrap = false
                                     )
                                 }
                             }
+                        }
 
+                        item {
                             // Tab 3: 7 - 15 Gün
                             Box(
                                 modifier = Modifier
@@ -314,20 +327,22 @@ fun WhatsAppShareModal(
                                     Icon(
                                         imageVector = Icons.Default.Schedule,
                                         contentDescription = null,
-                                        tint = if (selectedCategory == ShareCategory.DAYS_7_TO_15) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedCategory == ShareCategory.DAYS_7_TO_15) Color.White else Slate700,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "7 - 15 Gün (${days7To15Products.size})",
-                                        fontSize = 11.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.DAYS_7_TO_15) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.DAYS_7_TO_15) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (selectedCategory == ShareCategory.DAYS_7_TO_15) Color.White else Slate700,
                                         maxLines = 1,
                                         softWrap = false
                                     )
                                 }
                             }
+                        }
 
+                        item {
                             // Tab 4: Önemli
                             Box(
                                 modifier = Modifier
@@ -348,14 +363,14 @@ fun WhatsAppShareModal(
                                     Icon(
                                         imageVector = Icons.Default.Star,
                                         contentDescription = null,
-                                        tint = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else Slate700,
                                         modifier = Modifier.size(14.dp)
                                     )
                                     Text(
                                         text = "Önemli (${importantProducts.size})",
-                                        fontSize = 11.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = if (selectedCategory == ShareCategory.IMPORTANT) FontWeight.ExtraBold else FontWeight.SemiBold,
-                                        color = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (selectedCategory == ShareCategory.IMPORTANT) Color.White else Slate700,
                                         maxLines = 1,
                                         softWrap = false
                                     )
@@ -363,213 +378,218 @@ fun WhatsAppShareModal(
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    // ACTION BAR: Info + "Tümünü Seç" / "Seçimi Temizle"
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (currentCategoryProducts.isNotEmpty()) {
-                                "${currentCategoryProducts.size} ürün listeleniyor • Seçili: ${selectedProductIds.size}"
-                            } else {
-                                "0 ürün listeleniyor"
+                // ACTION BAR: Info + "Tümünü Seç" / "Seçimi Temizle"
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (currentCategoryProducts.isNotEmpty()) {
+                            "${currentCategoryProducts.size} ürün listeleniyor • Seçili: ${selectedProductIds.size}"
+                        } else {
+                            "0 ürün listeleniyor"
+                        },
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate700
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                selectedProductIds = currentCategoryProducts.map { it.id }.toSet()
                             },
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate700
-                        )
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, TurquoisePrimary),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Checklist,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Tümünü Seç",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark
+                            )
+                        }
 
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            OutlinedButton(
-                                onClick = {
-                                    selectedProductIds = currentCategoryProducts.map { it.id }.toSet()
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, TurquoisePrimary),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Checklist,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Tümünü Seç",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TurquoiseDark
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    selectedProductIds = emptySet()
-                                },
-                                shape = RoundedCornerShape(8.dp),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-                                modifier = Modifier.height(32.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Deselect,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "Temizle",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+                        OutlinedButton(
+                            onClick = {
+                                selectedProductIds = emptySet()
+                            },
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Deselect,
+                                contentDescription = null,
+                                tint = Slate700,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Temizle",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate700
+                            )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                    // PRODUCT LIST
-                    if (currentCategoryProducts.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .fillMaxWidth()
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                .padding(24.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Listelenecek ürün bulunamadı",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    text = when (selectedCategory) {
-                                        ShareCategory.TODAY_EXACT -> "Bugün son günü olan ürün kaydı bulunmuyor."
-                                        ShareCategory.EXPIRED_AND_1_TO_6 -> "Süresi geçen veya son 6 gün kalmış ürün kaydı bulunmuyor."
-                                        ShareCategory.DAYS_7_TO_15 -> "7 - 15 gün arasında süresi dolacak ürün kaydı bulunmuyor."
-                                        ShareCategory.IMPORTANT -> "Önemli olarak işaretlenmiş ürün bulunmuyor."
-                                    },
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
+                // PRODUCT LIST
+                if (currentCategoryProducts.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp)
+                            .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Listelenecek ürün bulunamadı",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = when (selectedCategory) {
+                                    ShareCategory.TODAY_EXACT -> "Bugün son günü olan ürün kaydı bulunmuyor."
+                                    ShareCategory.EXPIRED_AND_1_TO_6 -> "Süresi geçen veya son 6 gün kalmış ürün kaydı bulunmuyor."
+                                    ShareCategory.DAYS_7_TO_15 -> "7 - 15 gün arasında süresi dolacak ürün kaydı bulunmuyor."
+                                    ShareCategory.IMPORTANT -> "Önemli olarak işaretlenmiş ürün bulunmuyor."
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Slate700,
+                                textAlign = TextAlign.Center
+                            )
                         }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            items(currentCategoryProducts, key = { it.id }) { product ->
-                                val isSelected = selectedProductIds.contains(product.id)
-                                val days = product.getRemainingDays(todayMidnight)
-                                val daysText = when {
-                                    days < 0L -> "Süresi Geçti"
-                                    days == 0L -> "Bugün Doluyor"
-                                    days == 1L -> "1 Gün Kaldı"
-                                    else -> "$days Gün Kaldı"
-                                }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .fillMaxWidth()
+                            .padding(horizontal = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(currentCategoryProducts, key = { it.id }) { product ->
+                            val isSelected = selectedProductIds.contains(product.id)
+                            val days = product.getRemainingDays(todayMidnight)
+                            val daysText = when {
+                                days < 0L -> "Süresi Geçti"
+                                days == 0L -> "Bugün Doluyor"
+                                days == 1L -> "1 Gün Kaldı"
+                                else -> "$days Gün Kaldı"
+                            }
 
-                                Surface(
-                                    onClick = {
-                                        selectedProductIds = if (isSelected) {
-                                            selectedProductIds - product.id
-                                        } else {
-                                            selectedProductIds + product.id
-                                        }
-                                    },
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = if (isSelected) TurquoisePrimary.copy(alpha = 0.06f) else MaterialTheme.colorScheme.surface,
-                                    border = BorderStroke(
-                                        width = if (isSelected) 1.5.dp else 1.dp,
-                                        color = if (isSelected) TurquoisePrimary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-                                    ),
-                                    modifier = Modifier.fillMaxWidth()
+                            Surface(
+                                onClick = {
+                                    selectedProductIds = if (isSelected) {
+                                        selectedProductIds - product.id
+                                    } else {
+                                        selectedProductIds + product.id
+                                    }
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                color = if (isSelected) TurquoisePrimary.copy(alpha = 0.08f) else Color(0xFFF8FAFC),
+                                border = BorderStroke(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) TurquoisePrimary else Color(0xFFE2E8F0)
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Checkbox(
-                                            checked = isSelected,
-                                            onCheckedChange = { checked ->
-                                                selectedProductIds = if (checked) {
-                                                    selectedProductIds + product.id
-                                                } else {
-                                                    selectedProductIds - product.id
-                                                }
-                                            },
-                                            colors = CheckboxDefaults.colors(
-                                                checkedColor = TurquoisePrimary,
-                                                uncheckedColor = MaterialTheme.colorScheme.outline
-                                            ),
-                                            modifier = Modifier.size(24.dp)
+                                    Checkbox(
+                                        checked = isSelected,
+                                        onCheckedChange = { checked ->
+                                            selectedProductIds = if (checked) {
+                                                selectedProductIds + product.id
+                                            } else {
+                                                selectedProductIds - product.id
+                                            }
+                                        },
+                                        colors = CheckboxDefaults.colors(
+                                            checkedColor = TurquoisePrimary,
+                                            uncheckedColor = MaterialTheme.colorScheme.outline
+                                        ),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = product.urunAdi,
+                                            fontSize = 13.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
                                         )
-
-                                        Spacer(modifier = Modifier.width(10.dp))
-
-                                        Column(modifier = Modifier.weight(1f)) {
+                                        Spacer(modifier = Modifier.height(3.dp))
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            // SKT Date
                                             Text(
-                                                text = product.urunAdi,
-                                                fontSize = 13.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface,
-                                                maxLines = 2,
-                                                overflow = TextOverflow.Ellipsis
-                                            )
-                                            Spacer(modifier = Modifier.height(3.dp))
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                // SKT Date
-                                                Text(
-                                                    text = "SKT: ${product.getFormattedSkt()} ($daysText)",
-                                                    fontSize = 11.5.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = when {
-                                                        days in 0L..1L -> Color(0xFFDC2626)
-                                                        days in 2L..7L -> Color(0xFFD97706)
-                                                        else -> TurquoiseDark
-                                                    }
-                                                )
-
-                                                // Stok Adedi
-                                                Surface(
-                                                    shape = RoundedCornerShape(4.dp),
-                                                    color = MaterialTheme.colorScheme.surfaceVariant
-                                                ) {
-                                                    Text(
-                                                        text = "${product.stokAdedi} Adet",
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = Slate900,
-                                                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
-                                                    )
+                                                text = "SKT: ${product.getFormattedSkt()} ($daysText)",
+                                                fontSize = 11.5.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = when {
+                                                    days in 0L..1L -> Color(0xFFDC2626)
+                                                    days in 2L..7L -> Color(0xFFD97706)
+                                                    else -> TurquoiseDark
                                                 }
+                                            )
+
+                                            // Stok Adedi
+                                            Surface(
+                                                shape = RoundedCornerShape(6.dp),
+                                                color = Color(0xFFE2E8F0)
+                                            ) {
+                                                Text(
+                                                    text = "${product.stokAdedi} Adet",
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = Slate900,
+                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                )
                                             }
                                         }
                                     }
@@ -577,125 +597,109 @@ fun WhatsAppShareModal(
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                    // BOTTOM ACTION: "Önizle"
-                    Button(
-                        onClick = {
-                            val chosenProducts = currentCategoryProducts.filter { selectedProductIds.contains(it.id) }
-                            if (chosenProducts.isNotEmpty()) {
-                                generatedBitmaps = ProductImageGenerator.createCleanWhatsAppShareBitmaps(
-                                    productList = chosenProducts,
-                                    todayMidnight = todayMidnight
-                                )
-                                isPreviewMode = true
-                            }
-                        },
-                        enabled = selectedProductIds.isNotEmpty(),
+                // BOTTOM ACTION: "Önizle"
+                Button(
+                    onClick = {
+                        val chosenProducts = currentCategoryProducts.filter { selectedProductIds.contains(it.id) }
+                        if (chosenProducts.isNotEmpty()) {
+                            generatedBitmaps = ProductImageGenerator.createCleanWhatsAppShareBitmaps(
+                                productList = chosenProducts,
+                                todayMidnight = todayMidnight
+                            )
+                            isPreviewMode = true
+                        }
+                    },
+                    enabled = selectedProductIds.isNotEmpty(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
+                        .height(50.dp)
+                        .testTag("preview_share_images_button"),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TurquoisePrimary,
+                        disabledContainerColor = TurquoisePrimary.copy(alpha = 0.4f)
+                    ),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Önizle (${selectedProductIds.size} Ürün)",
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.5.sp,
+                        color = Color.White
+                    )
+                }
+            } else {
+                // =============================================================
+                // 3. PREVIEW & WHATSAPP SHARE STATE
+                // =============================================================
+                if (generatedBitmaps.isEmpty()) {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(46.dp)
-                            .testTag("preview_share_images_button"),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = TurquoisePrimary,
-                            disabledContainerColor = TurquoisePrimary.copy(alpha = 0.4f)
-                        ),
-                        shape = RoundedCornerShape(12.dp)
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Visibility,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Önizle (${selectedProductIds.size} Ürün)",
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 14.sp,
-                            color = Color.White
+                            text = "Görsel oluşturulamadı.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 } else {
-                    // =============================================================
-                    // 3. PREVIEW & WHATSAPP SHARE STATE
-                    // =============================================================
-                    if (generatedBitmaps.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 32.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Görsel oluşturulamadı.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        val pagerState = rememberPagerState(pageCount = { generatedBitmaps.size })
+                    val pagerState = rememberPagerState(pageCount = { generatedBitmaps.size })
 
-                        Column(
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                            .padding(horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Multiple Page Indicator (e.g. "Sayfa 1 / 2")
+                        if (generatedBitmaps.size > 1) {
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = TurquoisePrimary.copy(alpha = 0.15f),
+                                modifier = Modifier.padding(bottom = 8.dp)
+                            ) {
+                                Text(
+                                    text = "Sayfa ${pagerState.currentPage + 1} / ${generatedBitmaps.size}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        // Card with image container (wraps exact image height without empty void)
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .wrapContentHeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                         ) {
-                            // Multiple Page Indicator (e.g. "Sayfa 1 / 2")
                             if (generatedBitmaps.size > 1) {
-                                Surface(
-                                    shape = RoundedCornerShape(16.dp),
-                                    color = TurquoisePrimary.copy(alpha = 0.15f),
-                                    modifier = Modifier.padding(bottom = 8.dp)
-                                ) {
-                                    Text(
-                                        text = "Sayfa ${pagerState.currentPage + 1} / ${generatedBitmaps.size}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = TurquoiseDark,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                    )
-                                }
-                            }
-
-                            // Card with image container (wraps exact image height without empty void)
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .wrapContentHeight(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                            ) {
-                                if (generatedBitmaps.size > 1) {
-                                    HorizontalPager(
-                                        state = pagerState,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .wrapContentHeight()
-                                    ) { page ->
-                                        val bmp = generatedBitmaps[page]
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .heightIn(max = 550.dp)
-                                                .verticalScroll(rememberScrollState()),
-                                            contentAlignment = Alignment.TopCenter
-                                        ) {
-                                            Image(
-                                                bitmap = bmp.asImageBitmap(),
-                                                contentDescription = "Paylaşım Görseli Sayfa ${page + 1}",
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .wrapContentHeight(),
-                                                contentScale = ContentScale.FillWidth
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    val bmp = generatedBitmaps.first()
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentHeight()
+                                ) { page ->
+                                    val bmp = generatedBitmaps[page]
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -705,7 +709,7 @@ fun WhatsAppShareModal(
                                     ) {
                                         Image(
                                             bitmap = bmp.asImageBitmap(),
-                                            contentDescription = "Paylaşım Görseli",
+                                            contentDescription = "Paylaşım Görseli Sayfa ${page + 1}",
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .wrapContentHeight(),
@@ -713,82 +717,104 @@ fun WhatsAppShareModal(
                                         )
                                     }
                                 }
+                            } else {
+                                val bmp = generatedBitmaps.first()
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 550.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    contentAlignment = Alignment.TopCenter
+                                ) {
+                                    Image(
+                                        bitmap = bmp.asImageBitmap(),
+                                        contentDescription = "Paylaşım Görseli",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .wrapContentHeight(),
+                                        contentScale = ContentScale.FillWidth
+                                    )
+                                }
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                    // ACTIONS: [ Geri Dön ] [ Paylaş ]
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                // ACTIONS: [ Geri Dön ] [ Paylaş ]
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            generatedBitmaps.forEach { it.recycle() }
+                            generatedBitmaps = emptyList()
+                            isPreviewMode = false
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                            .testTag("share_back_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.2.dp, TurquoisePrimary),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                     ) {
-                        OutlinedButton(
-                            onClick = {
-                                generatedBitmaps.forEach { it.recycle() }
-                                generatedBitmaps = emptyList()
-                                isPreviewMode = false
-                            },
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .testTag("share_back_button"),
-                            shape = RoundedCornerShape(12.dp),
-                            border = BorderStroke(1.2.dp, TurquoisePrimary),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Geri Dön",
-                                fontWeight = FontWeight.Bold,
-                                color = TurquoiseDark,
-                                fontSize = 13.sp,
-                                maxLines = 1
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Geri Dön",
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark,
+                            fontSize = 13.5.sp,
+                            maxLines = 1
+                        )
+                    }
 
-                        Button(
-                            onClick = {
-                                ProductImageGenerator.shareBitmapsToWhatsApp(
-                                    context = context,
-                                    bitmaps = generatedBitmaps
-                                )
-                                onDismiss()
-                            },
-                            enabled = generatedBitmaps.isNotEmpty(),
-                            modifier = Modifier
-                                .weight(1.2f)
-                                .height(46.dp)
-                                .testTag("share_to_whatsapp_button"),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
-                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_whatsapp),
-                                contentDescription = "WhatsApp",
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
+                    Button(
+                        onClick = {
+                            ProductImageGenerator.shareBitmapsToWhatsApp(
+                                context = context,
+                                bitmaps = generatedBitmaps
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Paylaş",
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                maxLines = 1
-                            )
-                        }
+                            onDismiss()
+                        },
+                        enabled = generatedBitmaps.isNotEmpty(),
+                        modifier = Modifier
+                            .weight(1.2f)
+                            .height(50.dp)
+                            .testTag("share_to_whatsapp_button"),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF25D366)),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_whatsapp),
+                            contentDescription = "WhatsApp",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Paylaş",
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            fontSize = 14.5.sp,
+                            maxLines = 1
+                        )
                     }
                 }
+            }
+        }
     }
 
     DisposableEffect(Unit) {

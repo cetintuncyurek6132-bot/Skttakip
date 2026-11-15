@@ -96,7 +96,7 @@ fun ProductDetailModal(
     onEditSktItem: (product: Product, sktTarihi: Long, stokAdedi: Int) -> Unit = { _, _, _ -> },
     onDeleteSkt: (Product) -> Unit,
     onUpdatePrice: (product: Product, price: Double) -> Unit = { _, _ -> },
-    onAddToAdetsel: (Product) -> Unit = {},
+    onAddToAdetsel: (Product, Int) -> Unit = { _, _ -> },
     onDeductStock: (product: Product, amount: Int, reason: String) -> Unit = { _, _, _ -> }
 ) {
     if (product == null) return
@@ -113,6 +113,7 @@ fun ProductDetailModal(
     var editingSktItem by remember { mutableStateOf<Product?>(null) }
     var selectedBatchForDeduct by remember { mutableStateOf<Product?>(null) }
     var showDetailPriceQrScanner by remember { mutableStateOf(false) }
+    var showAddToAdetselDialog by remember { mutableStateOf(false) }
 
     val totalStockCount = remember(matchingProducts) {
         matchingProducts.filter { it.sktTarihi > 0L }.sumOf { maxOf(0, it.stokAdedi) }
@@ -193,67 +194,72 @@ fun ProductDetailModal(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 6.dp)
                 ) {
                     Surface(
                         shape = CircleShape,
                         color = TurquoisePrimary.copy(alpha = 0.12f),
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(30.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Inventory2,
                                 contentDescription = null,
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Ürün Detayı",
-                        fontSize = 18.sp,
+                        fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = TurquoiseDark
+                        color = TurquoiseDark,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(5.dp)
                 ) {
                     // Adetsel Sayıma Aktar Butonu
                     val adetselShape = RoundedCornerShape(8.dp)
                     Box(
                         modifier = Modifier
-                            .height(34.dp)
+                            .height(31.dp)
                             .clip(adetselShape)
                             .background(TurquoiseDark)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = Color.White)
                             ) {
-                                onAddToAdetsel(currentProduct)
+                                showAddToAdetselDialog = true
                             }
-                            .padding(horizontal = 9.dp)
+                            .padding(horizontal = 7.dp)
                             .testTag("detail_add_to_adetsel_button"),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Calculate,
                                 contentDescription = "Sayıma Ekle",
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
                                 text = "Sayıma Ekle",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = Color.White
+                                fontSize = 11.sp,
+                                color = Color.White,
+                                maxLines = 1
                             )
                         }
                     }
@@ -262,32 +268,33 @@ fun ProductDetailModal(
                     val editShape = RoundedCornerShape(8.dp)
                     Box(
                         modifier = Modifier
-                            .height(34.dp)
+                            .height(31.dp)
                             .clip(editShape)
                             .border(BorderStroke(1.2.dp, TurquoiseDark), editShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = ripple(bounded = true, color = TurquoiseDark)
                             ) { onEditClick(currentProduct) }
-                            .padding(horizontal = 9.dp)
+                            .padding(horizontal = 7.dp)
                             .testTag("detail_edit_product_button"),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Düzenle",
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
                                 text = "Düzenle",
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                color = TurquoiseDark
+                                fontSize = 11.sp,
+                                color = TurquoiseDark,
+                                maxLines = 1
                             )
                         }
                     }
@@ -295,11 +302,11 @@ fun ProductDetailModal(
                     // Kapat Butonu
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, radius = 16.dp)
+                                indication = ripple(bounded = true, radius = 14.dp)
                             ) { dismissSheet() }
                             .testTag("close_detail_modal_button"),
                         contentAlignment = Alignment.Center
@@ -308,7 +315,7 @@ fun ProductDetailModal(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Kapat",
                             tint = Slate700,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
@@ -484,6 +491,314 @@ fun ProductDetailModal(
                 onUpdatePrice(updatedProduct, scannedPrice)
             }
         )
+    }
+
+    if (showAddToAdetselDialog) {
+        AddToAdetselQuantityDialog(
+            product = currentProduct,
+            onDismiss = { showAddToAdetselDialog = false },
+            onConfirm = { countedQty ->
+                onAddToAdetsel(currentProduct, countedQty)
+                showAddToAdetselDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun AddToAdetselQuantityDialog(
+    product: Product,
+    onDismiss: () -> Unit,
+    onConfirm: (countedQty: Int) -> Unit
+) {
+    var quantityText by remember { mutableStateOf("1") }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        AppModalBlurState.onModalOpened()
+        onDispose {
+            AppModalBlurState.onModalClosed()
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp),
+            shape = RoundedCornerShape(24.dp),
+            color = Color.White,
+            tonalElevation = 0.dp,
+            shadowElevation = 16.dp
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Başlık
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = TurquoisePrimary.copy(alpha = 0.14f),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Calculate,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Sayıma Ekle",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color(0xFF0F172A)
+                            )
+                            Text(
+                                text = "Raftaki mevcut adedi girin",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Slate700
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFF1F5F9))
+                            .clickable { onDismiss() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Slate700,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Ürün Bilgi Kartı
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFF8FAFC)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = product.getDisplayName().uppercase(),
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF0F172A),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Barkod: ${product.barkod.ifBlank { "-" }}",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate700
+                            )
+                            if (product.urunKodu.isNotBlank()) {
+                                Text(
+                                    text = "Kod: ${product.urunKodu}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate700
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Raftaki Adet Seçici (Stepper)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Raftaki Adet",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate700
+                    )
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFFF8FAFC),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Eksi (-)
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.White,
+                                shadowElevation = 2.dp,
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        val current = quantityText.toIntOrNull() ?: 0
+                                        if (current > 0) {
+                                            quantityText = (current - 1).toString()
+                                        }
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "−",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Color(0xFF0F172A)
+                                    )
+                                }
+                            }
+
+                            // Ortadaki Sayı Girişi
+                            androidx.compose.material3.OutlinedTextField(
+                                value = quantityText,
+                                onValueChange = { newVal ->
+                                    quantityText = newVal.filter { it.isDigit() }.take(5)
+                                },
+                                placeholder = {
+                                    Text(
+                                        text = "0",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Slate500,
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                },
+                                singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = TurquoiseDark,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                ),
+                                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
+                                    imeAction = androidx.compose.ui.text.input.ImeAction.Done
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = TurquoisePrimary,
+                                    unfocusedBorderColor = Color.Transparent,
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = Color.White
+                                ),
+                                modifier = Modifier
+                                    .width(100.dp)
+                                    .height(56.dp)
+                                    .testTag("detail_adetsel_qty_input")
+                            )
+
+                            // Artı (+)
+                            Surface(
+                                shape = CircleShape,
+                                color = TurquoisePrimary.copy(alpha = 0.16f),
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        val current = quantityText.toIntOrNull() ?: 0
+                                        quantityText = (current + 1).toString()
+                                    }
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "+",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = TurquoiseDark
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Alt Butonlar
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Surface(
+                        onClick = onDismiss,
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFFF1F5F9),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "Vazgeç",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate700
+                            )
+                        }
+                    }
+
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            val qty = quantityText.toIntOrNull() ?: 0
+                            onConfirm(qty)
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = TurquoiseDark
+                        ),
+                        modifier = Modifier
+                            .weight(1.3f)
+                            .height(50.dp)
+                            .testTag("detail_adetsel_confirm_button")
+                    ) {
+                        Text(
+                            text = "Sayıma Ekle",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -12,7 +12,8 @@ class ProductRepository(
     val reportDao: InspectionReportDao,
     val adetselDao: AdetselDao? = null,
     val stockMovementDao: StockMovementDao? = null,
-    val stockLogDao: StockLogDao? = null
+    val stockLogDao: StockLogDao? = null,
+    val inventoryAuditDao: InventoryAuditDao? = null
 ) {
     val allProducts: Flow<List<Product>> = productDao.getAllProducts().flowOn(Dispatchers.IO)
     val allReports: Flow<List<InspectionReport>> = reportDao.getAllReports().flowOn(Dispatchers.IO)
@@ -21,8 +22,21 @@ class ProductRepository(
     val yapildiAdetselKayitlari: Flow<List<AdetselKayit>> = (adetselDao?.getYapildiKayitlar() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
     val allStockMovements: Flow<List<StockMovement>> = (stockMovementDao?.getAllStockMovements() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
     val allStockLogs: Flow<List<StockLog>> = (stockLogDao?.getAllLogs() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
+    val allInventoryAudits: Flow<List<InventoryAuditEntity>> = (inventoryAuditDao?.getAllAuditsFlow() ?: kotlinx.coroutines.flow.emptyFlow()).flowOn(Dispatchers.IO)
     val totalSoldQuantity: Flow<Int> = (stockLogDao?.getTotalSoldQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)).flowOn(Dispatchers.IO)
     val totalFireQuantity: Flow<Int> = (stockLogDao?.getTotalFireQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0)).flowOn(Dispatchers.IO)
+
+    suspend fun insertInventoryAudit(audit: InventoryAuditEntity): Long = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.insertAudit(audit) ?: 0L
+    }
+
+    suspend fun getLatestAuditForCategory(category: String): InventoryAuditEntity? = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.getLatestAuditForCategory(category)
+    }
+
+    suspend fun deleteInventoryAuditById(id: Int) = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.deleteAuditById(id)
+    }
 
     suspend fun insertStockLog(log: StockLog): Long = withContext(Dispatchers.IO) {
         stockLogDao?.insertLog(log) ?: 0L

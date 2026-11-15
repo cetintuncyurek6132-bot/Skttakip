@@ -70,9 +70,30 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
     }
 }
 
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("""
+            CREATE TABLE IF NOT EXISTS inventory_audits (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                category TEXT NOT NULL,
+                auditDateMillis INTEGER NOT NULL,
+                notes TEXT NOT NULL,
+                createdAt INTEGER NOT NULL
+            )
+        """.trimIndent())
+    }
+}
+
 @Database(
-    entities = [Product::class, InspectionReport::class, AdetselKayit::class, StockMovement::class, StockLog::class],
-    version = 6,
+    entities = [
+        Product::class,
+        InspectionReport::class,
+        AdetselKayit::class,
+        StockMovement::class,
+        StockLog::class,
+        InventoryAuditEntity::class
+    ],
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -81,6 +102,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun adetselDao(): AdetselDao
     abstract fun stockMovementDao(): StockMovementDao
     abstract fun stockLogDao(): StockLogDao
+    abstract fun inventoryAuditDao(): InventoryAuditDao
     fun reportDao(): InspectionReportDao = inspectionReportDao()
 
     /**
@@ -105,7 +127,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "skt_takip_database"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                     .fallbackToDestructiveMigrationOnDowngrade()
                     .addCallback(AppDatabaseCallback(scope))
                     .build()

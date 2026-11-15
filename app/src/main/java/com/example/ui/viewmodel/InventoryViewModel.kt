@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.data.ExpiryStatus
+import com.example.data.InventoryAuditEntity
 import com.example.data.Product
 import com.example.data.ProductRepository
 import com.example.data.StockLog
@@ -88,6 +89,40 @@ class InventoryViewModel(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    val allInventoryAudits: StateFlow<List<InventoryAuditEntity>> = repository.allInventoryAudits
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun recordInventoryAudit(
+        category: String,
+        notes: String = "",
+        auditDateMillis: Long = System.currentTimeMillis(),
+        onComplete: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val audit = InventoryAuditEntity(
+                category = category,
+                auditDateMillis = auditDateMillis,
+                notes = notes.trim(),
+                createdAt = System.currentTimeMillis()
+            )
+            repository.insertInventoryAudit(audit)
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    fun deleteInventoryAudit(id: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteInventoryAuditById(id)
+        }
+    }
 
     val filteredProducts: StateFlow<List<Product>> = combine(
         allProducts,

@@ -240,10 +240,10 @@ fun GlobalModalHost(
             onEditSktItem = { item, newSkt, newCount -> inventoryViewModel.updateSktItem(item, newSkt, newCount) },
             onDeleteSkt = { prod -> inventoryViewModel.deleteProduct(prod) },
             onUpdatePrice = { prod, newPrice -> inventoryViewModel.updateProductPrice(prod, newPrice) },
-            onAddToAdetsel = { prod ->
-                adetselViewModel.addToAdetsel(prod) { isSuccess ->
+            onAddToAdetsel = { prod, countedQty ->
+                adetselViewModel.addToAdetsel(prod, countedQty) { isSuccess ->
                     if (isSuccess) {
-                        Toast.makeText(context, "Ürün sayım listesine eklendi", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Ürün ($countedQty Adet) sayım listesine eklendi", Toast.LENGTH_SHORT).show()
                     } else {
                         Toast.makeText(context, "Bu ürün zaten sayım listesinde ekli.", Toast.LENGTH_SHORT).show()
                     }

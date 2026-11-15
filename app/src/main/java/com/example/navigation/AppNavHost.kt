@@ -30,6 +30,7 @@ import com.example.ui.screens.AdetselScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.CsvScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.InventoryTrackingScreen
 import com.example.ui.screens.ProductsScreen
 import com.example.ui.screens.TakipScreen
 import com.example.ui.screens.scanner.ScannerOpenMode
@@ -133,6 +134,7 @@ fun AppNavHost(
                                         "add_product" -> inventoryViewModel.openAddProductModal()
                                         "scan" -> onOpenScanner(ScannerOpenMode.BARCODE_SEARCH)
                                         "analytics" -> navigateToTab("analytics")
+                                        "envanter" -> navigateToTab("envanter")
                                         "csv" -> navigateToTab("csv")
                                         "adetsel" -> navigateToTab("adetsel")
                                         "reports", "takip" -> navigateToTab("takip")
@@ -312,6 +314,31 @@ fun AppNavHost(
                         inventoryViewModel.toggleProductImportant(prod)
                     }
                     Toast.makeText(context, "${prod.urunAdi} reyon indirim listesine alındı (Sarı Etiket)", Toast.LENGTH_SHORT).show()
+                },
+                onBackClick = {
+                    if (!navController.popBackStack()) {
+                        navigateToTab("panel")
+                    }
+                }
+            )
+        }
+
+        // 7. MAĞAZA ENVANTER TAKİBİ (GIDA, DOLAP, GIDA DIŞI)
+        composable(
+            route = "envanter",
+            enterTransition = { fadeIn(animationSpec = tween(140)) },
+            exitTransition = { fadeOut(animationSpec = tween(140)) },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { fadeOut(animationSpec = tween(140)) }
+        ) {
+            val inventoryAudits by inventoryViewModel.allInventoryAudits.collectAsState()
+            InventoryTrackingScreen(
+                audits = inventoryAudits,
+                onRecordAudit = { category, notes ->
+                    inventoryViewModel.recordInventoryAudit(category = category, notes = notes)
+                },
+                onDeleteAudit = { id ->
+                    inventoryViewModel.deleteInventoryAudit(id)
                 },
                 onBackClick = {
                     if (!navController.popBackStack()) {

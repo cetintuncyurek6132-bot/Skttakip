@@ -26,7 +26,10 @@ class AdetselViewModel(
     fun cleanDuplicatePendingAdetsel() = adetselSayimManager.cleanDuplicatePendingAdetsel()
 
     fun addToAdetsel(product: Product, onComplete: ((Boolean) -> Unit)? = null) =
-        adetselSayimManager.addToAdetsel(product, onComplete)
+        adetselSayimManager.addToAdetsel(product, 0, onComplete)
+
+    fun addToAdetsel(product: Product, sayilanAdet: Int, onComplete: ((Boolean) -> Unit)? = null) =
+        adetselSayimManager.addToAdetsel(product, sayilanAdet, onComplete)
 
     fun saveAdetselSayim(
         kayit: AdetselKayit,

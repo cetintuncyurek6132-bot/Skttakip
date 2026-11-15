@@ -256,7 +256,7 @@ fun ProductDetailSktTabContent(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = "Kayıtlı Partiler",
+                    text = "Partiler",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface

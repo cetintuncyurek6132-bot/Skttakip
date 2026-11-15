@@ -44,6 +44,8 @@ import com.example.ui.theme.SoonYellowDark
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 
+import androidx.compose.material.icons.outlined.FactCheck
+
 @Composable
 fun MorningOperationCardsSection(
     expiredVariety: Int,
@@ -53,7 +55,8 @@ fun MorningOperationCardsSection(
     soonVariety: Int,
     soonTotalStock: Int,
     onFilterSelectAndNavigate: (ProductFilter) -> Unit,
-    onAnalyticsClick: (() -> Unit)? = null
+    onAnalyticsClick: (() -> Unit)? = null,
+    onInventoryTrackingClick: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -68,69 +71,124 @@ fun MorningOperationCardsSection(
             overflow = TextOverflow.Ellipsis
         )
 
-        // "Sabah Operasyon Görevleri" başlığının hemen altında Stadium (RoundedCornerShape(50)) mini "Analiz & İstatistikler" butonu
-        if (onAnalyticsClick != null) {
-            Surface(
-                onClick = onAnalyticsClick,
-                shape = RoundedCornerShape(50),
-                color = Color(0xFFF0FDFA),
-                border = BorderStroke(1.dp, Color(0xFFCCFBF1)),
-                shadowElevation = 0.5.dp,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("dashboard_analytics_button")
+        // "Sabah Operasyon Görevleri" başlığının hemen altında yan yana "Analiz & İstatistikler" ve "Envanter Takibi" kartları
+        if (onAnalyticsClick != null || onInventoryTrackingClick != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
+                if (onAnalyticsClick != null) {
+                    Surface(
+                        onClick = onAnalyticsClick,
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color(0xFFF0FDFA),
+                        border = BorderStroke(1.dp, Color(0xFFCCFBF1)),
+                        shadowElevation = 0.5.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("dashboard_analytics_button")
                     ) {
-                        Box(
+                        Row(
                             modifier = Modifier
-                                .size(26.dp)
-                                .clip(CircleShape)
-                                .background(TurquoisePrimary.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(TurquoisePrimary.copy(alpha = 0.14f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Analytics,
+                                        contentDescription = null,
+                                        tint = TurquoiseDark,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Analiz & İstatistikler",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = TurquoiseDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
                             Icon(
-                                imageVector = Icons.Outlined.Analytics,
-                                contentDescription = null,
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                                contentDescription = "Analiz & İstatistikler",
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(15.dp)
+                                modifier = Modifier.size(14.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Analiz & İstatistikler",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "• SKT & Satış/Fire Grafiği",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Slate600,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
+                }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                        contentDescription = "Analiz & İstatistikler",
-                        tint = TurquoiseDark,
-                        modifier = Modifier.size(15.dp)
-                    )
+                if (onInventoryTrackingClick != null) {
+                    Surface(
+                        onClick = onInventoryTrackingClick,
+                        shape = RoundedCornerShape(18.dp),
+                        color = Color(0xFFEFF6FF),
+                        border = BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                        shadowElevation = 0.5.dp,
+                        modifier = Modifier
+                            .weight(1f)
+                            .testTag("dashboard_inventory_tracking_button")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFDBEAFE)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.FactCheck,
+                                        contentDescription = null,
+                                        tint = Color(0xFF1D4ED8),
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Envanter Takibi",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Color(0xFF1E40AF),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
+                                contentDescription = "Envanter Takibi",
+                                tint = Color(0xFF1D4ED8),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -140,10 +198,10 @@ fun MorningOperationCardsSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 🔴 Kart 1: Raftan Çekilecekler (Tarihi Geçen) - Pastel Kırmızı/Pembe
+            // 🔴 Kart 1: Raftan Çek (Tarihi Geçen) - Pastel Kırmızı/Pembe
             MorningOperationCard(
                 modifier = Modifier.weight(1f),
-                title = "Raftan Çekilecekler",
+                title = "Raftan Çek",
                 varietyCount = expiredVariety,
                 totalStockCount = expiredTotalStock,
                 badgeColor = ExpiredRed,
@@ -158,7 +216,7 @@ fun MorningOperationCardsSection(
             // 🟠 Kart 2: Sıcak Satış (1-2 Gün) - Pastel Şeftali/Turuncu
             MorningOperationCard(
                 modifier = Modifier.weight(1f),
-                title = "Sıcak Satış (1-2 Gün)",
+                title = "Sıcak Satış",
                 varietyCount = criticalVariety,
                 totalStockCount = criticalTotalStock,
                 badgeColor = CriticalOrange,
@@ -173,7 +231,7 @@ fun MorningOperationCardsSection(
             // 🟡 Kart 3: Yakın Takip (3-7 Gün) - Pastel Krem/Sarı
             MorningOperationCard(
                 modifier = Modifier.weight(1f),
-                title = "Yakın Takip (3-7 Gün)",
+                title = "Yakın Takip",
                 varietyCount = soonVariety,
                 totalStockCount = soonTotalStock,
                 badgeColor = SoonYellowDark,
@@ -216,39 +274,40 @@ fun MorningOperationCard(
                 .padding(horizontal = 10.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Üst: Küçük Outlined ikon ve durum başlığı
-            Row(
+            // Üst: İkon üstte, başlık altta (Column yapısı)
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalAlignment = Alignment.Start
             ) {
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(26.dp)
                         .clip(CircleShape)
-                        .background(badgeColor.copy(alpha = 0.12f)),
+                        .background(badgeColor.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = badgeColor,
-                        modifier = Modifier.size(13.dp)
+                        modifier = Modifier.size(15.dp)
                     )
                 }
 
                 Text(
                     text = title,
-                    fontSize = 10.5.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate900,
-                    maxLines = 1,
+                    maxLines = 2,
+                    lineHeight = 14.sp,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // Orta: Kalın çeşit sayısı ve altında adet sayısı
+            // Alt: Kalın çeşit sayısı ve altında adet sayısı
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(2.dp)

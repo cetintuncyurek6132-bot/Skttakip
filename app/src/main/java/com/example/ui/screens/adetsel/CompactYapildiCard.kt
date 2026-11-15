@@ -64,7 +64,8 @@ import com.example.ui.theme.WarningBlueDark
 fun CompactYapildiCard(
     kayit: AdetselKayit,
     onUndo: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit = {}
 ) {
     val statusBg: Color
     val statusText: Color
@@ -96,6 +97,7 @@ fun CompactYapildiCard(
     }
 
     Card(
+        onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

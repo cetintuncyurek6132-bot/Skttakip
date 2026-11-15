@@ -279,7 +279,8 @@ fun DashboardScreen(
             soonVariety = soonVariety,
             soonTotalStock = soonTotalStock,
             onFilterSelectAndNavigate = onFilterSelectAndNavigate,
-            onAnalyticsClick = { onQuickActionClick("analytics") }
+            onAnalyticsClick = { onQuickActionClick("analytics") },
+            onInventoryTrackingClick = { onQuickActionClick("envanter") }
         )
 
         // =====================================================================
@@ -478,10 +479,12 @@ fun DashboardScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Sabah Vardiya Raporunu WhatsApp'tan Paylaş",
+                    text = "Vardiya Raporu Paylaş",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF15803D)
+                    color = Color(0xFF15803D),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
