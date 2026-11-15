@@ -36,8 +36,9 @@ fun ProductsGroupedList(
     listState: LazyListState = rememberLazyListState()
 ) {
     val groupedProducts = remember(products) {
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
         products.groupBy {
-            if (it.barkod.isNotBlank()) it.barkod.trim().lowercase() else it.urunAdi.trim().lowercase()
+            if (it.barkod.isNotBlank()) it.barkod.trim().lowercase(trLocale) else it.urunAdi.trim().lowercase(trLocale)
         }.values.toList()
     }
 

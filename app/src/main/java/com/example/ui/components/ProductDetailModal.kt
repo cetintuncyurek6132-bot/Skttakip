@@ -358,7 +358,7 @@ fun ProductDetailModal(
 
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = currentProduct.getDisplayName().uppercase(),
+                            text = currentProduct.getDisplayName().uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                             fontSize = 15.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -607,7 +607,7 @@ private fun AddToAdetselQuantityDialog(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = product.getDisplayName().uppercase(),
+                            text = product.getDisplayName().uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Color(0xFF0F172A),
@@ -851,7 +851,7 @@ private fun FallbackLetterBadge(displayName: String) {
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = displayName.take(1).uppercase(),
+            text = displayName.take(1).uppercase(java.util.Locale.forLanguageTag("tr-TR")),
             fontSize = 20.sp,
             fontWeight = FontWeight.Black,
             color = Color.White

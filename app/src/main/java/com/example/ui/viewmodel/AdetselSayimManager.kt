@@ -51,7 +51,7 @@ class AdetselSayimManager(
                     item.barkod.isNotBlank() -> "B:${item.barkod.trim()}"
                     item.urunKodu.isNotBlank() -> "K:${item.urunKodu.trim()}"
                     item.productId > 0 -> "P:${item.productId}"
-                    else -> "N:${item.urunAdi.trim().lowercase()}"
+                    else -> "N:${item.urunAdi.trim().lowercase(java.util.Locale.forLanguageTag("tr-TR"))}"
                 }
                 if (seenKeys.contains(key)) {
                     repository.deleteAdetselKayitById(item.id)

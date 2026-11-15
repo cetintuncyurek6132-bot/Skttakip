@@ -163,12 +163,13 @@ fun AdetselScreen(
     var selectedSayimDetail by remember { mutableStateOf<AdetselKayit?>(null) }
 
     val distinctYapilacakList = remember(yapilacakList) {
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
         yapilacakList.distinctBy { item ->
             when {
                 item.barkod.isNotBlank() -> "B:${item.barkod.trim()}_${item.productId}"
                 item.urunKodu.isNotBlank() -> "K:${item.urunKodu.trim()}_${item.productId}"
                 item.productId > 0 -> "P:${item.productId}"
-                else -> "N:${item.urunAdi.trim().lowercase()}_${item.id}"
+                else -> "N:${item.urunAdi.trim().lowercase(trLocale)}_${item.id}"
             }
         }
     }
@@ -216,23 +217,25 @@ fun AdetselScreen(
     }
 
     val filteredYapilacak = remember(distinctYapilacakList, searchQuery) {
-        val q = searchQuery.trim().lowercase()
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
+        val q = searchQuery.trim().lowercase(trLocale)
         if (q.isEmpty()) distinctYapilacakList else {
             distinctYapilacakList.filter {
-                it.urunAdi.lowercase().contains(q) ||
-                it.urunKodu.lowercase().contains(q) ||
-                it.barkod.lowercase().contains(q)
+                it.urunAdi.lowercase(trLocale).contains(q) ||
+                it.urunKodu.lowercase(trLocale).contains(q) ||
+                it.barkod.lowercase(trLocale).contains(q)
             }
         }
     }
 
     val filteredYapildi = remember(yapildiList, searchQuery, selectedResultFilter) {
-        val q = searchQuery.trim().lowercase()
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
+        val q = searchQuery.trim().lowercase(trLocale)
         yapildiList.filter { item ->
             val matchQuery = q.isEmpty() ||
-                item.urunAdi.lowercase().contains(q) ||
-                item.urunKodu.lowercase().contains(q) ||
-                item.barkod.lowercase().contains(q)
+                item.urunAdi.lowercase(trLocale).contains(q) ||
+                item.urunKodu.lowercase(trLocale).contains(q) ||
+                item.barkod.lowercase(trLocale).contains(q)
 
             val matchFilter = when (selectedResultFilter) {
                 "EKSIK" -> item.sayimSonucu == "EKSIK"
@@ -336,7 +339,7 @@ fun AdetselScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = product.getDisplayName().take(1).uppercase(),
+                                        text = product.getDisplayName().take(1).uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                                         fontWeight = FontWeight.Black,
                                         fontSize = 18.sp,
                                         color = TurquoiseDark

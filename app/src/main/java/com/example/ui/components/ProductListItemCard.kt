@@ -272,7 +272,7 @@ fun ProductListItemCard(
                 Column(modifier = Modifier.weight(1f)) {
                     // 1. Satır: Ürün Adı
                     Text(
-                        text = product.getDisplayName().uppercase(),
+                        text = product.getDisplayName().uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 13.5.sp,
                         maxLines = 2,
@@ -602,7 +602,7 @@ fun GroupedProductListItemCard(
                     // ORTA ALAN: Ürün Adı ve Kod
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = mainProduct.getDisplayName().uppercase(),
+                            text = mainProduct.getDisplayName().uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                             fontWeight = FontWeight.ExtraBold,
                             fontSize = 14.sp,
                             maxLines = 2,

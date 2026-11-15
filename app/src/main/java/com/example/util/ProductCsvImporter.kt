@@ -159,7 +159,8 @@ object ProductCsvImporter {
                 !isGarbageText(resolvedProduct.barkod) &&
                 !isGarbageText(resolvedProduct.urunAdi)
             ) {
-                val itemKey = "${resolvedProduct.barkod.trim().lowercase()}_${resolvedProduct.urunKodu.trim().lowercase()}_${resolvedProduct.urunAdi.trim().lowercase()}"
+                val trLocale = java.util.Locale.forLanguageTag("tr-TR")
+                val itemKey = "${resolvedProduct.barkod.trim().lowercase(trLocale)}_${resolvedProduct.urunKodu.trim().lowercase(trLocale)}_${resolvedProduct.urunAdi.trim().lowercase(trLocale)}"
                 if (!existingKeys.contains(itemKey) && !batchKeys.contains(itemKey)) {
                     batchKeys.add(itemKey)
                     productsToInsert.add(resolvedProduct)

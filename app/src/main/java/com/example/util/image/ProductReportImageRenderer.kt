@@ -130,7 +130,7 @@ object ProductReportImageRenderer {
             paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             val titleLeft = innerLeft + seqW + 12f
             val maxTitleW = innerRight - titleLeft
-            val displayName = p.getDisplayName().uppercase()
+            val displayName = p.getDisplayName().uppercase(Locale.forLanguageTag("tr-TR"))
             val truncatedName = ImageDrawingUtils.truncateText(paint, displayName, maxTitleW)
             canvas.drawText(truncatedName, titleLeft, cardTop + 37f, paint)
 

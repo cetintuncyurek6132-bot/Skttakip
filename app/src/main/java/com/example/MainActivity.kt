@@ -152,19 +152,23 @@ class MainActivity : ComponentActivity() {
             var isSplashVisible by remember { mutableStateOf(true) }
             val pendingRoute by pendingNavigationRoute
 
-            MyApplicationTheme(darkTheme = isDarkMode) {
-                Box(modifier = Modifier.fillMaxSize()) {
-                    SktMainApp(
-                        mainViewModel = mainViewModel,
-                        inventoryViewModel = inventoryViewModel,
-                        adetselViewModel = adetselViewModel,
-                        settingsViewModel = settingsViewModel,
-                        pendingNavigationRoute = pendingRoute,
-                        onPendingNavigationConsumed = { pendingNavigationRoute.value = null }
-                    )
+            androidx.compose.runtime.CompositionLocalProvider(
+                com.example.ui.theme.LocalLocale provides Locale.forLanguageTag("tr-TR")
+            ) {
+                MyApplicationTheme(darkTheme = isDarkMode) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        SktMainApp(
+                            mainViewModel = mainViewModel,
+                            inventoryViewModel = inventoryViewModel,
+                            adetselViewModel = adetselViewModel,
+                            settingsViewModel = settingsViewModel,
+                            pendingNavigationRoute = pendingRoute,
+                            onPendingNavigationConsumed = { pendingNavigationRoute.value = null }
+                        )
 
-                    if (isSplashVisible) {
-                        AppSplashScreen(onSplashFinished = { isSplashVisible = false })
+                        if (isSplashVisible) {
+                            AppSplashScreen(onSplashFinished = { isSplashVisible = false })
+                        }
                     }
                 }
             }

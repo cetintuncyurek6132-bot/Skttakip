@@ -142,7 +142,7 @@ fun DeductStockDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = batch.getDisplayName().uppercase(),
+                        text = batch.getDisplayName().uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Slate900,

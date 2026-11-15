@@ -142,7 +142,7 @@ fun CompactYapildiCard(
 
             // Ürün Adı
             Text(
-                text = kayit.urunAdi.uppercase(),
+                text = kayit.urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                 fontWeight = FontWeight.Bold,
                 fontSize = 13.5.sp,
                 color = Slate900,

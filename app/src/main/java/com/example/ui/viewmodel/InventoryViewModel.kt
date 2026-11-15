@@ -507,11 +507,12 @@ class InventoryViewModel(
             }
             val currentEditing = _editingProduct.value
 
+            val trLocale = java.util.Locale.forLanguageTag("tr-TR")
             val savedProduct: Product = if (currentEditing != null) {
                 val productToSave = currentEditing.copy(
                     barkod = finalBarkod,
                     urunKodu = urunKodu.trim(),
-                    urunAdi = urunAdi.uppercase().trim(),
+                    urunAdi = urunAdi.uppercase(trLocale).trim(),
                     kategori = cleanCategory,
                     sktTarihi = if (sktTarihi > 0L) sktTarihi else currentEditing.sktTarihi,
                     stokAdedi = if (stokAdedi > 0) stokAdedi else currentEditing.sktTarihi.let { if (it > 0L) currentEditing.stokAdedi else 0 },
@@ -539,7 +540,7 @@ class InventoryViewModel(
                     val updatedSibling = sibling.copy(
                         barkod = finalBarkod,
                         urunKodu = urunKodu.trim().ifBlank { sibling.urunKodu },
-                        urunAdi = urunAdi.uppercase().trim().ifBlank { sibling.urunAdi },
+                        urunAdi = urunAdi.uppercase(trLocale).trim().ifBlank { sibling.urunAdi },
                         kategori = siblingCat,
                         fiyat = fiyat ?: sibling.fiyat,
                         isImportant = isImportant
@@ -562,7 +563,7 @@ class InventoryViewModel(
                     val updatedProduct = sameDayMatch.copy(
                         stokAdedi = sameDayMatch.stokAdedi + finalStok,
                         urunKodu = urunKodu.trim().ifBlank { sameDayMatch.urunKodu },
-                        urunAdi = urunAdi.uppercase().trim().ifBlank { sameDayMatch.urunAdi },
+                        urunAdi = urunAdi.uppercase(trLocale).trim().ifBlank { sameDayMatch.urunAdi },
                         kategori = cleanCategory,
                         fiyat = fiyat ?: sameDayMatch.fiyat,
                         isImportant = isImportant || sameDayMatch.isImportant
@@ -573,7 +574,7 @@ class InventoryViewModel(
                     val productToSave = Product(
                         barkod = finalBarkod,
                         urunKodu = urunKodu.trim(),
-                        urunAdi = urunAdi.uppercase().trim(),
+                        urunAdi = urunAdi.uppercase(trLocale).trim(),
                         kategori = cleanCategory,
                         sktTarihi = finalSkt,
                         stokAdedi = finalStok,
@@ -600,7 +601,7 @@ class InventoryViewModel(
                 repository.insertStockLog(
                     StockLog(
                         barcode = finalBarkod,
-                        productName = urunAdi.uppercase().trim(),
+                        productName = urunAdi.uppercase(trLocale).trim(),
                         actionType = "SKT_GIRIS",
                         quantity = finalStok,
                         sktDate = finalSkt,
@@ -974,8 +975,9 @@ class InventoryViewModel(
     }
 
     fun importCsvLines(lines: List<String>, onLoadingChange: ((Boolean, String) -> Unit)? = null): com.example.util.CsvParseResult {
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
         val existingKeys = allProducts.value.map {
-            "${it.barkod.trim().lowercase()}_${it.urunKodu.trim().lowercase()}_${it.urunAdi.trim().lowercase()}"
+            "${it.barkod.trim().lowercase(trLocale)}_${it.urunKodu.trim().lowercase(trLocale)}_${it.urunAdi.trim().lowercase(trLocale)}"
         }.toSet()
 
         val parseResult = ProductCsvImporter.parseLinesWithStats(lines, existingKeys)

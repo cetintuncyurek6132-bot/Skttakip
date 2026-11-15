@@ -125,10 +125,11 @@ class MainViewModel(
         validSktProducts.sortBy { it.sktTarihi }
 
         // Deduplicate in a single pass using a fast composite key
+        val trLocale = java.util.Locale.forLanguageTag("tr-TR")
         val seenKeys = HashSet<String>(validSktProducts.size)
         val deduplicated = ArrayList<Product>(validSktProducts.size)
         for (prod in validSktProducts) {
-            val key = if (prod.barkod.isNotBlank()) "${prod.barkod}_${prod.sktTarihi}" else "${prod.urunAdi.trim().lowercase()}_${prod.sktTarihi}"
+            val key = if (prod.barkod.isNotBlank()) "${prod.barkod}_${prod.sktTarihi}" else "${prod.urunAdi.trim().lowercase(trLocale)}_${prod.sktTarihi}"
             if (seenKeys.add(key)) {
                 deduplicated.add(prod)
             }

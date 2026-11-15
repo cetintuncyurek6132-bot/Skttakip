@@ -68,12 +68,13 @@ object DatabaseRepairHelper {
                     fixedCount++
                 }
 
+                val trLocale = java.util.Locale.forLanguageTag("tr-TR")
                 val effectiveBarcode = if (cleanBarcode.isNotEmpty()) cleanBarcode else healed.barkod.trim()
-                val identifier = if (effectiveBarcode.isNotEmpty()) effectiveBarcode else trimmedName.lowercase()
+                val identifier = if (effectiveBarcode.isNotEmpty()) effectiveBarcode else trimmedName.lowercase(trLocale)
                 val formattedSkt = if (finalSkt > 0L) healed.getFormattedSkt() else "SKT_YOK"
 
                 // Deduplication key MUST include name and product code
-                val dupKey = "${identifier}_${cleanUrunKodu.lowercase()}_${trimmedName.lowercase()}-$formattedSkt"
+                val dupKey = "${identifier}_${cleanUrunKodu.lowercase(trLocale)}_${trimmedName.lowercase(trLocale)}-$formattedSkt"
                 if (seenKeys.contains(dupKey)) {
                     itemsToDelete.add(p)
                     fixedCount++

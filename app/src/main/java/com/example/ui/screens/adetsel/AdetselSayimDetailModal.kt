@@ -193,7 +193,7 @@ fun AdetselSayimDetailModal(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
-                        text = kayit.urunAdi.uppercase(),
+                        text = kayit.urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Slate900,

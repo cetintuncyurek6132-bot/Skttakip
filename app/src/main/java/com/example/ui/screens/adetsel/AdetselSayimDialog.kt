@@ -181,7 +181,7 @@ fun AdetselSayimDialog(
                     ) {
                     Column(modifier = Modifier.padding(10.dp)) {
                         Text(
-                            text = kayit.urunAdi.uppercase(),
+                            text = kayit.urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurface,

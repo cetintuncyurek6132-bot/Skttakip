@@ -197,7 +197,7 @@ fun GlobalModalHost(
                         val newProduct = Product(
                             barkod = barkod.trim(),
                             urunKodu = urunKodu.trim(),
-                            urunAdi = urunAdi.uppercase().trim(),
+                            urunAdi = urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")).trim(),
                             kategori = kategori,
                             sktTarihi = sktTarihi,
                             stokAdedi = stokAdedi,

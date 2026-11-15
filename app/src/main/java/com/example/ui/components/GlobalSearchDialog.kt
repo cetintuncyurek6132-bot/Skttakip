@@ -387,7 +387,7 @@ fun GlobalSearchDialog(
 
                                             Column(modifier = Modifier.weight(1f)) {
                                                 Text(
-                                                    text = displayName.uppercase(),
+                                                    text = displayName.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                                                     fontSize = 13.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = Slate900,

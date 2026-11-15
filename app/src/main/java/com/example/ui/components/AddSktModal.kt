@@ -200,7 +200,7 @@ fun AddSktModal(
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Text(
-                        text = product.urunAdi.uppercase(),
+                        text = product.urunAdi.uppercase(java.util.Locale.forLanguageTag("tr-TR")),
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Slate900,
