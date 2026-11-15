@@ -334,8 +334,15 @@ fun AppNavHost(
             val inventoryAudits by inventoryViewModel.allInventoryAudits.collectAsState()
             InventoryTrackingScreen(
                 audits = inventoryAudits,
-                onRecordAudit = { category, notes ->
-                    inventoryViewModel.recordInventoryAudit(category = category, notes = notes)
+                onRecordAudit = { category, auditDateMillis, revenue, fireCost, targetRatio, notes ->
+                    inventoryViewModel.recordInventoryAudit(
+                        category = category,
+                        notes = notes,
+                        auditDateMillis = auditDateMillis,
+                        revenue = revenue,
+                        fireCost = fireCost,
+                        targetRatio = targetRatio
+                    )
                 },
                 onDeleteAudit = { id ->
                     inventoryViewModel.deleteInventoryAudit(id)

@@ -15,26 +15,32 @@ object JsonExportManager {
      * - stockLogs (Stok hareketleri geçmişi)
      * - iadeTakipList / iadeList (İade & Depo red takip kayıtları)
      * - sayimList (Adetsel sayım yapılacak ve yapıldı kayıtları)
+     * - inventoryAudits (Envanter takip kayıtları)
      */
     suspend fun exportFullBackup(
         context: Context,
         productDao: ProductDao,
         adetselDao: AdetselDao? = null,
-        stockLogDao: StockLogDao? = null
+        stockLogDao: StockLogDao? = null,
+        inventoryAuditDao: InventoryAuditDao? = null
     ): String = withContext(Dispatchers.IO) {
+        val db = AppDatabase.getDatabase(context)
+        val effectiveAuditDao = inventoryAuditDao ?: db.inventoryAuditDao()
         val products = productDao.getAllProductsList()
         val iadeList = DepoIadeManager.loadRecords(context)
         val sayimList = adetselDao?.getAllAdetselKayitlariDirect() ?: emptyList()
         val stockLogs = stockLogDao?.getAllLogsList() ?: emptyList()
+        val inventoryAudits = effectiveAuditDao.getAllAuditsList()
         val now = System.currentTimeMillis()
 
         val fullBackup = FullBackupData(
-            version = 2,
+            version = 3,
             exportTimestamp = now,
             products = products,
             stockLogs = stockLogs,
             iadeList = iadeList,
             sayimList = sayimList,
+            inventoryAudits = inventoryAudits,
             backupDate = now,
             iadeTakipList = iadeList
         )
@@ -133,6 +139,23 @@ object JsonExportManager {
         root.put("sayimList", sayimArray)
         root.put("adetselKayitlar", sayimArray)
 
+        // 5. Envanter Takip (InventoryAuditEntity)
+        val auditArray = JSONArray()
+        data.inventoryAudits.forEach { audit ->
+            val obj = JSONObject()
+            obj.put("id", audit.id)
+            obj.put("category", audit.category)
+            obj.put("auditDateMillis", audit.auditDateMillis)
+            obj.put("revenue", audit.revenue)
+            obj.put("fireCost", audit.fireCost)
+            obj.put("targetRatio", audit.targetRatio)
+            obj.put("notes", audit.notes)
+            obj.put("createdAt", audit.createdAt)
+            auditArray.put(obj)
+        }
+        root.put("inventoryAudits", auditArray)
+        root.put("envanterKayitlari", auditArray)
+
         return root.toString(2)
     }
 
@@ -143,6 +166,7 @@ object JsonExportManager {
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
         stockLogDao: StockLogDao? = null,
+        inventoryAuditDao: InventoryAuditDao? = null,
         mergeWithExisting: Boolean = true
     ): BackupRestoreResult {
         return DataBackupManager.restoreFromJson(
@@ -152,6 +176,7 @@ object JsonExportManager {
             reportDao = reportDao,
             adetselDao = adetselDao,
             stockLogDao = stockLogDao,
+            inventoryAuditDao = inventoryAuditDao,
             mergeWithExisting = mergeWithExisting
         )
     }

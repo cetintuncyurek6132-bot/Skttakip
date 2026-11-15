@@ -20,6 +20,7 @@ data class BackupMetadata(
     val sktCount: Int = 0,
     val depoRecordCount: Int,
     val adetselCount: Int = 0,
+    val inventoryAuditCount: Int = 0,
     val fileSizeFormatted: String,
     val isAutoBackup: Boolean,
     val tag: String = if (isAutoBackup) "Oto" else "Manuel"
@@ -36,11 +37,12 @@ data class BackupRestoreResult(
     val adetselRecordsRestored: Int = 0,
     val inspectionReportsRestored: Int = 0,
     val stockLogsRestored: Int = 0,
+    val inventoryAuditsRestored: Int = 0,
     val remindersRestored: Boolean = false
 )
 
 object DataBackupManager {
-    const val CURRENT_DATA_SCHEMA_VERSION = 3
+    const val CURRENT_DATA_SCHEMA_VERSION = 4
     private const val BACKUPS_DIR = "app_data_backups"
 
     private val fileDateFormat = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.forLanguageTag("tr-TR"))
@@ -69,6 +71,8 @@ object DataBackupManager {
      * - Ürünler ve eklenen SKT ve stok adetleri
      * - Takip sayfası kayıtları (İade & operasyon takibi)
      * - Adetsel sayfası kayıtları (Yapılacak & Yapıldı sayımlar)
+     * - Stok hareketleri (Satış / Fire / SKT Giriş)
+     * - Envanter Takip kayıtları (InventoryAuditEntity)
      * - Tur ve denetim raporları
      */
     suspend fun createUnifiedBackupJson(
@@ -76,10 +80,13 @@ object DataBackupManager {
         productDao: ProductDao,
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
-        stockLogDao: StockLogDao? = null
+        stockLogDao: StockLogDao? = null,
+        inventoryAuditDao: InventoryAuditDao? = null
     ): String = withContext(Dispatchers.IO) {
         val root = JSONObject()
         val now = System.currentTimeMillis()
+        val db = AppDatabase.getDatabase(context)
+        val effectiveInventoryAuditDao = inventoryAuditDao ?: db.inventoryAuditDao()
 
         // 1. Metadata
         root.put("version", CURRENT_DATA_SCHEMA_VERSION)
@@ -175,6 +182,24 @@ object DataBackupManager {
         }
         root.put("stockLogs", stockLogArray)
 
+        // 6. Envanter Takip Kayıtları (InventoryAuditEntity)
+        val inventoryAudits = effectiveInventoryAuditDao.getAllAuditsList()
+        val inventoryAuditArray = JSONArray()
+        for (audit in inventoryAudits) {
+            val auditObj = JSONObject()
+            auditObj.put("id", audit.id)
+            auditObj.put("category", audit.category)
+            auditObj.put("auditDateMillis", audit.auditDateMillis)
+            auditObj.put("revenue", audit.revenue)
+            auditObj.put("fireCost", audit.fireCost)
+            auditObj.put("targetRatio", audit.targetRatio)
+            auditObj.put("notes", audit.notes)
+            auditObj.put("createdAt", audit.createdAt)
+            inventoryAuditArray.put(auditObj)
+        }
+        root.put("inventoryAudits", inventoryAuditArray)
+        root.put("envanterKayitlari", inventoryAuditArray)
+
         root.toString(2)
     }
 
@@ -187,10 +212,18 @@ object DataBackupManager {
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
         stockLogDao: StockLogDao? = null,
+        inventoryAuditDao: InventoryAuditDao? = null,
         tag: String = "auto"
     ): File? {
         return try {
-            val jsonContent = createUnifiedBackupJson(context, productDao, reportDao, adetselDao, stockLogDao)
+            val jsonContent = createUnifiedBackupJson(
+                context = context,
+                productDao = productDao,
+                reportDao = reportDao,
+                adetselDao = adetselDao,
+                stockLogDao = stockLogDao,
+                inventoryAuditDao = inventoryAuditDao
+            )
             val dir = getBackupDirectory(context)
             val timestampStr = fileDateFormat.format(Date())
             val fileName = "backup_${tag}_$timestampStr.json"
@@ -229,6 +262,7 @@ object DataBackupManager {
                 val productsArr = json.optJSONArray("products") ?: json.optJSONArray("urunler")
                 val depoArr = json.optJSONArray("depoIadeKayitlari") ?: json.optJSONArray("depoKayitlari")
                 val adetselArr = json.optJSONArray("adetselKayitlar") ?: json.optJSONArray("adetsel")
+                val auditArr = json.optJSONArray("inventoryAudits") ?: json.optJSONArray("envanterKayitlari")
 
                 var sktCount = 0
                 if (productsArr != null) {
@@ -256,6 +290,7 @@ object DataBackupManager {
                     sktCount = sktCount,
                     depoRecordCount = depoArr?.length() ?: 0,
                     adetselCount = adetselArr?.length() ?: 0,
+                    inventoryAuditCount = auditArr?.length() ?: 0,
                     fileSizeFormatted = sizeStr,
                     isAutoBackup = file.name.contains("auto") || file.name.contains("migration")
                 )
@@ -275,6 +310,7 @@ object DataBackupManager {
         reportDao: InspectionReportDao,
         adetselDao: AdetselDao? = null,
         stockLogDao: StockLogDao? = null,
+        inventoryAuditDao: InventoryAuditDao? = null,
         mergeWithExisting: Boolean = true
     ): BackupRestoreResult = withContext(Dispatchers.IO) {
         try {
@@ -288,6 +324,7 @@ object DataBackupManager {
             var adetselRestored = 0
             var inspectionRestored = 0
             var stockLogsRestored = 0
+            var inventoryAuditsRestored = 0
             var remindersRestored = false
 
             val parsedProducts = mutableListOf<Product>()
@@ -295,6 +332,7 @@ object DataBackupManager {
             val parsedAdetselKayitlar = mutableListOf<AdetselKayit>()
             val parsedReports = mutableListOf<InspectionReport>()
             val parsedStockLogs = mutableListOf<StockLog>()
+            val parsedInventoryAudits = mutableListOf<InventoryAuditEntity>()
 
             if (trimmed.startsWith("[")) {
                 // Legacy / Direct array of products
@@ -374,16 +412,29 @@ object DataBackupManager {
                         )
                     }
                 }
+
+                // 6. Envanter Takip Kayıtları (InventoryAuditEntity)
+                val auditArr = root.optJSONArray("inventoryAudits")
+                    ?: root.optJSONArray("envanterKayitlari")
+                    ?: root.optJSONArray("inventory_audits")
+                if (auditArr != null) {
+                    for (i in 0 until auditArr.length()) {
+                        val auditObj = auditArr.getJSONObject(i)
+                        parseInventoryAuditFromJson(auditObj)?.let { parsedInventoryAudits.add(it) }
+                    }
+                }
             }
 
             // Perform Save / Merge within an atomic Room transaction
             val db = AppDatabase.getDatabase(context)
+            val effectiveInventoryAuditDao = inventoryAuditDao ?: db.inventoryAuditDao()
 
             db.runInTransaction {
                 if (!mergeWithExisting) {
                     productDao.deleteAllProducts()
                     adetselDao?.deleteAllAdetselKayitlar()
                     stockLogDao?.deleteAllLogs()
+                    effectiveInventoryAuditDao.deleteAllAudits()
                 }
 
                 // 1. Ürünler ve SKT / Adetlerini Yükle
@@ -471,9 +522,33 @@ object DataBackupManager {
                         }
                     }
                 }
+
+                // 5. Envanter Takip Kayıtları (InventoryAuditEntity)
+                if (parsedInventoryAudits.isNotEmpty()) {
+                    if (!mergeWithExisting) {
+                        effectiveInventoryAuditDao.insertAllAudits(parsedInventoryAudits.map { it.copy(id = 0) })
+                        inventoryAuditsRestored = parsedInventoryAudits.size
+                    } else {
+                        val existingAudits = effectiveInventoryAuditDao.getAllAuditsList()
+                        val existingKeys = existingAudits.map {
+                            "${it.category.trim().uppercase(Locale.forLanguageTag("tr-TR"))}_${it.auditDateMillis}_${it.createdAt}"
+                        }.toSet()
+                        val toInsert = mutableListOf<InventoryAuditEntity>()
+                        for (audit in parsedInventoryAudits) {
+                            val key = "${audit.category.trim().uppercase(Locale.forLanguageTag("tr-TR"))}_${audit.auditDateMillis}_${audit.createdAt}"
+                            if (!existingKeys.contains(key)) {
+                                toInsert.add(audit.copy(id = 0))
+                                inventoryAuditsRestored++
+                            }
+                        }
+                        if (toInsert.isNotEmpty()) {
+                            effectiveInventoryAuditDao.insertAllAudits(toInsert)
+                        }
+                    }
+                }
             }
 
-            // 5. Takip Sayfası Kayıtlarını Yükle (Sadece veritabanı işlemi başarıyla bittikten sonra)
+            // 6. Takip Sayfası Kayıtlarını Yükle (Sadece veritabanı işlemi başarıyla bittikten sonra)
             if (parsedDepoRecords.isNotEmpty() || !mergeWithExisting) {
                 if (!mergeWithExisting) {
                     DepoIadeManager.clearAllRecords(context)
@@ -508,6 +583,9 @@ object DataBackupManager {
                 if (stockLogsRestored > 0) {
                     append("\n• $stockLogsRestored stok hareketi (satış/fire)")
                 }
+                if (inventoryAuditsRestored > 0) {
+                    append("\n• $inventoryAuditsRestored envanter takip kaydı")
+                }
                 append(" aktarıldı.")
             }
 
@@ -520,6 +598,7 @@ object DataBackupManager {
                 adetselRecordsRestored = adetselRestored,
                 inspectionReportsRestored = inspectionRestored,
                 stockLogsRestored = stockLogsRestored,
+                inventoryAuditsRestored = inventoryAuditsRestored,
                 remindersRestored = remindersRestored
             )
         } catch (e: Exception) {
@@ -719,6 +798,31 @@ object DataBackupManager {
             farkAdet = obj.optInt("farkAdet", 0),
             notlar = obj.optString("notlar", ""),
             islemTarihi = obj.optLong("islemTarihi", 0L)
+        )
+    }
+
+    private fun parseInventoryAuditFromJson(obj: JSONObject): InventoryAuditEntity? {
+        val category = obj.optString("category", "")
+            .ifBlank { obj.optString("kategori", "") }
+            .trim()
+        if (category.isBlank()) return null
+
+        val auditDateMillis = obj.optLong("auditDateMillis", System.currentTimeMillis())
+        val revenue = obj.optDouble("revenue", 0.0).let { if (it.isNaN() || it < 0.0) 0.0 else it }
+        val fireCost = obj.optDouble("fireCost", 0.0).let { if (it.isNaN() || it < 0.0) 0.0 else it }
+        val targetRatio = obj.optDouble("targetRatio", 0.0).let { if (it.isNaN() || it < 0.0) 0.0 else it }
+        val notes = obj.optString("notes", "").ifBlank { obj.optString("notlar", "") }
+        val createdAt = obj.optLong("createdAt", auditDateMillis)
+
+        return InventoryAuditEntity(
+            id = 0,
+            category = category,
+            auditDateMillis = auditDateMillis,
+            revenue = revenue,
+            fireCost = fireCost,
+            targetRatio = targetRatio,
+            notes = notes,
+            createdAt = createdAt
         )
     }
 

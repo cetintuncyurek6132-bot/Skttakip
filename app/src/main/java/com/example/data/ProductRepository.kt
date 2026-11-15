@@ -30,12 +30,32 @@ class ProductRepository(
         inventoryAuditDao?.insertAudit(audit) ?: 0L
     }
 
+    suspend fun insertInventoryAuditsBatch(audits: List<InventoryAuditEntity>) = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.insertAllAudits(audits)
+    }
+
+    suspend fun updateInventoryAudit(audit: InventoryAuditEntity) = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.updateAudit(audit)
+    }
+
+    suspend fun getAllInventoryAuditsDirect(): List<InventoryAuditEntity> = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.getAllAuditsList() ?: emptyList()
+    }
+
     suspend fun getLatestAuditForCategory(category: String): InventoryAuditEntity? = withContext(Dispatchers.IO) {
         inventoryAuditDao?.getLatestAuditForCategory(category)
     }
 
+    suspend fun deleteInventoryAudit(audit: InventoryAuditEntity) = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.deleteAudit(audit)
+    }
+
     suspend fun deleteInventoryAuditById(id: Int) = withContext(Dispatchers.IO) {
         inventoryAuditDao?.deleteAuditById(id)
+    }
+
+    suspend fun deleteAllInventoryAudits() = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.deleteAllAudits()
     }
 
     suspend fun insertStockLog(log: StockLog): Long = withContext(Dispatchers.IO) {
@@ -219,6 +239,7 @@ class ProductRepository(
         adetselDao?.deleteAllAdetselKayitlar()
         stockMovementDao?.deleteAllMovements()
         stockLogDao?.deleteAllLogs()
+        inventoryAuditDao?.deleteAllAudits()
     }
 
     suspend fun insertReport(report: InspectionReport): Long {
@@ -226,11 +247,26 @@ class ProductRepository(
     }
 
     suspend fun createUnifiedBackupJson(context: Context): String {
-        return DataBackupManager.createUnifiedBackupJson(context, productDao, reportDao, adetselDao, stockLogDao)
+        return DataBackupManager.createUnifiedBackupJson(
+            context = context,
+            productDao = productDao,
+            reportDao = reportDao,
+            adetselDao = adetselDao,
+            stockLogDao = stockLogDao,
+            inventoryAuditDao = inventoryAuditDao
+        )
     }
 
     suspend fun saveLocalBackup(context: Context, tag: String = "manual"): File? {
-        return DataBackupManager.saveAutoBackupToStorage(context, productDao, reportDao, adetselDao, stockLogDao, tag)
+        return DataBackupManager.saveAutoBackupToStorage(
+            context = context,
+            productDao = productDao,
+            reportDao = reportDao,
+            adetselDao = adetselDao,
+            stockLogDao = stockLogDao,
+            inventoryAuditDao = inventoryAuditDao,
+            tag = tag
+        )
     }
 
     fun getLocalBackups(context: Context): List<BackupMetadata> {
@@ -238,6 +274,15 @@ class ProductRepository(
     }
 
     suspend fun restoreFromJson(context: Context, jsonString: String, merge: Boolean = true): BackupRestoreResult {
-        return DataBackupManager.restoreFromJson(context, jsonString, productDao, reportDao, adetselDao, stockLogDao, merge)
+        return DataBackupManager.restoreFromJson(
+            context = context,
+            jsonString = jsonString,
+            productDao = productDao,
+            reportDao = reportDao,
+            adetselDao = adetselDao,
+            stockLogDao = stockLogDao,
+            inventoryAuditDao = inventoryAuditDao,
+            mergeWithExisting = merge
+        )
     }
 }

@@ -102,12 +102,18 @@ class InventoryViewModel(
         category: String,
         notes: String = "",
         auditDateMillis: Long = System.currentTimeMillis(),
+        revenue: Double = 0.0,
+        fireCost: Double = 0.0,
+        targetRatio: Double = 0.0,
         onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val audit = InventoryAuditEntity(
-                category = category,
+                category = category.trim(),
                 auditDateMillis = auditDateMillis,
+                revenue = revenue.coerceAtLeast(0.0),
+                fireCost = fireCost.coerceAtLeast(0.0),
+                targetRatio = targetRatio.coerceAtLeast(0.0),
                 notes = notes.trim(),
                 createdAt = System.currentTimeMillis()
             )
@@ -118,9 +124,27 @@ class InventoryViewModel(
         }
     }
 
+    fun saveInventoryAudit(
+        audit: InventoryAuditEntity,
+        onComplete: (() -> Unit)? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertInventoryAudit(audit)
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
+        }
+    }
+
     fun deleteInventoryAudit(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteInventoryAuditById(id)
+        }
+    }
+
+    fun deleteInventoryAudit(audit: InventoryAuditEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteInventoryAudit(audit)
         }
     }
 
