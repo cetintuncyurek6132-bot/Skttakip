@@ -77,12 +77,13 @@ fun AppUpdateDialog(
     // Gemini API çağrısı bir suspend işlem olduğu için state ile yönetilmeli
     var noteItems by remember { mutableStateOf<List<String>>(emptyList()) }
     var isLoadingNotes by remember { mutableStateOf(true) }
+    val sourceNotes = updateInfo.rawReleaseNotes.ifBlank { updateInfo.releaseNotes }
     
-    LaunchedEffect(updateInfo.releaseNotes, cleanVer) {
+    LaunchedEffect(sourceNotes, cleanVer) {
         isLoadingNotes = true
         try {
             val translated = ReleaseNotesTranslator.translateSmart(
-                rawNotes = updateInfo.releaseNotes,
+                rawNotes = sourceNotes,
                 versionName = cleanVer
             )
             noteItems = if (translated.isNotEmpty()) {

@@ -1,31 +1,66 @@
 package com.example.util
 
+import java.util.Locale
+
 /**
  * GitHub Release ve Commit geçmişinden gelen metinleri akıllıca analiz eden,
- * teknik developer terimlerini, İngilizce kalıpları ve commit başlıklarını
- * son kullanıcı odaklı, temiz ve kurumsal Türkçeye dönüştüren çeviri motoru.
+ * önce Gemini API ile mağaza çalışanının anlayacağı akıcı Türkçeye çeviren,
+ * çevrimdışı durumda ise agresif İngilizce filtresiyle yarım İngilizce kelimeleri
+ * tamamen engelleyen sürüm notu çeviri motoru.
  */
 object ReleaseNotesTranslator {
 
+    const val SINGLE_FALLBACK_NOTE = "Sistem altyapısı ve performans iyileştirmeleri yapıldı."
+
     val DEFAULT_CORPORATE_NOTES = listOf(
-        "Sistem performansı ve kararlılık iyileştirmeleri yapıldı.",
-        "Arayüz ve kullanıcı deneyimi geliştirmeleri uygulandı.",
-        "Veri güvenliği ve hızlı işlem optimizasyonları sağlandı."
+        SINGLE_FALLBACK_NOTE
     )
 
     fun getCorporateFallback(versionName: String = ""): List<String> {
-        val list = mutableListOf<String>()
-        if (versionName.isNotBlank()) {
-            list.add("v$versionName sürüm güncellemesi.")
-        }
-        list.addAll(DEFAULT_CORPORATE_NOTES)
-        return list
+        return listOf(SINGLE_FALLBACK_NOTE)
     }
 
-    private val ENGLISH_RESIDUAL_REGEX = Regex(
-        "\\b(and|the|with|features|feature|support for|for|from|when|while|after|before|between|through|during|potential|reductions|tagging|components|metrics|summary|tracking|inventory|screen|dialog|modal|panel|cards|issue|issues|crash|crashes|error|errors|add|added|implement|implemented|introduce|introduced|fixing|fixed|bug|bugs)\\b",
-        RegexOption.IGNORE_CASE
+    // Kesinlikle ekranda görünmemesi gereken İngilizce kelimeler ve teknik terimler
+    private val FORBIDDEN_ENGLISH_WORDS = setOf(
+        "fields", "field", "updated", "updatedat", "period", "auditperiod",
+        "switched", "switch", "audit", "audits", "entity", "entities",
+        "room", "migration", "migrations", "lazycolumn", "compose",
+        "view", "views", "viewmodel", "data", "user", "users",
+        "inventoryauditentity", "inventoryauditdao", "appdatabase",
+        "to", "from", "with", "for", "in", "on", "at", "by", "of", "the", "and", "or",
+        "into", "onto", "when", "while", "after", "before", "between", "through", "during",
+        "add", "added", "adding", "update", "updating", "fix", "fixed", "fixing",
+        "remove", "removed", "removing", "delete", "deleted", "implement", "implemented",
+        "introduce", "introduced", "refactor", "refactored", "resolve", "resolved",
+        "create", "created", "improve", "improved", "optimize", "optimized",
+        "screen", "screens", "modal", "modals", "dialog", "dialogs", "panel", "panels",
+        "button", "buttons", "card", "cards", "column", "row", "box", "surface",
+        "padding", "margin", "scroll", "verticalscroll", "overscroll", "weight",
+        "state", "flow", "dao", "database", "table", "schema", "backup", "restore",
+        "feature", "features", "support", "supports", "supported", "enable", "enabled",
+        "disable", "disabled", "replace", "replaced", "change", "changed", "changes",
+        "layout", "ui", "ux", "icon", "icons", "color", "colors", "theme", "font", "fonts",
+        "locale", "string", "strings", "number", "numbers", "list", "lists", "item", "items",
+        "detail", "details", "category", "categories", "history", "chart", "charts",
+        "trend", "trends", "weekly", "daily", "monthly", "target", "ratio", "revenue",
+        "cost", "firecost", "targetratio", "createdat", "millis", "auditdatemillis",
+        "readonly", "locked", "initial", "current", "latest", "previous", "next",
+        "handle", "handler", "handling", "manager", "helper", "util", "utils",
+        "repository", "model", "component", "components", "section", "header", "footer",
+        "topbar", "bottombar", "sheet", "bottomsheet", "wrapper", "bug", "bugs",
+        "issue", "issues", "crash", "crashes", "error", "errors", "warning", "warnings",
+        "potential", "reductions", "tagging", "metrics", "summary", "tracking", "inventory",
+        "scanner", "camera", "barcode", "stock", "product", "products", "expiry", "expiration",
+        "notification", "notifications", "dark", "light", "jdk", "desugaring", "kotlin",
+        "android", "firebase", "gradle", "build", "compile", "lint", "test", "tests",
+        "null", "true", "false", "fun", "val", "var", "class", "object", "interface", "suspend"
     )
+
+    // CamelCase veya PascalCase kod terimlerini (örn: updatedAt, auditPeriod, InventoryAuditEntity, LazyColumn) yakalar
+    private val CAMEL_CASE_CODE_REGEX = Regex("\\b([a-z]+[A-Z][a-zA-Z0-9]*|[A-Z][a-z0-9]+[A-Z][a-zA-Z0-9]*)\\b")
+
+    // Dosya uzantılarını yakalar (örn: DashboardScreen.kt, strings.xml)
+    private val CODE_FILE_EXTENSION_REGEX = Regex("(?i)\\b\\w+\\.(kt|kts|xml|json|gradle|java|toml)\\b")
 
     private val TURKISH_KEYWORDS = listOf(
         "ve", "ile", "için", "yapıldı", "eklendi", "düzeltildi", "güncellendi",
@@ -36,12 +71,52 @@ object ReleaseNotesTranslator {
         "hatırlatıcı", "rapor", "sayım", "reyon", "raf", "kullanıcı", "taşındı",
         "kısayol", "özellik", "akıllı", "panel", "modernize", "entegre", "sağlandı",
         "çıkarıldı", "giderildi", "optimize", "vitrin", "kurtarma", "ciro", "maliyet",
-        "etiket", "indirim", "zincir", "analiz", "denetim", "raporu"
+        "etiket", "indirim", "zincir", "analiz", "denetim", "raporu", "envanter",
+        "haftalık", "performans", "altyapı"
     )
+
+    /**
+     * Bir cümlenin içinde yasaklı İngilizce kelime, CamelCase kod adı veya dosya adı olup olmadığını denetler.
+     * Varsa true döner ve o cümle ASLA ekrana yazdırılmaz.
+     */
+    fun containsForbiddenEnglish(text: String): Boolean {
+        val trimmed = text.trim()
+        if (trimmed.isBlank()) return true
+
+        // 1. CamelCase / PascalCase kod terimi kontrolü (updatedAt, InventoryAuditEntity, LazyColumn vb.)
+        if (CAMEL_CASE_CODE_REGEX.containsMatchIn(trimmed)) {
+            return true
+        }
+
+        // 2. Kod dosyası uzantısı kontrolü (.kt, .xml vb.)
+        if (CODE_FILE_EXTENSION_REGEX.containsMatchIn(trimmed)) {
+            return true
+        }
+
+        // 3. Kelime bazlı agresif İngilizce kontrolü
+        val trLocale = Locale.forLanguageTag("tr-TR")
+        val enLocale = Locale.US
+        val words = trimmed
+            .replace(Regex("[^\\p{L}\\p{N}_]+"), " ")
+            .trim()
+            .split(Regex("\\s+"))
+            .filter { it.isNotBlank() }
+
+        for (word in words) {
+            val lowerEn = word.lowercase(enLocale)
+            val lowerTr = word.lowercase(trLocale)
+            if (lowerEn in FORBIDDEN_ENGLISH_WORDS || lowerTr in FORBIDDEN_ENGLISH_WORDS) {
+                return true
+            }
+        }
+
+        return false
+    }
 
     /**
      * Ham notları satır satır inceler, markdown ve teknik sembolleri temizler,
      * terimleri ve cümle kalıplarını Türkçeleştirip liste döner.
+     * İçinde İngilizce kelime kalan hiçbir satırı listeye almaz.
      */
     fun translateToBulletPoints(rawNotes: String, versionName: String = ""): List<String> {
         val trimmed = rawNotes.trim()
@@ -61,7 +136,7 @@ object ReleaseNotesTranslator {
             if (cleaned.isBlank() || shouldSkipLine(cleaned)) continue
 
             val translated = translateSingleLine(cleaned)
-            if (translated.isNotBlank()) {
+            if (translated.isNotBlank() && !containsForbiddenEnglish(translated)) {
                 resultList.add(translated)
             }
         }
@@ -80,7 +155,7 @@ object ReleaseNotesTranslator {
     }
 
     private fun cleanLineSymbols(raw: String): String {
-        var line = raw
+        val line = raw
             // Markdown linklerini temizle: [text](url) -> text
             .replace(Regex("\\[(.*?)\\]\\(.*?\\)"), "$1")
             // Git trailer, link ve hashleri satır bazında temizle
@@ -108,7 +183,7 @@ object ReleaseNotesTranslator {
     }
 
     private fun shouldSkipLine(raw: String): Boolean {
-        val lower = raw.lowercase().replace("'", "").replace("`", "").trim()
+        val lower = raw.lowercase(Locale.US).replace("'", "").replace("`", "").trim()
         if (lower.isBlank()) return true
         if (lower == "---" || lower.startsWith("```") || lower.startsWith("***")) return true
 
@@ -153,13 +228,13 @@ object ReleaseNotesTranslator {
 
     /**
      * Tek bir satırı analiz edip doğal ve kurumsal Türkçe cümleye dönüştürür.
+     * İçinde İngilizce kelime kalırsa boş string döner (asla yarım İngilizce döndürmez).
      */
     fun translateSingleLine(line: String): String {
         var text = cleanLineSymbols(line)
         if (text.isBlank()) return ""
 
         // 1. ADIM: Conventional Commit Prefix'lerini ve Action Ön Eklerini Temizle
-        // Örn: feat(analytics): ..., fix(scanner): ..., add: ..., Added: ...
         val conventionalRegex = Regex(
             "^(feat|fix|perf|refactor|style|docs|chore)(\\([^)]+\\))?\\s*:\\s*",
             RegexOption.IGNORE_CASE
@@ -170,33 +245,58 @@ object ReleaseNotesTranslator {
             "^(add|added|implement|implemented|introduce|introduced|create|created|fix|fixed|resolve|resolved|update|updated|improve|improved|optimize|optimized|refactor|refactored|remove|removed|delete|deleted)\\s*[:\\-]?\\s+",
             RegexOption.IGNORE_CASE
         )
-        // Eğer satır başında fiil varsa temizle (mükerrer 'Eklendi: Add...' olmaması için)
         val hadActionPrefix = actionPrefixRegex.containsMatchIn(text)
         text = text.replace(actionPrefixRegex, "").trim()
 
-        var lower = text.lowercase()
+        val lower = text.lowercase(Locale.US)
 
-        // 2. ADIM: ZATEN DOĞAL TÜRKÇE OLAN CÜMLELERİN KORUNMASI
+        // 2. ADIM: ZATEN DOĞAL VE TAMAMEN TÜRKÇE OLAN CÜMLELERİN KORUNMASI
         if (isNaturalTurkish(text)) {
-            return formatFinalSentence(text)
+            val formatted = formatFinalSentence(text)
+            if (!containsForbiddenEnglish(formatted)) {
+                return formatted
+            }
         }
 
-        // 3. ADIM: PERAKENDE VE MARKET ALANINA ÖZEL SEMANTİK KALIPLAR (High-Priority Domain Rules)
+        // 3. ADIM: PERAKENDE VE MARKET ALANINA ÖZEL SEMANTİK KALIPLAR
+
+        // Envanter Takip, Haftalık Veri ve Finansal Oran Kalıpları
+        if (lower.contains("inventoryaudit") || lower.contains("auditperiod") || lower.contains("updatedat") ||
+            (lower.contains("inventory") && (lower.contains("audit") || lower.contains("weekly") || lower.contains("trend") || lower.contains("category")))
+        ) {
+            if (lower.contains("weekly") || lower.contains("trend") || lower.contains("auditperiod") || lower.contains("updatedat")) {
+                return "Envanter takip modülüne haftalık ilerleme ve trend analizi altyapısı eklendi."
+            }
+            if (lower.contains("detail") || lower.contains("modal") || lower.contains("chart")) {
+                return "Envanter kategori detay ekranı ve haftalık gelişim grafiği eklendi."
+            }
+            return "Envanter takip modülü ve finansal fire oranı hesaplamaları güncellendi."
+        }
+
+        // Font ve Türkçe Karakter Desteği Kalıpları
+        if (lower.contains("font") || lower.contains("locale") || lower.contains("turkish") || lower.contains("uppercase")) {
+            return "Türkçe karakter ve yazı tipi görünümü tüm ekranlarda iyileştirildi."
+        }
+
+        // Kaydırma ve Ana Sayfa Düzeni Kalıpları
+        if (lower.contains("lazycolumn") || lower.contains("overscroll") || lower.contains("verticalscroll")) {
+            return "Sayfa kaydırma performansı ve ekran yerleşimi iyileştirildi."
+        }
 
         // Kalıp 1: Finansal Analiz & KPI Metrikleri & Reyon Risk Özeti
-        if (lower.contains("financial") || lower.contains("kpi") || lower.contains("finansal")) {
+        if (lower.contains("financial") || lower.contains("kpi") || lower.contains("finansal") || lower.contains("revenue") || lower.contains("firecost")) {
             if ((lower.contains("implement") || lower.contains("component") || lower.contains("panel")) &&
                 (lower.contains("analiz") || lower.contains("analytics") || lower.contains("dashboard") || lower.contains("gösterge"))
             ) {
-                return "Analiz ekranına finansal KPI metrikleri ve reyon risk özeti panelleri entegre edildi."
+                return "Analiz ekranına finansal performans göstergeleri ve reyon risk özeti eklendi."
             }
             if (lower.contains("risk summary") || (lower.contains("risk") && lower.contains("summary")) || lower.contains("reyon")) {
-                return "Finansal analiz, KPI göstergeleri ve reyon risk özeti özellikleri eklendi."
+                return "Finansal analiz ve reyon risk özeti özellikleri eklendi."
             }
-            if (lower.contains("recovery") || lower.contains("kurtarma") || lower.contains("ciro") || lower.contains("fire")) {
-                return "Fire önleme oranı, kurtarılan satış ve fire maliyeti KPI kartları eklendi."
+            if (lower.contains("recovery") || lower.contains("kurtarma") || lower.contains("ciro") || lower.contains("fire") || lower.contains("revenue")) {
+                return "Ciro, fire tutarı ve hedef oran analiz kartları güncellendi."
             }
-            return "Finansal analiz ve risk metrikleri geliştirildi."
+            return "Finansal analiz ve performans göstergeleri geliştirildi."
         }
 
         // Kalıp 2: Sarı Etiket & İndirim Takip Desteği
@@ -229,7 +329,7 @@ object ReleaseNotesTranslator {
                 return "Kritik SKT filtre aralığı 0-7 gün olarak güncellendi."
             }
             if (lower.contains("view all") || lower.contains("tümünü gör") || lower.contains("navigation")) {
-                return "Acil vitrin için 'Tümünü Gör' yönlendirmesi eklendi."
+                return "Acil vitrin için tümünü gör yönlendirmesi eklendi."
             }
             if (lower.contains("7 day") || lower.contains("7 gün") || lower.contains("window") || lower.contains("extend")) {
                 return "Acil müdahale vitrini 7 güne çıkarıldı."
@@ -237,13 +337,13 @@ object ReleaseNotesTranslator {
             return "Acil müdahale vitrini ve kritik ürün takibi geliştirildi."
         }
 
-        // Kalıp 6: SKT Dağılım Grafiği (Bugün Göstergesi / X Ekseni Hizalama)
+        // Kalıp 6: SKT Dağılım Grafiği
         if (lower.contains("chart") || lower.contains("grafik") || lower.contains("distribution") || lower.contains("dağılım")) {
             if (lower.contains("today") || lower.contains("bugün") || lower.contains("indicator") || lower.contains("tooltip") || lower.contains("card")) {
-                return "SKT dağılım grafiğine 'Bugün' referans çizgisi ve etkileşim kartı eklendi."
+                return "SKT dağılım grafiğine bugün referans çizgisi ve etkileşim kartı eklendi."
             }
             if (lower.contains("axis") || lower.contains("align") || lower.contains("hiza") || lower.contains("label") || lower.contains("etiket")) {
-                return "SKT dağılım grafiği X ekseni tarih etiketlerinin hizalaması düzeltildi."
+                return "SKT dağılım grafiği tarih etiketlerinin hizalaması düzeltildi."
             }
             return "SKT dağılım grafiği ve görselleştirmeler optimize edildi."
         }
@@ -258,7 +358,7 @@ object ReleaseNotesTranslator {
         // Kalıp 8: Mağaza Notları Kısayolu ve Konumu
         if (lower.contains("store note") || lower.contains("mağaza not")) {
             if (lower.contains("dashboardscreen") || lower.contains("ana sayfa") || lower.contains("move") || lower.contains("taşın")) {
-                return "Mağaza Notları kısayolu Ana Sayfa'ya taşındı."
+                return "Mağaza Notları kısayolu Ana Sayfa ekranına taşındı."
             }
             return "Mağaza Notları modülü iyileştirildi."
         }
@@ -274,7 +374,7 @@ object ReleaseNotesTranslator {
         if (lower.contains("excel") || lower.contains("xlsx") ||
             (lower.contains("export") && (lower.contains("report") || lower.contains("inspection") || lower.contains("denetim")))
         ) {
-            return "Denetim raporları için Excel (XLSX) dışa aktarma özelliği eklendi."
+            return "Denetim raporları için dışa aktarma özelliği eklendi."
         }
 
         // Kalıp 11: Yedekleme & Geri Yükleme
@@ -286,46 +386,42 @@ object ReleaseNotesTranslator {
         if (lower.contains("dark mode") || lower.contains("karanlık tema")) {
             return "Karanlık tema uyumluluğu ve görsel kontrast iyileştirildi."
         }
-        if ((lower.contains("layout") || lower.contains("ui") || lower.contains("design") || lower.contains("arayüz")) &&
-            (lower.contains("modern") || lower.contains("refactor") || lower.contains("clean"))
+        if ((lower.contains("layout") || lower.contains("ui") || lower.contains("design") || lower.contains("arayüz") || lower.contains("morningoperation") || lower.contains("addedittakip")) &&
+            (lower.contains("modern") || lower.contains("refactor") || lower.contains("clean") || lower.contains("align") || lower.contains("scroll") || lower.contains("card") || lower.contains("modal"))
         ) {
-            return "Arayüz düzeni ve görsel tasarım modernize edildi."
+            return "Arayüz düzeni ve kart hizalamaları modernize edildi."
         }
 
         // Kalıp 13: Depo İade & Adetsel Sayım
-        if (lower.contains("depo") || lower.contains("iade") || lower.contains("adetsel") || lower.contains("sayım")) {
+        if (lower.contains("depo") || lower.contains("iade") || lower.contains("adetsel") || lower.contains("sayım") || lower.contains("takip")) {
             return "Depo iade ve adetsel sayım işlemleri optimize edildi."
         }
 
         // Kalıp 14: Release Notes Translator
         if (lower.contains("releasenotestranslator") || (lower.contains("release note") && lower.contains("translat"))) {
-            return "Akıllı sürüm notu çeviricisi entegre edildi."
+            return "Akıllı sürüm notu çeviricisi güncellendi."
         }
 
-        // 4. ADIM: GENEL CÜMLE ÇEVİRİ VE KELİME DÖNÜŞTÜRÜCÜ (Syntactic sentence construction)
+        // 4. ADIM: GENEL CÜMLE ÇEVİRİ VE KELİME DÖNÜŞTÜRÜCÜ
         val constructed = constructTurkishSentence(text, hadActionPrefix)
-        if (constructed.isNotBlank() && !hasEnglishResiduals(constructed)) {
+        if (constructed.isNotBlank() && !containsForbiddenEnglish(constructed)) {
             return formatFinalSentence(constructed)
         }
 
-        // 5. ADIM: GÜVENLİK KALİTE KAPISI (Strict Quality Gate)
-        // Eğer hâlâ İngilizce artıklar içeriyorsa veya anlamsızsa, güvenli kurumsal karşılık üret
-        return resolveFallbackForUnmatched(lower)
+        // 5. ADIM: EĞER HÂLÂ İNGİLİZCE KELİME KALIYORSA ASLA YARIM CÜMLE GÖSTERME
+        val fallback = resolveFallbackForUnmatched(lower)
+        return if (fallback.isNotBlank() && !containsForbiddenEnglish(fallback)) fallback else ""
     }
 
     private fun isNaturalTurkish(text: String): Boolean {
-        val lower = text.lowercase().trim()
+        val lower = text.lowercase(Locale.forLanguageTag("tr-TR")).trim()
         if (lower.isBlank()) return false
-        if (hasEnglishResiduals(lower)) return false
+        if (containsForbiddenEnglish(text)) return false
 
         val hasTurkishChar = text.any { it in "çğıöşüÇĞİÖŞÜ" }
         val hasTurkishWord = TURKISH_KEYWORDS.any { lower.contains(it) }
 
         return hasTurkishChar || hasTurkishWord
-    }
-
-    private fun hasEnglishResiduals(text: String): Boolean {
-        return ENGLISH_RESIDUAL_REGEX.containsMatchIn(text)
     }
 
     private fun constructTurkishSentence(text: String, hadActionPrefix: Boolean): String {
@@ -421,8 +517,7 @@ object ReleaseNotesTranslator {
         t = t.trim()
         if (t.isBlank()) return ""
 
-        // Eğer son eylem belirtilmemişse mantıklı bir yüklem ekle
-        val lowerT = t.lowercase()
+        val lowerT = t.lowercase(Locale.forLanguageTag("tr-TR"))
         if (!lowerT.endsWith("eklendi") && !lowerT.endsWith("düzeltildi") &&
             !lowerT.endsWith("iyileştirildi") && !lowerT.endsWith("giderildi") &&
             !lowerT.endsWith("sağlandı") && !lowerT.endsWith("yapıldı") &&
@@ -441,88 +536,73 @@ object ReleaseNotesTranslator {
     }
 
     private fun resolveFallbackForUnmatched(lower: String): String {
-        return if (lower.contains("analiz") || lower.contains("analytics") || lower.contains("kpi") || lower.contains("financial") || lower.contains("tahmin")) {
-            "Finansal analiz ve risk tahminleme modülü güncellendi."
-        } else if (lower.contains("skt") || lower.contains("expiry") || lower.contains("tarih")) {
-            "Son kullanma tarihi (SKT) takip sistemi ve kontrolleri iyileştirildi."
-        } else if (lower.contains("stok") || lower.contains("ürün") || lower.contains("product") || lower.contains("sayım")) {
-            "Stok yönetimi ve ürün işlem akışları optimize edildi."
-        } else if (lower.contains("barkod") || lower.contains("scanner") || lower.contains("kamera")) {
-            "Barkod tarama ve kamera okuma kararlılığı artırıldı."
-        } else if (lower.contains("rapor") || lower.contains("export") || lower.contains("excel") || lower.contains("iade")) {
-            "Raporlama ve veri aktarım özellikleri güncellendi."
-        } else if (lower.contains("hata") || lower.contains("crash") || lower.contains("bug") || lower.contains("fix")) {
-            "Sistem kararlılığını artıran hata düzeltmeleri yapıldı."
-        } else if (lower.contains("arayüz") || lower.contains("ui") || lower.contains("tasarım") || lower.contains("tema")) {
-            "Arayüz düzeni ve kullanıcı deneyimi geliştirmeleri uygulandı."
-        } else {
-            ""
-        }
+        return ""
     }
 
     /**
-     * AKILLI ÇEVİRİ: Hibrit yaklaşım.
-     * 
-     * 1. Önce mevcut sözlük tabanlı çeviri yapılır
-     * 2. Sonuç hala İngilizce içeriyorsa Gemini API denenir
-     * 3. Gemini de başarısız olursa sözlük fallback'i kullanılır
-     * 
-     * Bu fonksiyon suspend olduğu için Compose'da LaunchedEffect içinde çağrılmalıdır.
-     * 
-     * @param rawNotes GitHub Release'ten gelen ham metin
-     * @param versionName Opsiyonel sürüm adı
-     * @return Kullanıcıya gösterilecek Türkçe madde listesi
+     * AKILLI ÇEVİRİ: Önce Gemini API, erişilemezse Agresif Filtreli Yerel Sözlük.
+     *
+     * 1. Önce GitHub'dan gelen ham metin Gemini API'ye gönderilir.
+     * 2. Gemini'den dönen maddeler agresif İngilizce filtresinden geçirilir.
+     * 3. Gemini'ye erişilemezse yerel sözlük devreye girer ve içinde İngilizce kelime kalan
+     *    tüm satırlar elenir.
+     * 4. Eğer geçerli hiçbir Türkçe cümle kalmazsa tek bir genel madde döner:
+     *    "Sistem altyapısı ve performans iyileştirmeleri yapıldı."
      */
     suspend fun translateSmart(rawNotes: String, versionName: String = ""): List<String> {
-        if (rawNotes.isBlank()) return getCorporateFallback(versionName)
-        
-        // 1. ADIM: Yerel sözlük tabanlı çeviri
-        val localResult = translateToBulletPoints(rawNotes, versionName)
-        
-        // Yerel sonuç kaliteli mi kontrol et
-        val hasEnglishResidue = localResult.any { line ->
-            val lower = line.lowercase()
-            ENGLISH_TECH_WORDS.any { word -> 
-                lower.contains(" $word ") || lower.startsWith("$word ") || lower.endsWith(" $word")
-            }
+        val trimmed = rawNotes.trim()
+        if (trimmed.isBlank() || trimmed.equals("null", ignoreCase = true)) {
+            return listOf(SINGLE_FALLBACK_NOTE)
         }
-        
-        if (!hasEnglishResidue && localResult.isNotEmpty()) {
-            // Yerel çeviri yeterince iyi, Gemini'ye gerek yok
-            return localResult
+
+        // Clean boilerplate release lines (Full Changelog, commit hashes, URLs) before sending to Gemini
+        val cleanedInputLines = trimmed
+            .lines()
+            .map { cleanLineSymbols(it) }
+            .filter { it.isNotBlank() && !shouldSkipLine(it) }
+
+        if (cleanedInputLines.isEmpty()) {
+            return listOf(SINGLE_FALLBACK_NOTE)
         }
-        
-        // 2. ADIM: Gemini API ile dinamik çeviri
+
+        val cleanedInputText = cleanedInputLines.joinToString("\n")
+
+        // 1. ADIM: ÖNCE GEMİNİ API'Yİ ÇAĞIR
         val geminiResult = try {
-            GeminiTranslator.translateToTurkish(rawNotes)
+            GeminiTranslator.translateToTurkish(cleanedInputText)
         } catch (e: Exception) {
             null
         }
-        
-        return geminiResult ?: localResult
-    }
 
-    /**
-     * Yerel sözlükte tanımlı İngilizce teknik kelimeler.
-     * Bu kelimeler çeviride kalırsa Gemini'ye düşülür.
-     */
-    private val ENGLISH_TECH_WORDS = setOf(
-        "date", "handling", "room", "migration", "schema", "export",
-        "enable", "disable", "replace", "legacy", "format", "formatter",
-        "memory", "system", "resource", "management", "modernize",
-        "implement", "introduce", "refactor", "update", "add", "remove",
-        "fix", "improve", "optimize", "performance", "database",
-        "compose", "layout", "component", "view", "screen", "modal",
-        "scanner", "camera", "barcode", "stock", "product", "expiry",
-        "backup", "restore", "notification", "theme", "dark", "light",
-        "jdk", "desugaring", "kotlin", "android", "firebase"
-    )
+        if (!geminiResult.isNullOrEmpty()) {
+            val cleanGeminiLines = geminiResult
+                .map { formatFinalSentence(cleanLineSymbols(it)) }
+                .filter { it.isNotBlank() && !containsForbiddenEnglish(it) }
+                .distinct()
+
+            if (cleanGeminiLines.isNotEmpty()) {
+                return cleanGeminiLines
+            }
+        }
+
+        // 2. ADIM: GEMİNİ'YE ERİŞİLEMEZSE AGRESİF FİLTRELİ YEREL SÖZLÜK
+        val localResult = translateToBulletPoints(cleanedInputText, versionName)
+            .filter { it.isNotBlank() && !containsForbiddenEnglish(it) }
+            .distinct()
+
+        return if (localResult.isNotEmpty()) {
+            localResult
+        } else {
+            listOf(SINGLE_FALLBACK_NOTE)
+        }
+    }
 
     private fun formatFinalSentence(text: String): String {
         var result = text.trim()
         if (result.isEmpty()) return ""
 
-        result = result.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        val trLocale = Locale.forLanguageTag("tr-TR")
+        result = result.replaceFirstChar { if (it.isLowerCase()) it.titlecase(trLocale) else it.toString() }
         if (!result.endsWith(".") && !result.endsWith("!") && !result.endsWith("?")) {
             result += "."
         }

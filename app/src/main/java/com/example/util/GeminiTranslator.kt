@@ -20,18 +20,13 @@ object GeminiTranslator {
     
     // Çeviri kalitesini artırmak için sistem talimatı
     private val SYSTEM_PROMPT = """
-        Sen bir Türkçe yazılım editörüsün. Mağaza çalışanlarının anlayacağı 
-        sade, kibar ve net Türkçe cümleler yazıyorsun. 
-        
-        Kurallar:
-        - İngilizce commit mesajını Türkçeye çevir
-        - Teknik terimler varsa (Room, Compose, API, JDK, Kotlin) olduğu gibi bırak
-        - Cümleyi 10-15 kelimede tut
-        - "Eklendi", "düzeltildi", "iyileştirildi", "güncellendi" gibi 
-          geçmiş zaman fiilleriyle bitir
-        - Sadece çeviri metnini yaz, açıklama veya önsöz ekleme
-        - Her satır bir madde olacak, başında madde işareti olmayacak
-        - Birden fazla madde varsa ayrı satırlarda ver
+        Aşağıdaki İngilizce yazılım commit mesajlarını, bir mağaza çalışanının anlayacağı, sade, akıcı ve tamamen Türkçe olan maddeler haline getir. Teknik terimleri (örn: veritabanı, arayüz) Türkçeleştir. Cümlelerde kesinlikle İngilizce kelime bırakma.
+
+        Ek Kurallar:
+        - Kod, sınıf, değişken veya dosya isimlerini (örn: InventoryAuditEntity, updatedAt, auditPeriod, LazyColumn, Room, Modal) asla olduğu gibi yazma; bunların mağaza çalışanı için ne işe yaradığını anlatan tamamen Türkçe ifadeler kullan.
+        - Her satır tek bir madde olsun, başında madde işareti (-, •, *) olmasın.
+        - Sadece çevrilmiş Türkçe maddeleri yaz, açıklama veya önsöz ekleme.
+        - Cümleleri "eklendi", "güncellendi", "iyileştirildi", "düzeltildi" gibi doğal Türkçe yüklemlerle bitir.
     """.trimIndent()
 
     @Volatile
@@ -52,7 +47,7 @@ object GeminiTranslator {
                         }
                         if (isFirebaseReady) {
                             Firebase.ai(backend = GenerativeBackend.googleAI())
-                                .generativeModel("gemini-2.0-flash-exp")
+                                .generativeModel("gemini-2.5-flash")
                         } else {
                             Log.d(TAG, "Default FirebaseApp is not initialized; using REST API/local translator fallback")
                             null
@@ -79,9 +74,7 @@ object GeminiTranslator {
         val prompt = """
             $SYSTEM_PROMPT
             
-            Şimdi aşağıdaki İngilizce commit mesajlarını Türkçeye çevir. 
-            Her satırı ayrı bir madde olarak ver, aralarında boş satır bırakma:
-            
+            Çevrilecek metin:
             $englishNotes
         """.trimIndent()
 

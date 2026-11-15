@@ -36,6 +36,7 @@ data class AppUpdateInfo(
     val latestVersionName: String,
     val downloadUrl: String,
     val releaseNotes: String = "",
+    val rawReleaseNotes: String = "",
     val hasUpdate: Boolean = false,
     val apkSizeBytes: Long = 0L,
     val apkSizeFormatted: String = ""
@@ -143,6 +144,7 @@ object AppUpdateChecker {
                             latestVersionName = cleanTagName.ifBlank { rawTagName },
                             downloadUrl = downloadUrl,
                             releaseNotes = releaseNotes,
+                            rawReleaseNotes = rawReleaseNotes,
                             hasUpdate = isNewer && downloadUrl.isNotBlank(),
                             apkSizeBytes = apkSizeBytes,
                             apkSizeFormatted = apkSizeFormatted
