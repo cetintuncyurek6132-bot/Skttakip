@@ -339,7 +339,7 @@ fun SktTopAppBar(
                                 MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                             },
                             fontSize = 12.sp,
-                            fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Normal,
+                            fontWeight = if (searchQuery.isNotEmpty()) FontWeight.SemiBold else FontWeight.Medium,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)

@@ -276,7 +276,7 @@ fun AppUpdateDialog(
                                         fontSize = 12.5.sp,
                                         lineHeight = 18.sp,
                                         color = Slate700,
-                                        fontWeight = FontWeight.Normal
+                                        fontWeight = FontWeight.Medium
                                     )
                                 }
                             }

@@ -60,7 +60,7 @@ fun QrFixFloatingHudBanner(
             Text(
                 text = "Raf etiketindeki QR kodunu okutun. Ürün koduna göre barkod ve fiyat otomatik güncellenir.",
                 fontSize = 10.sp,
-                fontWeight = FontWeight.Normal,
+                fontWeight = FontWeight.Medium,
                 color = Color.White.copy(alpha = 0.75f),
                 lineHeight = 14.sp
             )

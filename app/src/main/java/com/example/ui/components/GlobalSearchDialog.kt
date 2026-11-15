@@ -184,7 +184,7 @@ fun GlobalSearchDialog(
                                             text = "Ürün adı, barkod veya kod ara",
                                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                                             fontSize = 13.sp,
-                                            fontWeight = FontWeight.Normal,
+                                            fontWeight = FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )

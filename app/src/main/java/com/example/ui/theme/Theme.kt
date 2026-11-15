@@ -75,7 +75,7 @@ fun MyApplicationTheme(
     ProvideTextStyle(
       value = TextStyle(
         fontFamily = AppFontFamily,
-        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium
+        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold
       )
     ) {
       content()
