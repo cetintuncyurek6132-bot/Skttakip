@@ -97,8 +97,47 @@ import com.example.ui.viewmodel.normalizeInventoryCategoryKey
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+
+private fun formatDetailPeriodHeader(
+    rawPeriod: String,
+    fallbackDateMillis: Long
+): String {
+    val trLocale = Locale.forLanguageTag("tr-TR")
+    val turkishMonths = listOf(
+        "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+        "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+    )
+    val fallbackYear = Calendar.getInstance().apply {
+        timeInMillis = if (fallbackDateMillis > 0L) fallbackDateMillis else System.currentTimeMillis()
+    }.get(Calendar.YEAR)
+
+    val cleaned = rawPeriod.substringBefore("•").trim()
+    if (cleaned.isEmpty()) {
+        val monthName = SimpleDateFormat("MMMM", trLocale)
+            .format(Date(if (fallbackDateMillis > 0L) fallbackDateMillis else System.currentTimeMillis()))
+            .lowercase(trLocale)
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(trLocale) else it.toString() }
+        return "$monthName $fallbackYear"
+    }
+
+    val numericMatch = Regex("^(\\d{1,2})[./-](\\d{4})$").matchEntire(cleaned)
+    if (numericMatch != null) {
+        val monthIdx = (numericMatch.groupValues[1].toIntOrNull() ?: 1).coerceIn(1, 12) - 1
+        return "${turkishMonths[monthIdx]} ${numericMatch.groupValues[2]}"
+    }
+
+    val parts = cleaned.split(Regex("\\s+")).filter { it.isNotBlank() }
+    val rawMonth = parts.firstOrNull().orEmpty().lowercase(trLocale)
+    val formattedMonth = turkishMonths.firstOrNull { it.lowercase(trLocale) == rawMonth }
+        ?: rawMonth.replaceFirstChar { if (it.isLowerCase()) it.titlecase(trLocale) else it.toString() }
+    val yearPart = parts.getOrNull(1)?.takeIf { it.all(Char::isDigit) && it.length == 4 }
+        ?: fallbackYear.toString()
+
+    return "$formattedMonth $yearPart"
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -219,13 +258,16 @@ fun InventoryCategoryDetailModal(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 640.dp)
-                .padding(horizontal = 20.dp)
-                .padding(top = 4.dp, bottom = 16.dp)
-                .navigationBarsPadding()
-                .testTag("inventory_category_detail_modal"),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .testTag("inventory_category_detail_modal")
         ) {
+            // SABİT ÜST BÖLÜM: BAŞLIK VE SEKMELER
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 4.dp, bottom = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
             // 1. ÜST BAŞLIK: KATEGORİ ADI + SAĞ ÜST DÜZENLE (KALEM) VE KAPAT BUTONLARI
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -271,13 +313,15 @@ fun InventoryCategoryDetailModal(
                             Text(
                                 text = when {
                                     latestAudit == null -> "Henüz sayım kaydı yok"
-                                    isContinuous && latestAudit.auditPeriod.isNotBlank() ->
-                                        "Dönem: ${latestAudit.auditPeriod} • ${dateFormatter.format(Date(latestAudit.auditDateMillis))}"
+                                    isContinuous ->
+                                        "Dönem: ${formatDetailPeriodHeader(latestAudit.auditPeriod, latestAudit.auditDateMillis)}"
                                     else -> "Envanter: ${dateFormatter.format(Date(latestAudit.auditDateMillis))}"
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Slate700
+                                color = Slate700,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -408,14 +452,20 @@ fun InventoryCategoryDetailModal(
                     }
                 }
             }
+            } // Sabit üst bölüm sonu
 
-            // 3. SEKMELER ARASI YUMUŞAK GEÇİŞLİ İÇERİK (AnimatedContent + verticalScroll)
+            // 3. KAYDIRILABİLİR ORTA İÇERİK ALANI (AnimatedContent)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 4.dp)
+            ) {
             AnimatedContent(
                 targetState = selectedTabIndex,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f, fill = false),
+                modifier = Modifier.fillMaxWidth(),
                 label = "inventory_category_detail_tab_transition"
             ) { currentTab ->
                 when (currentTab) {
@@ -424,7 +474,7 @@ fun InventoryCategoryDetailModal(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
+                                .padding(bottom = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // Mevcut Envanter Oranı (%X) ve Hedef Oran (%Y) Yan Yana Kutular
@@ -768,72 +818,77 @@ fun InventoryCategoryDetailModal(
                                         )
 
                                         // ALT KISIM: 2x2 ÖZET TABLO
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(Color.White.copy(alpha = 0.7f))
-                                                .padding(vertical = 10.dp),
-                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        Surface(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = Color.White,
+                                            border = BorderStroke(0.9.dp, analysisBorder.copy(alpha = 0.75f))
                                         ) {
-                                            // Üst Satır: HEDEF CİRO | GERÇEKLEŞEN CİRO
-                                            Row(
+                                            Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(IntrinsicSize.Max),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                    .padding(vertical = 10.dp),
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
                                             ) {
-                                                SummaryMetricCell(
-                                                    label = "HEDEF CİRO:",
-                                                    value = "${moneyFormatter.format(hedefCiro)} ₺",
-                                                    valueColor = Slate900,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                                Box(
+                                                // Üst Satır: HEDEF CİRO | GERÇEKLEŞEN CİRO
+                                                Row(
                                                     modifier = Modifier
-                                                        .width(1.dp)
-                                                        .fillMaxHeight()
-                                                        .background(dividerColor)
-                                                )
-                                                SummaryMetricCell(
-                                                    label = "GERÇEKLEŞEN CİRO:",
-                                                    value = "${moneyFormatter.format(ciro)} ₺",
-                                                    valueColor = Slate900,
-                                                    modifier = Modifier.weight(1f)
-                                                )
-                                            }
+                                                        .fillMaxWidth()
+                                                        .height(IntrinsicSize.Max),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    SummaryMetricCell(
+                                                        label = "HEDEF CİRO:",
+                                                        value = "${moneyFormatter.format(hedefCiro)} ₺",
+                                                        valueColor = Slate900,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .width(1.dp)
+                                                            .fillMaxHeight()
+                                                            .background(dividerColor)
+                                                    )
+                                                    SummaryMetricCell(
+                                                        label = "GERÇEKLEŞEN CİRO:",
+                                                        value = "${moneyFormatter.format(ciro)} ₺",
+                                                        valueColor = Slate900,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
 
-                                            HorizontalDivider(
-                                                thickness = 0.8.dp,
-                                                color = dividerColor,
-                                                modifier = Modifier.padding(horizontal = 10.dp)
-                                            )
-
-                                            // Alt Satır: HEDEF FİRE | GERÇEKLEŞEN FİRE
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(IntrinsicSize.Max),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                SummaryMetricCell(
-                                                    label = "HEDEF FİRE:",
-                                                    value = "${moneyFormatter.format(hedefFire)} ₺",
-                                                    valueColor = Slate900,
-                                                    modifier = Modifier.weight(1f)
+                                                HorizontalDivider(
+                                                    thickness = 0.8.dp,
+                                                    color = dividerColor,
+                                                    modifier = Modifier.padding(horizontal = 10.dp)
                                                 )
-                                                Box(
+
+                                                // Alt Satır: HEDEF FİRE | GERÇEKLEŞEN FİRE
+                                                Row(
                                                     modifier = Modifier
-                                                        .width(1.dp)
-                                                        .fillMaxHeight()
-                                                        .background(dividerColor)
-                                                )
-                                                SummaryMetricCell(
-                                                    label = "GERÇEKLEŞEN FİRE:",
-                                                    value = "${moneyFormatter.format(fire)} ₺",
-                                                    valueColor = analysisText,
-                                                    modifier = Modifier.weight(1f)
-                                                )
+                                                        .fillMaxWidth()
+                                                        .height(IntrinsicSize.Max),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    SummaryMetricCell(
+                                                        label = "HEDEF FİRE:",
+                                                        value = "${moneyFormatter.format(hedefFire)} ₺",
+                                                        valueColor = Slate900,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .width(1.dp)
+                                                            .fillMaxHeight()
+                                                            .background(dividerColor)
+                                                    )
+                                                    SummaryMetricCell(
+                                                        label = "GERÇEKLEŞEN FİRE:",
+                                                        value = "${moneyFormatter.format(fire)} ₺",
+                                                        valueColor = analysisText,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -907,7 +962,7 @@ fun InventoryCategoryDetailModal(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .verticalScroll(rememberScrollState()),
+                                .padding(bottom = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             if (isContinuous) {
@@ -1295,23 +1350,34 @@ fun InventoryCategoryDetailModal(
                     }
                 }
             }
+            } // Kaydırılabilir orta içerik sonu
 
-            // 4. SABİT AKSİYON BUTONU (Hangi sekmede olursa olsun en altta her zaman sabit görünür)
-            Button(
-                onClick = { onAddNewAuditClick(category) },
+            HorizontalDivider(color = Slate200.copy(alpha = 0.7f), thickness = 1.dp)
+
+            // 4. SABİT AKSİYON BUTONU ALANI (Hangi sekmede olursa olsun en altta her zaman sabit görünür)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
-                    .testTag("category_detail_add_new_audit_button"),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                    .background(Color.White)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                Text(
-                    text = if (isContinuous) "+ Yeni Dönem Verisi Gir" else "+ Yeni Haftalık Veri Gir",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
-                )
+                Button(
+                    onClick = { onAddNewAuditClick(category) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("category_detail_add_new_audit_button"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
+                ) {
+                    Text(
+                        text = if (isContinuous) "+ Yeni Dönem Verisi Gir" else "+ Yeni Haftalık Veri Gir",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                }
             }
         }
     }
