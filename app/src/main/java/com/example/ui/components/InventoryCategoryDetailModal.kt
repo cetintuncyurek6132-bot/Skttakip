@@ -709,7 +709,7 @@ fun InventoryCategoryDetailModal(
                                 }
                             }
 
-                            // Akıllı Finansal Analiz Kutusu (Sade Aksiyon + 2x2 Özet Tablo)
+                            // Akıllı Finansal Analiz Kutusu (Projeksiyon Bazlı Analiz + Ay Sonu Projeksiyonu + 2x2 Özet Tablo)
                             if (latestAudit != null && (revenue > 0.0 || fireCost > 0.0)) {
                                 val ciro = revenue.coerceAtLeast(0.0)
                                 val fire = fireCost.coerceAtLeast(0.0)
@@ -717,15 +717,35 @@ fun InventoryCategoryDetailModal(
                                 val hedefOndalik = hedefOran / 100.0
                                 val hedefCiro = if (hedefOndalik > 0.0) fire / hedefOndalik else 0.0
                                 val hedefFire = ciro * hedefOndalik
-                                val mevcutOran = if (ciro > 0.0) {
-                                    (fire / ciro) * 100.0
-                                } else if (fire > 0.0) {
+
+                                // Ay Sonu Projeksiyonu (Tahminleme) Hesaplaması
+                                val entryCalendar = remember(latestAudit.auditDateMillis, latestAudit.createdAt) {
+                                    Calendar.getInstance().apply {
+                                        timeInMillis = when {
+                                            latestAudit.auditDateMillis > 0L -> latestAudit.auditDateMillis
+                                            latestAudit.createdAt > 0L -> latestAudit.createdAt
+                                            else -> System.currentTimeMillis()
+                                        }
+                                    }
+                                }
+                                val girisGunu = entryCalendar.get(Calendar.DAY_OF_MONTH)
+                                val gecenGun = maxOf(1, girisGunu - 1)
+                                val ayinGunu = entryCalendar.getActualMaximum(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
+
+                                val gunlukOrtCiro = ciro / gecenGun.toDouble()
+                                val gunlukOrtFire = fire / gecenGun.toDouble()
+                                val tahminiAySonuCiro = gunlukOrtCiro * ayinGunu.toDouble()
+                                val tahminiAySonuFire = gunlukOrtFire * ayinGunu.toDouble()
+                                val tahminiAySonuOrani = if (tahminiAySonuCiro > 0.0) {
+                                    (tahminiAySonuFire / tahminiAySonuCiro) * 100.0
+                                } else if (tahminiAySonuFire > 0.0) {
                                     100.0
                                 } else {
                                     0.0
                                 }
-                                val isOverTarget = (ciro > 0.0 && mevcutOran > hedefOran) ||
-                                    (ciro <= 0.0 && fire > 0.0)
+
+                                val isOverTarget = (tahminiAySonuCiro > 0.0 && tahminiAySonuOrani > hedefOran) ||
+                                    (tahminiAySonuCiro <= 0.0 && tahminiAySonuFire > 0.0)
 
                                 val fireAzaltAmount = maxOf(0.0, fire - hedefFire)
                                 val ciroArttirAmount = maxOf(0.0, hedefCiro - ciro)
@@ -754,61 +774,140 @@ fun InventoryCategoryDetailModal(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp),
+                                            .padding(14.dp),
                                         verticalArrangement = Arrangement.spacedBy(12.dp)
                                     ) {
-                                        // ÜST KISIM: NET AKILLI METİN
-                                        if (isOverTarget) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                                Text(
-                                                    text = "⚠️ Hedefi Aştınız!",
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = ExpiredRedDark
-                                                )
-                                                Text(
-                                                    text = buildAnnotatedString {
-                                                        withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) {
-                                                            append("FİRE : ")
-                                                        }
-                                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                                            append("${moneyFormatter.format(fireAzaltAmount)} ₺")
-                                                        }
-                                                        append(" azaltın")
-                                                    },
-                                                    fontSize = 13.5.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = ExpiredRedDark
-                                                )
-                                                Text(
-                                                    text = buildAnnotatedString {
-                                                        withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) {
-                                                            append("CİRO : ")
-                                                        }
-                                                        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                                            append("${moneyFormatter.format(ciroArttirAmount)} ₺")
-                                                        }
-                                                        append(" arttırın")
-                                                    },
-                                                    fontSize = 13.5.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = ExpiredRedDark
-                                                )
+                                        // ÜST KISIM: SOLDA AKSİYONLAR, SAĞDA AY SONU TAHMİNİ KUTUCUĞU
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            // Sol Taraf (Aksiyonlar / Durum)
+                                            Column(
+                                                modifier = Modifier.weight(1f),
+                                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                                            ) {
+                                                if (isOverTarget) {
+                                                    Text(
+                                                        text = "⚠️ Hedefi Aştınız!",
+                                                        fontSize = 14.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = ExpiredRedDark
+                                                    )
+                                                    Text(
+                                                        text = buildAnnotatedString {
+                                                            withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) {
+                                                                append("FİRE: ")
+                                                            }
+                                                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                                                append("${moneyFormatter.format(fireAzaltAmount)} ₺")
+                                                            }
+                                                            append(" azaltın")
+                                                        },
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = ExpiredRedDark
+                                                    )
+                                                    Text(
+                                                        text = buildAnnotatedString {
+                                                            withStyle(SpanStyle(fontWeight = FontWeight.ExtraBold)) {
+                                                                append("CİRO: ")
+                                                            }
+                                                            withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+                                                                append("${moneyFormatter.format(ciroArttirAmount)} ₺")
+                                                            }
+                                                            append(" arttırın")
+                                                        },
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = ExpiredRedDark
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        text = "✅ HEDEFTE",
+                                                        fontSize = 14.5.sp,
+                                                        fontWeight = FontWeight.ExtraBold,
+                                                        color = NormalGreenDark
+                                                    )
+                                                    Text(
+                                                        text = "Harika gidiyorsunuz, hedefin altındasınız.",
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        lineHeight = 17.sp,
+                                                        color = NormalGreenDark
+                                                    )
+                                                }
                                             }
-                                        } else {
-                                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                                Text(
-                                                    text = "✅ HEDEFTE",
-                                                    fontSize = 15.sp,
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    color = NormalGreenDark
-                                                )
-                                                Text(
-                                                    text = "Harika gidiyorsunuz, hedefin altındasınız.",
-                                                    fontSize = 13.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = NormalGreenDark
-                                                )
+
+                                            // Sağ Taraf (Ay Sonu Tahmini Kutucuğu)
+                                            Surface(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .testTag("category_detail_month_end_projection_box"),
+                                                shape = RoundedCornerShape(12.dp),
+                                                color = Color.White.copy(alpha = 0.94f),
+                                                border = BorderStroke(0.9.dp, analysisBorder.copy(alpha = 0.7f))
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 10.dp, vertical = 10.dp),
+                                                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "Ay Sonu Tahmini",
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = Slate700,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = "Ciro:",
+                                                            fontSize = 11.5.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Slate700
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "${moneyFormatter.format(tahminiAySonuCiro)} ₺",
+                                                            fontSize = 12.5.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = Slate900,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = TextAlign.End
+                                                        )
+                                                    }
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Text(
+                                                            text = "Fire:",
+                                                            fontSize = 11.5.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Slate700
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        Text(
+                                                            text = "${moneyFormatter.format(tahminiAySonuFire)} ₺",
+                                                            fontSize = 12.5.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = if (isOverTarget) ExpiredRedDark else Slate900,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis,
+                                                            textAlign = TextAlign.End
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
 
