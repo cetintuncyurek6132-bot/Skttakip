@@ -10,12 +10,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.AcUnit
@@ -36,6 +40,7 @@ import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -100,10 +105,21 @@ private fun formatEditableNumber(value: Double): String {
     }
 }
 
+private fun formatContinuousCategoryHeaderName(rawCategory: String): String {
+    return when (com.example.ui.viewmodel.normalizeInventoryCategoryKey(rawCategory)) {
+        "ET_TAVUK" -> "Et-Tavuk"
+        "EKMEK" -> "Ekmek"
+        "MEYVE_SEBZE" -> "Meyve-Sebze"
+        "DONUK_MEYVE_SEBZE" -> "Donuk Meyve-Sebze"
+        else -> rawCategory.trim().ifBlank { "Sürekli Envanter" }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddInventoryAuditModal(
     initialCategory: String = "GIDA",
+    selectedCategory: String? = null,
     editingAudit: InventoryAuditEntity? = null,
     isWeeklyUpdate: Boolean = false,
     isWeeklyEntryMode: Boolean = false,
@@ -131,9 +147,15 @@ fun AddInventoryAuditModal(
 ) {
     val effectiveWeeklyUpdate = isWeeklyUpdate || isWeeklyEntryMode
     val isEditMode = editingAudit != null && !effectiveWeeklyUpdate
+    val effectiveBulkMode = isBulkContinuous || (isContinuousInventory && selectedCategory == null)
+    val isSingleLockedContinuousCategory = isContinuousInventory && !effectiveBulkMode && selectedCategory != null
 
-    var selectedCategory by remember(initialCategory, editingAudit?.id, effectiveWeeklyUpdate) {
-        mutableStateOf(editingAudit?.category?.ifBlank { initialCategory } ?: initialCategory.ifBlank { "GIDA" })
+    var chosenCategory by remember(initialCategory, selectedCategory, editingAudit?.id, effectiveWeeklyUpdate) {
+        mutableStateOf(
+            editingAudit?.category?.ifBlank { selectedCategory ?: initialCategory }
+                ?: selectedCategory?.ifBlank { initialCategory }
+                ?: initialCategory.ifBlank { "GIDA" }
+        )
     }
     var selectedDateMillis by remember(editingAudit?.id, editingAudit?.auditDateMillis, lockedAuditDateMillis, effectiveWeeklyUpdate) {
         mutableLongStateOf(
@@ -174,6 +196,7 @@ fun AddInventoryAuditModal(
         mutableStateOf(if (isEditMode && editingAudit != null) editingAudit.notes else "")
     }
     var showCalendarDialog by remember { mutableStateOf(false) }
+    var showMonthYearPickerDialog by remember { mutableStateOf(false) }
 
     val categoryOptions = remember(isContinuousInventory) {
         if (isContinuousInventory) {
@@ -282,7 +305,7 @@ fun AddInventoryAuditModal(
     }
     val isOverTarget = parsedFireCost > maxAllowedFire
 
-    if (showCalendarDialog && !effectiveWeeklyUpdate && !isContinuousInventory && !isBulkContinuous) {
+    if (showCalendarDialog && !effectiveWeeklyUpdate && !isContinuousInventory && !effectiveBulkMode) {
         CustomBoxedCalendarDialog(
             initialDateMillis = selectedDateMillis,
             onDismissRequest = { showCalendarDialog = false },
@@ -293,11 +316,22 @@ fun AddInventoryAuditModal(
         )
     }
 
+    if (showMonthYearPickerDialog && isContinuousInventory && !effectiveBulkMode) {
+        CustomMonthYearPickerDialog(
+            initialPeriod = periodText,
+            onDismissRequest = { showMonthYearPickerDialog = false },
+            onMonthYearSelected = { chosenPeriod ->
+                periodText = chosenPeriod
+                showMonthYearPickerDialog = false
+            }
+        )
+    }
+
     AppBottomSheetWrapper(
         onDismissRequest = onDismiss,
-        enableVerticalScroll = true
+        enableVerticalScroll = false
     ) { dismissSheet ->
-        if (isBulkContinuous) {
+        if (effectiveBulkMode) {
             BulkContinuousAuditSection(
                 moneyFormatter = moneyFormatter,
                 ratioFormatter = ratioFormatter,
@@ -309,13 +343,14 @@ fun AddInventoryAuditModal(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(top = 4.dp, bottom = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .imePadding()
         ) {
-            // 1. ÜST BAŞLIK VE KAPAT BUTONU
+            // 1. ÜST BAŞLIK VE KAPAT BUTONU (SABİT)
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 4.dp, bottom = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -341,6 +376,10 @@ fun AddInventoryAuditModal(
                     Column {
                         Text(
                             text = when {
+                                isSingleLockedContinuousCategory && isEditMode ->
+                                    "${formatContinuousCategoryHeaderName(selectedCategory!!)} Kaydını Düzenle"
+                                isSingleLockedContinuousCategory ->
+                                    "${formatContinuousCategoryHeaderName(selectedCategory!!)} Veri Girişi"
                                 effectiveWeeklyUpdate -> "Yeni Veri Gir"
                                 isEditMode -> "Envanter Kaydını Düzenle"
                                 else -> "Envanter & Finansal Kayıt"
@@ -349,10 +388,11 @@ fun AddInventoryAuditModal(
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900
                         )
-                        if (!effectiveWeeklyUpdate) {
+                        if (!effectiveWeeklyUpdate || isSingleLockedContinuousCategory) {
                             Text(
                                 text = when {
                                     isEditMode -> "Son girilen kaydın ciro, fire ve hedef oranını düzeltin"
+                                    isSingleLockedContinuousCategory -> "Dönem seçerek ciro, fire ve hedef oranı girin"
                                     else -> "Ciro, fire tutarı ve hedef oranı girin"
                                 },
                                 fontSize = 12.sp,
@@ -381,8 +421,20 @@ fun AddInventoryAuditModal(
                 }
             }
 
-            // 2. KATEGORİ SEÇİM ÇİPLERİ (GIDA, DOLAP, GIDA DIŞI)
-            if (!effectiveWeeklyUpdate) {
+            HorizontalDivider(color = Slate200.copy(alpha = 0.7f), thickness = 1.dp)
+
+            // KAYDIRILABİLİR ORTA İÇERİK
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+
+            // 2. KATEGORİ SEÇİM ÇİPLERİ (Tekli Sürekli Envanter Modunda ve Haftalık Güncellemede Gizlenir)
+            if (!effectiveWeeklyUpdate && !isSingleLockedContinuousCategory) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -401,9 +453,9 @@ fun AddInventoryAuditModal(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             rowOptions.forEach { option ->
-                                val isSelected = selectedCategory.equals(option.key, ignoreCase = true)
+                                val isSelected = chosenCategory.equals(option.key, ignoreCase = true)
                                 Surface(
-                                    onClick = { selectedCategory = option.key },
+                                    onClick = { chosenCategory = option.key },
                                     shape = RoundedCornerShape(14.dp),
                                     color = if (isSelected) option.activeBg else Slate50,
                                     border = BorderStroke(
@@ -518,7 +570,7 @@ fun AddInventoryAuditModal(
                 }
             }
 
-            // 3.B DÖNEM ALANI (Sadece Sürekli Envanterde gösterilir, takvim gizlenir)
+            // 3.B DÖNEM ALANI (Sadece Sürekli Envanterde gösterilir, Ay/Yıl seçici açılır)
             if (isContinuousInventory) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -530,45 +582,67 @@ fun AddInventoryAuditModal(
                         fontWeight = FontWeight.Bold,
                         color = Slate800
                     )
-                    OutlinedTextField(
-                        value = periodText,
-                        onValueChange = { periodText = it },
-                        placeholder = {
-                            Text(
-                                text = "Örn: Kasım 2026 veya 11-2026",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Slate500
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.CalendarMonth,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(19.dp)
-                            )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            imeAction = ImeAction.Next
-                        ),
-                        textStyle = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = TurquoisePrimary,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = Slate50,
-                            unfocusedContainerColor = Slate50
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("add_inventory_audit_period_input")
-                    )
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = periodText,
+                            onValueChange = {},
+                            readOnly = true,
+                            placeholder = {
+                                Text(
+                                    text = "Dönem seçin (Örn: Kasım 2026)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Slate500
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.CalendarMonth,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                Surface(
+                                    shape = RoundedCornerShape(9.dp),
+                                    color = TurquoisePrimary.copy(alpha = 0.14f),
+                                    modifier = Modifier.padding(end = 8.dp)
+                                ) {
+                                    Text(
+                                        text = "Dönem Seç",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TurquoiseDark,
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                                    )
+                                }
+                            },
+                            singleLine = true,
+                            textStyle = TextStyle(
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = TurquoisePrimary,
+                                unfocusedBorderColor = TurquoisePrimary.copy(alpha = 0.45f),
+                                focusedContainerColor = Slate50,
+                                unfocusedContainerColor = Slate50
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("add_inventory_audit_period_input")
+                        )
+                        Box(
+                            modifier = Modifier
+                                .matchParentSize()
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { showMonthYearPickerDialog = true }
+                                .testTag("add_inventory_audit_period_picker_trigger")
+                        )
+                    }
                 }
             }
 
@@ -847,53 +921,62 @@ fun AddInventoryAuditModal(
                         .testTag("add_inventory_audit_notes_input")
                 )
             }
+            } // Kaydırılabilir orta içerik sonu
 
-            Spacer(modifier = Modifier.height(2.dp))
+            HorizontalDivider(color = Slate200.copy(alpha = 0.7f), thickness = 1.dp)
 
-            // 7. KAYDET BUTONU
-            Button(
-                onClick = {
-                    val effectiveDateMillis = if (isContinuousInventory) {
-                        System.currentTimeMillis()
-                    } else {
-                        selectedDateMillis
-                    }
-                    val effectivePeriod = if (isContinuousInventory) {
-                        periodText.trim()
-                    } else {
-                        ""
-                    }
-                    onSave(
-                        selectedCategory,
-                        effectiveDateMillis,
-                        parsedRevenue,
-                        parsedFireCost,
-                        parsedTargetRatio,
-                        notesText.trim(),
-                        effectivePeriod
-                    )
-                    dismissSheet()
-                },
+            // 7. SABİT KAYDET BUTONU ALANI
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
-                    .testTag("save_inventory_audit_button"),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark)
+                    .background(Color.White)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(19.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = if (isEditMode) "Değişiklikleri Kaydet" else "Kaydet",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
-                )
+                Button(
+                    onClick = {
+                        val effectiveDateMillis = if (isContinuousInventory) {
+                            System.currentTimeMillis()
+                        } else {
+                            selectedDateMillis
+                        }
+                        val effectivePeriod = if (isContinuousInventory) {
+                            periodText.trim()
+                        } else {
+                            ""
+                        }
+                        onSave(
+                            chosenCategory,
+                            effectiveDateMillis,
+                            parsedRevenue,
+                            parsedFireCost,
+                            parsedTargetRatio,
+                            notesText.trim(),
+                            effectivePeriod
+                        )
+                        dismissSheet()
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .testTag("save_inventory_audit_button"),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = if (isEditMode) "Değişiklikleri Kaydet" else "Kaydet",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color.White
+                    )
+                }
             }
         }
         }

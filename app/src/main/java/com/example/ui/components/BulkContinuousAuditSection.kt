@@ -10,12 +10,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.AcUnit
@@ -28,6 +32,7 @@ import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -127,6 +132,18 @@ fun BulkContinuousAuditSection(
     var periodText by remember { mutableStateOf("") }
     var notesText by remember { mutableStateOf("") }
     var showValidationError by remember { mutableStateOf(false) }
+    var showMonthYearPicker by remember { mutableStateOf(false) }
+
+    if (showMonthYearPicker) {
+        CustomMonthYearPickerDialog(
+            initialPeriod = periodText,
+            onDismissRequest = { showMonthYearPicker = false },
+            onMonthYearSelected = { chosenPeriod ->
+                periodText = chosenPeriod
+                showMonthYearPicker = false
+            }
+        )
+    }
 
     val revenueInputs = remember {
         mutableStateMapOf(
@@ -173,14 +190,15 @@ fun BulkContinuousAuditSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 4.dp, bottom = 20.dp)
-            .testTag("bulk_continuous_audit_form"),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .imePadding()
+            .testTag("bulk_continuous_audit_form")
     ) {
-        // 1. ÜST BAŞLIK VE KAPAT
+        // 1. ÜST BAŞLIK VE KAPAT (SABİT)
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(top = 4.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -237,7 +255,19 @@ fun BulkContinuousAuditSection(
             }
         }
 
-        // 2. DÖNEM ALANI
+        HorizontalDivider(color = Slate200.copy(alpha = 0.7f), thickness = 1.dp)
+
+        // KAYDIRILABİLİR ORTA İÇERİK (Dönem, 4 Kategori Kartı, Not)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+
+        // 2. DÖNEM ALANI (Ay/Yıl Takvimi Seçici)
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -248,45 +278,67 @@ fun BulkContinuousAuditSection(
                 fontWeight = FontWeight.Bold,
                 color = Slate800
             )
-            OutlinedTextField(
-                value = periodText,
-                onValueChange = { periodText = it },
-                placeholder = {
-                    Text(
-                        text = "Örn: Kasım 2026",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Slate500
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.CalendarMonth,
-                        contentDescription = null,
-                        tint = TurquoiseDark,
-                        modifier = Modifier.size(19.dp)
-                    )
-                },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    imeAction = ImeAction.Next
-                ),
-                textStyle = TextStyle(
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                ),
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = TurquoisePrimary,
-                    unfocusedBorderColor = Slate200,
-                    focusedContainerColor = Slate50,
-                    unfocusedContainerColor = Slate50
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .testTag("bulk_continuous_period_input")
-            )
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = periodText,
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = {
+                        Text(
+                            text = "Dönem seçin (Örn: Kasım 2026)",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Slate500
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        Surface(
+                            shape = RoundedCornerShape(9.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.14f),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = "Dönem Seç",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark,
+                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
+                            )
+                        }
+                    },
+                    singleLine = true,
+                    textStyle = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = TurquoisePrimary,
+                        unfocusedBorderColor = TurquoisePrimary.copy(alpha = 0.45f),
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("bulk_continuous_period_input")
+                )
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { showMonthYearPicker = true }
+                        .testTag("bulk_continuous_period_picker_trigger")
+                )
+            }
         }
 
         // 3. 4 KATEGORİ SATIRI (ALT ALTA CİRO VE FİRE KUTULARI)
@@ -367,136 +419,151 @@ fun BulkContinuousAuditSection(
                         }
 
                         val targetText = targetInputs[spec.key].orEmpty()
-                        Row(
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            OutlinedTextField(
-                                value = revText,
-                                onValueChange = { input ->
-                                    revenueInputs[spec.key] = input.filter { it.isDigit() || it == '.' || it == ',' }
-                                    showValidationError = false
-                                },
-                                label = {
-                                    Text(
-                                        text = "Ciro (₺)",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                },
-                                placeholder = {
-                                    Text(
-                                        text = "0",
-                                        fontSize = 12.sp,
-                                        color = Slate500
-                                    )
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Decimal,
-                                    imeAction = ImeAction.Next
-                                ),
-                                textStyle = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate900
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = spec.iconTint,
-                                    unfocusedBorderColor = spec.borderColor,
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White
-                                ),
-                                modifier = Modifier
-                                    .weight(1.25f)
-                                    .testTag("bulk_revenue_input_${spec.key}")
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = "Ciro (₺)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate700,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1.2f)
+                                )
+                                Text(
+                                    text = "Fire (₺)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ExpiredRedDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1.1f)
+                                )
+                                Text(
+                                    text = "Hedef (%)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(0.9f)
+                                )
+                            }
 
-                            OutlinedTextField(
-                                value = fireText,
-                                onValueChange = { input ->
-                                    fireInputs[spec.key] = input.filter { it.isDigit() || it == '.' || it == ',' }
-                                },
-                                label = {
-                                    Text(
-                                        text = "Fire (₺)",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                },
-                                placeholder = {
-                                    Text(
-                                        text = "0",
-                                        fontSize = 12.sp,
-                                        color = Slate500
-                                    )
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Decimal,
-                                    imeAction = ImeAction.Next
-                                ),
-                                textStyle = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = ExpiredRedDark
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = ExpiredRedDark,
-                                    unfocusedBorderColor = spec.borderColor,
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White
-                                ),
-                                modifier = Modifier
-                                    .weight(1.1f)
-                                    .testTag("bulk_fire_input_${spec.key}")
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                OutlinedTextField(
+                                    value = revText,
+                                    onValueChange = { input ->
+                                        revenueInputs[spec.key] = input.filter { it.isDigit() || it == '.' || it == ',' }
+                                        showValidationError = false
+                                    },
+                                    placeholder = {
+                                        Text(
+                                            text = "0",
+                                            fontSize = 12.5.sp,
+                                            color = Slate500
+                                        )
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    textStyle = TextStyle(
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate900
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = spec.iconTint,
+                                        unfocusedBorderColor = spec.borderColor,
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1.2f)
+                                        .testTag("bulk_revenue_input_${spec.key}")
+                                )
 
-                            OutlinedTextField(
-                                value = targetText,
-                                onValueChange = { input ->
-                                    targetInputs[spec.key] = input.filter { it.isDigit() || it == '.' || it == ',' }
-                                },
-                                label = {
-                                    Text(
-                                        text = "Hedef %",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                },
-                                placeholder = {
-                                    Text(
-                                        text = "1.0",
-                                        fontSize = 12.sp,
-                                        color = Slate500
-                                    )
-                                },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Decimal,
-                                    imeAction = ImeAction.Next
-                                ),
-                                textStyle = TextStyle(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = TurquoiseDark
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = TurquoiseDark,
-                                    unfocusedBorderColor = spec.borderColor,
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White
-                                ),
-                                modifier = Modifier
-                                    .weight(0.85f)
-                                    .testTag("bulk_target_input_${spec.key}")
-                            )
+                                OutlinedTextField(
+                                    value = fireText,
+                                    onValueChange = { input ->
+                                        fireInputs[spec.key] = input.filter { it.isDigit() || it == '.' || it == ',' }
+                                    },
+                                    placeholder = {
+                                        Text(
+                                            text = "0",
+                                            fontSize = 12.5.sp,
+                                            color = Slate500
+                                        )
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    textStyle = TextStyle(
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = ExpiredRedDark
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = ExpiredRedDark,
+                                        unfocusedBorderColor = spec.borderColor,
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    ),
+                                    modifier = Modifier
+                                        .weight(1.1f)
+                                        .testTag("bulk_fire_input_${spec.key}")
+                                )
+
+                                OutlinedTextField(
+                                    value = targetText,
+                                    onValueChange = { input ->
+                                        targetInputs[spec.key] = input.filter { it.isDigit() || it == '.' || it == ',' }
+                                    },
+                                    placeholder = {
+                                        Text(
+                                            text = "1.0",
+                                            fontSize = 12.5.sp,
+                                            color = Slate500
+                                        )
+                                    },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(
+                                        keyboardType = KeyboardType.Decimal,
+                                        imeAction = ImeAction.Next
+                                    ),
+                                    textStyle = TextStyle(
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = TurquoiseDark
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = TurquoiseDark,
+                                        unfocusedBorderColor = spec.borderColor,
+                                        focusedContainerColor = Color.White,
+                                        unfocusedContainerColor = Color.White
+                                    ),
+                                    modifier = Modifier
+                                        .weight(0.9f)
+                                        .testTag("bulk_target_input_${spec.key}")
+                                )
+                            }
                         }
                     }
                 }
@@ -618,63 +685,72 @@ fun BulkContinuousAuditSection(
                 )
             }
         }
+        } // Kaydırılabilir orta içerik sonu
 
-        Spacer(modifier = Modifier.height(2.dp))
+        HorizontalDivider(color = Slate200.copy(alpha = 0.7f), thickness = 1.dp)
 
-        // 5. TÜMÜNÜ KAYDET BUTONU
-        Button(
-            onClick = {
-                val entries = rowSpecs.mapNotNull { spec ->
-                    val rawRev = revenueInputs[spec.key].orEmpty().trim()
-                    if (rawRev.isEmpty()) {
-                        null
-                    } else {
-                        val parsedRev = rawRev.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0)
-                        if (parsedRev == null) {
-                            null
-                        } else {
-                            val rawFire = fireInputs[spec.key].orEmpty().trim()
-                            val parsedFire = rawFire.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
-                            val rawTarget = targetInputs[spec.key].orEmpty().trim()
-                            val parsedTarget = rawTarget.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0.0 }
-                                ?: initialCategoryTargetRatios[spec.key]?.takeIf { it > 0.0 }
-                                ?: 1.0
-                            BulkContinuousAuditInput(
-                                category = spec.key,
-                                revenue = parsedRev,
-                                fireCost = parsedFire,
-                                targetRatio = parsedTarget
-                            )
-                        }
-                    }
-                }
-                if (entries.isEmpty()) {
-                    showValidationError = true
-                } else {
-                    onSaveBulk(periodText.trim(), notesText.trim(), entries)
-                    onDismiss()
-                }
-            },
+        // 5. SABİT ALT KAYDET BUTONU ALANI
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(52.dp)
-                .testTag("save_bulk_continuous_button"),
-            shape = RoundedCornerShape(16.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark)
+                .background(Color.White)
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(19.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Tümünü Kaydet",
-                fontSize = 15.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White
-            )
+            Button(
+                onClick = {
+                    val entries = rowSpecs.mapNotNull { spec ->
+                        val rawRev = revenueInputs[spec.key].orEmpty().trim()
+                        if (rawRev.isEmpty()) {
+                            null
+                        } else {
+                            val parsedRev = rawRev.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0)
+                            if (parsedRev == null) {
+                                null
+                            } else {
+                                val rawFire = fireInputs[spec.key].orEmpty().trim()
+                                val parsedFire = rawFire.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0
+                                val rawTarget = targetInputs[spec.key].orEmpty().trim()
+                                val parsedTarget = rawTarget.replace(',', '.').toDoubleOrNull()?.takeIf { it > 0.0 }
+                                    ?: initialCategoryTargetRatios[spec.key]?.takeIf { it > 0.0 }
+                                    ?: 1.0
+                                BulkContinuousAuditInput(
+                                    category = spec.key,
+                                    revenue = parsedRev,
+                                    fireCost = parsedFire,
+                                    targetRatio = parsedTarget
+                                )
+                            }
+                        }
+                    }
+                    if (entries.isEmpty()) {
+                        showValidationError = true
+                    } else {
+                        onSaveBulk(periodText.trim(), notesText.trim(), entries)
+                        onDismiss()
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .testTag("save_bulk_continuous_button"),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(19.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Tümünü Kaydet",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+            }
         }
     }
 }

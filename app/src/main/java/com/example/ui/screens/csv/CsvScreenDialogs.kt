@@ -283,6 +283,9 @@ fun CsvScreenRestoreConfirmationDialog(
                         if (b.adetselCount > 0) {
                             Text("🔢 Adetsel Sayım: ${b.adetselCount} kayıt", fontSize = 12.sp, color = TurquoiseDark, fontWeight = FontWeight.Bold)
                         }
+                        if (b.inventoryAuditCount > 0) {
+                            Text("📊 Envanter Takip: ${b.inventoryAuditCount} kayıt", fontSize = 12.sp, color = TurquoiseDark, fontWeight = FontWeight.Bold)
+                        }
                         Text("🕒 Tarih: ${b.formattedDate}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text("💾 Boyut: ${b.fileSizeFormatted}", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -304,6 +307,14 @@ fun CsvScreenRestoreConfirmationDialog(
                         try {
                             val jsonStr = file.readText(Charsets.UTF_8)
                             onRestoreFromJson(jsonStr, true) { res ->
+                                if (res.success) {
+                                    val restoreToast = if (res.inventoryAuditsRestored > 0) {
+                                        "✅ Yedek ve Envanter kayıtları geri yüklendi!"
+                                    } else {
+                                        "✅ Yedek başarıyla geri yüklendi!"
+                                    }
+                                    Toast.makeText(context, restoreToast, Toast.LENGTH_LONG).show()
+                                }
                                 onRestoreComplete(res.message)
                             }
                         } catch (e: Exception) {

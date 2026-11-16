@@ -154,7 +154,7 @@ fun CsvScreen(
         if (uri != null && !pendingExportJson.isNullOrBlank()) {
             val res = BackupExportHelper.writeJsonToUri(context, uri, pendingExportJson!!)
             if (res.isSuccess) {
-                Toast.makeText(context, "✅ Yedek başarıyla kaydedildi!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "✅ Yedek başarıyla kaydedildi! (Envanter verileri de yedeklendi)", Toast.LENGTH_LONG).show()
             } else {
                 Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_LONG).show()
             }
@@ -305,7 +305,7 @@ fun CsvScreen(
                             isTakingBackup = false
                             reloadLocalBackups()
                             if (file != null) {
-                                Toast.makeText(context, "✅ Güvenli yedek alındı: ${file.name}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "✅ Güvenli yedek alındı (Envanter verileri de yedeklendi): ${file.name}", Toast.LENGTH_LONG).show()
                             }
                         }
                     },
@@ -318,7 +318,7 @@ fun CsvScreen(
                             val fileName = BackupExportHelper.generateBackupFileName("SKT_Tam_Yedek", "json")
                             val res = BackupExportHelper.saveJsonToDownloads(context, json, fileName)
                             if (res.isSuccess) {
-                                Toast.makeText(context, "✅ Yedek İndirilenler klasörüne kaydedildi:\n$fileName", Toast.LENGTH_LONG).show()
+                                Toast.makeText(context, "✅ Yedek İndirilenler klasörüne kaydedildi (Envanter verileri de yedeklendi):\n$fileName", Toast.LENGTH_LONG).show()
                             } else {
                                 Toast.makeText(context, "Kayıt hatası: ${res.exceptionOrNull()?.localizedMessage}", Toast.LENGTH_SHORT).show()
                             }
@@ -440,6 +440,14 @@ fun CsvScreen(
                         onRestoreFromJson(json, true) { res ->
                             isRestoringBackup = false
                             backupStatusMessage = res.message
+                            if (res.success) {
+                                val restoreToast = if (res.inventoryAuditsRestored > 0) {
+                                    "✅ Yedek ve Envanter kayıtları geri yüklendi!"
+                                } else {
+                                    "✅ Yedek başarıyla geri yüklendi!"
+                                }
+                                Toast.makeText(context, restoreToast, Toast.LENGTH_LONG).show()
+                            }
                             reloadLocalBackups()
                         }
                     },

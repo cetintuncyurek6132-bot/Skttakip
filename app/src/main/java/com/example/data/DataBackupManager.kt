@@ -534,14 +534,18 @@ object DataBackupManager {
                         inventoryAuditsRestored = parsedInventoryAudits.size
                     } else {
                         val existingAudits = effectiveInventoryAuditDao.getAllAuditsList()
-                        val existingKeys = existingAudits.map {
-                            "${it.category.trim().uppercase(Locale.forLanguageTag("tr-TR"))}_${it.auditDateMillis}_${it.createdAt}"
-                        }.toSet()
+                        val existingByKey = existingAudits.associateBy {
+                            "${normalizeBackupAuditCategoryKey(it.category)}_${it.auditDateMillis}_${it.createdAt}"
+                        }
                         val toInsert = mutableListOf<InventoryAuditEntity>()
                         for (audit in parsedInventoryAudits) {
-                            val key = "${audit.category.trim().uppercase(Locale.forLanguageTag("tr-TR"))}_${audit.auditDateMillis}_${audit.createdAt}"
-                            if (!existingKeys.contains(key)) {
+                            val key = "${normalizeBackupAuditCategoryKey(audit.category)}_${audit.auditDateMillis}_${audit.createdAt}"
+                            val match = existingByKey[key]
+                            if (match == null) {
                                 toInsert.add(audit.copy(id = 0))
+                                inventoryAuditsRestored++
+                            } else if (audit.updatedAt > match.updatedAt) {
+                                effectiveInventoryAuditDao.updateAudit(audit.copy(id = match.id))
                                 inventoryAuditsRestored++
                             }
                         }
@@ -591,6 +595,11 @@ object DataBackupManager {
                     append("\n• $inventoryAuditsRestored envanter takip kaydı")
                 }
                 append(" aktarıldı.")
+                if (inventoryAuditsRestored > 0) {
+                    append("\n✅ Envanter kayıtları geri yüklendi.")
+                } else if (parsedInventoryAudits.isNotEmpty()) {
+                    append("\nℹ️ Envanter kayıtları zaten güncel.")
+                }
             }
 
             BackupRestoreResult(
@@ -805,6 +814,14 @@ object DataBackupManager {
         )
     }
 
+    private fun normalizeBackupAuditCategoryKey(rawCategory: String): String {
+        return rawCategory
+            .trim()
+            .uppercase(Locale.forLanguageTag("tr-TR"))
+            .replace('-', '_')
+            .replace(' ', '_')
+    }
+
     private fun parseInventoryAuditFromJson(obj: JSONObject): InventoryAuditEntity? {
         val category = obj.optString("category", "")
             .ifBlank { obj.optString("kategori", "") }
@@ -818,7 +835,11 @@ object DataBackupManager {
         val notes = obj.optString("notes", "").ifBlank { obj.optString("notlar", "") }
         val createdAt = obj.optLong("createdAt", auditDateMillis)
         val updatedAt = obj.optLong("updatedAt", createdAt).let { if (it > 0L) it else createdAt }
-        val auditPeriod = obj.optString("auditPeriod", "").ifBlank { computeAuditPeriod(updatedAt) }
+        val auditPeriod = if (obj.has("auditPeriod") && !obj.isNull("auditPeriod")) {
+            obj.optString("auditPeriod", "").trim()
+        } else {
+            computeAuditPeriod(updatedAt)
+        }
 
         return InventoryAuditEntity(
             id = 0,

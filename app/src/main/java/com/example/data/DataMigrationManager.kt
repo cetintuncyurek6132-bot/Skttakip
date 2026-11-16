@@ -41,7 +41,8 @@ object DataMigrationManager {
         context: Context,
         productDao: ProductDao,
         reportDao: InspectionReportDao? = null,
-        adetselDao: AdetselDao? = null
+        adetselDao: AdetselDao? = null,
+        inventoryAuditDao: InventoryAuditDao? = null
     ) = withContext(Dispatchers.IO) {
         try {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -51,13 +52,15 @@ object DataMigrationManager {
             val existingProducts = productDao.getAllProductsList()
             val existingDepo = DepoIadeManager.loadRecords(context)
             val existingAdetsel = adetselDao?.getAllAdetselKayitlariDirect() ?: emptyList()
+            val existingInventoryAudits = inventoryAuditDao?.getAllAuditsList() ?: emptyList()
 
             val productCount = existingProducts.size
             val depoCount = existingDepo.size
             val adetselCount = existingAdetsel.size
-            val hasExistingUserData = productCount > 0 || depoCount > 0 || adetselCount > 0
+            val auditCount = existingInventoryAudits.size
+            val hasExistingUserData = productCount > 0 || depoCount > 0 || adetselCount > 0 || auditCount > 0
 
-            Log.i(TAG, "Data check: storedVersion=$storedVersion, currentVersion=$CURRENT_DATA_VERSION, existingProducts=$productCount, existingDepo=$depoCount, existingAdetsel=$adetselCount")
+            Log.i(TAG, "Data check: storedVersion=$storedVersion, currentVersion=$CURRENT_DATA_VERSION, existingProducts=$productCount, existingDepo=$depoCount, existingAdetsel=$adetselCount, existingAudits=$auditCount")
 
             if (hasExistingUserData) {
                 // 1. Existing user data detected! First, take a safety auto-backup
@@ -67,6 +70,7 @@ object DataMigrationManager {
                         productDao = productDao,
                         reportDao = reportDao,
                         adetselDao = adetselDao,
+                        inventoryAuditDao = inventoryAuditDao,
                         tag = "protection_v${CURRENT_DATA_VERSION}"
                     )
                 } catch (t: Throwable) {

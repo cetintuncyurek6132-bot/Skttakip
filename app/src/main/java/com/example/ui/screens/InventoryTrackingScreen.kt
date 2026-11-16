@@ -114,6 +114,7 @@ fun InventoryTrackingScreen(
     var weeklyLockedDateMillis by remember { mutableStateOf<Long?>(null) }
     var weeklyInitialTargetRatio by remember { mutableStateOf<Double?>(null) }
     var singleAuditInitialPeriod by remember { mutableStateOf("") }
+    var selectedContinuousCategoryForModal by remember { mutableStateOf<String?>(null) }
     var storeCombinedTargetRatio by remember {
         mutableDoubleStateOf(InventoryTargetPreferences.getStoreCombinedTargetRatio(context))
     }
@@ -221,6 +222,7 @@ fun InventoryTrackingScreen(
                 isWeeklyEntryModalMode = false
                 isContinuousModalMode = isContinuousAuditCategory(currentCat)
                 isBulkContinuousModalMode = false
+                selectedContinuousCategoryForModal = if (isContinuousAuditCategory(currentCat)) currentCat else null
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
                 singleAuditInitialPeriod = if (isContinuousAuditCategory(currentCat)) {
@@ -240,6 +242,7 @@ fun InventoryTrackingScreen(
                 isWeeklyEntryModalMode = true
                 isContinuousModalMode = isContinuousAuditCategory(currentCat)
                 isBulkContinuousModalMode = false
+                selectedContinuousCategoryForModal = if (isContinuousAuditCategory(currentCat)) currentCat else null
                 weeklyLockedDateMillis = initialAuditDateForCategory ?: System.currentTimeMillis()
                 weeklyInitialTargetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
                 singleAuditInitialPeriod = if (isContinuousAuditCategory(currentCat)) {
@@ -271,6 +274,11 @@ fun InventoryTrackingScreen(
         }
         AddInventoryAuditModal(
             initialCategory = initialCat,
+            selectedCategory = if (resolvedContinuous && !isBulkContinuousModalMode) {
+                selectedContinuousCategoryForModal
+            } else {
+                null
+            },
             editingAudit = targetEdit,
             isWeeklyUpdate = isWeeklyEntryModalMode,
             isContinuousInventory = resolvedContinuous,
@@ -285,6 +293,7 @@ fun InventoryTrackingScreen(
                 isWeeklyEntryModalMode = false
                 isContinuousModalMode = false
                 isBulkContinuousModalMode = false
+                selectedContinuousCategoryForModal = null
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
                 singleAuditInitialPeriod = ""
@@ -305,6 +314,7 @@ fun InventoryTrackingScreen(
                     selectedDetailCategory = chosenCategory
                     editingAuditForModal = null
                     isBulkContinuousModalMode = false
+                    selectedContinuousCategoryForModal = null
                     singleAuditInitialPeriod = ""
                     Toast.makeText(
                         context,
@@ -334,6 +344,7 @@ fun InventoryTrackingScreen(
                     isWeeklyEntryModalMode = false
                     isContinuousModalMode = false
                     isBulkContinuousModalMode = false
+                    selectedContinuousCategoryForModal = null
                     weeklyLockedDateMillis = null
                     weeklyInitialTargetRatio = null
                     singleAuditInitialPeriod = ""
@@ -351,6 +362,7 @@ fun InventoryTrackingScreen(
                 isWeeklyEntryModalMode = false
                 isContinuousModalMode = false
                 isBulkContinuousModalMode = false
+                selectedContinuousCategoryForModal = null
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
                 singleAuditInitialPeriod = ""
@@ -446,7 +458,7 @@ fun InventoryTrackingScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Periyodik (90g) & Sürekli (Haftalık) analiz",
+                            text = "Parçalı (90g) & Sürekli (Haftalık) analiz",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Slate700,
@@ -463,6 +475,7 @@ fun InventoryTrackingScreen(
                         val isContinuousTabSelected = selectedTabIndex == 1
                         isContinuousModalMode = isContinuousTabSelected
                         isBulkContinuousModalMode = isContinuousTabSelected
+                        selectedContinuousCategoryForModal = null
                         weeklyLockedDateMillis = null
                         weeklyInitialTargetRatio = null
                         singleAuditInitialPeriod = ""
@@ -499,6 +512,7 @@ fun InventoryTrackingScreen(
         CombinedStoreInventoryCard(
             summary = combinedSummary,
             combinedTargetRatio = storeCombinedTargetRatio,
+            continuousTargetRatio = continuousTotalTargetRatio,
             onEditCombinedTargetClick = { editingTargetDialogType = "COMBINED" },
             moneyFormatter = moneyFormatter,
             ratioFormatter = ratioFormatter,
@@ -561,15 +575,16 @@ fun InventoryTrackingScreen(
                         audits = audits,
                         moneyFormatter = moneyFormatter,
                         ratioFormatter = ratioFormatter,
-                        onCategoryClick = { spec, _ ->
+                        onCategoryClick = { spec, latestAudit ->
                             editingAuditForModal = null
                             activeCategoryForAddModal = spec.key
+                            selectedContinuousCategoryForModal = spec.key
                             isWeeklyEntryModalMode = false
                             isContinuousModalMode = true
-                            isBulkContinuousModalMode = true
+                            isBulkContinuousModalMode = false
                             weeklyLockedDateMillis = null
-                            weeklyInitialTargetRatio = null
-                            singleAuditInitialPeriod = ""
+                            weeklyInitialTargetRatio = latestAudit?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
+                            singleAuditInitialPeriod = latestAudit?.auditPeriod.orEmpty()
                         }
                     )
 
@@ -602,7 +617,7 @@ fun InventoryTrackingScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(90.dp))
             }
         }
     }

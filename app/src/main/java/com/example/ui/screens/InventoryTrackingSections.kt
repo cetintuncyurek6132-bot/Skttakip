@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -129,54 +130,50 @@ fun calculateDaysSinceAudit(auditDateMillis: Long, todayMidnight: Long): Long {
 fun CombinedStoreInventoryCard(
     summary: CombinedInventorySummary,
     combinedTargetRatio: Double = 2.0,
+    continuousTargetRatio: Double = 5.0,
     onEditCombinedTargetClick: () -> Unit = {},
     moneyFormatter: DecimalFormat,
     ratioFormatter: DecimalFormat,
     modifier: Modifier = Modifier
 ) {
     val hasCombinedRatio = summary.hasData && summary.combinedRatio != null
-    val isOverTarget = hasCombinedRatio && (summary.combinedRatio ?: 0.0) > combinedTargetRatio
+    val isCombinedOverTarget = hasCombinedRatio && (summary.combinedRatio ?: 0.0) > combinedTargetRatio
+    val isContinuousOverTarget = summary.continuousRatio != null && summary.continuousRatio > continuousTargetRatio
+    val hasCategoryOverTarget = (summary.worstDeviationCategory?.absoluteGap ?: 0.0) > 0.0
+    val isSystemRisky = hasCombinedRatio && (isCombinedOverTarget || isContinuousOverTarget || hasCategoryOverTarget)
 
-    val cardBg = when {
-        !hasCombinedRatio -> Slate50
-        isOverTarget -> ExpiredRedContainer.copy(alpha = 0.32f)
-        else -> NormalGreenContainer.copy(alpha = 0.35f)
-    }
-    val cardBorder = when {
-        !hasCombinedRatio -> Slate200
-        isOverTarget -> ExpiredRedBorder
-        else -> NormalGreenBorder
-    }
+    val cardBg = Color.White
+    val cardBorder = Slate200
 
     val totalAccentColor = when {
         !hasCombinedRatio -> TurquoiseDark
-        isOverTarget -> ExpiredRedDark
+        isCombinedOverTarget -> ExpiredRedDark
         else -> NormalGreenDark
-    }
-    val totalBoxBg = when {
-        !hasCombinedRatio -> Color.White
-        isOverTarget -> ExpiredRedContainer.copy(alpha = 0.72f)
-        else -> NormalGreenContainer.copy(alpha = 0.72f)
     }
     val totalBoxBorder = when {
         !hasCombinedRatio -> TurquoisePrimary.copy(alpha = 0.35f)
-        isOverTarget -> ExpiredRedBorder
-        else -> NormalGreenBorder
+        isCombinedOverTarget -> ExpiredRedBorder.copy(alpha = 0.7f)
+        else -> NormalGreenBorder.copy(alpha = 0.7f)
     }
 
     val statusChipText = when {
         !hasCombinedRatio -> "Veri Bekleniyor"
-        isOverTarget -> "Hedef Üstü (%${ratioFormatter.format(combinedTargetRatio)})"
-        else -> "Hedef Altı (%${ratioFormatter.format(combinedTargetRatio)})"
+        isSystemRisky -> "Durum: Riskli"
+        else -> "Durum: İyi"
     }
     val statusChipBg = when {
         !hasCombinedRatio -> TurquoisePrimary.copy(alpha = 0.12f)
-        isOverTarget -> ExpiredRedContainer
+        isSystemRisky -> ExpiredRedContainer
         else -> NormalGreenContainer
+    }
+    val statusChipBorder = when {
+        !hasCombinedRatio -> TurquoisePrimary.copy(alpha = 0.3f)
+        isSystemRisky -> ExpiredRedBorder
+        else -> NormalGreenBorder
     }
     val statusChipTextColor = when {
         !hasCombinedRatio -> TurquoiseDark
-        isOverTarget -> ExpiredRedDark
+        isSystemRisky -> ExpiredRedDark
         else -> NormalGreenDark
     }
 
@@ -186,15 +183,16 @@ fun CombinedStoreInventoryCard(
             .testTag("combined_store_inventory_card"),
         shape = RoundedCornerShape(18.dp),
         color = cardBg,
-        border = BorderStroke(1.2.dp, cardBorder)
+        border = BorderStroke(1.dp, cardBorder),
+        shadowElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Başlık + Hedef Durumu Rozeti
+            // Başlık + Genel Sistem Durumu Rozeti (Durum: İyi / Riskli)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -206,15 +204,15 @@ fun CombinedStoreInventoryCard(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.White,
-                        border = BorderStroke(1.dp, cardBorder),
+                        color = Slate50,
+                        border = BorderStroke(1.dp, Slate200),
                         modifier = Modifier.size(28.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = Icons.Default.Assessment,
                                 contentDescription = null,
-                                tint = totalAccentColor,
+                                tint = TurquoiseDark,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -230,10 +228,12 @@ fun CombinedStoreInventoryCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(6.dp))
+
                 Surface(
                     shape = RoundedCornerShape(8.dp),
                     color = statusChipBg,
-                    border = BorderStroke(0.8.dp, cardBorder)
+                    border = BorderStroke(0.8.dp, statusChipBorder)
                 ) {
                     Text(
                         text = statusChipText,
@@ -241,7 +241,7 @@ fun CombinedStoreInventoryCard(
                         fontWeight = FontWeight.ExtraBold,
                         color = statusChipTextColor,
                         maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
                     )
                 }
             }
@@ -253,24 +253,25 @@ fun CombinedStoreInventoryCard(
                     .height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                // T (Toplam) - En büyük ve tok font + Hedef & Kalem Düzenle
+                // T (Toplam) - Dikey ve yatay ortalı + altta taşmayan Hedef rozeti
                 Surface(
                     modifier = Modifier
-                        .weight(1.28f)
+                        .weight(1.26f)
                         .fillMaxHeight()
                         .testTag("combined_metric_total"),
                     shape = RoundedCornerShape(13.dp),
-                    color = totalBoxBg,
-                    border = BorderStroke(1.2.dp, totalBoxBorder)
+                    color = Slate50,
+                    border = BorderStroke(1.1.dp, totalBoxBorder)
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 7.dp, vertical = 7.dp),
+                            .fillMaxSize()
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                        verticalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -288,6 +289,7 @@ fun CombinedStoreInventoryCard(
                                 maxLines = 1
                             )
                         }
+
                         Text(
                             text = if (summary.combinedRatio != null) {
                                 "%${ratioFormatter.format(summary.combinedRatio)}"
@@ -297,33 +299,40 @@ fun CombinedStoreInventoryCard(
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Black,
                             color = if (hasCombinedRatio) totalAccentColor else Slate900,
+                            textAlign = TextAlign.Center,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
                         )
+
                         Surface(
                             onClick = onEditCombinedTargetClick,
                             shape = RoundedCornerShape(8.dp),
-                            color = Color.White.copy(alpha = 0.9f),
-                            border = BorderStroke(0.8.dp, totalBoxBorder),
+                            color = Color.White,
+                            border = BorderStroke(0.8.dp, Slate200),
                             modifier = Modifier.testTag("edit_combined_target_button")
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                horizontalArrangement = Arrangement.Center
                             ) {
                                 Text(
                                     text = "Hedef: %${ratioFormatter.format(combinedTargetRatio)}",
-                                    fontSize = 10.sp,
+                                    fontSize = 9.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = totalAccentColor,
-                                    maxLines = 1
+                                    color = Slate800,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
+                                Spacer(modifier = Modifier.width(3.dp))
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Genel Hedefi Düzenle",
-                                    tint = totalAccentColor,
-                                    modifier = Modifier.size(11.dp)
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(10.dp)
                                 )
                             }
                         }
@@ -337,17 +346,18 @@ fun CombinedStoreInventoryCard(
                         .fillMaxHeight()
                         .testTag("combined_metric_periodic"),
                     shape = RoundedCornerShape(13.dp),
-                    color = Color.White,
+                    color = Slate50,
                     border = BorderStroke(1.dp, Slate200)
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                            .fillMaxSize()
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -365,17 +375,20 @@ fun CombinedStoreInventoryCard(
                                 maxLines = 1
                             )
                         }
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = if (summary.periodicRatio != null) {
                                 "%${ratioFormatter.format(summary.periodicRatio)}"
                             } else {
                                 "%-"
                             },
-                            fontSize = 16.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
                             color = Slate900,
+                            textAlign = TextAlign.Center,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -387,17 +400,18 @@ fun CombinedStoreInventoryCard(
                         .fillMaxHeight()
                         .testTag("combined_metric_continuous"),
                     shape = RoundedCornerShape(13.dp),
-                    color = Color.White,
+                    color = Slate50,
                     border = BorderStroke(1.dp, Slate200)
                 ) {
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                            .fillMaxSize()
+                            .padding(horizontal = 6.dp, vertical = 8.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.Center
                     ) {
                         Row(
+                            modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
@@ -415,24 +429,27 @@ fun CombinedStoreInventoryCard(
                                 maxLines = 1
                             )
                         }
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = if (summary.continuousRatio != null) {
                                 "%${ratioFormatter.format(summary.continuousRatio)}"
                             } else {
                                 "%-"
                             },
-                            fontSize = 16.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (isContinuousOverTarget) ExpiredRedDark else Slate900,
+                            textAlign = TextAlign.Center,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             }
 
             // Akıllı Yönlendirme Uyarı Kutusu (Genel Hedef Aşıldığında)
-            if (isOverTarget) {
+            if (isCombinedOverTarget) {
                 val worst = summary.worstDeviationCategory
                 val guidanceText = if (worst != null) {
                     "⚠️ Mağaza hedefi aşıldı. En büyük sapma ${worst.displayName} reyonunda. Fire oranını düşürmek için öncelikle ${worst.displayName} ürünlerini kontrol edin."
@@ -444,7 +461,7 @@ fun CombinedStoreInventoryCard(
                         .fillMaxWidth()
                         .testTag("combined_store_smart_guidance_banner"),
                     shape = RoundedCornerShape(12.dp),
-                    color = ExpiredRedContainer,
+                    color = ExpiredRedContainer.copy(alpha = 0.65f),
                     border = BorderStroke(1.dp, ExpiredRedBorder)
                 ) {
                     Text(
@@ -459,7 +476,7 @@ fun CombinedStoreInventoryCard(
             }
 
             // Alt Bilgi Satırı: Toplam Ciro ve Toplam Fire
-            HorizontalDivider(thickness = 0.8.dp, color = cardBorder.copy(alpha = 0.55f))
+            HorizontalDivider(thickness = 0.8.dp, color = Slate200.copy(alpha = 0.8f))
             Text(
                 text = "Toplam Ciro: ${moneyFormatter.format(summary.totalRevenue)} TL | Toplam Fire: ${moneyFormatter.format(summary.totalFireCost)} TL",
                 fontSize = 11.5.sp,
@@ -502,7 +519,7 @@ fun InventoryTrackingTabRow(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val tabTitles = remember { listOf("Periyodik Envanter", "Sürekli Envanter") }
+    val tabTitles = remember { listOf("Parçalı Envanter", "Sürekli Envanter") }
 
     Surface(
         modifier = modifier
@@ -748,6 +765,36 @@ fun PeriodicCategoryCardsRow(
     }
 }
 
+private fun formatContinuousPeriodBadgeLabel(rawPeriod: String?, hasAudit: Boolean): String {
+    if (!hasAudit) return "Kayıt Yok"
+    val trimmed = rawPeriod.orEmpty().trim()
+    if (trimmed.isEmpty()) return "Dönem Yok"
+
+    val trLocale = java.util.Locale.forLanguageTag("tr-TR")
+    val turkishMonths = listOf(
+        "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+        "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"
+    )
+    // "11-2026" veya "11/2026" formatı destekle
+    val numericMatch = Regex("^(\\d{1,2})[./-](\\d{4})$").matchEntire(trimmed)
+    if (numericMatch != null) {
+        val m = numericMatch.groupValues[1].toIntOrNull()
+        if (m != null && m in 1..12) {
+            return turkishMonths[m - 1]
+        }
+    }
+
+    val firstWord = trimmed.split(Regex("\\s+")).firstOrNull().orEmpty()
+    val lowerWord = firstWord.lowercase(trLocale)
+    val matchedMonth = turkishMonths.firstOrNull { it.lowercase(trLocale) == lowerWord }
+    if (matchedMonth != null) {
+        return matchedMonth
+    }
+    return lowerWord.replaceFirstChar { ch ->
+        if (ch.isLowerCase()) ch.titlecase(trLocale) else ch.toString()
+    }
+}
+
 @Composable
 fun ContinuousCategoryCardsRow(
     categories: List<AuditCategorySpec>,
@@ -819,22 +866,17 @@ fun ContinuousCategoryCardsRow(
                     (latestAudit.revenue <= 0.0 && latestAudit.fireCost > 0.0)
                 )
 
-            val periodBadgeLabel = when {
-                latestAudit == null -> "Kayıt Yok"
-                latestAudit.auditPeriod.isNotBlank() -> latestAudit.auditPeriod
-                else -> "Dönem Yok"
+            val periodBadgeLabel = remember(latestAudit) {
+                formatContinuousPeriodBadgeLabel(
+                    rawPeriod = latestAudit?.auditPeriod,
+                    hasAudit = latestAudit != null
+                )
             }
 
-            val (statusColor, statusBgColor, statusBorderColor) = when {
-                latestAudit == null -> Triple(Slate700, Slate50, Slate200)
-                isOverTarget -> Triple(ExpiredRedDark, ExpiredRedContainer, ExpiredRedBorder)
-                else -> Triple(NormalGreenDark, NormalGreenContainer, NormalGreenBorder)
-            }
-
-            val cardBg = if (latestAudit == null) {
-                spec.pastelBg
-            } else {
-                statusBgColor.copy(alpha = 0.45f)
+            val ratioColor = when {
+                latestAudit == null -> Slate500
+                isOverTarget -> ExpiredRedDark
+                else -> NormalGreenDark
             }
 
             Card(
@@ -844,34 +886,35 @@ fun ContinuousCategoryCardsRow(
                     .fillMaxHeight()
                     .testTag("continuous_inventory_card_${spec.key}"),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = cardBg),
-                border = BorderStroke(1.2.dp, statusBorderColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Slate200),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .padding(horizontal = 5.dp, vertical = 10.dp),
+                        .fillMaxSize()
+                        .padding(horizontal = 6.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
+                    // Üst: İkon + Kategori Başlığı
                     Column(
+                        modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color.White,
-                            border = BorderStroke(1.dp, statusBorderColor),
-                            modifier = Modifier.size(26.dp)
+                            color = Slate50,
+                            border = BorderStroke(1.dp, Slate200),
+                            modifier = Modifier.size(28.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = spec.icon,
                                     contentDescription = spec.title,
-                                    tint = if (latestAudit == null) spec.iconTint else statusColor,
-                                    modifier = Modifier.size(14.dp)
+                                    tint = spec.iconTint,
+                                    modifier = Modifier.size(15.dp)
                                 )
                             }
                         }
@@ -879,18 +922,20 @@ fun ContinuousCategoryCardsRow(
                         Text(
                             text = spec.title,
                             fontSize = 10.sp,
-                            lineHeight = 11.5.sp,
+                            lineHeight = 12.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
                             minLines = 2,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
+                    // Orta: Oran (%X) — Sadece hedef aşıldıysa kırmızı
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center,
@@ -898,9 +943,9 @@ fun ContinuousCategoryCardsRow(
                     ) {
                         Text(
                             text = ratioPercentText,
-                            fontSize = 15.5.sp,
+                            fontSize = 16.sp,
                             fontWeight = FontWeight.Black,
-                            color = if (latestAudit == null) Slate900 else statusColor,
+                            color = ratioColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
@@ -912,7 +957,7 @@ fun ContinuousCategoryCardsRow(
                                 Spacer(modifier = Modifier.width(2.dp))
                                 Text(
                                     text = if (isDown) "↓" else "↑",
-                                    fontSize = 13.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Black,
                                     color = if (isDown) NormalGreenDark else ExpiredRedDark
                                 )
@@ -920,68 +965,88 @@ fun ContinuousCategoryCardsRow(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
+                    // Alt Orta: Ciro ve Fire değerleri eşit font boyutuyla tam ortalı alt alta
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
                                 text = "Ciro",
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate500,
+                                textAlign = TextAlign.Center,
                                 maxLines = 1
                             )
                             Text(
                                 text = revenueText,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Slate900,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
                             Text(
                                 text = "Fire",
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = Slate500,
+                                textAlign = TextAlign.Center,
                                 maxLines = 1
                             )
                             Text(
                                 text = fireText,
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = if (latestAudit != null) ExpiredRedDark else Slate700,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate800,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
-                                textAlign = TextAlign.Center
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(7.dp))
 
+                    // En Alt: Standart Dönem Rozeti (örn. "Kasım")
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = statusBgColor,
-                        border = BorderStroke(0.8.dp, statusBorderColor)
+                        color = Slate50,
+                        border = BorderStroke(0.8.dp, Slate200),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(22.dp)
                     ) {
-                        Text(
-                            text = periodBadgeLabel,
-                            fontSize = 8.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = statusColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.5.dp)
-                        )
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = periodBadgeLabel,
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate700,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -1081,25 +1146,18 @@ fun ContinuousInventoryTotalCard(
     }
     val isOverTarget = generalRatio != null && generalRatio > continuousTargetRatio
 
-    val cardBg = when {
-        generalRatio == null -> Slate50
-        isOverTarget -> ExpiredRedContainer.copy(alpha = 0.35f)
-        else -> NormalGreenContainer.copy(alpha = 0.38f)
-    }
-    val cardBorder = when {
-        generalRatio == null -> Slate200
-        isOverTarget -> ExpiredRedBorder
-        else -> NormalGreenBorder
-    }
+    val cardBg = Color.White
+    val cardBorder = Slate200
     val accentColor = when {
         generalRatio == null -> TurquoiseDark
         isOverTarget -> ExpiredRedDark
         else -> NormalGreenDark
     }
-    val ratioBoxBg = when {
-        generalRatio == null -> Color.White
-        isOverTarget -> ExpiredRedContainer.copy(alpha = 0.78f)
-        else -> NormalGreenContainer.copy(alpha = 0.78f)
+    val ratioBoxBg = Slate50
+    val ratioBoxBorder = when {
+        generalRatio == null -> Slate200
+        isOverTarget -> ExpiredRedBorder.copy(alpha = 0.7f)
+        else -> NormalGreenBorder.copy(alpha = 0.7f)
     }
 
     Surface(
@@ -1108,7 +1166,8 @@ fun ContinuousInventoryTotalCard(
             .testTag("continuous_inventory_total_card"),
         shape = RoundedCornerShape(18.dp),
         color = cardBg,
-        border = BorderStroke(1.2.dp, cardBorder)
+        border = BorderStroke(1.dp, cardBorder),
+        shadowElevation = 1.dp
     ) {
         Column(
             modifier = Modifier
@@ -1271,7 +1330,7 @@ fun ContinuousInventoryTotalCard(
                         .testTag("continuous_total_general_ratio"),
                     shape = RoundedCornerShape(15.dp),
                     color = ratioBoxBg,
-                    border = BorderStroke(1.2.dp, cardBorder)
+                    border = BorderStroke(1.1.dp, ratioBoxBorder)
                 ) {
                     Column(
                         modifier = Modifier
@@ -1573,14 +1632,20 @@ fun SmartCategoryAnalysisCard(
     val currentRatio = if (revenue > 0.0) (fireCost / revenue) * 100.0 else 0.0
     val isOverTarget = (revenue > 0.0 && currentRatio > targetRatio) || (revenue <= 0.0 && fireCost > 0.0)
 
-    val cardBg = if (isOverTarget) {
-        ExpiredRedContainer.copy(alpha = 0.45f)
-    } else {
-        NormalGreenContainer.copy(alpha = 0.45f)
+    val isContinuous = isContinuousAuditCategory(spec.key)
+    val cardBg = when {
+        isContinuous -> Color.White
+        isOverTarget -> ExpiredRedContainer.copy(alpha = 0.45f)
+        else -> NormalGreenContainer.copy(alpha = 0.45f)
     }
-    val cardBorder = if (isOverTarget) ExpiredRedBorder else NormalGreenBorder
+    val cardBorder = when {
+        isContinuous -> Slate200
+        isOverTarget -> ExpiredRedBorder
+        else -> NormalGreenBorder
+    }
     val accentColor = if (isOverTarget) ExpiredRedDark else NormalGreenDark
-    val statusBg = if (isOverTarget) ExpiredRedContainer else NormalGreenContainer
+    val statusBg = if (isContinuous) Slate50 else if (isOverTarget) ExpiredRedContainer else NormalGreenContainer
+    val statusBorder = if (isOverTarget) ExpiredRedBorder else NormalGreenBorder
     val statusIcon = if (isOverTarget) Icons.Default.WarningAmber else Icons.Default.CheckCircle
 
     Card(
@@ -1590,8 +1655,8 @@ fun SmartCategoryAnalysisCard(
             .testTag("smart_analysis_card_${spec.key}"),
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(1.2.dp, cardBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        border = BorderStroke(1.1.dp, cardBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isContinuous) 1.dp else 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1612,7 +1677,7 @@ fun SmartCategoryAnalysisCard(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.White,
+                        color = if (isContinuous) Slate50 else Color.White,
                         border = BorderStroke(1.dp, cardBorder),
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -1620,7 +1685,7 @@ fun SmartCategoryAnalysisCard(
                             Icon(
                                 imageVector = spec.icon,
                                 contentDescription = spec.title,
-                                tint = accentColor,
+                                tint = if (isContinuous) spec.iconTint else accentColor,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -1640,7 +1705,7 @@ fun SmartCategoryAnalysisCard(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = statusBg,
-                    border = BorderStroke(1.dp, cardBorder)
+                    border = BorderStroke(1.dp, statusBorder)
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
@@ -1667,8 +1732,8 @@ fun SmartCategoryAnalysisCard(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(13.dp),
-                color = Color.White.copy(alpha = 0.8f),
-                border = BorderStroke(0.8.dp, cardBorder.copy(alpha = 0.7f))
+                color = if (isContinuous) Slate50 else Color.White.copy(alpha = 0.8f),
+                border = BorderStroke(0.8.dp, cardBorder.copy(alpha = 0.8f))
             ) {
                 Column(
                     modifier = Modifier

@@ -336,7 +336,7 @@ fun BackupSettingsTabContent(
                                     }
                                     Spacer(modifier = Modifier.height(3.dp))
                                     Text(
-                                        text = "Ürünler, SKT parti adetleri, birim fiyatlar, sayım ve iade takip verilerinin tamamını eksiksiz .json olarak yedekler.",
+                                        text = "Ürünler, SKT parti adetleri, birim fiyatlar, sayım, envanter takip ve iade verilerinin tamamını eksiksiz .json olarak yedekler.",
                                         fontSize = 11.5.sp,
                                         color = Slate600,
                                         lineHeight = 16.sp

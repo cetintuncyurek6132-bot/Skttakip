@@ -114,7 +114,8 @@ class SettingsViewModel(
                     DataMigrationManager.performStartupDataProtectionCheck(
                         context = context,
                         productDao = repository.productDao,
-                        adetselDao = repository.adetselDao
+                        adetselDao = repository.adetselDao,
+                        inventoryAuditDao = repository.inventoryAuditDao
                     )
                 } catch (t: Throwable) {
                     android.util.Log.e("SafeStartup", "Suppressed error in runStartupDataProtection coroutine: ${t.message}", t)
