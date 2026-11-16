@@ -338,16 +338,19 @@ fun AppNavHost(
             popExitTransition = { fadeOut(animationSpec = tween(140)) }
         ) {
             val inventoryAudits by inventoryViewModel.allInventoryAudits.collectAsState()
+            val combinedSummary by inventoryViewModel.combinedInventorySummary.collectAsState()
             InventoryTrackingScreen(
                 audits = inventoryAudits,
-                onRecordAudit = { category, auditDateMillis, revenue, fireCost, targetRatio, notes ->
+                combinedSummary = combinedSummary,
+                onRecordAudit = { category, auditDateMillis, revenue, fireCost, targetRatio, notes, auditPeriod ->
                     inventoryViewModel.recordInventoryAudit(
                         category = category,
                         notes = notes,
                         auditDateMillis = auditDateMillis,
                         revenue = revenue,
                         fireCost = fireCost,
-                        targetRatio = targetRatio
+                        targetRatio = targetRatio,
+                        auditPeriod = auditPeriod
                     )
                 },
                 onUpdateAudit = { updatedAudit ->

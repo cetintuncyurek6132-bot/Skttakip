@@ -12,9 +12,35 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+private fun SupportSQLiteDatabase.getExistingColumnNames(tableName: String): MutableSet<String> {
+    val columns = mutableSetOf<String>()
+    query("PRAGMA table_info(`$tableName`)").use { cursor ->
+        val nameIdx = cursor.getColumnIndex("name")
+        if (nameIdx >= 0) {
+            while (cursor.moveToNext()) {
+                cursor.getString(nameIdx)?.let { columns.add(it.lowercase()) }
+            }
+        }
+    }
+    return columns
+}
+
+private fun SupportSQLiteDatabase.addColumnIfMissing(
+    existingColumns: MutableSet<String>,
+    tableName: String,
+    columnName: String,
+    columnDefinition: String
+) {
+    if (columnName.lowercase() !in existingColumns) {
+        execSQL("ALTER TABLE `$tableName` ADD COLUMN `$columnName` $columnDefinition")
+        existingColumns.add(columnName.lowercase())
+    }
+}
+
 val MIGRATION_1_2 = object : Migration(1, 2) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE products ADD COLUMN resimUrl TEXT DEFAULT NULL")
+        val cols = db.getExistingColumnNames("products")
+        db.addColumnIfMissing(cols, "products", "resimUrl", "TEXT DEFAULT NULL")
     }
 }
 
@@ -66,7 +92,8 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
 
 val MIGRATION_5_6 = object : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE products ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
+        val cols = db.getExistingColumnNames("products")
+        db.addColumnIfMissing(cols, "products", "isDeleted", "INTEGER NOT NULL DEFAULT 0")
     }
 }
 
@@ -86,9 +113,12 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
 
 val MIGRATION_7_8 = object : Migration(7, 8) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN revenue REAL NOT NULL DEFAULT 0.0") } catch (_: Exception) {}
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN fireCost REAL NOT NULL DEFAULT 0.0") } catch (_: Exception) {}
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN targetRatio REAL NOT NULL DEFAULT 0.0") } catch (_: Exception) {}
+        try {
+            val cols = db.getExistingColumnNames("inventory_audits")
+            db.addColumnIfMissing(cols, "inventory_audits", "revenue", "REAL NOT NULL DEFAULT 0.0")
+            db.addColumnIfMissing(cols, "inventory_audits", "fireCost", "REAL NOT NULL DEFAULT 0.0")
+            db.addColumnIfMissing(cols, "inventory_audits", "targetRatio", "REAL NOT NULL DEFAULT 0.0")
+        } catch (_: Exception) {}
     }
 }
 
@@ -106,17 +136,23 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
                 createdAt INTEGER NOT NULL
             )
         """.trimIndent())
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN revenue REAL NOT NULL DEFAULT 0.0") } catch (_: Exception) {}
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN fireCost REAL NOT NULL DEFAULT 0.0") } catch (_: Exception) {}
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN targetRatio REAL NOT NULL DEFAULT 0.0") } catch (_: Exception) {}
+        try {
+            val cols = db.getExistingColumnNames("inventory_audits")
+            db.addColumnIfMissing(cols, "inventory_audits", "revenue", "REAL NOT NULL DEFAULT 0.0")
+            db.addColumnIfMissing(cols, "inventory_audits", "fireCost", "REAL NOT NULL DEFAULT 0.0")
+            db.addColumnIfMissing(cols, "inventory_audits", "targetRatio", "REAL NOT NULL DEFAULT 0.0")
+        } catch (_: Exception) {}
     }
 }
 
 val MIGRATION_9_10 = object : Migration(9, 10) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0") } catch (_: Exception) {}
-        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN auditPeriod TEXT NOT NULL DEFAULT ''") } catch (_: Exception) {}
-        try { db.execSQL("UPDATE inventory_audits SET updatedAt = createdAt WHERE updatedAt = 0") } catch (_: Exception) {}
+        try {
+            val cols = db.getExistingColumnNames("inventory_audits")
+            db.addColumnIfMissing(cols, "inventory_audits", "updatedAt", "INTEGER NOT NULL DEFAULT 0")
+            db.addColumnIfMissing(cols, "inventory_audits", "auditPeriod", "TEXT NOT NULL DEFAULT ''")
+            db.execSQL("UPDATE inventory_audits SET updatedAt = createdAt WHERE updatedAt = 0")
+        } catch (_: Exception) {}
     }
 }
 
@@ -152,6 +188,35 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        private fun getSqliteTableColumns(
+            db: android.database.sqlite.SQLiteDatabase,
+            tableName: String
+        ): MutableSet<String> {
+            val columns = mutableSetOf<String>()
+            db.rawQuery("PRAGMA table_info(`$tableName`)", null).use { cursor ->
+                val nameIdx = cursor.getColumnIndex("name")
+                if (nameIdx >= 0) {
+                    while (cursor.moveToNext()) {
+                        cursor.getString(nameIdx)?.let { columns.add(it.lowercase()) }
+                    }
+                }
+            }
+            return columns
+        }
+
+        private fun addSqliteColumnIfMissing(
+            db: android.database.sqlite.SQLiteDatabase,
+            existingColumns: MutableSet<String>,
+            tableName: String,
+            columnName: String,
+            columnDefinition: String
+        ) {
+            if (columnName.lowercase() !in existingColumns) {
+                db.execSQL("ALTER TABLE `$tableName` ADD COLUMN `$columnName` $columnDefinition")
+                existingColumns.add(columnName.lowercase())
+            }
+        }
+
         private fun healDatabaseBeforeRoomOpen(context: Context) {
             try {
                 val dbFile = context.getDatabasePath("skt_takip_database")
@@ -166,15 +231,14 @@ abstract class AppDatabase : RoomDatabase() {
                     if (db.version == 10) {
                         // Ensure all required tables, columns, and indices exist without touching existing data
                         try {
-                            db.execSQL("ALTER TABLE products ADD COLUMN resimUrl TEXT DEFAULT NULL")
-                        } catch (_: Throwable) {}
-                        try {
-                            db.execSQL("ALTER TABLE products ADD COLUMN isDeleted INTEGER NOT NULL DEFAULT 0")
-                        } catch (_: Throwable) {}
-                        try {
-                            db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_barkod` ON `products` (`barkod`)")
-                            db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_urunKodu` ON `products` (`urunKodu`)")
-                            db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sktTarihi` ON `products` (`sktTarihi`)")
+                            val productCols = getSqliteTableColumns(db, "products")
+                            if (productCols.isNotEmpty()) {
+                                addSqliteColumnIfMissing(db, productCols, "products", "resimUrl", "TEXT DEFAULT NULL")
+                                addSqliteColumnIfMissing(db, productCols, "products", "isDeleted", "INTEGER NOT NULL DEFAULT 0")
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_barkod` ON `products` (`barkod`)")
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_urunKodu` ON `products` (`urunKodu`)")
+                                db.execSQL("CREATE INDEX IF NOT EXISTS `index_products_sktTarihi` ON `products` (`sktTarihi`)")
+                            }
                         } catch (_: Throwable) {}
 
                         try {
@@ -184,11 +248,16 @@ abstract class AppDatabase : RoomDatabase() {
                             db.execSQL("CREATE TABLE IF NOT EXISTS `inventory_audits` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `category` TEXT NOT NULL, `auditDateMillis` INTEGER NOT NULL, `revenue` REAL NOT NULL DEFAULT 0.0, `fireCost` REAL NOT NULL DEFAULT 0.0, `targetRatio` REAL NOT NULL DEFAULT 0.0, `notes` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL DEFAULT 0, `auditPeriod` TEXT NOT NULL DEFAULT '')")
                         } catch (_: Throwable) {}
 
-                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN revenue REAL NOT NULL DEFAULT 0.0") } catch (_: Throwable) {}
-                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN fireCost REAL NOT NULL DEFAULT 0.0") } catch (_: Throwable) {}
-                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN targetRatio REAL NOT NULL DEFAULT 0.0") } catch (_: Throwable) {}
-                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0") } catch (_: Throwable) {}
-                        try { db.execSQL("ALTER TABLE inventory_audits ADD COLUMN auditPeriod TEXT NOT NULL DEFAULT ''") } catch (_: Throwable) {}
+                        try {
+                            val auditCols = getSqliteTableColumns(db, "inventory_audits")
+                            if (auditCols.isNotEmpty()) {
+                                addSqliteColumnIfMissing(db, auditCols, "inventory_audits", "revenue", "REAL NOT NULL DEFAULT 0.0")
+                                addSqliteColumnIfMissing(db, auditCols, "inventory_audits", "fireCost", "REAL NOT NULL DEFAULT 0.0")
+                                addSqliteColumnIfMissing(db, auditCols, "inventory_audits", "targetRatio", "REAL NOT NULL DEFAULT 0.0")
+                                addSqliteColumnIfMissing(db, auditCols, "inventory_audits", "updatedAt", "INTEGER NOT NULL DEFAULT 0")
+                                addSqliteColumnIfMissing(db, auditCols, "inventory_audits", "auditPeriod", "TEXT NOT NULL DEFAULT ''")
+                            }
+                        } catch (_: Throwable) {}
 
                         // Sync room_master_table identity_hash so removing dead StockMovement entity at version 10 never triggers IllegalStateException
                         db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)")

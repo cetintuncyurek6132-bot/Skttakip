@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,6 +52,97 @@ data class MonthlyAuditSummary(
     val previousMonthAverageRatio: Double?,
     val monthlyProgressDiff: Double?
 )
+
+data class CombinedInventorySummary(
+    val totalRevenue: Double = 0.0,
+    val totalFireCost: Double = 0.0,
+    val combinedRatio: Double? = null,
+    val periodicRatio: Double? = null,
+    val continuousRatio: Double? = null,
+    val weightedTargetRatio: Double = 1.0,
+    val isOverTarget: Boolean = false,
+    val hasData: Boolean = false
+)
+
+val PERIODIC_AUDIT_CATEGORIES = listOf("GIDA", "DOLAP", "GIDA DIŞI")
+val CONTINUOUS_AUDIT_CATEGORIES = listOf("ET_TAVUK", "EKMEK", "MEYVE_SEBZE", "DONUK_MEYVE_SEBZE")
+
+fun normalizeInventoryCategoryKey(rawCategory: String): String {
+    val upper = rawCategory.trim().uppercase(java.util.Locale.forLanguageTag("tr-TR"))
+    return when (upper) {
+        "ET-TAVUK", "ET_TAVUK" -> "ET_TAVUK"
+        "EKMEK" -> "EKMEK"
+        "MEYVE-SEBZE", "MEYVE_SEBZE" -> "MEYVE_SEBZE"
+        "DONUK MEYVE-SEBZE", "DONUK_MEYVE_SEBZE" -> "DONUK_MEYVE_SEBZE"
+        else -> upper
+    }
+}
+
+fun isContinuousAuditCategory(rawCategory: String): Boolean {
+    return normalizeInventoryCategoryKey(rawCategory) in CONTINUOUS_AUDIT_CATEGORIES
+}
+
+fun computeCombinedInventorySummary(
+    auditsList: List<InventoryAuditEntity>
+): CombinedInventorySummary {
+    val latestComparator = compareByDescending<InventoryAuditEntity> { it.updatedAt }
+        .thenByDescending { it.auditDateMillis }
+        .thenByDescending { it.createdAt }
+
+    val latestByNormalizedCategory = auditsList
+        .groupBy { normalizeInventoryCategoryKey(it.category) }
+        .mapValues { (_, items) -> items.sortedWith(latestComparator).firstOrNull() }
+
+    val latestPeriodic = PERIODIC_AUDIT_CATEGORIES.mapNotNull { latestByNormalizedCategory[it] }
+    val latestContinuous = CONTINUOUS_AUDIT_CATEGORIES.mapNotNull { latestByNormalizedCategory[it] }
+    val allLatest = latestPeriodic + latestContinuous
+
+    if (allLatest.isEmpty()) {
+        return CombinedInventorySummary()
+    }
+
+    val periodicRevenue = latestPeriodic.sumOf { it.revenue.coerceAtLeast(0.0) }
+    val periodicFire = latestPeriodic.sumOf { it.fireCost.coerceAtLeast(0.0) }
+    val periodicRatio = if (periodicRevenue > 0.0) {
+        (periodicFire / periodicRevenue) * 100.0
+    } else null
+
+    val continuousRevenue = latestContinuous.sumOf { it.revenue.coerceAtLeast(0.0) }
+    val continuousFire = latestContinuous.sumOf { it.fireCost.coerceAtLeast(0.0) }
+    val continuousRatio = if (continuousRevenue > 0.0) {
+        (continuousFire / continuousRevenue) * 100.0
+    } else null
+
+    val totalRevenue = periodicRevenue + continuousRevenue
+    val totalFire = periodicFire + continuousFire
+    val combinedRatio = if (totalRevenue > 0.0) {
+        (totalFire / totalRevenue) * 100.0
+    } else null
+
+    val weightedTargetRatio = if (totalRevenue > 0.0) {
+        val allowedFireSum = allLatest.sumOf { item ->
+            val target = if (item.targetRatio > 0.0) item.targetRatio else 1.0
+            item.revenue.coerceAtLeast(0.0) * (target / 100.0)
+        }
+        (allowedFireSum / totalRevenue) * 100.0
+    } else {
+        val positiveTargets = allLatest.mapNotNull { it.targetRatio.takeIf { r -> r > 0.0 } }
+        if (positiveTargets.isNotEmpty()) positiveTargets.average() else 1.0
+    }
+
+    val isOverTarget = combinedRatio != null && combinedRatio > weightedTargetRatio
+
+    return CombinedInventorySummary(
+        totalRevenue = totalRevenue,
+        totalFireCost = totalFire,
+        combinedRatio = combinedRatio,
+        periodicRatio = periodicRatio,
+        continuousRatio = continuousRatio,
+        weightedTargetRatio = weightedTargetRatio,
+        isOverTarget = isOverTarget,
+        hasData = true
+    )
+}
 
 class InventoryViewModel(
     private val repository: ProductRepository
@@ -111,6 +203,15 @@ class InventoryViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
+        )
+
+    val combinedInventorySummary: StateFlow<CombinedInventorySummary> = allInventoryAudits
+        .map { auditsList -> computeCombinedInventorySummary(auditsList) }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = CombinedInventorySummary()
         )
 
     fun getAuditsByCategory(category: String): Flow<List<InventoryAuditEntity>> {
@@ -245,6 +346,7 @@ class InventoryViewModel(
         revenue: Double = 0.0,
         fireCost: Double = 0.0,
         targetRatio: Double = 0.0,
+        auditPeriod: String = "",
         onComplete: (() -> Unit)? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -258,7 +360,7 @@ class InventoryViewModel(
                 notes = notes.trim(),
                 createdAt = now,
                 updatedAt = now,
-                auditPeriod = computeAuditPeriod(now)
+                auditPeriod = auditPeriod.trim()
             )
             repository.insertInventoryAudit(audit)
             withContext(Dispatchers.Main) {
@@ -276,7 +378,7 @@ class InventoryViewModel(
             val auditToSave = audit.copy(
                 id = 0,
                 updatedAt = now,
-                auditPeriod = computeAuditPeriod(now)
+                auditPeriod = audit.auditPeriod.trim()
             )
             repository.insertInventoryAudit(auditToSave)
             withContext(Dispatchers.Main) {
@@ -294,7 +396,7 @@ class InventoryViewModel(
             // Sadece en son girilen veriyi düzeltmek için mevcut kaydı günceller
             val updatedRecord = audit.copy(
                 updatedAt = if (audit.updatedAt > 0L) audit.updatedAt else now,
-                auditPeriod = audit.auditPeriod.ifBlank { computeAuditPeriod(now) }
+                auditPeriod = audit.auditPeriod.trim()
             )
             repository.updateInventoryAudit(updatedRecord)
             withContext(Dispatchers.Main) {

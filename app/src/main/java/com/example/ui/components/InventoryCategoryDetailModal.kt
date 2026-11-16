@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -64,9 +65,12 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
@@ -638,14 +642,11 @@ fun InventoryCategoryDetailModal(
                                 val analysisBorder = if (isExceedingTarget) ExpiredRedBorder else NormalGreenBorder
                                 val analysisText = if (isExceedingTarget) ExpiredRedDark else NormalGreenDark
 
-                                val excessFireAmount = maxOf(0.0, fireCost - maxAllowedFire)
-                                val remainingFireBudget = maxOf(0.0, maxAllowedFire - fireCost)
-
-                                val smartMessage = if (isExceedingTarget) {
-                                    "⚠️ Hedefi aştınız! Oranınızı hedefe çekmek için fire tutarınızı ${moneyFormatter.format(excessFireAmount)} TL azaltmalı veya cironuzu artırmalısınız."
-                                } else {
-                                    "✅ Harika! Hedefin altındasınız. Fire bütçenizde ${moneyFormatter.format(remainingFireBudget)} TL boşluk var."
-                                }
+                                val hedefOndalik = effectiveTargetRatio / 100.0
+                                val requiredRevenue = if (hedefOndalik > 0.0) fireCost / hedefOndalik else 0.0
+                                val revenueGap = maxOf(0.0, requiredRevenue - revenue)
+                                val excessFireAmount = maxOf(0.0, fireCost - (revenue * hedefOndalik))
+                                val remainingFireBudget = maxOf(0.0, (revenue * hedefOndalik) - fireCost)
 
                                 Surface(
                                     modifier = Modifier
@@ -659,7 +660,7 @@ fun InventoryCategoryDetailModal(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
                                         Text(
                                             text = "Akıllı Finansal Analiz",
@@ -667,30 +668,173 @@ fun InventoryCategoryDetailModal(
                                             fontWeight = FontWeight.ExtraBold,
                                             color = analysisText
                                         )
-                                        Text(
-                                            text = smartMessage,
-                                            fontSize = 13.5.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = analysisText,
-                                            lineHeight = 19.sp
-                                        )
-                                        Row(
+
+                                        if (isExceedingTarget) {
+                                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                                Text(
+                                                    text = "⚠️ Hedefi aştınız! Hedefe dönmek için iki seçeneğiniz var:",
+                                                    fontSize = 13.5.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = analysisText,
+                                                    lineHeight = 19.sp
+                                                )
+                                                Text(
+                                                    text = buildAnnotatedString {
+                                                        append("• 1. Seçenek: Fire tutarını ")
+                                                        withStyle(SpanStyle(fontWeight = FontWeight.Black)) {
+                                                            append("${moneyFormatter.format(excessFireAmount)} ₺")
+                                                        }
+                                                        append(" azaltın.")
+                                                    },
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = analysisText,
+                                                    lineHeight = 18.sp
+                                                )
+                                                Text(
+                                                    text = buildAnnotatedString {
+                                                        append("• 2. Seçenek: Cironuzu ")
+                                                        withStyle(SpanStyle(fontWeight = FontWeight.Black)) {
+                                                            append("${moneyFormatter.format(revenueGap)} ₺")
+                                                        }
+                                                        append(" artırın (Toplam ")
+                                                        withStyle(SpanStyle(fontWeight = FontWeight.Black)) {
+                                                            append("${moneyFormatter.format(requiredRevenue)} ₺")
+                                                        }
+                                                        append(" ciro yapın).")
+                                                    },
+                                                    fontSize = 13.sp,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = analysisText,
+                                                    lineHeight = 18.sp
+                                                )
+                                            }
+                                        } else {
+                                            Text(
+                                                text = buildAnnotatedString {
+                                                    append("✅ Harika! Hedefin altındasınız. Mevcut fire oranınızla hedefi korumak için cironuzu ")
+                                                    withStyle(SpanStyle(fontWeight = FontWeight.Black)) {
+                                                        append("${moneyFormatter.format(requiredRevenue)} ₺")
+                                                    }
+                                                    append("'ye kadar düşürebilirsiniz veya ")
+                                                    withStyle(SpanStyle(fontWeight = FontWeight.Black)) {
+                                                        append("${moneyFormatter.format(remainingFireBudget)} ₺")
+                                                    }
+                                                    append(" daha fire bütçeniz var.")
+                                                },
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = analysisText,
+                                                lineHeight = 19.sp
+                                            )
+                                        }
+
+                                        // 2x2 Finansal Karşılaştırma Tablosu
+                                        Surface(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                            verticalAlignment = Alignment.CenterVertically
+                                            shape = RoundedCornerShape(12.dp),
+                                            color = Color.White.copy(alpha = 0.72f),
+                                            border = BorderStroke(0.8.dp, analysisBorder.copy(alpha = 0.7f))
                                         ) {
-                                            Text(
-                                                text = "Maks. Hedef Fire: ${moneyFormatter.format(maxAllowedFire)} ₺",
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = analysisText.copy(alpha = 0.9f)
-                                            )
-                                            Text(
-                                                text = "Gerçekleşen: ${moneyFormatter.format(fireCost)} ₺",
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = analysisText.copy(alpha = 0.9f)
-                                            )
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Maks. Hedef Fire",
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Slate700
+                                                        )
+                                                        Text(
+                                                            text = "${moneyFormatter.format(maxAllowedFire)} ₺",
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = Slate900,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Gerçekleşen Fire",
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Slate700
+                                                        )
+                                                        Text(
+                                                            text = "${moneyFormatter.format(fireCost)} ₺",
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = analysisText,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                }
+
+                                                HorizontalDivider(
+                                                    thickness = 0.8.dp,
+                                                    color = analysisBorder.copy(alpha = 0.5f)
+                                                )
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                                ) {
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Gerekli Min. Ciro",
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Slate700
+                                                        )
+                                                        Text(
+                                                            text = "${moneyFormatter.format(requiredRevenue)} ₺",
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = analysisText,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "Mevcut Ciro",
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.SemiBold,
+                                                            color = Slate700
+                                                        )
+                                                        Text(
+                                                            text = "${moneyFormatter.format(revenue)} ₺",
+                                                            fontSize = 13.sp,
+                                                            fontWeight = FontWeight.ExtraBold,
+                                                            color = Slate900,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }

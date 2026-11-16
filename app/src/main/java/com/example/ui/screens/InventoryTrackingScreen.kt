@@ -2,6 +2,11 @@ package com.example.ui.screens
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -18,28 +23,25 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.FactCheck
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Fastfood
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,62 +49,42 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
-import com.example.data.computeAuditPeriod
 import com.example.ui.components.AddInventoryAuditModal
 import com.example.ui.components.InventoryCategoryDetailModal
-import com.example.ui.theme.CriticalOrangeBorder
-import com.example.ui.theme.CriticalOrangeContainer
-import com.example.ui.theme.CriticalOrangeDark
-import com.example.ui.theme.ExpiredRedBorder
-import com.example.ui.theme.ExpiredRedContainer
-import com.example.ui.theme.ExpiredRedDark
-import com.example.ui.theme.NormalGreenBorder
-import com.example.ui.theme.NormalGreenContainer
-import com.example.ui.theme.NormalGreenDark
-import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate50
-import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate700
-import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
+import com.example.ui.viewmodel.CombinedInventorySummary
+import com.example.ui.viewmodel.computeCombinedInventorySummary
+import com.example.ui.viewmodel.isContinuousAuditCategory
+import com.example.ui.viewmodel.normalizeInventoryCategoryKey
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 import java.util.Locale
-import java.util.concurrent.TimeUnit
-import kotlin.math.abs
-
-private data class AuditCategorySpec(
-    val key: String,
-    val title: String,
-    val icon: ImageVector,
-    val pastelBg: Color,
-    val iconTint: Color
-)
 
 @Composable
 fun InventoryTrackingScreen(
     audits: List<InventoryAuditEntity>,
+    combinedSummary: CombinedInventorySummary = remember(audits) {
+        computeCombinedInventorySummary(audits)
+    },
     onRecordAudit: (
         category: String,
         auditDateMillis: Long,
         revenue: Double,
         fireCost: Double,
         targetRatio: Double,
-        notes: String
+        notes: String,
+        auditPeriod: String
     ) -> Unit,
     onUpdateAudit: (InventoryAuditEntity) -> Unit = {},
     onDeleteAudit: (id: Int) -> Unit = {},
@@ -114,14 +96,16 @@ fun InventoryTrackingScreen(
 
     val context = LocalContext.current
     val todayMidnight by com.example.util.rememberTodayMidnight()
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     var selectedDetailCategory by remember { mutableStateOf<String?>(null) }
     var activeCategoryForAddModal by remember { mutableStateOf<String?>(null) }
     var editingAuditForModal by remember { mutableStateOf<InventoryAuditEntity?>(null) }
     var isWeeklyEntryModalMode by remember { mutableStateOf(false) }
+    var isContinuousModalMode by remember { mutableStateOf(false) }
     var weeklyLockedDateMillis by remember { mutableStateOf<Long?>(null) }
     var weeklyInitialTargetRatio by remember { mutableStateOf<Double?>(null) }
 
-    val categories = remember {
+    val periodicCategories = remember {
         listOf(
             AuditCategorySpec(
                 key = "GIDA",
@@ -147,8 +131,37 @@ fun InventoryTrackingScreen(
         )
     }
 
-    val fullDateFormatter = remember {
-        SimpleDateFormat("dd.MM.yyyy", Locale.forLanguageTag("tr-TR"))
+    val continuousCategories = remember {
+        listOf(
+            AuditCategorySpec(
+                key = "ET_TAVUK",
+                title = "ET-TAVUK",
+                icon = Icons.Default.SetMeal,
+                pastelBg = Color(0xFFFFF1F2),
+                iconTint = Color(0xFFBE123C)
+            ),
+            AuditCategorySpec(
+                key = "EKMEK",
+                title = "EKMEK",
+                icon = Icons.Default.BakeryDining,
+                pastelBg = Color(0xFFFFFBEB),
+                iconTint = Color(0xFFB45309)
+            ),
+            AuditCategorySpec(
+                key = "MEYVE_SEBZE",
+                title = "MEYVE-SEBZE",
+                icon = Icons.Default.Eco,
+                pastelBg = Color(0xFFF0FDF4),
+                iconTint = Color(0xFF15803D)
+            ),
+            AuditCategorySpec(
+                key = "DONUK_MEYVE_SEBZE",
+                title = "DONUK MEYVE-SEBZE",
+                icon = Icons.Default.AcUnit,
+                pastelBg = Color(0xFFF0F9FF),
+                iconTint = Color(0xFF0369A1)
+            )
+        )
     }
 
     val moneyFormatter = remember {
@@ -166,28 +179,30 @@ fun InventoryTrackingScreen(
         DecimalFormat("0.##", symbols)
     }
 
-    // Kategori kartına tıklandığında açılan "Mevcut Durum ve Akıllı Analiz" Detay Alt Sayfası
+    // Kategori kartına tıklandığında açılan Periyodik Envanter Detay Alt Sayfası
     if (selectedDetailCategory != null && activeCategoryForAddModal == null && editingAuditForModal == null) {
         val currentCat = selectedDetailCategory!!
         val sortedForCategory = remember(audits, currentCat) {
-            audits.filter { it.category.equals(currentCat, ignoreCase = true) }
-                .sortedWith(
-                    compareByDescending<InventoryAuditEntity> { it.updatedAt }
-                        .thenByDescending { it.auditDateMillis }
-                        .thenByDescending { it.createdAt }
-                )
+            audits.filter {
+                normalizeInventoryCategoryKey(it.category) == normalizeInventoryCategoryKey(currentCat)
+            }.sortedWith(
+                compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                    .thenByDescending { it.auditDateMillis }
+                    .thenByDescending { it.createdAt }
+            )
         }
         val latestForCategory = sortedForCategory.firstOrNull()
         val initialAuditDateForCategory = sortedForCategory.lastOrNull()?.auditDateMillis
             ?: latestForCategory?.auditDateMillis
         InventoryCategoryDetailModal(
-            category = currentCat,
+            category = formatAuditCategoryLabel(currentCat),
             latestAudit = latestForCategory,
             categoryHistory = sortedForCategory,
             targetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0,
             onDismiss = { selectedDetailCategory = null },
             onEditClick = { auditToEdit ->
                 isWeeklyEntryModalMode = false
+                isContinuousModalMode = isContinuousAuditCategory(currentCat)
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
                 if (auditToEdit != null) {
@@ -196,10 +211,11 @@ fun InventoryTrackingScreen(
                     activeCategoryForAddModal = currentCat
                 }
             },
-            onAddNewAuditClick = { catKey ->
+            onAddNewAuditClick = {
                 editingAuditForModal = null
-                activeCategoryForAddModal = catKey
+                activeCategoryForAddModal = currentCat
                 isWeeklyEntryModalMode = true
+                isContinuousModalMode = isContinuousAuditCategory(currentCat)
                 weeklyLockedDateMillis = initialAuditDateForCategory ?: System.currentTimeMillis()
                 weeklyInitialTargetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
             }
@@ -210,54 +226,69 @@ fun InventoryTrackingScreen(
     if (activeCategoryForAddModal != null || editingAuditForModal != null) {
         val targetEdit = editingAuditForModal
         val initialCat = targetEdit?.category ?: activeCategoryForAddModal ?: "GIDA"
+        val resolvedContinuous = isContinuousModalMode || isContinuousAuditCategory(initialCat)
         AddInventoryAuditModal(
             initialCategory = initialCat,
             editingAudit = targetEdit,
-            isWeeklyEntryMode = isWeeklyEntryModalMode,
-            lockedAuditDateMillis = weeklyLockedDateMillis,
+            isWeeklyUpdate = isWeeklyEntryModalMode,
+            isContinuousInventory = resolvedContinuous,
+            lockedAuditDateMillis = if (resolvedContinuous) null else weeklyLockedDateMillis,
             initialTargetRatio = weeklyInitialTargetRatio,
             onDismiss = {
                 activeCategoryForAddModal = null
                 editingAuditForModal = null
                 isWeeklyEntryModalMode = false
+                isContinuousModalMode = false
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
             },
-            onSave = { chosenCategory, pickedDateMillis, revenue, fireCost, targetRatio, notes ->
+            onSave = { chosenCategory, pickedDateMillis, revenue, fireCost, targetRatio, notes, auditPeriod ->
+                val catLabel = formatAuditCategoryLabel(chosenCategory)
                 if (targetEdit != null && !isWeeklyEntryModalMode) {
-                    // "Düzenle" (Kalem): Yeni kayıt eklemez, sadece mevcut son kaydı günceller
                     val updated = targetEdit.copy(
                         category = chosenCategory,
                         auditDateMillis = pickedDateMillis,
                         revenue = revenue,
                         fireCost = fireCost,
                         targetRatio = targetRatio,
-                        notes = notes
+                        notes = notes,
+                        auditPeriod = auditPeriod
                     )
                     onUpdateAudit(updated)
                     selectedDetailCategory = chosenCategory
                     editingAuditForModal = null
                     Toast.makeText(
                         context,
-                        "$chosenCategory kaydı düzeltildi",
+                        "$catLabel kaydı düzeltildi",
                         Toast.LENGTH_SHORT
                     ).show()
                 } else {
-                    // "+ Yeni Haftalık Veri Gir" veya yeni envanter: Veritabanına YENİ BİR KAYIT olarak ekler
-                    val effectiveAuditDate = if (isWeeklyEntryModalMode && weeklyLockedDateMillis != null) {
+                    val isContinuousSave = isContinuousModalMode || isContinuousAuditCategory(chosenCategory)
+                    val effectiveAuditDate = if (!isContinuousSave && isWeeklyEntryModalMode && weeklyLockedDateMillis != null) {
                         weeklyLockedDateMillis!!
                     } else {
                         pickedDateMillis
                     }
-                    onRecordAudit(chosenCategory, effectiveAuditDate, revenue, fireCost, targetRatio, notes)
-                    selectedDetailCategory = chosenCategory
+                    onRecordAudit(
+                        chosenCategory,
+                        effectiveAuditDate,
+                        revenue,
+                        fireCost,
+                        targetRatio,
+                        notes,
+                        auditPeriod
+                    )
+                    if (!isContinuousSave) {
+                        selectedDetailCategory = chosenCategory
+                    }
                     activeCategoryForAddModal = null
                     isWeeklyEntryModalMode = false
+                    isContinuousModalMode = false
                     weeklyLockedDateMillis = null
                     weeklyInitialTargetRatio = null
                     Toast.makeText(
                         context,
-                        "$chosenCategory haftalık verisi kaydedildi",
+                        if (isContinuousSave) "$catLabel sürekli envanter verisi kaydedildi" else "$catLabel haftalık verisi kaydedildi",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -272,7 +303,7 @@ fun InventoryTrackingScreen(
             .statusBarsPadding()
             .testTag("inventory_tracking_screen")
     ) {
-        // ÜST BAR: "Envanter Takibi" başlığı + Yeni Ekle butonu
+        // 1. ÜST BAR: "Envanter Takibi" başlığı + Yeni Ekle butonu
         Surface(
             color = Color.White,
             shadowElevation = 1.dp,
@@ -318,7 +349,7 @@ fun InventoryTrackingScreen(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "90 günlük periyot & ciro/fire oranı analizi",
+                            text = "Periyodik (90g) & Sürekli (Haftalık) analiz",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             color = Slate700,
@@ -332,9 +363,10 @@ fun InventoryTrackingScreen(
                     onClick = {
                         editingAuditForModal = null
                         isWeeklyEntryModalMode = false
+                        isContinuousModalMode = selectedTabIndex == 1
                         weeklyLockedDateMillis = null
                         weeklyInitialTargetRatio = null
-                        activeCategoryForAddModal = "GIDA"
+                        activeCategoryForAddModal = if (selectedTabIndex == 1) "ET_TAVUK" else "GIDA"
                     },
                     shape = RoundedCornerShape(12.dp),
                     color = TurquoisePrimary.copy(alpha = 0.14f),
@@ -363,654 +395,104 @@ fun InventoryTrackingScreen(
             }
         }
 
-        // ANA İÇERİK: YAN YANA 3 KOMPAKT KART + GENEL HAFTALIK TREND + GEÇMİŞ ENVANTER KAYITLARI LİSTESİ
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 14.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // 1. KATEGORİ KARTLARI (GIDA, DOLAP, GIDA DIŞI - Row + weight(1f))
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    categories.forEach { spec ->
-                        val sortedCategoryAudits = remember(audits, spec.key) {
-                            audits.filter { it.category.equals(spec.key, ignoreCase = true) }
-                                .sortedWith(
-                                    compareByDescending<InventoryAuditEntity> { it.updatedAt }
-                                        .thenByDescending { it.auditDateMillis }
-                                        .thenByDescending { it.createdAt }
-                                )
-                        }
-                        val latestAudit = sortedCategoryAudits.getOrNull(0)
-                        val previousAudit = sortedCategoryAudits.getOrNull(1)
+        // 2. EN ÜST PANEL: MAĞAZA BİRLEŞİK ENVANTER ÖZETİ KARTI (T, P, S)
+        CombinedStoreInventoryCard(
+            summary = combinedSummary,
+            moneyFormatter = moneyFormatter,
+            ratioFormatter = ratioFormatter,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+        )
 
-                        val daysElapsed = remember(latestAudit, todayMidnight) {
-                            if (latestAudit == null || latestAudit.auditDateMillis <= 0L) {
-                                null
-                            } else {
-                                calculateDaysSince(latestAudit.auditDateMillis, todayMidnight)
-                            }
-                        }
+        // 3. SEKME YAPISI: "Periyodik Envanter" / "Sürekli Envanter"
+        InventoryTrackingTabRow(
+            selectedTabIndex = selectedTabIndex,
+            onTabSelected = { selectedTabIndex = it },
+            modifier = Modifier.padding(horizontal = 14.dp)
+        )
 
-                        val remainingDays = remember(daysElapsed) {
-                            if (daysElapsed == null) null else 90L - daysElapsed
-                        }
+        Spacer(modifier = Modifier.height(6.dp))
 
-                        val currentRatioVal = remember(latestAudit) {
-                            if (latestAudit != null && latestAudit.revenue > 0.0) {
-                                (latestAudit.fireCost / latestAudit.revenue) * 100.0
-                            } else null
-                        }
-
-                        val prevRatioVal = remember(previousAudit) {
-                            if (previousAudit != null && previousAudit.revenue > 0.0) {
-                                (previousAudit.fireCost / previousAudit.revenue) * 100.0
-                            } else null
-                        }
-
-                        // Envanter Oranı: (Fire / Ciro) * 100
-                        val ratioPercentText = remember(latestAudit, currentRatioVal) {
-                            if (latestAudit == null) {
-                                "%-"
-                            } else if (currentRatioVal != null) {
-                                "%${ratioFormatter.format(currentRatioVal)}"
-                            } else {
-                                "%0"
-                            }
-                        }
-
-                        val elapsedText = if (daysElapsed == null) {
-                            "Geçen: -"
-                        } else {
-                            "Geçen: $daysElapsed Gün"
-                        }
-
-                        // Renk Kodu: Kalan gün > 30 Yeşil, 0..30 Sarı/Turuncu, < 0 Kırmızı ("X Gün Gecikti")
-                        val (remainingLabel, statusColor, statusBgColor, statusBorderColor) = when {
-                            remainingDays == null -> QuadrupleStatus(
-                                "Kayıt Yok",
-                                ExpiredRedDark,
-                                ExpiredRedContainer,
-                                ExpiredRedBorder
-                            )
-                            remainingDays < 0L -> QuadrupleStatus(
-                                "${abs(remainingDays)} Gün Gecikti",
-                                ExpiredRedDark,
-                                ExpiredRedContainer,
-                                ExpiredRedBorder
-                            )
-                            remainingDays in 0L..30L -> QuadrupleStatus(
-                                "Kalan: $remainingDays Gün",
-                                CriticalOrangeDark,
-                                CriticalOrangeContainer,
-                                CriticalOrangeBorder
-                            )
-                            else -> QuadrupleStatus(
-                                "Kalan: $remainingDays Gün",
-                                NormalGreenDark,
-                                NormalGreenContainer,
-                                NormalGreenBorder
-                            )
-                        }
-
-                        Card(
-                            onClick = { selectedDetailCategory = spec.key },
-                            modifier = Modifier
-                                .weight(1f)
-                                .testTag("inventory_card_${spec.key}"),
-                            shape = RoundedCornerShape(18.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = statusBgColor.copy(alpha = 0.45f)
-                            ),
-                            border = BorderStroke(1.2.dp, statusBorderColor),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 8.dp, vertical = 12.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(5.dp)
-                            ) {
-                                // Kategori İkonu + Başlığı
-                                Surface(
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    border = BorderStroke(1.dp, statusBorderColor),
-                                    modifier = Modifier.size(30.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = spec.icon,
-                                            contentDescription = spec.title,
-                                            tint = statusColor,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                    }
-                                }
-
-                                Text(
-                                    text = spec.title,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate900,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
-                                )
-
-                                // Envanter Oranı: Ortada Büyük ve Tok "%X" + Yanında Trend Oku (↓ / ↑)
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = ratioPercentText,
-                                        fontSize = 19.sp,
-                                        fontWeight = FontWeight.Black,
-                                        color = Slate900,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center
-                                    )
-                                    if (currentRatioVal != null && prevRatioVal != null) {
-                                        val diff = currentRatioVal - prevRatioVal
-                                        if (abs(diff) > 0.0001) {
-                                            val isDown = diff < 0.0
-                                            Spacer(modifier = Modifier.width(3.dp))
-                                            Text(
-                                                text = if (isDown) "↓" else "↑",
-                                                fontSize = 15.sp,
-                                                fontWeight = FontWeight.Black,
-                                                color = if (isDown) NormalGreenDark else ExpiredRedDark
-                                            )
-                                        }
-                                    }
-                                }
-
-                                // Geçen Gün
-                                Text(
-                                    text = elapsedText,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate700,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    textAlign = TextAlign.Center
-                                )
-
-                                // Kalan Gün / Gecikme Rozeti
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = statusBgColor,
-                                    border = BorderStroke(0.8.dp, statusBorderColor)
-                                ) {
-                                    Text(
-                                        text = remainingLabel,
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = statusColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
+        // 4. SEKMELER ARASI YUMUŞAK GEÇİŞLİ İÇERİK (AnimatedContent)
+        AnimatedContent(
+            targetState = selectedTabIndex,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+            },
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            label = "inventory_tracking_tab_transition"
+        ) { currentTab ->
+            val isContinuousTab = currentTab == 1
+            val tabCategories = if (isContinuousTab) continuousCategories else periodicCategories
+            val latestByCategory = remember(audits, tabCategories) {
+                val comparator = compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                    .thenByDescending { it.auditDateMillis }
+                    .thenByDescending { it.createdAt }
+                tabCategories.associate { spec ->
+                    val normalizedSpecKey = normalizeInventoryCategoryKey(spec.key)
+                    val latest = audits
+                        .filter { normalizeInventoryCategoryKey(it.category) == normalizedSpecKey }
+                        .sortedWith(comparator)
+                        .firstOrNull()
+                    spec.key to latest
                 }
             }
 
-            // 1.B ÜST PANELDE TAM GENİŞLİKTE "GENEL HAFTALIK TREND" KARTI
-            item {
-                val perCategorySorted = remember(audits, categories) {
-                    categories.map { spec ->
-                        audits.filter { it.category.equals(spec.key, ignoreCase = true) }
-                            .sortedWith(
-                                compareByDescending<InventoryAuditEntity> { it.updatedAt }
-                                    .thenByDescending { it.auditDateMillis }
-                                    .thenByDescending { it.createdAt }
-                            )
-                    }
-                }
-
-                val thisWeekEntries = remember(perCategorySorted) {
-                    perCategorySorted.mapNotNull { it.getOrNull(0) }
-                }
-                val lastWeekEntries = remember(perCategorySorted) {
-                    perCategorySorted.mapNotNull { it.getOrNull(1) }
-                }
-
-                val thisWeekTotalRevenue = thisWeekEntries.sumOf { it.revenue }
-                val thisWeekTotalFire = thisWeekEntries.sumOf { it.fireCost }
-                val thisWeekRatio = if (thisWeekTotalRevenue > 0.0) {
-                    (thisWeekTotalFire / thisWeekTotalRevenue) * 100.0
-                } else null
-
-                val lastWeekTotalRevenue = lastWeekEntries.sumOf { it.revenue }
-                val lastWeekTotalFire = lastWeekEntries.sumOf { it.fireCost }
-                val lastWeekRatio = if (lastWeekTotalRevenue > 0.0) {
-                    (lastWeekTotalFire / lastWeekTotalRevenue) * 100.0
-                } else null
-
-                val hasComparison = thisWeekRatio != null && lastWeekRatio != null
-                val ratioDiff = if (hasComparison) thisWeekRatio!! - lastWeekRatio!! else 0.0
-                val isImproved = hasComparison && ratioDiff < -0.0001
-                val isWorsened = hasComparison && ratioDiff > 0.0001
-
-                val badgeBg = when {
-                    isImproved -> NormalGreenContainer
-                    isWorsened -> ExpiredRedContainer
-                    else -> TurquoisePrimary.copy(alpha = 0.14f)
-                }
-                val badgeBorder = when {
-                    isImproved -> NormalGreenBorder
-                    isWorsened -> ExpiredRedBorder
-                    else -> TurquoisePrimary.copy(alpha = 0.35f)
-                }
-                val badgeText = when {
-                    isImproved -> NormalGreenDark
-                    isWorsened -> ExpiredRedDark
-                    else -> TurquoiseDark
-                }
-                val statusLabel = when {
-                    isImproved -> "↓ İyileşme Var"
-                    isWorsened -> "↑ Kötüleşme Var"
-                    hasComparison -> "Değişim Yok"
-                    thisWeekRatio != null -> "İlk Hafta Verisi"
-                    else -> "Veri Bekleniyor"
-                }
-
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("general_weekly_trend_card"),
-                    shape = RoundedCornerShape(18.dp),
-                    color = Slate50,
-                    border = BorderStroke(1.2.dp, Slate200)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Genel Haftalık Trend",
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate900
-                            )
-
-                            Surface(
-                                shape = RoundedCornerShape(10.dp),
-                                color = badgeBg,
-                                border = BorderStroke(1.dp, badgeBorder)
-                            ) {
-                                Text(
-                                    text = statusLabel,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = badgeText,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // KATEGORİ KARTLARI
+                if (isContinuousTab) {
+                    ContinuousCategoryCardsRow(
+                        categories = continuousCategories,
+                        audits = audits,
+                        moneyFormatter = moneyFormatter,
+                        ratioFormatter = ratioFormatter,
+                        onCategoryClick = { spec, latestAudit ->
+                            editingAuditForModal = null
+                            activeCategoryForAddModal = spec.key
+                            isWeeklyEntryModalMode = true
+                            isContinuousModalMode = true
+                            weeklyLockedDateMillis = null
+                            weeklyInitialTargetRatio = latestAudit?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
                         }
+                    )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Bu Hafta Kutusu
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Slate200)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = "Bu Hafta: Oran ${if (thisWeekRatio != null) "%${ratioFormatter.format(thisWeekRatio)}" else "%-"}",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Slate900,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "Toplam Fire / Toplam Ciro",
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Slate700,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-
-                            // Geçen Hafta Kutusu
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(12.dp),
-                                color = Color.White,
-                                border = BorderStroke(1.dp, Slate200)
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp, vertical = 9.dp),
-                                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                                ) {
-                                    Text(
-                                        text = "Geçen Hafta: Oran ${if (lastWeekRatio != null) "%${ratioFormatter.format(lastWeekRatio)}" else "%-"}",
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Slate800,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = if (hasComparison) {
-                                            val diffStr = ratioFormatter.format(abs(ratioDiff))
-                                            if (isImproved) "%$diffStr düşüş sağlandı" else if (isWorsened) "%$diffStr artış oluştu" else "Oran sabit kaldı"
-                                        } else {
-                                            "Önceki hafta kaydı yok"
-                                        },
-                                        fontSize = 10.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isImproved) NormalGreenDark else if (isWorsened) ExpiredRedDark else Slate700,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
+                    ContinuousInventoryTotalCard(
+                        latestAudits = continuousCategories.mapNotNull { latestByCategory[it.key] },
+                        moneyFormatter = moneyFormatter,
+                        ratioFormatter = ratioFormatter
+                    )
+                } else {
+                    PeriodicCategoryCardsRow(
+                        categories = periodicCategories,
+                        audits = audits,
+                        todayMidnight = todayMidnight,
+                        ratioFormatter = ratioFormatter,
+                        onCategoryClick = { spec ->
+                            selectedDetailCategory = spec.key
                         }
-                    }
+                    )
                 }
-            }
 
-            // 2. GEÇMİŞ ENVANTER KAYITLARI BAŞLIĞI
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.History,
-                            contentDescription = null,
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Geçmiş Envanter Kayıtları",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900
-                        )
-                    }
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = TurquoisePrimary.copy(alpha = 0.14f)
-                    ) {
-                        Text(
-                            text = "${audits.size} Kayıt",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TurquoiseDark,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
+                // AKILLI FİNANSAL ANALİZ KARTLARI (Her kategori için alt alta)
+                tabCategories.forEach { spec ->
+                    SmartCategoryAnalysisCard(
+                        spec = spec,
+                        latestAudit = latestByCategory[spec.key],
+                        moneyFormatter = moneyFormatter,
+                        ratioFormatter = ratioFormatter,
+                        onClick = { selectedDetailCategory = spec.key }
+                    )
                 }
-            }
 
-            // 3. GEÇMİŞ ENVANTER LİSTESİ (Sol: Kategori & Tarih, Sağ: Ciro, Fire, Oran ve Not)
-            if (audits.isEmpty()) {
-                item {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = Slate50,
-                        border = BorderStroke(1.dp, Slate200)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(24.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.FactCheck,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(36.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Henüz envanter kaydı bulunmuyor",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate900,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Yukarıdaki GIDA, DOLAP veya GIDA DIŞI kartlarından birine dokunarak ilk finansal envanter kaydını ekleyebilirsiniz.",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Slate700,
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                }
-            } else {
-                items(audits, key = { it.id }) { audit ->
-                    val auditDaysAgo = calculateDaysSince(audit.auditDateMillis, todayMidnight)
-                    val remaining = 90L - auditDaysAgo
-                    val envanterTarihiStr = fullDateFormatter.format(Date(audit.auditDateMillis))
-
-                    val actualRatio = if (audit.revenue > 0.0) {
-                        (audit.fireCost / audit.revenue) * 100.0
-                    } else {
-                        0.0
-                    }
-                    val isExceedingTarget = audit.targetRatio > 0.0 && actualRatio > audit.targetRatio
-
-                    val (badgeBg, badgeText) = when (audit.category.uppercase(Locale.forLanguageTag("tr-TR"))) {
-                        "DOLAP" -> Pair(Color(0xFFDBEAFE), Color(0xFF1D4ED8))
-                        "GIDA DIŞI" -> Pair(Color(0xFFEDE9FE), Color(0xFF6D28D9))
-                        else -> Pair(TurquoisePrimary.copy(alpha = 0.16f), TurquoiseDark)
-                    }
-
-                    val ratioBadgeBg = if (isExceedingTarget) ExpiredRedContainer else NormalGreenContainer
-                    val ratioBadgeText = if (isExceedingTarget) ExpiredRedDark else NormalGreenDark
-
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = Slate50,
-                        border = BorderStroke(1.dp, Slate200)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // SOL TARAF: Kategori Adı ve Tarih
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(5.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = badgeBg
-                                        ) {
-                                            Text(
-                                                text = audit.category,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = badgeText,
-                                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
-                                            )
-                                        }
-
-                                        Surface(
-                                            shape = RoundedCornerShape(8.dp),
-                                            color = ratioBadgeBg
-                                        ) {
-                                            Text(
-                                                text = "Oran: %${ratioFormatter.format(actualRatio)}",
-                                                fontSize = 11.5.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = ratioBadgeText,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                            )
-                                        }
-                                    }
-
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Default.CalendarToday,
-                                            contentDescription = null,
-                                            tint = Slate700,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(5.dp))
-                                        Text(
-                                            text = envanterTarihiStr,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Slate900
-                                        )
-                                        Spacer(modifier = Modifier.width(6.dp))
-                                        Text(
-                                            text = if (remaining >= 0) "• Kalan: $remaining Gün" else "• ${abs(remaining)} Gün Gecikti",
-                                            fontSize = 11.5.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (remaining < 0) ExpiredRedDark else Slate700
-                                        )
-                                    }
-                                }
-
-                                // SAĞ TARAF: Ciro, Fire, Hedef Oran + Sil Butonu
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.End,
-                                        verticalArrangement = Arrangement.spacedBy(3.dp)
-                                    ) {
-                                        Text(
-                                            text = "Ciro: ${moneyFormatter.format(audit.revenue)} ₺",
-                                            fontSize = 12.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = Slate900
-                                        )
-                                        Text(
-                                            text = "Fire: ${moneyFormatter.format(audit.fireCost)} ₺",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = ExpiredRedDark
-                                        )
-                                        if (audit.targetRatio > 0.0) {
-                                            Text(
-                                                text = "Hedef: %${ratioFormatter.format(audit.targetRatio)}",
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = Slate700
-                                            )
-                                        }
-                                    }
-
-                                    IconButton(
-                                        onClick = { onDeleteAudit(audit.id) },
-                                        modifier = Modifier
-                                            .size(30.dp)
-                                            .testTag("delete_audit_${audit.id}")
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Kaydı Sil",
-                                            tint = Slate500,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            // Varsa Not Bilgisi
-                            if (audit.notes.isNotBlank()) {
-                                Surface(
-                                    shape = RoundedCornerShape(10.dp),
-                                    color = Color.White,
-                                    border = BorderStroke(0.8.dp, Slate200),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = "Not: ${audit.notes}",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Slate800,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            item {
-                Spacer(modifier = Modifier.height(32.dp))
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }
 }
-
-private fun calculateDaysSince(auditDateMillis: Long, todayMidnight: Long): Long {
-    val auditCal = Calendar.getInstance().apply {
-        timeInMillis = auditDateMillis
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-        set(Calendar.MILLISECOND, 0)
-    }
-    val diffMillis = maxOf(0L, todayMidnight - auditCal.timeInMillis)
-    return TimeUnit.MILLISECONDS.toDays(diffMillis)
-}
-
-private data class QuadrupleStatus(
-    val label: String,
-    val textColor: Color,
-    val bgColor: Color,
-    val borderColor: Color
-)

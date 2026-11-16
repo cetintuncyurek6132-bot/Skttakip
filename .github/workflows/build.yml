@@ -62,11 +62,7 @@ jobs:
         id: calc_version
         run: |
           RUN_NUM=${{ github.run_number }}
-          if [ "$RUN_NUM" -lt 36 ]; then
-            ACTUAL_CODE=36
-          else
-            ACTUAL_CODE=$RUN_NUM
-          fi
+          ACTUAL_CODE=$(( 300 + RUN_NUM ))
           MAJOR=$(( 1 + ACTUAL_CODE / 10 ))
           MINOR=$(( ACTUAL_CODE % 10 ))
           VERSION_NAME="${MAJOR}.${MINOR}"
