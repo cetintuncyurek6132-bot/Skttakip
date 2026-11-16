@@ -353,6 +353,13 @@ fun AppNavHost(
                         auditPeriod = auditPeriod
                     )
                 },
+                onRecordBulkContinuousAudits = { auditPeriod, notes, entries ->
+                    inventoryViewModel.recordBulkContinuousAudits(
+                        auditPeriod = auditPeriod,
+                        notes = notes,
+                        entries = entries
+                    )
+                },
                 onUpdateAudit = { updatedAudit ->
                     inventoryViewModel.updateInventoryAudit(updatedAudit)
                 },

@@ -41,6 +41,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
+import com.example.data.InventoryTargetPreferences
 import com.example.ui.components.AddInventoryAuditModal
 import com.example.ui.components.InventoryCategoryDetailModal
 import com.example.ui.theme.Slate50
@@ -63,6 +65,7 @@ import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
+import com.example.ui.viewmodel.BulkContinuousAuditInput
 import com.example.ui.viewmodel.CombinedInventorySummary
 import com.example.ui.viewmodel.computeCombinedInventorySummary
 import com.example.ui.viewmodel.isContinuousAuditCategory
@@ -86,6 +89,11 @@ fun InventoryTrackingScreen(
         notes: String,
         auditPeriod: String
     ) -> Unit,
+    onRecordBulkContinuousAudits: (
+        auditPeriod: String,
+        notes: String,
+        entries: List<BulkContinuousAuditInput>
+    ) -> Unit = { _, _, _ -> },
     onUpdateAudit: (InventoryAuditEntity) -> Unit = {},
     onDeleteAudit: (id: Int) -> Unit = {},
     onBackClick: () -> Unit
@@ -102,8 +110,17 @@ fun InventoryTrackingScreen(
     var editingAuditForModal by remember { mutableStateOf<InventoryAuditEntity?>(null) }
     var isWeeklyEntryModalMode by remember { mutableStateOf(false) }
     var isContinuousModalMode by remember { mutableStateOf(false) }
+    var isBulkContinuousModalMode by remember { mutableStateOf(false) }
     var weeklyLockedDateMillis by remember { mutableStateOf<Long?>(null) }
     var weeklyInitialTargetRatio by remember { mutableStateOf<Double?>(null) }
+    var singleAuditInitialPeriod by remember { mutableStateOf("") }
+    var storeCombinedTargetRatio by remember {
+        mutableDoubleStateOf(InventoryTargetPreferences.getStoreCombinedTargetRatio(context))
+    }
+    var continuousTotalTargetRatio by remember {
+        mutableDoubleStateOf(InventoryTargetPreferences.getContinuousTotalTargetRatio(context))
+    }
+    var editingTargetDialogType by remember { mutableStateOf<String?>(null) }
 
     val periodicCategories = remember {
         listOf(
@@ -203,8 +220,14 @@ fun InventoryTrackingScreen(
             onEditClick = { auditToEdit ->
                 isWeeklyEntryModalMode = false
                 isContinuousModalMode = isContinuousAuditCategory(currentCat)
+                isBulkContinuousModalMode = false
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
+                singleAuditInitialPeriod = if (isContinuousAuditCategory(currentCat)) {
+                    latestForCategory?.auditPeriod.orEmpty()
+                } else {
+                    ""
+                }
                 if (auditToEdit != null) {
                     editingAuditForModal = auditToEdit
                 } else {
@@ -216,22 +239,44 @@ fun InventoryTrackingScreen(
                 activeCategoryForAddModal = currentCat
                 isWeeklyEntryModalMode = true
                 isContinuousModalMode = isContinuousAuditCategory(currentCat)
+                isBulkContinuousModalMode = false
                 weeklyLockedDateMillis = initialAuditDateForCategory ?: System.currentTimeMillis()
                 weeklyInitialTargetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
+                singleAuditInitialPeriod = if (isContinuousAuditCategory(currentCat)) {
+                    latestForCategory?.auditPeriod.orEmpty()
+                } else {
+                    ""
+                }
             }
         )
     }
 
-    // Yeni Sayım Ekleme, Haftalık Veri Girme veya Mevcut Sayımı Düzenleme Modalı
+    // Yeni Sayım Ekleme, Toplu Sürekli Envanter, Haftalık Veri Girme veya Mevcut Sayımı Düzenleme Modalı
     if (activeCategoryForAddModal != null || editingAuditForModal != null) {
         val targetEdit = editingAuditForModal
         val initialCat = targetEdit?.category ?: activeCategoryForAddModal ?: "GIDA"
         val resolvedContinuous = isContinuousModalMode || isContinuousAuditCategory(initialCat)
+        val continuousTargetRatios = remember(audits) {
+            val comparator = compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                .thenByDescending { it.auditDateMillis }
+                .thenByDescending { it.createdAt }
+            continuousCategories.associate { spec ->
+                val normalizedSpecKey = normalizeInventoryCategoryKey(spec.key)
+                val latest = audits
+                    .filter { normalizeInventoryCategoryKey(it.category) == normalizedSpecKey }
+                    .sortedWith(comparator)
+                    .firstOrNull()
+                spec.key to (latest?.targetRatio?.takeIf { it > 0.0 } ?: 1.0)
+            }
+        }
         AddInventoryAuditModal(
             initialCategory = initialCat,
             editingAudit = targetEdit,
             isWeeklyUpdate = isWeeklyEntryModalMode,
             isContinuousInventory = resolvedContinuous,
+            isBulkContinuous = isBulkContinuousModalMode,
+            initialCategoryTargetRatios = continuousTargetRatios,
+            initialAuditPeriod = singleAuditInitialPeriod,
             lockedAuditDateMillis = if (resolvedContinuous) null else weeklyLockedDateMillis,
             initialTargetRatio = weeklyInitialTargetRatio,
             onDismiss = {
@@ -239,10 +284,12 @@ fun InventoryTrackingScreen(
                 editingAuditForModal = null
                 isWeeklyEntryModalMode = false
                 isContinuousModalMode = false
+                isBulkContinuousModalMode = false
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
+                singleAuditInitialPeriod = ""
             },
-            onSave = { chosenCategory, pickedDateMillis, revenue, fireCost, targetRatio, notes, auditPeriod ->
+                    onSave = { chosenCategory, pickedDateMillis, revenue, fireCost, targetRatio, notes, auditPeriod ->
                 val catLabel = formatAuditCategoryLabel(chosenCategory)
                 if (targetEdit != null && !isWeeklyEntryModalMode) {
                     val updated = targetEdit.copy(
@@ -257,6 +304,8 @@ fun InventoryTrackingScreen(
                     onUpdateAudit(updated)
                     selectedDetailCategory = chosenCategory
                     editingAuditForModal = null
+                    isBulkContinuousModalMode = false
+                    singleAuditInitialPeriod = ""
                     Toast.makeText(
                         context,
                         "$catLabel kaydı düzeltildi",
@@ -284,14 +333,62 @@ fun InventoryTrackingScreen(
                     activeCategoryForAddModal = null
                     isWeeklyEntryModalMode = false
                     isContinuousModalMode = false
+                    isBulkContinuousModalMode = false
                     weeklyLockedDateMillis = null
                     weeklyInitialTargetRatio = null
+                    singleAuditInitialPeriod = ""
                     Toast.makeText(
                         context,
                         if (isContinuousSave) "$catLabel sürekli envanter verisi kaydedildi" else "$catLabel haftalık verisi kaydedildi",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+            },
+            onSaveBulkContinuous = { auditPeriod, notes, entries ->
+                onRecordBulkContinuousAudits(auditPeriod, notes, entries)
+                activeCategoryForAddModal = null
+                editingAuditForModal = null
+                isWeeklyEntryModalMode = false
+                isContinuousModalMode = false
+                isBulkContinuousModalMode = false
+                weeklyLockedDateMillis = null
+                weeklyInitialTargetRatio = null
+                singleAuditInitialPeriod = ""
+                val periodLabel = auditPeriod.trim().ifBlank { "Güncel" }
+                Toast.makeText(
+                    context,
+                    "$periodLabel dönemi verileri başarıyla kaydedildi",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        )
+    }
+
+    if (editingTargetDialogType != null) {
+        val isCombinedDialog = editingTargetDialogType == "COMBINED"
+        TargetRatioEditDialog(
+            title = if (isCombinedDialog) "Mağaza Genel Hedef Oranı" else "Sürekli Envanter Toplam Hedefi",
+            subtitle = if (isCombinedDialog) {
+                "Birleşik Mağaza Envanteri (T) toplam oranı için hedef yüzdeyi belirleyin."
+            } else {
+                "Et-Tavuk, Ekmek ve Meyve-Sebze toplam oranı için hedef yüzdeyi belirleyin."
+            },
+            initialValue = if (isCombinedDialog) storeCombinedTargetRatio else continuousTotalTargetRatio,
+            onDismiss = { editingTargetDialogType = null },
+            onSave = { newTarget ->
+                if (isCombinedDialog) {
+                    InventoryTargetPreferences.setStoreCombinedTargetRatio(context, newTarget)
+                    storeCombinedTargetRatio = newTarget
+                } else {
+                    InventoryTargetPreferences.setContinuousTotalTargetRatio(context, newTarget)
+                    continuousTotalTargetRatio = newTarget
+                }
+                editingTargetDialogType = null
+                Toast.makeText(
+                    context,
+                    "Hedef oran %${ratioFormatter.format(newTarget)} olarak güncellendi",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         )
     }
@@ -363,10 +460,13 @@ fun InventoryTrackingScreen(
                     onClick = {
                         editingAuditForModal = null
                         isWeeklyEntryModalMode = false
-                        isContinuousModalMode = selectedTabIndex == 1
+                        val isContinuousTabSelected = selectedTabIndex == 1
+                        isContinuousModalMode = isContinuousTabSelected
+                        isBulkContinuousModalMode = isContinuousTabSelected
                         weeklyLockedDateMillis = null
                         weeklyInitialTargetRatio = null
-                        activeCategoryForAddModal = if (selectedTabIndex == 1) "ET_TAVUK" else "GIDA"
+                        singleAuditInitialPeriod = ""
+                        activeCategoryForAddModal = if (isContinuousTabSelected) "ET_TAVUK" else "GIDA"
                     },
                     shape = RoundedCornerShape(12.dp),
                     color = TurquoisePrimary.copy(alpha = 0.14f),
@@ -398,6 +498,8 @@ fun InventoryTrackingScreen(
         // 2. EN ÜST PANEL: MAĞAZA BİRLEŞİK ENVANTER ÖZETİ KARTI (T, P, S)
         CombinedStoreInventoryCard(
             summary = combinedSummary,
+            combinedTargetRatio = storeCombinedTargetRatio,
+            onEditCombinedTargetClick = { editingTargetDialogType = "COMBINED" },
             moneyFormatter = moneyFormatter,
             ratioFormatter = ratioFormatter,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
@@ -448,23 +550,32 @@ fun InventoryTrackingScreen(
             ) {
                 // KATEGORİ KARTLARI
                 if (isContinuousTab) {
+                    ContinuousTotalTargetStrip(
+                        continuousTargetRatio = continuousTotalTargetRatio,
+                        ratioFormatter = ratioFormatter,
+                        onEditClick = { editingTargetDialogType = "CONTINUOUS" }
+                    )
+
                     ContinuousCategoryCardsRow(
                         categories = continuousCategories,
                         audits = audits,
                         moneyFormatter = moneyFormatter,
                         ratioFormatter = ratioFormatter,
-                        onCategoryClick = { spec, latestAudit ->
+                        onCategoryClick = { spec, _ ->
                             editingAuditForModal = null
                             activeCategoryForAddModal = spec.key
-                            isWeeklyEntryModalMode = true
+                            isWeeklyEntryModalMode = false
                             isContinuousModalMode = true
+                            isBulkContinuousModalMode = true
                             weeklyLockedDateMillis = null
-                            weeklyInitialTargetRatio = latestAudit?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
+                            weeklyInitialTargetRatio = null
+                            singleAuditInitialPeriod = ""
                         }
                     )
 
                     ContinuousInventoryTotalCard(
                         latestAudits = continuousCategories.mapNotNull { latestByCategory[it.key] },
+                        continuousTargetRatio = continuousTotalTargetRatio,
                         moneyFormatter = moneyFormatter,
                         ratioFormatter = ratioFormatter
                     )

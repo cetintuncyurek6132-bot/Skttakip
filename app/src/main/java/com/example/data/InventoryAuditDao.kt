@@ -34,6 +34,24 @@ interface InventoryAuditDao {
     @Query("SELECT * FROM inventory_audits WHERE category = :category ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC LIMIT 1")
     suspend fun getLatestAuditForCategory(category: String): InventoryAuditEntity?
 
+    @Query(
+        """
+        SELECT * FROM inventory_audits
+        WHERE UPPER(TRIM(category)) = UPPER(TRIM(:category))
+          AND LOWER(TRIM(auditPeriod)) = LOWER(TRIM(:period))
+          AND auditDateMillis >= :startOfDayMillis
+          AND auditDateMillis <= :endOfDayMillis
+        ORDER BY updatedAt DESC, createdAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun getAuditByCategoryAndPeriodAndDate(
+        category: String,
+        period: String,
+        startOfDayMillis: Long,
+        endOfDayMillis: Long
+    ): InventoryAuditEntity?
+
     @Query("DELETE FROM inventory_audits WHERE id = :id")
     suspend fun deleteAuditById(id: Int)
 

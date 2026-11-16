@@ -53,6 +53,15 @@ data class MonthlyAuditSummary(
     val monthlyProgressDiff: Double?
 )
 
+data class CategoryDeviationInfo(
+    val categoryKey: String,
+    val displayName: String,
+    val actualRatio: Double,
+    val targetRatio: Double,
+    val relativeExceedPercent: Double,
+    val absoluteGap: Double
+)
+
 data class CombinedInventorySummary(
     val totalRevenue: Double = 0.0,
     val totalFireCost: Double = 0.0,
@@ -61,7 +70,15 @@ data class CombinedInventorySummary(
     val continuousRatio: Double? = null,
     val weightedTargetRatio: Double = 1.0,
     val isOverTarget: Boolean = false,
+    val worstDeviationCategory: CategoryDeviationInfo? = null,
     val hasData: Boolean = false
+)
+
+data class BulkContinuousAuditInput(
+    val category: String,
+    val revenue: Double,
+    val fireCost: Double,
+    val targetRatio: Double = 1.0
 )
 
 val PERIODIC_AUDIT_CATEGORIES = listOf("GIDA", "DOLAP", "GIDA DIŞI")
@@ -75,6 +92,16 @@ fun normalizeInventoryCategoryKey(rawCategory: String): String {
         "MEYVE-SEBZE", "MEYVE_SEBZE" -> "MEYVE_SEBZE"
         "DONUK MEYVE-SEBZE", "DONUK_MEYVE_SEBZE" -> "DONUK_MEYVE_SEBZE"
         else -> upper
+    }
+}
+
+fun formatCategoryDisplayName(normalizedKey: String): String {
+    return when (normalizedKey) {
+        "ET_TAVUK" -> "ET-TAVUK"
+        "EKMEK" -> "EKMEK"
+        "MEYVE_SEBZE" -> "MEYVE-SEBZE"
+        "DONUK_MEYVE_SEBZE" -> "DONUK MEYVE-SEBZE"
+        else -> normalizedKey
     }
 }
 
@@ -130,6 +157,30 @@ fun computeCombinedInventorySummary(
         if (positiveTargets.isNotEmpty()) positiveTargets.average() else 1.0
     }
 
+    val deviations = allLatest.mapNotNull { item ->
+        val rev = item.revenue.coerceAtLeast(0.0)
+        val fire = item.fireCost.coerceAtLeast(0.0)
+        if (rev <= 0.0 && fire <= 0.0) return@mapNotNull null
+        val actual = if (rev > 0.0) (fire / rev) * 100.0 else 100.0
+        val catTarget = if (item.targetRatio > 0.0) item.targetRatio else 1.0
+        val absGap = actual - catTarget
+        val relExceed = ((actual - catTarget) / catTarget) * 100.0
+        val normKey = normalizeInventoryCategoryKey(item.category)
+        CategoryDeviationInfo(
+            categoryKey = normKey,
+            displayName = formatCategoryDisplayName(normKey),
+            actualRatio = actual,
+            targetRatio = catTarget,
+            relativeExceedPercent = relExceed,
+            absoluteGap = absGap
+        )
+    }
+
+    val worstDeviationCategory = deviations
+        .filter { it.absoluteGap > 0.0 }
+        .maxWithOrNull(compareBy<CategoryDeviationInfo> { it.relativeExceedPercent }.thenBy { it.absoluteGap })
+        ?: deviations.maxWithOrNull(compareBy<CategoryDeviationInfo> { it.relativeExceedPercent }.thenBy { it.actualRatio })
+
     val isOverTarget = combinedRatio != null && combinedRatio > weightedTargetRatio
 
     return CombinedInventorySummary(
@@ -140,6 +191,7 @@ fun computeCombinedInventorySummary(
         continuousRatio = continuousRatio,
         weightedTargetRatio = weightedTargetRatio,
         isOverTarget = isOverTarget,
+        worstDeviationCategory = worstDeviationCategory,
         hasData = true
     )
 }
@@ -339,6 +391,75 @@ class InventoryViewModel(
         )
     }
 
+    private fun getDayBoundsMillis(timestampMillis: Long): Pair<Long, Long> {
+        val startCal = Calendar.getInstance().apply {
+            timeInMillis = timestampMillis
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+        val endCal = Calendar.getInstance().apply {
+            timeInMillis = timestampMillis
+            set(Calendar.HOUR_OF_DAY, 23)
+            set(Calendar.MINUTE, 59)
+            set(Calendar.SECOND, 59)
+            set(Calendar.MILLISECOND, 999)
+        }
+        return startCal.timeInMillis to endCal.timeInMillis
+    }
+
+    private suspend fun upsertContinuousAuditForDay(
+        category: String,
+        auditDateMillis: Long,
+        revenue: Double,
+        fireCost: Double,
+        targetRatio: Double,
+        notes: String,
+        auditPeriod: String,
+        now: Long = System.currentTimeMillis()
+    ) {
+        val normalizedCategory = normalizeInventoryCategoryKey(category)
+        val cleanPeriod = auditPeriod.trim()
+        val cleanNotes = notes.trim()
+        val effectiveDate = if (auditDateMillis > 0L) auditDateMillis else now
+        val (startOfDay, endOfDay) = getDayBoundsMillis(effectiveDate)
+
+        val existingSameDay = repository.getAuditByCategoryAndPeriodAndDate(
+            category = normalizedCategory,
+            period = cleanPeriod,
+            startOfDayMillis = startOfDay,
+            endOfDayMillis = endOfDay
+        )
+
+        if (existingSameDay != null) {
+            val updated = existingSameDay.copy(
+                category = normalizedCategory,
+                auditDateMillis = effectiveDate,
+                revenue = revenue.coerceAtLeast(0.0),
+                fireCost = fireCost.coerceAtLeast(0.0),
+                targetRatio = targetRatio.coerceAtLeast(0.0),
+                notes = cleanNotes,
+                updatedAt = now,
+                auditPeriod = cleanPeriod
+            )
+            repository.updateInventoryAudit(updated)
+        } else {
+            val inserted = InventoryAuditEntity(
+                category = normalizedCategory,
+                auditDateMillis = effectiveDate,
+                revenue = revenue.coerceAtLeast(0.0),
+                fireCost = fireCost.coerceAtLeast(0.0),
+                targetRatio = targetRatio.coerceAtLeast(0.0),
+                notes = cleanNotes,
+                createdAt = now,
+                updatedAt = now,
+                auditPeriod = cleanPeriod
+            )
+            repository.insertInventoryAudit(inserted)
+        }
+    }
+
     fun recordInventoryAudit(
         category: String,
         notes: String = "",
@@ -351,18 +472,63 @@ class InventoryViewModel(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = System.currentTimeMillis()
-            val audit = InventoryAuditEntity(
-                category = category.trim(),
-                auditDateMillis = auditDateMillis,
-                revenue = revenue.coerceAtLeast(0.0),
-                fireCost = fireCost.coerceAtLeast(0.0),
-                targetRatio = targetRatio.coerceAtLeast(0.0),
-                notes = notes.trim(),
-                createdAt = now,
-                updatedAt = now,
-                auditPeriod = auditPeriod.trim()
-            )
-            repository.insertInventoryAudit(audit)
+            if (isContinuousAuditCategory(category)) {
+                upsertContinuousAuditForDay(
+                    category = category,
+                    auditDateMillis = auditDateMillis,
+                    revenue = revenue,
+                    fireCost = fireCost,
+                    targetRatio = targetRatio,
+                    notes = notes,
+                    auditPeriod = auditPeriod,
+                    now = now
+                )
+            } else {
+                val audit = InventoryAuditEntity(
+                    category = category.trim(),
+                    auditDateMillis = auditDateMillis,
+                    revenue = revenue.coerceAtLeast(0.0),
+                    fireCost = fireCost.coerceAtLeast(0.0),
+                    targetRatio = targetRatio.coerceAtLeast(0.0),
+                    notes = notes.trim(),
+                    createdAt = now,
+                    updatedAt = now,
+                    auditPeriod = auditPeriod.trim()
+                )
+                repository.insertInventoryAudit(audit)
+            }
+            withContext(Dispatchers.Main) {
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    fun recordBulkContinuousAudits(
+        auditPeriod: String,
+        notes: String = "",
+        entries: List<BulkContinuousAuditInput>,
+        onComplete: (() -> Unit)? = null
+    ) {
+        if (entries.isEmpty()) {
+            onComplete?.invoke()
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            val now = System.currentTimeMillis()
+            val cleanPeriod = auditPeriod.trim()
+            val cleanNotes = notes.trim()
+            entries.forEach { entry ->
+                upsertContinuousAuditForDay(
+                    category = entry.category,
+                    auditDateMillis = now,
+                    revenue = entry.revenue,
+                    fireCost = entry.fireCost,
+                    targetRatio = entry.targetRatio,
+                    notes = cleanNotes,
+                    auditPeriod = cleanPeriod,
+                    now = now
+                )
+            }
             withContext(Dispatchers.Main) {
                 onComplete?.invoke()
             }
@@ -375,12 +541,25 @@ class InventoryViewModel(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val now = System.currentTimeMillis()
-            val auditToSave = audit.copy(
-                id = 0,
-                updatedAt = now,
-                auditPeriod = audit.auditPeriod.trim()
-            )
-            repository.insertInventoryAudit(auditToSave)
+            if (isContinuousAuditCategory(audit.category)) {
+                upsertContinuousAuditForDay(
+                    category = audit.category,
+                    auditDateMillis = if (audit.auditDateMillis > 0L) audit.auditDateMillis else now,
+                    revenue = audit.revenue,
+                    fireCost = audit.fireCost,
+                    targetRatio = audit.targetRatio,
+                    notes = audit.notes,
+                    auditPeriod = audit.auditPeriod,
+                    now = now
+                )
+            } else {
+                val auditToSave = audit.copy(
+                    id = 0,
+                    updatedAt = now,
+                    auditPeriod = audit.auditPeriod.trim()
+                )
+                repository.insertInventoryAudit(auditToSave)
+            }
             withContext(Dispatchers.Main) {
                 onComplete?.invoke()
             }

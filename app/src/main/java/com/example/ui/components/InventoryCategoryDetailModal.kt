@@ -28,14 +28,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Percent
+import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -87,6 +90,8 @@ import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
+import com.example.ui.viewmodel.isContinuousAuditCategory
+import com.example.ui.viewmodel.normalizeInventoryCategoryKey
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
@@ -105,7 +110,15 @@ fun InventoryCategoryDetailModal(
     onAddNewAuditClick: (String) -> Unit
 ) {
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabTitles = remember { listOf("Özet & Analiz", "Gelişim & Geçmiş") }
+    val isContinuous = remember(category) { isContinuousAuditCategory(category) }
+    val normalizedCategoryKey = remember(category) { normalizeInventoryCategoryKey(category) }
+    val tabTitles = remember(isContinuous) {
+        if (isContinuous) {
+            listOf("Özet & Analiz", "Dönem İçi Gelişim")
+        } else {
+            listOf("Özet & Analiz", "Gelişim & Geçmiş")
+        }
+    }
 
     val dateFormatter = remember {
         SimpleDateFormat("dd MMMM yyyy", Locale.forLanguageTag("tr-TR"))
@@ -152,15 +165,22 @@ fun InventoryCategoryDetailModal(
         sortedHistory.take(4).reversed()
     }
 
-    val categoryIcon = when (category.uppercase(Locale.forLanguageTag("tr-TR"))) {
-        "DOLAP" -> Icons.Default.AcUnit
+    val categoryIcon = when (normalizedCategoryKey) {
+        "DOLAP", "DONUK_MEYVE_SEBZE" -> Icons.Default.AcUnit
         "GIDA DIŞI" -> Icons.Default.Category
+        "ET_TAVUK" -> Icons.Default.SetMeal
+        "EKMEK" -> Icons.Default.BakeryDining
+        "MEYVE_SEBZE" -> Icons.Default.Eco
         else -> Icons.Default.Fastfood
     }
 
-    val (iconPastelBg, iconTint) = when (category.uppercase(Locale.forLanguageTag("tr-TR"))) {
+    val (iconPastelBg, iconTint) = when (normalizedCategoryKey) {
         "DOLAP" -> Pair(Color(0xFFDBEAFE), Color(0xFF1D4ED8))
         "GIDA DIŞI" -> Pair(Color(0xFFEDE9FE), Color(0xFF6D28D9))
+        "ET_TAVUK" -> Pair(Color(0xFFFFF1F2), Color(0xFFBE123C))
+        "EKMEK" -> Pair(Color(0xFFFFFBEB), Color(0xFFB45309))
+        "MEYVE_SEBZE" -> Pair(Color(0xFFF0FDF4), Color(0xFF15803D))
+        "DONUK_MEYVE_SEBZE" -> Pair(Color(0xFFF0F9FF), Color(0xFF0369A1))
         else -> Pair(TurquoisePrimary.copy(alpha = 0.16f), TurquoiseDark)
     }
 
@@ -247,10 +267,11 @@ fun InventoryCategoryDetailModal(
                             )
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = if (latestAudit != null) {
-                                    "Envanter: ${dateFormatter.format(Date(latestAudit.auditDateMillis))}"
-                                } else {
-                                    "Henüz sayım kaydı yok"
+                                text = when {
+                                    latestAudit == null -> "Henüz sayım kaydı yok"
+                                    isContinuous && latestAudit.auditPeriod.isNotBlank() ->
+                                        "Dönem: ${latestAudit.auditPeriod} • ${dateFormatter.format(Date(latestAudit.auditDateMillis))}"
+                                    else -> "Envanter: ${dateFormatter.format(Date(latestAudit.auditDateMillis))}"
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -903,14 +924,22 @@ fun InventoryCategoryDetailModal(
                     }
 
                     else -> {
-                        // SEKME 2: GELİŞİM & GEÇMİŞ
+                        // SEKME 2: DÖNEM İÇİ GELİŞİM (Sürekli) veya GELİŞİM & GEÇMİŞ (Periyodik)
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            if (sortedHistory.isNotEmpty()) {
+                            if (isContinuous) {
+                                ContinuousPeriodProgressSection(
+                                    activePeriod = latestAudit?.auditPeriod.orEmpty(),
+                                    sortedHistoryNewestFirst = sortedHistory,
+                                    effectiveTargetRatio = effectiveTargetRatio,
+                                    moneyFormatter = moneyFormatter,
+                                    ratioFormatter = ratioFormatter
+                                )
+                            } else if (sortedHistory.isNotEmpty()) {
                                 Surface(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -1299,7 +1328,7 @@ fun InventoryCategoryDetailModal(
                 colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
             ) {
                 Text(
-                    text = "+ Yeni Haftalık Veri Gir",
+                    text = if (isContinuous) "+ Yeni Dönem Verisi Gir" else "+ Yeni Haftalık Veri Gir",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = Color.White

@@ -63,6 +63,20 @@ class ProductRepository(
         inventoryAuditDao?.getLatestAuditForCategory(category)
     }
 
+    suspend fun getAuditByCategoryAndPeriodAndDate(
+        category: String,
+        period: String,
+        startOfDayMillis: Long,
+        endOfDayMillis: Long
+    ): InventoryAuditEntity? = withContext(Dispatchers.IO) {
+        inventoryAuditDao?.getAuditByCategoryAndPeriodAndDate(
+            category = category,
+            period = period,
+            startOfDayMillis = startOfDayMillis,
+            endOfDayMillis = endOfDayMillis
+        )
+    }
+
     suspend fun deleteInventoryAudit(audit: InventoryAuditEntity) = withContext(Dispatchers.IO) {
         inventoryAuditDao?.deleteAudit(audit)
     }

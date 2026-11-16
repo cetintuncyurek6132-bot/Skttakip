@@ -16,24 +16,36 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.TrackChanges
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,8 +53,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
@@ -114,12 +128,14 @@ fun calculateDaysSinceAudit(auditDateMillis: Long, todayMidnight: Long): Long {
 @Composable
 fun CombinedStoreInventoryCard(
     summary: CombinedInventorySummary,
+    combinedTargetRatio: Double = 2.0,
+    onEditCombinedTargetClick: () -> Unit = {},
     moneyFormatter: DecimalFormat,
     ratioFormatter: DecimalFormat,
     modifier: Modifier = Modifier
 ) {
     val hasCombinedRatio = summary.hasData && summary.combinedRatio != null
-    val isOverTarget = hasCombinedRatio && summary.isOverTarget
+    val isOverTarget = hasCombinedRatio && (summary.combinedRatio ?: 0.0) > combinedTargetRatio
 
     val cardBg = when {
         !hasCombinedRatio -> Slate50
@@ -150,8 +166,8 @@ fun CombinedStoreInventoryCard(
 
     val statusChipText = when {
         !hasCombinedRatio -> "Veri Bekleniyor"
-        isOverTarget -> "Hedef Üstü (%${ratioFormatter.format(summary.weightedTargetRatio)})"
-        else -> "Hedef Altı (%${ratioFormatter.format(summary.weightedTargetRatio)})"
+        isOverTarget -> "Hedef Üstü (%${ratioFormatter.format(combinedTargetRatio)})"
+        else -> "Hedef Altı (%${ratioFormatter.format(combinedTargetRatio)})"
     }
     val statusChipBg = when {
         !hasCombinedRatio -> TurquoisePrimary.copy(alpha = 0.12f)
@@ -237,10 +253,10 @@ fun CombinedStoreInventoryCard(
                     .height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                // T (Toplam) - En büyük ve tok font
+                // T (Toplam) - En büyük ve tok font + Hedef & Kalem Düzenle
                 Surface(
                     modifier = Modifier
-                        .weight(1.18f)
+                        .weight(1.28f)
                         .fillMaxHeight()
                         .testTag("combined_metric_total"),
                     shape = RoundedCornerShape(13.dp),
@@ -250,7 +266,7 @@ fun CombinedStoreInventoryCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                            .padding(horizontal = 7.dp, vertical = 7.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
@@ -266,7 +282,7 @@ fun CombinedStoreInventoryCard(
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = "Toplam",
-                                fontSize = 11.5.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Slate800,
                                 maxLines = 1
@@ -278,12 +294,39 @@ fun CombinedStoreInventoryCard(
                             } else {
                                 "%-"
                             },
-                            fontSize = 21.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Black,
                             color = if (hasCombinedRatio) totalAccentColor else Slate900,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        Surface(
+                            onClick = onEditCombinedTargetClick,
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color.White.copy(alpha = 0.9f),
+                            border = BorderStroke(0.8.dp, totalBoxBorder),
+                            modifier = Modifier.testTag("edit_combined_target_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Hedef: %${ratioFormatter.format(combinedTargetRatio)}",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = totalAccentColor,
+                                    maxLines = 1
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Genel Hedefi Düzenle",
+                                    tint = totalAccentColor,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -385,6 +428,33 @@ fun CombinedStoreInventoryCard(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+                }
+            }
+
+            // Akıllı Yönlendirme Uyarı Kutusu (Genel Hedef Aşıldığında)
+            if (isOverTarget) {
+                val worst = summary.worstDeviationCategory
+                val guidanceText = if (worst != null) {
+                    "⚠️ Mağaza hedefi aşıldı. En büyük sapma ${worst.displayName} reyonunda. Fire oranını düşürmek için öncelikle ${worst.displayName} ürünlerini kontrol edin."
+                } else {
+                    "⚠️ Mağaza hedefi aşıldı. Fire oranını düşürmek için reyonları kontrol edin."
+                }
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("combined_store_smart_guidance_banner"),
+                    shape = RoundedCornerShape(12.dp),
+                    color = ExpiredRedContainer,
+                    border = BorderStroke(1.dp, ExpiredRedBorder)
+                ) {
+                    Text(
+                        text = guidanceText,
+                        fontSize = 11.5.sp,
+                        lineHeight = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = ExpiredRedDark,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
                 }
             }
 
@@ -920,8 +990,82 @@ fun ContinuousCategoryCardsRow(
 }
 
 @Composable
+fun ContinuousTotalTargetStrip(
+    continuousTargetRatio: Double,
+    ratioFormatter: DecimalFormat,
+    onEditClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onEditClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("continuous_total_target_strip"),
+        shape = RoundedCornerShape(14.dp),
+        color = TurquoisePrimary.copy(alpha = 0.10f),
+        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.TrackChanges,
+                    contentDescription = null,
+                    tint = TurquoiseDark,
+                    modifier = Modifier.size(17.dp)
+                )
+                Text(
+                    text = "Sürekli Envanter Toplam Hedefi: %${ratioFormatter.format(continuousTargetRatio)}",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TurquoiseDark,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = Color.White,
+                border = BorderStroke(0.9.dp, TurquoisePrimary.copy(alpha = 0.4f)),
+                modifier = Modifier.testTag("edit_continuous_target_button")
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = "Sürekli Hedefi Düzenle",
+                        tint = TurquoiseDark,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = "Düzenle",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TurquoiseDark
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ContinuousInventoryTotalCard(
     latestAudits: List<InventoryAuditEntity>,
+    continuousTargetRatio: Double = 5.0,
     moneyFormatter: DecimalFormat,
     ratioFormatter: DecimalFormat,
     modifier: Modifier = Modifier
@@ -935,18 +1079,7 @@ fun ContinuousInventoryTotalCard(
     val generalRatio = remember(totalRevenue, totalFire) {
         if (totalRevenue > 0.0) (totalFire / totalRevenue) * 100.0 else null
     }
-    val weightedTargetRatio = remember(latestAudits, totalRevenue) {
-        if (totalRevenue > 0.0) {
-            val allowedFire = latestAudits.sumOf { audit ->
-                val target = if (audit.targetRatio > 0.0) audit.targetRatio else 1.0
-                audit.revenue.coerceAtLeast(0.0) * (target / 100.0)
-            }
-            (allowedFire / totalRevenue) * 100.0
-        } else {
-            1.0
-        }
-    }
-    val isOverTarget = generalRatio != null && generalRatio > weightedTargetRatio
+    val isOverTarget = generalRatio != null && generalRatio > continuousTargetRatio
 
     val cardBg = when {
         generalRatio == null -> Slate50
@@ -1024,8 +1157,8 @@ fun ContinuousInventoryTotalCard(
                     border = BorderStroke(0.9.dp, cardBorder)
                 ) {
                     Text(
-                        text = "${latestAudits.size}/4 Kategori",
-                        fontSize = 11.sp,
+                        text = "Hedef: %${ratioFormatter.format(continuousTargetRatio)} • ${latestAudits.size}/4",
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = accentColor,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1622,4 +1755,122 @@ fun SmartCategoryAnalysisCard(
         }
     }
 }
+
+@Composable
+fun TargetRatioEditDialog(
+    title: String,
+    subtitle: String,
+    initialValue: Double,
+    onDismiss: () -> Unit,
+    onSave: (Double) -> Unit
+) {
+    var inputText by remember(initialValue) {
+        val formatted = if (initialValue % 1.0 == 0.0) {
+            initialValue.toLong().toString()
+        } else {
+            initialValue.toString()
+        }
+        mutableStateOf(formatted)
+    }
+    var showError by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = Color.White,
+        title = {
+            Text(
+                text = title,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Slate900
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = subtitle,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Slate700
+                )
+                OutlinedTextField(
+                    value = inputText,
+                    onValueChange = { raw ->
+                        inputText = raw.filter { it.isDigit() || it == '.' || it == ',' }
+                        showError = false
+                    },
+                    label = {
+                        Text(
+                            text = "Hedef Oran (%)",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    placeholder = {
+                        Text(text = "Örn: 2.0", fontSize = 13.sp, color = Slate500)
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    textStyle = TextStyle(
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = TurquoisePrimary,
+                        unfocusedBorderColor = Slate200,
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("target_ratio_dialog_input")
+                )
+                if (showError) {
+                    Text(
+                        text = "Lütfen 0'dan büyük geçerli bir oran girin.",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ExpiredRedDark
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val parsed = inputText.replace(',', '.').trim().toDoubleOrNull()
+                    if (parsed == null || parsed <= 0.0) {
+                        showError = true
+                    } else {
+                        onSave(parsed)
+                    }
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = TurquoiseDark),
+                modifier = Modifier.testTag("target_ratio_dialog_save_button")
+            ) {
+                Text(
+                    text = "Kaydet",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    text = "İptal",
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate700
+                )
+            }
+        }
+    )
+}
+
 

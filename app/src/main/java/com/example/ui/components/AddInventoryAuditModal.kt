@@ -75,6 +75,7 @@ import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
+import com.example.ui.viewmodel.BulkContinuousAuditInput
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.text.SimpleDateFormat
@@ -107,6 +108,9 @@ fun AddInventoryAuditModal(
     isWeeklyUpdate: Boolean = false,
     isWeeklyEntryMode: Boolean = false,
     isContinuousInventory: Boolean = false,
+    isBulkContinuous: Boolean = false,
+    initialCategoryTargetRatios: Map<String, Double> = emptyMap(),
+    initialAuditPeriod: String = "",
     lockedAuditDateMillis: Long? = null,
     initialTargetRatio: Double? = null,
     onDismiss: () -> Unit,
@@ -118,7 +122,12 @@ fun AddInventoryAuditModal(
         targetRatio: Double,
         notes: String,
         auditPeriod: String
-    ) -> Unit
+    ) -> Unit,
+    onSaveBulkContinuous: (
+        auditPeriod: String,
+        notes: String,
+        entries: List<BulkContinuousAuditInput>
+    ) -> Unit = { _, _, _ -> }
 ) {
     val effectiveWeeklyUpdate = isWeeklyUpdate || isWeeklyEntryMode
     val isEditMode = editingAudit != null && !effectiveWeeklyUpdate
@@ -135,8 +144,14 @@ fun AddInventoryAuditModal(
             }
         )
     }
-    var periodText by remember(editingAudit?.id, editingAudit?.auditPeriod, effectiveWeeklyUpdate, isContinuousInventory) {
-        mutableStateOf(if (isEditMode && editingAudit != null) editingAudit.auditPeriod else "")
+    var periodText by remember(editingAudit?.id, editingAudit?.auditPeriod, initialAuditPeriod, effectiveWeeklyUpdate, isContinuousInventory) {
+        mutableStateOf(
+            when {
+                isEditMode && editingAudit != null -> editingAudit.auditPeriod
+                isContinuousInventory && initialAuditPeriod.isNotBlank() -> initialAuditPeriod
+                else -> ""
+            }
+        )
     }
     var revenueText by remember(editingAudit?.id, editingAudit?.revenue, effectiveWeeklyUpdate) {
         mutableStateOf(if (isEditMode && editingAudit != null) formatEditableNumber(editingAudit.revenue) else "")
@@ -267,7 +282,7 @@ fun AddInventoryAuditModal(
     }
     val isOverTarget = parsedFireCost > maxAllowedFire
 
-    if (showCalendarDialog && !effectiveWeeklyUpdate && !isContinuousInventory) {
+    if (showCalendarDialog && !effectiveWeeklyUpdate && !isContinuousInventory && !isBulkContinuous) {
         CustomBoxedCalendarDialog(
             initialDateMillis = selectedDateMillis,
             onDismissRequest = { showCalendarDialog = false },
@@ -282,6 +297,15 @@ fun AddInventoryAuditModal(
         onDismissRequest = onDismiss,
         enableVerticalScroll = true
     ) { dismissSheet ->
+        if (isBulkContinuous) {
+            BulkContinuousAuditSection(
+                moneyFormatter = moneyFormatter,
+                ratioFormatter = ratioFormatter,
+                initialCategoryTargetRatios = initialCategoryTargetRatios,
+                onDismiss = { dismissSheet() },
+                onSaveBulk = onSaveBulkContinuous
+            )
+        } else {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -662,118 +686,62 @@ fun AddInventoryAuditModal(
                 }
             }
 
-            // Hedef Oran (%) - Sadece Periyodik Envanterde kullanıcıya sorulur
-            if (!isContinuousInventory) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text(
-                        text = "Hedef Oran (%)",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate800
-                    )
-                    OutlinedTextField(
-                        value = targetRatioText,
-                        onValueChange = { input ->
-                            targetRatioText = input.filter { it.isDigit() || it == '.' || it == ',' }
-                        },
-                        placeholder = {
-                            Text(
-                                text = "Örn: 1.0",
-                                fontSize = 12.5.sp,
-                                color = Slate500
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Default.Percent,
-                                contentDescription = null,
-                                tint = TurquoiseDark,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Decimal,
-                            imeAction = ImeAction.Next
-                        ),
-                        textStyle = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = TurquoisePrimary,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedContainerColor = Slate50,
-                            unfocusedContainerColor = Slate50
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("audit_target_ratio_input")
-                    )
-                }
+            // Hedef Oran (%) - Hem Periyodik hem Sürekli Envanterde düzenlenebilir
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "Hedef Oran (%)",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate800
+                )
+                OutlinedTextField(
+                    value = targetRatioText,
+                    onValueChange = { input ->
+                        targetRatioText = input.filter { it.isDigit() || it == '.' || it == ',' }
+                    },
+                    placeholder = {
+                        Text(
+                            text = "Örn: 1.0",
+                            fontSize = 12.5.sp,
+                            color = Slate500
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Percent,
+                            contentDescription = null,
+                            tint = TurquoiseDark,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    ),
+                    textStyle = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = TurquoisePrimary,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Slate50,
+                        unfocusedContainerColor = Slate50
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("audit_target_ratio_input")
+                )
             }
 
-            // 5. CANLI FİNANSAL ANALİZ / OTOMATİK ORAN KUTUSU
+            // 5. CANLI FİNANSAL ANALİZ KUTUSU
             if (showLiveFinancialBox) {
-                if (isContinuousInventory) {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("continuous_live_ratio_box"),
-                        shape = RoundedCornerShape(16.dp),
-                        color = TurquoisePrimary.copy(alpha = 0.08f),
-                        border = BorderStroke(1.2.dp, TurquoisePrimary.copy(alpha = 0.35f))
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Otomatik Hesaplanan Oran",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = TurquoiseDark
-                                )
-                                Text(
-                                    text = "%${ratioFormatter.format(actualRatioPercent)}",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
-                                    color = TurquoiseDark
-                                )
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Ciro: ${moneyFormatter.format(parsedRevenue)} ₺",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate700
-                                )
-                                Text(
-                                    text = "Fire: ${moneyFormatter.format(parsedFireCost)} ₺",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = ExpiredRedDark
-                                )
-                            }
-                        }
-                    }
-                } else {
                     val boxBg = if (isOverTarget) ExpiredRedContainer else NormalGreenContainer
                     val boxBorder = if (isOverTarget) ExpiredRedBorder else NormalGreenBorder
                     val boxText = if (isOverTarget) ExpiredRedDark else NormalGreenDark
@@ -827,7 +795,6 @@ fun AddInventoryAuditModal(
                             }
                         }
                     }
-                }
             }
 
             // 6. NOT / AÇIKLAMA ALANI
@@ -928,6 +895,7 @@ fun AddInventoryAuditModal(
                     color = Color.White
                 )
             }
+        }
         }
     }
 }
