@@ -1,5 +1,11 @@
 package com.example.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.TrackChanges
@@ -50,6 +57,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -136,6 +144,12 @@ fun CombinedStoreInventoryCard(
     ratioFormatter: DecimalFormat,
     modifier: Modifier = Modifier
 ) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (isExpanded) 180f else 0f,
+        label = "combined_card_chevron_rotation"
+    )
+
     val hasCombinedRatio = summary.hasData && summary.combinedRatio != null
     val isCombinedOverTarget = hasCombinedRatio && (summary.combinedRatio ?: 0.0) > combinedTargetRatio
     val isContinuousOverTarget = summary.continuousRatio != null && summary.continuousRatio > continuousTargetRatio
@@ -177,7 +191,14 @@ fun CombinedStoreInventoryCard(
         else -> NormalGreenDark
     }
 
+    val formattedTotalRatio = if (summary.combinedRatio != null) {
+        "%${ratioFormatter.format(summary.combinedRatio)}"
+    } else {
+        "%-"
+    }
+
     Surface(
+        onClick = { isExpanded = !isExpanded },
         modifier = modifier
             .fillMaxWidth()
             .testTag("combined_store_inventory_card"),
@@ -189,10 +210,9 @@ fun CombinedStoreInventoryCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 11.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 13.dp, vertical = 12.dp)
         ) {
-            // Başlık + Genel Sistem Durumu Rozeti (Durum: İyi / Riskli)
+            // Başlık + Sağ Üst Durum Rozeti + Aşağı/Yukarı Ok (Chevron)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -206,7 +226,7 @@ fun CombinedStoreInventoryCard(
                         shape = CircleShape,
                         color = Slate50,
                         border = BorderStroke(1.dp, Slate200),
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(30.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -230,263 +250,318 @@ fun CombinedStoreInventoryCard(
 
                 Spacer(modifier = Modifier.width(6.dp))
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = statusChipBg,
-                    border = BorderStroke(0.8.dp, statusChipBorder)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = statusChipText,
-                        fontSize = 10.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = statusChipTextColor,
-                        maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = statusChipBg,
+                        border = BorderStroke(0.8.dp, statusChipBorder)
+                    ) {
+                        Text(
+                            text = statusChipText,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = statusChipTextColor,
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
+                        )
+                    }
+
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Daralt" else "Genişlet",
+                        tint = Slate700,
+                        modifier = Modifier
+                            .size(20.dp)
+                            .rotate(chevronRotation)
                     )
                 }
             }
 
-            // 3 Sütun: T (Toplam), P (Parçalı), S (Sürekli)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(IntrinsicSize.Max),
-                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            // Kapalı Durum Özeti: Büyük "Toplam Oran" (%X)
+            AnimatedVisibility(
+                visible = !isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
             ) {
-                // T (Toplam) - Dikey ve yatay ortalı + altta taşmayan Hedef rozeti
-                Surface(
+                Row(
                     modifier = Modifier
-                        .weight(1.26f)
-                        .fillMaxHeight()
-                        .testTag("combined_metric_total"),
-                    shape = RoundedCornerShape(13.dp),
-                    color = Slate50,
-                    border = BorderStroke(1.1.dp, totalBoxBorder)
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
+                    Text(
+                        text = "Toplam Oran",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Slate500
+                    )
+                    Text(
+                        text = formattedTotalRatio,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (hasCombinedRatio) totalAccentColor else Slate900,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            // Açılır İçerik: T, P, S Detay Kutuları + Hedefler + Toplam Ciro/Fire
+            AnimatedVisibility(
+                visible = isExpanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // 3 Sütun: T (Toplam), P (Parçalı), S (Sürekli)
+                    Row(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 6.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.SpaceBetween
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Max),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                        // T (Toplam)
+                        Surface(
+                            modifier = Modifier
+                                .weight(1.26f)
+                                .fillMaxHeight()
+                                .testTag("combined_metric_total"),
+                            shape = RoundedCornerShape(13.dp),
+                            color = Slate50,
+                            border = BorderStroke(1.1.dp, totalBoxBorder)
                         ) {
-                            MetricLetterBadge(
-                                letter = "T",
-                                bgColor = totalAccentColor,
-                                textColor = Color.White
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = "Toplam",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate800,
-                                maxLines = 1
-                            )
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    MetricLetterBadge(
+                                        letter = "T",
+                                        bgColor = totalAccentColor,
+                                        textColor = Color.White
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "Toplam",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = Slate800,
+                                        maxLines = 1
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Text(
+                                    text = formattedTotalRatio,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (hasCombinedRatio) totalAccentColor else Slate900,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                Surface(
+                                    onClick = onEditCombinedTargetClick,
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color.White,
+                                    border = BorderStroke(0.8.dp, Slate200),
+                                    modifier = Modifier.testTag("edit_combined_target_button")
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = "Hedef: %${ratioFormatter.format(combinedTargetRatio)}",
+                                            fontSize = 9.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = Slate800,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Genel Hedefi Düzenle",
+                                            tint = TurquoiseDark,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
 
-                        Text(
-                            text = if (summary.combinedRatio != null) {
-                                "%${ratioFormatter.format(summary.combinedRatio)}"
-                            } else {
-                                "%-"
-                            },
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Black,
-                            color = if (hasCombinedRatio) totalAccentColor else Slate900,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        )
-
+                        // P (Parçalı)
                         Surface(
-                            onClick = onEditCombinedTargetClick,
-                            shape = RoundedCornerShape(8.dp),
-                            color = Color.White,
-                            border = BorderStroke(0.8.dp, Slate200),
-                            modifier = Modifier.testTag("edit_combined_target_button")
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .testTag("combined_metric_periodic"),
+                            shape = RoundedCornerShape(13.dp),
+                            color = Slate50,
+                            border = BorderStroke(1.dp, Slate200)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
                             ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    MetricLetterBadge(
+                                        letter = "P",
+                                        bgColor = TurquoisePrimary.copy(alpha = 0.16f),
+                                        textColor = TurquoiseDark
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "Parçalı",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate700,
+                                        maxLines = 1
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = "Hedef: %${ratioFormatter.format(combinedTargetRatio)}",
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = Slate800,
+                                    text = if (summary.periodicRatio != null) {
+                                        "%${ratioFormatter.format(summary.periodicRatio)}"
+                                    } else {
+                                        "%-"
+                                    },
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = Slate900,
+                                    textAlign = TextAlign.Center,
                                     maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
-                                Spacer(modifier = Modifier.width(3.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Genel Hedefi Düzenle",
-                                    tint = TurquoiseDark,
-                                    modifier = Modifier.size(10.dp)
+                            }
+                        }
+
+                        // S (Sürekli)
+                        Surface(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .testTag("combined_metric_continuous"),
+                            shape = RoundedCornerShape(13.dp),
+                            color = Slate50,
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    MetricLetterBadge(
+                                        letter = "S",
+                                        bgColor = Color(0xFFDBEAFE),
+                                        textColor = Color(0xFF1D4ED8)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = "Sürekli",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate700,
+                                        maxLines = 1
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = if (summary.continuousRatio != null) {
+                                        "%${ratioFormatter.format(summary.continuousRatio)}"
+                                    } else {
+                                        "%-"
+                                    },
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isContinuousOverTarget) ExpiredRedDark else Slate900,
+                                    textAlign = TextAlign.Center,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
                     }
-                }
 
-                // P (Parçalı)
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .testTag("combined_metric_periodic"),
-                    shape = RoundedCornerShape(13.dp),
-                    color = Slate50,
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 6.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                    // Akıllı Yönlendirme Uyarı Kutusu (Genel Hedef Aşıldığında)
+                    if (isCombinedOverTarget) {
+                        val worst = summary.worstDeviationCategory
+                        val guidanceText = if (worst != null) {
+                            "⚠️ Mağaza hedefi aşıldı. En büyük sapma ${worst.displayName} reyonunda. Fire oranını düşürmek için öncelikle ${worst.displayName} ürünlerini kontrol edin."
+                        } else {
+                            "⚠️ Mağaza hedefi aşıldı. Fire oranını düşürmek için reyonları kontrol edin."
+                        }
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("combined_store_smart_guidance_banner"),
+                            shape = RoundedCornerShape(12.dp),
+                            color = ExpiredRedContainer.copy(alpha = 0.65f),
+                            border = BorderStroke(1.dp, ExpiredRedBorder)
                         ) {
-                            MetricLetterBadge(
-                                letter = "P",
-                                bgColor = TurquoisePrimary.copy(alpha = 0.16f),
-                                textColor = TurquoiseDark
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
                             Text(
-                                text = "Parçalı",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate700,
-                                maxLines = 1
+                                text = guidanceText,
+                                fontSize = 11.5.sp,
+                                lineHeight = 16.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = ExpiredRedDark,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                             )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = if (summary.periodicRatio != null) {
-                                "%${ratioFormatter.format(summary.periodicRatio)}"
-                            } else {
-                                "%-"
-                            },
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Slate900,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth()
-                        )
                     }
-                }
 
-                // S (Sürekli)
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .testTag("combined_metric_continuous"),
-                    shape = RoundedCornerShape(13.dp),
-                    color = Slate50,
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 6.dp, vertical = 8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            MetricLetterBadge(
-                                letter = "S",
-                                bgColor = Color(0xFFDBEAFE),
-                                textColor = Color(0xFF1D4ED8)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = "Sürekli",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate700,
-                                maxLines = 1
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = if (summary.continuousRatio != null) {
-                                "%${ratioFormatter.format(summary.continuousRatio)}"
-                            } else {
-                                "%-"
-                            },
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black,
-                            color = if (isContinuousOverTarget) ExpiredRedDark else Slate900,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
-
-            // Akıllı Yönlendirme Uyarı Kutusu (Genel Hedef Aşıldığında)
-            if (isCombinedOverTarget) {
-                val worst = summary.worstDeviationCategory
-                val guidanceText = if (worst != null) {
-                    "⚠️ Mağaza hedefi aşıldı. En büyük sapma ${worst.displayName} reyonunda. Fire oranını düşürmek için öncelikle ${worst.displayName} ürünlerini kontrol edin."
-                } else {
-                    "⚠️ Mağaza hedefi aşıldı. Fire oranını düşürmek için reyonları kontrol edin."
-                }
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .testTag("combined_store_smart_guidance_banner"),
-                    shape = RoundedCornerShape(12.dp),
-                    color = ExpiredRedContainer.copy(alpha = 0.65f),
-                    border = BorderStroke(1.dp, ExpiredRedBorder)
-                ) {
+                    // Alt Bilgi Satırı: Toplam Ciro ve Toplam Fire
+                    HorizontalDivider(thickness = 0.8.dp, color = Slate200.copy(alpha = 0.8f))
                     Text(
-                        text = guidanceText,
+                        text = "Toplam Ciro: ${moneyFormatter.format(summary.totalRevenue)} TL | Toplam Fire: ${moneyFormatter.format(summary.totalFireCost)} TL",
                         fontSize = 11.5.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ExpiredRedDark,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                        fontWeight = FontWeight.Bold,
+                        color = Slate700,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
-
-            // Alt Bilgi Satırı: Toplam Ciro ve Toplam Fire
-            HorizontalDivider(thickness = 0.8.dp, color = Slate200.copy(alpha = 0.8f))
-            Text(
-                text = "Toplam Ciro: ${moneyFormatter.format(summary.totalRevenue)} TL | Toplam Fire: ${moneyFormatter.format(summary.totalFireCost)} TL",
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.Bold,
-                color = Slate700,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
@@ -660,17 +735,30 @@ fun PeriodicCategoryCardsRow(
                 )
             }
 
+            val effectivePeriodicTarget = if ((latestAudit?.targetRatio ?: 0.0) > 0.0) {
+                latestAudit!!.targetRatio
+            } else {
+                1.0
+            }
+            val isPeriodicRatioOverTarget = latestAudit != null && (
+                (latestAudit.revenue > 0.0 && (currentRatioVal ?: 0.0) > effectivePeriodicTarget) ||
+                    (latestAudit.revenue <= 0.0 && latestAudit.fireCost > 0.0)
+                )
+            val periodicRatioTextColor = when {
+                latestAudit == null -> Slate500
+                isPeriodicRatioOverTarget -> ExpiredRedDark
+                else -> NormalGreenDark
+            }
+
             Card(
                 onClick = { onCategoryClick(spec) },
                 modifier = Modifier
                     .weight(1f)
                     .testTag("inventory_card_${spec.key}"),
                 shape = RoundedCornerShape(18.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = statusBgColor.copy(alpha = 0.45f)
-                ),
-                border = BorderStroke(1.2.dp, statusBorderColor),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Slate200),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -681,15 +769,15 @@ fun PeriodicCategoryCardsRow(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.White,
-                        border = BorderStroke(1.dp, statusBorderColor),
+                        color = Slate50,
+                        border = BorderStroke(1.dp, Slate200),
                         modifier = Modifier.size(30.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = spec.icon,
                                 contentDescription = spec.title,
-                                tint = statusColor,
+                                tint = spec.iconTint,
                                 modifier = Modifier.size(15.dp)
                             )
                         }
@@ -714,7 +802,7 @@ fun PeriodicCategoryCardsRow(
                             text = ratioPercentText,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Black,
-                            color = Slate900,
+                            color = periodicRatioTextColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                             textAlign = TextAlign.Center
@@ -746,8 +834,8 @@ fun PeriodicCategoryCardsRow(
 
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = statusBgColor,
-                        border = BorderStroke(0.8.dp, statusBorderColor)
+                        color = Slate50,
+                        border = BorderStroke(0.8.dp, statusBorderColor.copy(alpha = 0.7f))
                     ) {
                         Text(
                             text = remainingLabel,
@@ -1632,21 +1720,17 @@ fun SmartCategoryAnalysisCard(
     val currentRatio = if (revenue > 0.0) (fireCost / revenue) * 100.0 else 0.0
     val isOverTarget = (revenue > 0.0 && currentRatio > targetRatio) || (revenue <= 0.0 && fireCost > 0.0)
 
-    val isContinuous = isContinuousAuditCategory(spec.key)
-    val cardBg = when {
-        isContinuous -> Color.White
-        isOverTarget -> ExpiredRedContainer.copy(alpha = 0.45f)
-        else -> NormalGreenContainer.copy(alpha = 0.45f)
-    }
-    val cardBorder = when {
-        isContinuous -> Slate200
-        isOverTarget -> ExpiredRedBorder
-        else -> NormalGreenBorder
-    }
     val accentColor = if (isOverTarget) ExpiredRedDark else NormalGreenDark
-    val statusBg = if (isContinuous) Slate50 else if (isOverTarget) ExpiredRedContainer else NormalGreenContainer
+    val statusBg = if (isOverTarget) {
+        ExpiredRedContainer.copy(alpha = 0.65f)
+    } else {
+        NormalGreenContainer.copy(alpha = 0.65f)
+    }
     val statusBorder = if (isOverTarget) ExpiredRedBorder else NormalGreenBorder
     val statusIcon = if (isOverTarget) Icons.Default.WarningAmber else Icons.Default.CheckCircle
+    val targetRatioTwoDecimals = remember(targetRatio, ratioFormatter) {
+        DecimalFormat("0.00", ratioFormatter.decimalFormatSymbols).format(targetRatio)
+    }
 
     Card(
         onClick = onClick,
@@ -1654,17 +1738,17 @@ fun SmartCategoryAnalysisCard(
             .fillMaxWidth()
             .testTag("smart_analysis_card_${spec.key}"),
         shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = cardBg),
-        border = BorderStroke(1.1.dp, cardBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isContinuous) 1.dp else 0.dp)
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Üst Satır: Kategori Adı - Hedef + Oran Durumu (ikonlu)
+            // Üst Satır: Kurumsal Kategori Başlığı (Üstte KATEGORİ, Altta Hedef Oran) + Sağda Oran Rozeti
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1672,43 +1756,54 @@ fun SmartCategoryAnalysisCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.weight(1f)
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = if (isContinuous) Slate50 else Color.White,
-                        border = BorderStroke(1.dp, cardBorder),
-                        modifier = Modifier.size(32.dp)
+                        color = Slate50,
+                        border = BorderStroke(1.dp, Slate200),
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 imageVector = spec.icon,
                                 contentDescription = spec.title,
-                                tint = if (isContinuous) spec.iconTint else accentColor,
-                                modifier = Modifier.size(16.dp)
+                                tint = spec.iconTint,
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
-                    Text(
-                        text = "${spec.title} - Hedef: %${ratioFormatter.format(targetRatio)}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Slate900,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = spec.title,
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Slate900,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = "Hedef Oran: %$targetRatioTwoDecimals",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Slate500,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
+                    shape = RoundedCornerShape(12.dp),
                     color = statusBg,
                     border = BorderStroke(1.dp, statusBorder)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
@@ -1720,7 +1815,7 @@ fun SmartCategoryAnalysisCard(
                         )
                         Text(
                             text = "%${ratioFormatter.format(currentRatio)}",
-                            fontSize = 13.5.sp,
+                            fontSize = 14.sp,
                             fontWeight = FontWeight.Black,
                             color = accentColor
                         )
@@ -1728,92 +1823,98 @@ fun SmartCategoryAnalysisCard(
                 }
             }
 
-            // Analiz Kutusu: Gerekli Min. Ciro & Maks. İzin Verilen Fire
+            // Kurumsal 2 Sütunlu Rapor Tablosu: Gerekli Ciro | Maks. Fire
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(13.dp),
-                color = if (isContinuous) Slate50 else Color.White.copy(alpha = 0.8f),
-                border = BorderStroke(0.8.dp, cardBorder.copy(alpha = 0.8f))
+                color = Slate50,
+                border = BorderStroke(0.8.dp, Slate200)
             ) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                        .height(IntrinsicSize.Max)
+                        .padding(vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Sol Sütun: Gerekli Ciro
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Payments,
-                            contentDescription = null,
-                            tint = TurquoiseDark,
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .size(16.dp)
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
-                                text = "Gerekli Min. Ciro",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate700
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Payments,
+                                contentDescription = null,
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = buildAnnotatedString {
-                                    append("Hedefe ulaşmak için en az ")
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Black, color = Slate900)) {
-                                        append("${moneyFormatter.format(gerekliMinCiro)} ₺")
-                                    }
-                                    append(" ciro yapmalısın")
-                                },
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Slate800,
-                                lineHeight = 17.sp
+                                text = "Gerekli Ciro",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Slate500,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+                        Text(
+                            text = "${moneyFormatter.format(gerekliMinCiro)} ₺",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Slate900,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
 
-                    HorizontalDivider(
-                        thickness = 0.8.dp,
-                        color = cardBorder.copy(alpha = 0.5f)
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight()
+                            .padding(vertical = 2.dp)
+                            .background(Slate200)
                     )
 
-                    Row(
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    // Sağ Sütun: Maks. Fire
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = ExpiredRedDark,
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .size(16.dp)
-                        )
-                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
-                                text = "Maks. İzin Verilen Fire",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Slate700
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = ExpiredRedDark,
+                                modifier = Modifier.size(14.dp)
                             )
                             Text(
-                                text = buildAnnotatedString {
-                                    append("Bu ciroyla en fazla ")
-                                    withStyle(SpanStyle(fontWeight = FontWeight.Black, color = Slate900)) {
-                                        append("${moneyFormatter.format(maksFire)} ₺")
-                                    }
-                                    append(" fire verebilirsin")
-                                },
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Slate800,
-                                lineHeight = 17.sp
+                                text = "Maks. Fire",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Slate500,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+                        Text(
+                            text = "${moneyFormatter.format(maksFire)} ₺",
+                            fontSize = 14.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Slate900,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
