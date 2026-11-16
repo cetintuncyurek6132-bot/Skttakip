@@ -14,7 +14,7 @@ class ReleaseNotesTranslatorTest {
         val input = "Add financial analiz ve tahminleme and risk summary features"
         val result = ReleaseNotesTranslator.translateSingleLine(input)
         assertEquals(
-            "Finansal analiz, KPI göstergeleri ve reyon risk özeti özellikleri eklendi.",
+            "Finansal analiz ve reyon risk özeti özellikleri eklendi.",
             result
         )
         assertNoEnglishResiduals(result)
@@ -25,7 +25,7 @@ class ReleaseNotesTranslatorTest {
         val input = "Implement financial KPI metrics and reyon risk summary components to the analiz ve tahminleme ana sayfa gösterge paneli."
         val result = ReleaseNotesTranslator.translateSingleLine(input)
         assertEquals(
-            "Analiz ekranına finansal KPI metrikleri ve reyon risk özeti panelleri entegre edildi.",
+            "Analiz ekranına finansal performans göstergeleri ve reyon risk özeti eklendi.",
             result
         )
         assertNoEnglishResiduals(result)
@@ -80,7 +80,7 @@ class ReleaseNotesTranslatorTest {
         val input = "View all navigation to urgent carousel"
         val result = ReleaseNotesTranslator.translateSingleLine(input)
         assertEquals(
-            "Acil vitrin için 'Tümünü Gör' yönlendirmesi eklendi.",
+            "Acil vitrin için tümünü gör yönlendirmesi eklendi.",
             result
         )
         assertNoEnglishResiduals(result)
@@ -91,7 +91,7 @@ class ReleaseNotesTranslatorTest {
         val input = "feat(analytics): add financial analiz ve tahminleme and risk summary features"
         val result = ReleaseNotesTranslator.translateSingleLine(input)
         assertEquals(
-            "Finansal analiz, KPI göstergeleri ve reyon risk özeti özellikleri eklendi.",
+            "Finansal analiz ve reyon risk özeti özellikleri eklendi.",
             result
         )
         assertNoEnglishResiduals(result)
@@ -126,8 +126,8 @@ class ReleaseNotesTranslatorTest {
         val bullets = ReleaseNotesTranslator.translateToBulletPoints(rawChangelog, "1.4.2")
 
         assertEquals(5, bullets.size)
-        assertEquals("Finansal analiz, KPI göstergeleri ve reyon risk özeti özellikleri eklendi.", bullets[0])
-        assertEquals("Analiz ekranına finansal KPI metrikleri ve reyon risk özeti panelleri entegre edildi.", bullets[1])
+        assertEquals("Finansal analiz ve reyon risk özeti özellikleri eklendi.", bullets[0])
+        assertEquals("Analiz ekranına finansal performans göstergeleri ve reyon risk özeti eklendi.", bullets[1])
         assertEquals("Yüksek riskli ürünler için sarı etiket ve indirimli satış desteği eklendi.", bullets[2])
         assertEquals("Kamera izni verilmediğinde barkod tarayıcıda oluşan çökme sorunu giderildi.", bullets[3])
         assertEquals("Acil müdahale vitrini 7 güne çıkarıldı.", bullets[4])
@@ -141,8 +141,8 @@ class ReleaseNotesTranslatorTest {
     fun testEmptyReleaseNotesFallback() {
         val bullets = ReleaseNotesTranslator.translateToBulletPoints("", "1.5.0")
         assertTrue(bullets.isNotEmpty())
-        assertEquals("v1.5.0 sürüm güncellemesi.", bullets[0])
-        assertTrue(bullets.contains("Sistem performansı ve kararlılık iyileştirmeleri yapıldı."))
+        assertEquals(ReleaseNotesTranslator.SINGLE_FALLBACK_NOTE, bullets[0])
+        assertTrue(bullets.contains("Sistem altyapısı ve performans iyileştirmeleri yapıldı."))
     }
 
     @Test

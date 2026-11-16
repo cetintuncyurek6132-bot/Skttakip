@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -33,7 +34,6 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Percent
 import androidx.compose.material.icons.filled.SetMeal
@@ -146,7 +146,8 @@ fun AddInventoryAuditModal(
     ) -> Unit = { _, _, _ -> }
 ) {
     val effectiveWeeklyUpdate = isWeeklyUpdate || isWeeklyEntryMode
-    val isEditMode = editingAudit != null && !effectiveWeeklyUpdate
+    val editAudit = editingAudit.takeIf { !effectiveWeeklyUpdate }
+    val isEditMode = editAudit != null
     val effectiveBulkMode = isBulkContinuous || (isContinuousInventory && selectedCategory == null)
     val isSingleLockedContinuousCategory = isContinuousInventory && !effectiveBulkMode && selectedCategory != null
 
@@ -169,23 +170,23 @@ fun AddInventoryAuditModal(
     var periodText by remember(editingAudit?.id, editingAudit?.auditPeriod, initialAuditPeriod, effectiveWeeklyUpdate, isContinuousInventory) {
         mutableStateOf(
             when {
-                isEditMode && editingAudit != null -> editingAudit.auditPeriod
+                editAudit != null -> editAudit.auditPeriod
                 isContinuousInventory && initialAuditPeriod.isNotBlank() -> initialAuditPeriod
                 else -> ""
             }
         )
     }
     var revenueText by remember(editingAudit?.id, editingAudit?.revenue, effectiveWeeklyUpdate) {
-        mutableStateOf(if (isEditMode && editingAudit != null) formatEditableNumber(editingAudit.revenue) else "")
+        mutableStateOf(if (editAudit != null) formatEditableNumber(editAudit.revenue) else "")
     }
     var fireCostText by remember(editingAudit?.id, editingAudit?.fireCost, effectiveWeeklyUpdate) {
-        mutableStateOf(if (isEditMode && editingAudit != null) formatEditableNumber(editingAudit.fireCost) else "")
+        mutableStateOf(if (editAudit != null) formatEditableNumber(editAudit.fireCost) else "")
     }
     var targetRatioText by remember(editingAudit?.id, editingAudit?.targetRatio, initialTargetRatio, effectiveWeeklyUpdate) {
         mutableStateOf(
             when {
-                isEditMode && editingAudit != null && editingAudit.targetRatio > 0.0 ->
-                    formatEditableNumber(editingAudit.targetRatio)
+                editAudit != null && editAudit.targetRatio > 0.0 ->
+                    formatEditableNumber(editAudit.targetRatio)
                 initialTargetRatio != null && initialTargetRatio > 0.0 ->
                     formatEditableNumber(initialTargetRatio)
                 else -> "1.0"
@@ -193,7 +194,7 @@ fun AddInventoryAuditModal(
         )
     }
     var notesText by remember(editingAudit?.id, editingAudit?.notes, effectiveWeeklyUpdate) {
-        mutableStateOf(if (isEditMode && editingAudit != null) editingAudit.notes else "")
+        mutableStateOf(if (editAudit != null) editAudit.notes else "")
     }
     var showCalendarDialog by remember { mutableStateOf(false) }
     var showMonthYearPickerDialog by remember { mutableStateOf(false) }
@@ -896,7 +897,7 @@ fun AddInventoryAuditModal(
                     },
                     leadingIcon = {
                         Icon(
-                            imageVector = Icons.Default.Notes,
+                            imageVector = Icons.AutoMirrored.Filled.Notes,
                             contentDescription = null,
                             tint = TurquoiseDark,
                             modifier = Modifier.size(19.dp)

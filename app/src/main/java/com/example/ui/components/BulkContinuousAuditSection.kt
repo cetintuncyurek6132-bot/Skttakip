@@ -22,13 +22,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.FactCheck
+import androidx.compose.material.icons.automirrored.filled.Notes
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Eco
-import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -643,7 +643,7 @@ fun BulkContinuousAuditSection(
                 },
                 leadingIcon = {
                     Icon(
-                        imageVector = Icons.Default.Notes,
+                        imageVector = Icons.AutoMirrored.Filled.Notes,
                         contentDescription = null,
                         tint = TurquoiseDark,
                         modifier = Modifier.size(19.dp)

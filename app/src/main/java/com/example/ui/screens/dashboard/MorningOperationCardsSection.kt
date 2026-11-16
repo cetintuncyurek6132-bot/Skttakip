@@ -44,7 +44,7 @@ import com.example.ui.theme.SoonYellowDark
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
 
-import androidx.compose.material.icons.outlined.FactCheck
+import androidx.compose.material.icons.automirrored.outlined.FactCheck
 
 @Composable
 fun MorningOperationCardsSection(
@@ -164,7 +164,7 @@ fun MorningOperationCardsSection(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Outlined.FactCheck,
+                                        imageVector = Icons.AutoMirrored.Outlined.FactCheck,
                                         contentDescription = null,
                                         tint = Color(0xFF1D4ED8),
                                         modifier = Modifier.size(15.dp)

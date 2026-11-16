@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.TrendingDown
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CurrencyLira
@@ -22,8 +24,6 @@ import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.Paid
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.TrendingDown
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -273,7 +273,7 @@ fun FinancialKpiThreeColumnPanel(
                         maxLines = 1
                     )
                     Icon(
-                        imageVector = Icons.Default.TrendingUp,
+                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
                         contentDescription = null,
                         tint = Color(0xFF16A34A),
                         modifier = Modifier.size(13.dp)
@@ -328,7 +328,7 @@ fun FinancialKpiThreeColumnPanel(
                         maxLines = 1
                     )
                     Icon(
-                        imageVector = Icons.Default.TrendingDown,
+                        imageVector = Icons.AutoMirrored.Filled.TrendingDown,
                         contentDescription = null,
                         tint = Color(0xFFDC2626),
                         modifier = Modifier.size(13.dp)

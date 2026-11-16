@@ -41,7 +41,8 @@ object GeminiTranslator {
                 if (model == null) {
                     model = try {
                         val isFirebaseReady = try {
-                            com.google.firebase.FirebaseApp.getInstance() != null
+                            com.google.firebase.FirebaseApp.getInstance()
+                            true
                         } catch (t: Throwable) {
                             false
                         }

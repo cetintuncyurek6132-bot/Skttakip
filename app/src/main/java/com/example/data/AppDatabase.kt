@@ -291,7 +291,7 @@ abstract class AppDatabase : RoomDatabase() {
                         MIGRATION_8_9,
                         MIGRATION_9_10
                     )
-                    .fallbackToDestructiveMigrationOnDowngrade()
+                    .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
                     .addCallback(AppDatabaseCallback(scope))
                     .build()
                 INSTANCE = instance

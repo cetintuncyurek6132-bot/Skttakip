@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -159,7 +160,7 @@ fun ModuleExportDialog(
 
                     if (onExportTxtShare != null) {
                         ExportActionCard(
-                            icon = Icons.Default.Send,
+                            icon = Icons.AutoMirrored.Filled.Send,
                             iconBg = Color(0xFFFFF3E0),
                             iconTint = Color(0xFFE65100),
                             title = "Metin Raporu Paylaş",
