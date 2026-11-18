@@ -163,6 +163,20 @@ class ReleaseNotesTranslatorTest {
         assertTrue(results[0].isNotBlank())
     }
 
+    @Test
+    fun testVersionHeaderLinesAreFiltered() {
+        val raw = """
+            ### 🚀 Sürüm v31.1 Güncellemeleri
+            * Hata düzeltmeleri yapıldı.
+            * Fix crash on barcode scanner when camera permission denied
+        """.trimIndent()
+        val bullets = ReleaseNotesTranslator.translateToBulletPoints(raw, "31.1")
+        assertEquals(2, bullets.size)
+        assertFalse(bullets.any { it.contains("Sürüm", ignoreCase = true) })
+        assertEquals("Hata düzeltmeleri yapıldı.", bullets[0])
+        assertEquals("Kamera izni verilmediğinde barkod tarayıcıda oluşan çökme sorunu giderildi.", bullets[1])
+    }
+
     private fun assertNoEnglishResiduals(text: String) {
         val englishWords = listOf(
             "\\band\\b", "\\bthe\\b", "\\bto\\b", "\\bwith\\b", "\\bfeatures\\b",

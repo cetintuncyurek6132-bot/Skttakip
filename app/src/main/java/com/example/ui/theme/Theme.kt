@@ -10,10 +10,15 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import com.example.util.FontDownloader
 import java.util.Locale
 
 val LocalLocale = staticCompositionLocalOf<Locale> { Locale.forLanguageTag("tr-TR") }
@@ -65,10 +70,19 @@ fun MyApplicationTheme(
   dynamicColor: Boolean = false,
   content: @Composable () -> Unit,
 ) {
+  val context = LocalContext.current
+  val fontChangeTrigger by FontDownloader.fontChangeTrigger.collectAsState()
+
+  val dynamicFontFamily = remember(context, fontChangeTrigger) {
+    getAppFontFamily(context)
+  }
+  val dynamicTypography = remember(dynamicFontFamily) {
+    getAppTypography(dynamicFontFamily)
+  }
+
   val colorScheme =
     when {
       dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        val context = LocalContext.current
         if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
       }
 
@@ -77,11 +91,11 @@ fun MyApplicationTheme(
     }
 
   CompositionLocalProvider(LocalLocale provides Locale.forLanguageTag("tr-TR")) {
-    MaterialTheme(colorScheme = colorScheme, typography = Typography) {
+    MaterialTheme(colorScheme = colorScheme, typography = dynamicTypography) {
       ProvideTextStyle(
         value = TextStyle(
-          fontFamily = AppFontFamily,
-          fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+          fontFamily = dynamicFontFamily,
+          fontWeight = FontWeight.SemiBold,
           localeList = TurkishLocaleList
         )
       ) {

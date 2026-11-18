@@ -1,5 +1,6 @@
 package com.example.ui.screens.csv
 
+import android.app.Activity
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -20,16 +21,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.example.auth.UserAccount
 import com.example.ui.theme.*
 import com.example.util.AppUpdateChecker
 import com.example.util.AppUpdateInfo
+import com.example.util.FontDownloader
 import com.example.util.SoundToneManager
 import com.example.util.SoundToneOption
 import kotlinx.coroutines.Dispatchers
@@ -69,6 +70,11 @@ fun GeneralSettingsTabContent(
     var showToneSelectionDialog by remember { mutableStateOf(false) }
     var currentBarcodeToneId by remember(barcodeSoundId) { mutableIntStateOf(barcodeSoundId) }
     var currentQrFixToneId by remember(labelFixSoundId) { mutableIntStateOf(labelFixSoundId) }
+
+    var showFontPickerDialog by remember { mutableStateOf(false) }
+    var selectedFontName by remember { mutableStateOf(FontDownloader.getSelectedFont(context)) }
+    var isDownloadingFont by remember { mutableStateOf(false) }
+    var downloadingFontTarget by remember { mutableStateOf("") }
 
     // Mevcut indirme durumunu arka planda hafifçe kontrol et (ağ çağrısı yapmaz, yerel DownloadManager kontrolü)
     LaunchedEffect(Unit) {
@@ -546,7 +552,149 @@ fun GeneralSettingsTabContent(
             }
         }
 
+        // ========================================================
+        // KART 6: UYGULAMA FONTU KARTI (BİR KEZ İNDİR, ÇEVRİMDIŞI KULLAN)
+        // ========================================================
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("app_font_settings_card"),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, if (isDarkMode) Slate700 else Slate200),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FontDownload,
+                            contentDescription = "Uygulama Fontu",
+                            tint = TurquoisePrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Uygulama Fontu",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Seçili: $selectedFontName",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = TurquoisePrimary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Button(
+                    onClick = { showFontPickerDialog = true },
+                    modifier = Modifier
+                        .height(36.dp)
+                        .testTag("change_app_font_button"),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = TurquoisePrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        text = "Değiştir",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
+    }
+
+    // ========================================================
+    // UYGULAMA FONTU SEÇİM DİYALOĞU (FontPickerDialog)
+    // ========================================================
+    if (showFontPickerDialog) {
+        FontPickerDialog(
+            currentFont = selectedFontName,
+            isDownloading = isDownloadingFont,
+            downloadingFontName = downloadingFontTarget,
+            onSelectFont = { chosenFont ->
+                if (isDownloadingFont) return@FontPickerDialog
+
+                val alreadyCached = FontDownloader.isFontDownloaded(context, chosenFont)
+                if (chosenFont == FontDownloader.FONT_DEFAULT || alreadyCached) {
+                    FontDownloader.saveSelectedFont(context, chosenFont)
+                    selectedFontName = chosenFont
+                    showFontPickerDialog = false
+                    Toast.makeText(
+                        context,
+                        "Font değiştirildi ($chosenFont). Uygulama yenileniyor...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    (context as? Activity)?.recreate()
+                } else {
+                    isDownloadingFont = true
+                    downloadingFontTarget = chosenFont
+                    coroutineScope.launch {
+                        val success = FontDownloader.downloadAndSaveFont(context, chosenFont)
+                        isDownloadingFont = false
+                        downloadingFontTarget = ""
+                        if (success) {
+                            FontDownloader.saveSelectedFont(context, chosenFont)
+                            selectedFontName = chosenFont
+                            showFontPickerDialog = false
+                            Toast.makeText(
+                                context,
+                                "Font indirildi ve uygulandı ($chosenFont).",
+                                Toast.LENGTH_LONG
+                            ).show()
+                            (context as? Activity)?.recreate()
+                        } else {
+                            FontDownloader.saveSelectedFont(context, FontDownloader.FONT_DEFAULT)
+                            selectedFontName = FontDownloader.FONT_DEFAULT
+                            showFontPickerDialog = false
+                            Toast.makeText(
+                                context,
+                                "Font indirilemedi, varsayılan sistem fontuna dönüldü.",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                }
+            },
+            onDismiss = {
+                if (!isDownloadingFont) {
+                    showFontPickerDialog = false
+                }
+            }
+        )
     }
 
     // ========================================================
@@ -597,6 +745,177 @@ fun GeneralSettingsTabContent(
             }
         )
     }
+}
+
+@Composable
+fun FontPickerDialog(
+    currentFont: String,
+    isDownloading: Boolean,
+    downloadingFontName: String,
+    onSelectFont: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(22.dp),
+        containerColor = Color.White,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(TurquoisePrimary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.FontDownload,
+                        contentDescription = null,
+                        tint = TurquoisePrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Column {
+                    Text(
+                        text = "Uygulama Fontu Seçin",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900
+                    )
+                    Text(
+                        text = "Bir kez indirilir, çevrimdışı kullanılır",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Slate500
+                    )
+                }
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FontDownloader.AVAILABLE_FONTS.forEach { fontOption ->
+                    val isSelected = currentFont == fontOption
+                    val isCached = remember(fontOption, isDownloading) {
+                        FontDownloader.isFontDownloaded(context, fontOption)
+                    }
+                    val isThisDownloading = isDownloading && downloadingFontName == fontOption
+
+                    Surface(
+                        onClick = { onSelectFont(fontOption) },
+                        enabled = !isDownloading,
+                        shape = RoundedCornerShape(12.dp),
+                        color = if (isSelected) TurquoisePrimary.copy(alpha = 0.12f) else Slate50,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) TurquoisePrimary else Slate200
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("font_option_$fontOption")
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = fontOption,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
+                                    color = if (isSelected) TurquoiseDark else Slate900
+                                )
+                                val statusText = when {
+                                    isThisDownloading -> "Font İndiriliyor..."
+                                    fontOption == FontDownloader.FONT_DEFAULT -> "Cihazın yerleşik sistem fontu"
+                                    isCached -> "Çevrimdışı hazır (Telefonda yüklü)"
+                                    else -> "İlk seçimde indirilir (Regular, Medium, Bold)"
+                                }
+                                Text(
+                                    text = statusText,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isThisDownloading) TurquoiseDark else Slate500
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            if (isThisDownloading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = TurquoisePrimary,
+                                    strokeWidth = 2.2.dp
+                                )
+                            } else {
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = { onSelectFont(fontOption) },
+                                    enabled = !isDownloading,
+                                    colors = RadioButtonDefaults.colors(
+                                        selectedColor = TurquoisePrimary,
+                                        unselectedColor = Slate400
+                                    ),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (isDownloading) {
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = TurquoisePrimary.copy(alpha = 0.1f),
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = TurquoisePrimary,
+                                strokeWidth = 2.dp
+                            )
+                            Text(
+                                text = "Font İndiriliyor... ($downloadingFontName)",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TurquoiseDark
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !isDownloading
+            ) {
+                Text(
+                    text = "Kapat",
+                    fontWeight = FontWeight.Bold,
+                    color = Slate700
+                )
+            }
+        }
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

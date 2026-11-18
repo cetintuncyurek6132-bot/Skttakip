@@ -1,5 +1,12 @@
 package com.example.ui.components
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -19,15 +27,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -41,18 +50,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.example.ui.theme.NormalGreenBorder
+import com.example.ui.theme.NormalGreenContainer
+import com.example.ui.theme.NormalGreenDark
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate500
 import com.example.ui.theme.Slate600
 import com.example.ui.theme.Slate700
+import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
@@ -85,7 +105,7 @@ fun AppUpdateDialog(
             val translated = ReleaseNotesTranslator.translateSmart(
                 rawNotes = sourceNotes,
                 versionName = cleanVer
-            )
+            ).filterNot { ReleaseNotesTranslator.isVersionHeaderNote(it) }
             noteItems = if (translated.isNotEmpty()) {
                 translated
             } else {
@@ -285,52 +305,17 @@ fun AppUpdateDialog(
                     }
                 }
 
-                // 3. İndirme Durumu (Progress Bar & Canlı MB Takibi)
-                if (isDownloading) {
+                // 3. İndirme Durumu (Animasyonlu İkon + Shimmer Progress Bar & Canlı MB Takibi)
+                val showDownloadSection = isDownloading || downloadProgress >= 100
+                if (showDownloadSection) {
                     Spacer(modifier = Modifier.height(16.dp))
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val sizeText = if (downloadedBytes > 0L) {
-                            val totalFormatted = if (totalBytes > 0L) AppUpdateChecker.formatBytes(totalBytes) else updateInfo.apkSizeFormatted.ifBlank { AppUpdateChecker.formatBytes(downloadedBytes) }
-                            "${AppUpdateChecker.formatBytes(downloadedBytes)} / $totalFormatted"
-                        } else if (updateInfo.apkSizeFormatted.isNotBlank()) {
-                            val estimatedBytes = (downloadProgress * (updateInfo.apkSizeBytes.takeIf { it > 0L } ?: (40 * 1024 * 1024L))) / 100
-                            "${AppUpdateChecker.formatBytes(estimatedBytes)} / ${updateInfo.apkSizeFormatted}"
-                        } else {
-                            "%$downloadProgress"
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "İndiriliyor... %$downloadProgress",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = sizeText,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TurquoiseDark
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { downloadProgress.coerceIn(0, 100) / 100f },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(10.dp)
-                                .clip(RoundedCornerShape(5.dp)),
-                            color = TurquoisePrimary,
-                            trackColor = TurquoisePrimary.copy(alpha = 0.15f)
-                        )
-                    }
+                    UpdateDownloadProgressSection(
+                        downloadProgress = downloadProgress,
+                        downloadedBytes = downloadedBytes,
+                        totalBytes = totalBytes,
+                        fallbackSizeFormatted = updateInfo.apkSizeFormatted,
+                        fallbackSizeBytes = updateInfo.apkSizeBytes
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -411,6 +396,230 @@ fun AppUpdateDialog(
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpdateDownloadProgressSection(
+    downloadProgress: Int,
+    downloadedBytes: Long,
+    totalBytes: Long,
+    fallbackSizeFormatted: String,
+    fallbackSizeBytes: Long
+) {
+    val clampedProgress = downloadProgress.coerceIn(0, 100)
+    val isDownloadCompleted = clampedProgress >= 100
+
+    val animatedFraction by animateFloatAsState(
+        targetValue = clampedProgress / 100f,
+        animationSpec = tween(durationMillis = 320),
+        label = "update_download_progress_fraction"
+    )
+
+    val sizeText = if (downloadedBytes > 0L) {
+        val totalFormatted = if (totalBytes > 0L) {
+            AppUpdateChecker.formatBytes(totalBytes)
+        } else {
+            fallbackSizeFormatted.ifBlank { AppUpdateChecker.formatBytes(downloadedBytes) }
+        }
+        "${AppUpdateChecker.formatBytes(downloadedBytes)} / $totalFormatted"
+    } else if (fallbackSizeFormatted.isNotBlank()) {
+        val estimatedBytes = (clampedProgress * (fallbackSizeBytes.takeIf { it > 0L } ?: (40 * 1024 * 1024L))) / 100
+        "${AppUpdateChecker.formatBytes(estimatedBytes)} / $fallbackSizeFormatted"
+    } else {
+        ""
+    }
+
+    // İndirme sürerken dönen/nabız atan animasyon ve shimmer; tamamlanınca animasyonu durdur
+    val iconRotation: Float
+    val pulseAlpha: Float
+    val shimmerProgress: Float
+    if (!isDownloadCompleted) {
+        val infiniteTransition = rememberInfiniteTransition(label = "update_download_infinite")
+        val rot by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1500, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "update_icon_rotation"
+        )
+        val alpha by infiniteTransition.animateFloat(
+            initialValue = 0.5f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 850, easing = LinearEasing),
+                repeatMode = RepeatMode.Reverse
+            ),
+            label = "update_icon_pulse_alpha"
+        )
+        val shimmer by infiniteTransition.animateFloat(
+            initialValue = -0.35f,
+            targetValue = 1.35f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 1200, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "update_bar_shimmer"
+        )
+        iconRotation = rot
+        pulseAlpha = alpha
+        shimmerProgress = shimmer
+    } else {
+        iconRotation = 0f
+        pulseAlpha = 1f
+        shimmerProgress = 0f
+    }
+
+    val containerBg = if (isDownloadCompleted) {
+        NormalGreenContainer.copy(alpha = 0.45f)
+    } else {
+        TurquoiseLight.copy(alpha = 0.48f)
+    }
+    val containerBorder = if (isDownloadCompleted) {
+        NormalGreenBorder.copy(alpha = 0.75f)
+    } else {
+        TurquoisePrimary.copy(alpha = 0.35f)
+    }
+    val badgeBg = if (isDownloadCompleted) {
+        NormalGreenContainer
+    } else {
+        TurquoisePrimary.copy(alpha = 0.16f)
+    }
+    val badgeTint = if (isDownloadCompleted) NormalGreenDark else TurquoiseDark
+    val barColor = if (isDownloadCompleted) NormalGreenDark else TurquoisePrimary
+    val barTrackColor = if (isDownloadCompleted) {
+        NormalGreenBorder.copy(alpha = 0.3f)
+    } else {
+        TurquoisePrimary.copy(alpha = 0.16f)
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("app_update_download_progress_card"),
+        shape = RoundedCornerShape(16.dp),
+        color = containerBg,
+        border = BorderStroke(1.dp, containerBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = badgeBg,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .graphicsLayer {
+                            alpha = pulseAlpha
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (isDownloadCompleted) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "İndirme tamamlandı",
+                                tint = NormalGreenDark,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Güncelleme indiriliyor",
+                                tint = badgeTint,
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .graphicsLayer {
+                                        rotationZ = iconRotation
+                                    }
+                            )
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = if (isDownloadCompleted) "İndirme Tamamlandı" else "Güncelleme İndiriliyor...",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDownloadCompleted) NormalGreenDark else Slate600
+                    )
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = if (isDownloadCompleted) NormalGreenDark else Slate900
+                                )
+                            ) {
+                                append("%$clampedProgress")
+                            }
+                            if (sizeText.isNotBlank()) {
+                                withStyle(
+                                    SpanStyle(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate700
+                                    )
+                                ) {
+                                    append("  •  $sizeText")
+                                }
+                            }
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // 8.dp kalınlıkta, tamamen yuvarlak (RoundedCornerShape(50)) ve shimmer efektli ilerleme çubuğu
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(barTrackColor)
+            ) {
+                val fillModifier = Modifier
+                    .fillMaxWidth(fraction = animatedFraction.coerceIn(0.02f, 1f))
+                    .fillMaxHeight()
+                    .clip(RoundedCornerShape(50))
+
+                if (isDownloadCompleted) {
+                    Box(
+                        modifier = fillModifier.background(barColor)
+                    )
+                } else {
+                    val shimmerBrush = Brush.linearGradient(
+                        colors = listOf(
+                            TurquoiseDark,
+                            TurquoisePrimary,
+                            Color(0xFF99F6E4),
+                            TurquoisePrimary,
+                            TurquoiseDark
+                        ),
+                        start = Offset((shimmerProgress - 0.35f) * 600f, 0f),
+                        end = Offset((shimmerProgress + 0.35f) * 600f, 0f)
+                    )
+                    Box(
+                        modifier = fillModifier.background(shimmerBrush)
+                    )
                 }
             }
         }

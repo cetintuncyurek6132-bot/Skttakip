@@ -1,7 +1,9 @@
 package com.example.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -45,8 +47,6 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -341,7 +341,7 @@ fun CombinedStoreInventoryCard(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                    .padding(horizontal = 6.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -358,19 +358,19 @@ fun CombinedStoreInventoryCard(
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = "Toplam",
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Slate800,
                                         maxLines = 1
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
                                 Text(
                                     text = formattedTotalRatio,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = if (hasCombinedRatio) totalAccentColor else Slate900,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
@@ -378,7 +378,7 @@ fun CombinedStoreInventoryCard(
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
 
                                 Surface(
                                     onClick = onEditCombinedTargetClick,
@@ -394,7 +394,7 @@ fun CombinedStoreInventoryCard(
                                     ) {
                                         Text(
                                             text = "Hedef: %${ratioFormatter.format(combinedTargetRatio)}",
-                                            fontSize = 9.5.sp,
+                                            fontSize = 10.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = Slate800,
                                             maxLines = 1,
@@ -425,7 +425,7 @@ fun CombinedStoreInventoryCard(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                    .padding(horizontal = 6.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -442,21 +442,21 @@ fun CombinedStoreInventoryCard(
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = "Parçalı",
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate700,
                                         maxLines = 1
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = if (summary.periodicRatio != null) {
                                         "%${ratioFormatter.format(summary.periodicRatio)}"
                                     } else {
                                         "%-"
                                     },
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = Slate900,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
@@ -479,7 +479,7 @@ fun CombinedStoreInventoryCard(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 6.dp, vertical = 10.dp),
+                                    .padding(horizontal = 6.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -496,21 +496,21 @@ fun CombinedStoreInventoryCard(
                                     Spacer(modifier = Modifier.width(5.dp))
                                     Text(
                                         text = "Sürekli",
-                                        fontSize = 11.sp,
+                                        fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate700,
                                         maxLines = 1
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(6.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = if (summary.continuousRatio != null) {
                                         "%${ratioFormatter.format(summary.continuousRatio)}"
                                     } else {
                                         "%-"
                                     },
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontSize = 26.sp,
+                                    fontWeight = FontWeight.ExtraBold,
                                     color = if (isContinuousOverTarget) ExpiredRedDark else Slate900,
                                     textAlign = TextAlign.Center,
                                     maxLines = 1,
@@ -607,42 +607,39 @@ fun InventoryTrackingTabRow(
         TabRow(
             selectedTabIndex = selectedTabIndex,
             containerColor = Color.Transparent,
-            contentColor = TurquoiseDark,
+            contentColor = TurquoisePrimary,
             divider = {},
-            indicator = { tabPositions ->
-                if (selectedTabIndex in tabPositions.indices) {
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier
-                            .tabIndicatorOffset(tabPositions[selectedTabIndex])
-                            .padding(horizontal = 20.dp)
-                            .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)),
-                        height = 3.dp,
-                        color = TurquoisePrimary
-                    )
-                }
-            },
+            indicator = {},
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(4.dp)
         ) {
             tabTitles.forEachIndexed { index, title ->
                 val isSelected = selectedTabIndex == index
+                val animatedBgColor by animateColorAsState(
+                    targetValue = if (isSelected) TurquoisePrimary else Color.Transparent,
+                    animationSpec = tween(durationMillis = 250),
+                    label = "tab_bg_$index"
+                )
+                val animatedTextColor by animateColorAsState(
+                    targetValue = if (isSelected) Color.White else Slate700,
+                    animationSpec = tween(durationMillis = 250),
+                    label = "tab_text_$index"
+                )
                 Tab(
                     selected = isSelected,
                     onClick = { onTabSelected(index) },
                     modifier = Modifier
                         .height(40.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(
-                            if (isSelected) TurquoisePrimary.copy(alpha = 0.14f) else Color.Transparent
-                        )
+                        .background(animatedBgColor)
                         .testTag("inventory_tracking_tab_$index")
                 ) {
                     Text(
                         text = title,
                         fontSize = 12.5.sp,
                         fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-                        color = if (isSelected) TurquoiseDark else Slate700,
+                        color = animatedTextColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -657,6 +654,7 @@ fun PeriodicCategoryCardsRow(
     categories: List<AuditCategorySpec>,
     audits: List<InventoryAuditEntity>,
     todayMidnight: Long,
+    moneyFormatter: DecimalFormat,
     ratioFormatter: DecimalFormat,
     onCategoryClick: (AuditCategorySpec) -> Unit
 ) {
@@ -740,6 +738,9 @@ fun PeriodicCategoryCardsRow(
             } else {
                 1.0
             }
+            val formattedPeriodicTarget = remember(effectivePeriodicTarget, ratioFormatter) {
+                DecimalFormat("0.00", ratioFormatter.decimalFormatSymbols).format(effectivePeriodicTarget)
+            }
             val isPeriodicRatioOverTarget = latestAudit != null && (
                 (latestAudit.revenue > 0.0 && (currentRatioVal ?: 0.0) > effectivePeriodicTarget) ||
                     (latestAudit.revenue <= 0.0 && latestAudit.fireCost > 0.0)
@@ -748,6 +749,16 @@ fun PeriodicCategoryCardsRow(
                 latestAudit == null -> Slate500
                 isPeriodicRatioOverTarget -> ExpiredRedDark
                 else -> NormalGreenDark
+            }
+            val currentCiroText = if (latestAudit != null) {
+                "${moneyFormatter.format(latestAudit.revenue)} ₺"
+            } else {
+                "- ₺"
+            }
+            val currentFireText = if (latestAudit != null) {
+                "${moneyFormatter.format(latestAudit.fireCost)} ₺"
+            } else {
+                "- ₺"
             }
 
             Card(
@@ -763,15 +774,15 @@ fun PeriodicCategoryCardsRow(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                        .padding(horizontal = 8.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(5.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Surface(
                         shape = CircleShape,
                         color = Slate50,
                         border = BorderStroke(1.dp, Slate200),
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(28.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
@@ -822,11 +833,52 @@ fun PeriodicCategoryCardsRow(
                         }
                     }
 
+                    Surface(
+                        shape = RoundedCornerShape(7.dp),
+                        color = TurquoisePrimary.copy(alpha = 0.10f),
+                        border = BorderStroke(0.8.dp, TurquoisePrimary.copy(alpha = 0.30f))
+                    ) {
+                        Text(
+                            text = "Hedef: %$formattedPeriodicTarget",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TurquoiseDark,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                    ) {
+                        Text(
+                            text = "Mevcut Ciro: $currentCiroText",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate700,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Mevcut Fire: $currentFireText",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate700,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
                     Text(
                         text = elapsedText,
-                        fontSize = 11.sp,
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Slate700,
+                        color = Slate500,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         textAlign = TextAlign.Center
@@ -1775,23 +1827,53 @@ fun SmartCategoryAnalysisCard(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = spec.title,
-                            fontSize = 15.5.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Slate900,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = "Hedef Oran: %$targetRatioTwoDecimals",
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Slate500,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = spec.title,
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(7.dp),
+                                color = TurquoisePrimary.copy(alpha = 0.12f),
+                                border = BorderStroke(0.8.dp, TurquoisePrimary.copy(alpha = 0.35f))
+                            ) {
+                                Text(
+                                    text = "Hedef: %$targetRatioTwoDecimals",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(
+                                text = "Mevcut Ciro: ${moneyFormatter.format(revenue)} ₺",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate700,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Mevcut Fire: ${moneyFormatter.format(fireCost)} ₺",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate700,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 

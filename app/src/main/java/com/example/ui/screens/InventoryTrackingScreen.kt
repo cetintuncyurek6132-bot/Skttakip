@@ -532,7 +532,8 @@ fun InventoryTrackingScreen(
         AnimatedContent(
             targetState = selectedTabIndex,
             transitionSpec = {
-                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(180))
+                fadeIn(animationSpec = tween(durationMillis = 250)) togetherWith
+                    fadeOut(animationSpec = tween(durationMillis = 250))
             },
             modifier = Modifier
                 .weight(1f)
@@ -599,6 +600,7 @@ fun InventoryTrackingScreen(
                         categories = periodicCategories,
                         audits = audits,
                         todayMidnight = todayMidnight,
+                        moneyFormatter = moneyFormatter,
                         ratioFormatter = ratioFormatter,
                         onCategoryClick = { spec ->
                             selectedDetailCategory = spec.key
@@ -616,8 +618,6 @@ fun InventoryTrackingScreen(
                         onClick = { selectedDetailCategory = spec.key }
                     )
                 }
-
-                Spacer(modifier = Modifier.height(90.dp))
             }
         }
     }

@@ -406,16 +406,20 @@ fun SktMainApp(
                 contentWindowInsets = WindowInsets(0, 0, 0, 0),
                 containerColor = MaterialTheme.colorScheme.background,
                 bottomBar = {
-                SktBottomNavBar(
-                    currentRoute = activeRoute,
-                    onNavigate = { target -> navigateToTab(target) },
-                    onScanClick = {
-                        scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
-                        isBarcodeScannerOpen = true
-                    },
-                    userRoleCode = currentUser?.role ?: "MS"
-                )
-            },
+                    if (activeRoute != "analytics" && activeRoute != "envanter" &&
+                        currentNavRoute != "analytics" && currentNavRoute != "envanter"
+                    ) {
+                        SktBottomNavBar(
+                            currentRoute = activeRoute,
+                            onNavigate = { target -> navigateToTab(target) },
+                            onScanClick = {
+                                scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
+                                isBarcodeScannerOpen = true
+                            },
+                            userRoleCode = currentUser?.role ?: "MS"
+                        )
+                    }
+                },
             topBar = {
                 if (currentNavRoute == "main") {
                     Column {

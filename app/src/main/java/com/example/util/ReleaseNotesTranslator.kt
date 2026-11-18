@@ -223,7 +223,33 @@ object ReleaseNotesTranslator {
             lower.contains("update gitignore")
         ) return true
 
+        // Sürüm başlığı / "Sürüm vX.X Güncellemeleri" satırları
+        if (isVersionHeaderNote(raw)) return true
+
         return false
+    }
+
+    /**
+     * "🚀 Sürüm vX.X Güncellemeleri." gibi yalnızca sürüm bilgisini belirten
+     * jenerik başlık satırlarını tespit eder.
+     */
+    fun isVersionHeaderNote(raw: String): Boolean {
+        val trLocale = Locale.forLanguageTag("tr-TR")
+        val normalized = raw
+            .replace(Regex("[^\\p{L}\\p{N}.]+"), " ")
+            .trim()
+            .lowercase(trLocale)
+        if (normalized.isBlank()) return false
+
+        val hasVersionKeyword = normalized.contains("sürüm") || normalized.contains("surum")
+        val hasUpdatesKeyword = normalized.contains("güncelleme")
+        val hasVersionNumber = Regex("\\bv?\\d+(?:\\.\\d+)+\\b").containsMatchIn(normalized)
+        val residual = normalized
+            .replace(Regex("\\bv?\\d+(?:\\.\\d+)+\\b"), " ")
+            .replace(Regex("\\b(sürüm|surum|güncellemeleri|güncellemesi|güncelleme|yenilikler|notları|notu|yeni)\\b"), " ")
+            .trim()
+
+        return (hasVersionKeyword || hasUpdatesKeyword) && (hasVersionNumber || residual.isBlank())
     }
 
     /**
@@ -577,7 +603,7 @@ object ReleaseNotesTranslator {
         if (!geminiResult.isNullOrEmpty()) {
             val cleanGeminiLines = geminiResult
                 .map { formatFinalSentence(cleanLineSymbols(it)) }
-                .filter { it.isNotBlank() && !containsForbiddenEnglish(it) }
+                .filter { it.isNotBlank() && !containsForbiddenEnglish(it) && !isVersionHeaderNote(it) }
                 .distinct()
 
             if (cleanGeminiLines.isNotEmpty()) {
@@ -587,7 +613,7 @@ object ReleaseNotesTranslator {
 
         // 2. ADIM: GEMİNİ'YE ERİŞİLEMEZSE AGRESİF FİLTRELİ YEREL SÖZLÜK
         val localResult = translateToBulletPoints(cleanedInputText, versionName)
-            .filter { it.isNotBlank() && !containsForbiddenEnglish(it) }
+            .filter { it.isNotBlank() && !containsForbiddenEnglish(it) && !isVersionHeaderNote(it) }
             .distinct()
 
         return if (localResult.isNotEmpty()) {

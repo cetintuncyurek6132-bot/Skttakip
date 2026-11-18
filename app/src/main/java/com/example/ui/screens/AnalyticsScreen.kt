@@ -973,9 +973,6 @@ fun AnalyticsScreen(
                     }
                 }
             }
-
-            // BottomNavBar'ın son sıradaki ürünlerin üstünü kapatmaması için 84.dp boşluk
-            item { Spacer(modifier = Modifier.height(84.dp)) }
         }
     }
 }
