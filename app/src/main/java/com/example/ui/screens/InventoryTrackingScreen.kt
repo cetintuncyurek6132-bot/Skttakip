@@ -60,6 +60,7 @@ import com.example.data.InventoryAuditEntity
 import com.example.data.InventoryTargetPreferences
 import com.example.ui.components.AddInventoryAuditModal
 import com.example.ui.components.InventoryCategoryDetailModal
+import com.example.ui.components.LocalTriggerGlobalLoading
 import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
@@ -103,6 +104,7 @@ fun InventoryTrackingScreen(
     }
 
     val context = LocalContext.current
+    val triggerGlobalLoading = LocalTriggerGlobalLoading.current
     val todayMidnight by com.example.util.rememberTodayMidnight()
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var selectedDetailCategory by remember { mutableStateOf<String?>(null) }
@@ -197,10 +199,18 @@ fun InventoryTrackingScreen(
         DecimalFormat("0.##", symbols)
     }
 
-    // Kategori kartına tıklandığında açılan Periyodik Envanter Detay Alt Sayfası
+    // Kategori kartına tıklandığında açılan Kaydırmalı Envanter Detay Alt Sayfası
     if (selectedDetailCategory != null && activeCategoryForAddModal == null && editingAuditForModal == null) {
         val currentCat = selectedDetailCategory!!
-        val sortedForCategory = remember(audits, currentCat) {
+        val isPeriodicDetail = !isContinuousAuditCategory(currentCat)
+        val detailCategoryList = remember(isPeriodicDetail) {
+            if (isPeriodicDetail) {
+                listOf("GIDA", "DOLAP", "GIDA DIŞI")
+            } else {
+                listOf("ET-TAVUK", "EKMEK", "MEYVE-SEBZE", "DONUK MEYVE-SEBZE")
+            }
+        }
+        val sortedForInitialCategory = remember(audits, currentCat) {
             audits.filter {
                 normalizeInventoryCategoryKey(it.category) == normalizeInventoryCategoryKey(currentCat)
             }.sortedWith(
@@ -209,44 +219,59 @@ fun InventoryTrackingScreen(
                     .thenByDescending { it.createdAt }
             )
         }
-        val latestForCategory = sortedForCategory.firstOrNull()
-        val initialAuditDateForCategory = sortedForCategory.lastOrNull()?.auditDateMillis
-            ?: latestForCategory?.auditDateMillis
+        val latestForInitialCategory = sortedForInitialCategory.firstOrNull()
         InventoryCategoryDetailModal(
-            category = formatAuditCategoryLabel(currentCat),
-            latestAudit = latestForCategory,
-            categoryHistory = sortedForCategory,
-            targetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0,
+            initialCategory = formatAuditCategoryLabel(currentCat),
+            categoryList = detailCategoryList,
+            allAudits = audits,
+            latestAudit = latestForInitialCategory,
+            categoryHistory = sortedForInitialCategory,
+            targetRatio = latestForInitialCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0,
             onDismiss = { selectedDetailCategory = null },
-            onEditClick = { auditToEdit ->
+            onEditClick = { activeCat, auditToEdit ->
+                triggerGlobalLoading()
+                val isCont = isContinuousAuditCategory(activeCat)
                 isWeeklyEntryModalMode = false
-                isContinuousModalMode = isContinuousAuditCategory(currentCat)
+                isContinuousModalMode = isCont
                 isBulkContinuousModalMode = false
-                selectedContinuousCategoryForModal = if (isContinuousAuditCategory(currentCat)) currentCat else null
+                selectedContinuousCategoryForModal = if (isCont) activeCat else null
                 weeklyLockedDateMillis = null
                 weeklyInitialTargetRatio = null
-                singleAuditInitialPeriod = if (isContinuousAuditCategory(currentCat)) {
-                    latestForCategory?.auditPeriod.orEmpty()
+                singleAuditInitialPeriod = if (isCont) {
+                    auditToEdit?.auditPeriod.orEmpty()
                 } else {
                     ""
                 }
                 if (auditToEdit != null) {
                     editingAuditForModal = auditToEdit
                 } else {
-                    activeCategoryForAddModal = currentCat
+                    activeCategoryForAddModal = activeCat
                 }
             },
-            onAddNewAuditClick = {
+            onAddNewAuditClick = { activeCat ->
+                triggerGlobalLoading()
+                val isCont = isContinuousAuditCategory(activeCat)
+                val normKey = normalizeInventoryCategoryKey(activeCat)
+                val catAudits = audits.filter {
+                    normalizeInventoryCategoryKey(it.category) == normKey
+                }.sortedWith(
+                    compareByDescending<InventoryAuditEntity> { it.updatedAt }
+                        .thenByDescending { it.auditDateMillis }
+                        .thenByDescending { it.createdAt }
+                )
+                val catLatest = catAudits.firstOrNull()
+                val catInitialDate = catAudits.lastOrNull()?.auditDateMillis
+                    ?: catLatest?.auditDateMillis
                 editingAuditForModal = null
-                activeCategoryForAddModal = currentCat
+                activeCategoryForAddModal = activeCat
                 isWeeklyEntryModalMode = true
-                isContinuousModalMode = isContinuousAuditCategory(currentCat)
+                isContinuousModalMode = isCont
                 isBulkContinuousModalMode = false
-                selectedContinuousCategoryForModal = if (isContinuousAuditCategory(currentCat)) currentCat else null
-                weeklyLockedDateMillis = initialAuditDateForCategory ?: System.currentTimeMillis()
-                weeklyInitialTargetRatio = latestForCategory?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
-                singleAuditInitialPeriod = if (isContinuousAuditCategory(currentCat)) {
-                    latestForCategory?.auditPeriod.orEmpty()
+                selectedContinuousCategoryForModal = if (isCont) activeCat else null
+                weeklyLockedDateMillis = catInitialDate ?: System.currentTimeMillis()
+                weeklyInitialTargetRatio = catLatest?.targetRatio?.takeIf { it > 0.0 } ?: 1.0
+                singleAuditInitialPeriod = if (isCont) {
+                    catLatest?.auditPeriod.orEmpty()
                 } else {
                     ""
                 }
@@ -603,6 +628,7 @@ fun InventoryTrackingScreen(
                         moneyFormatter = moneyFormatter,
                         ratioFormatter = ratioFormatter,
                         onCategoryClick = { spec ->
+                            triggerGlobalLoading()
                             selectedDetailCategory = spec.key
                         }
                     )
@@ -615,7 +641,10 @@ fun InventoryTrackingScreen(
                         latestAudit = latestByCategory[spec.key],
                         moneyFormatter = moneyFormatter,
                         ratioFormatter = ratioFormatter,
-                        onClick = { selectedDetailCategory = spec.key }
+                        onClick = {
+                            triggerGlobalLoading()
+                            selectedDetailCategory = spec.key
+                        }
                     )
                 }
             }

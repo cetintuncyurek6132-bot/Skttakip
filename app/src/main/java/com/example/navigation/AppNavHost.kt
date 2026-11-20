@@ -26,6 +26,7 @@ import com.example.ui.DashboardState
 import com.example.ui.MainViewModel
 import com.example.ui.ProductFilter
 import com.example.ui.ProductGroupFilter
+import com.example.ui.components.LocalTriggerGlobalLoading
 import com.example.ui.screens.AdetselScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.CsvScreen
@@ -93,6 +94,7 @@ fun AppNavHost(
             popEnterTransition = { EnterTransition.None },
             popExitTransition = { ExitTransition.None }
         ) {
+            val triggerGlobalLoading = LocalTriggerGlobalLoading.current
             val sktProductCount = remember(allProducts) {
                 allProducts.count { it.sktTarihi > 0L && it.stokAdedi > 0 }
             }
@@ -134,7 +136,10 @@ fun AppNavHost(
                                 pendingAdetselCount = yapilacakAdetsel.size,
                                 onQuickActionClick = { action ->
                                     when (action) {
-                                        "add_product" -> inventoryViewModel.openAddProductModal()
+                                        "add_product" -> {
+                                            triggerGlobalLoading()
+                                            inventoryViewModel.openAddProductModal()
+                                        }
                                         "scan" -> onOpenScanner(ScannerOpenMode.BARCODE_SEARCH)
                                         "analytics" -> navigateToTab("analytics")
                                         "envanter" -> navigateToTab("envanter")
@@ -149,6 +154,7 @@ fun AppNavHost(
                                     navigateToTab("products")
                                 },
                                 onProductClick = { prod ->
+                                    triggerGlobalLoading()
                                     inventoryViewModel.openProductDetailModal(prod)
                                 },
                                 onViewAllProductsClick = {
@@ -175,10 +181,19 @@ fun AppNavHost(
                                 onGroupFilterSelect = { group -> inventoryViewModel.onGroupFilterSelected(group) },
                                 onDateRangeSelect = { start, end -> inventoryViewModel.setDateRangeFilter(start, end) },
                                 onClearDateRange = { inventoryViewModel.clearDateRangeFilter() },
-                                onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
+                                onProductClick = { prod ->
+                                    triggerGlobalLoading()
+                                    inventoryViewModel.openProductDetailModal(prod)
+                                },
                                 onDeleteProduct = { prod -> inventoryViewModel.deleteProduct(prod) },
-                                onAddProductClick = { inventoryViewModel.openAddProductModal() },
-                                onQuickAddSkt = { prod -> inventoryViewModel.openAddSktModal(prod) },
+                                onAddProductClick = {
+                                    triggerGlobalLoading()
+                                    inventoryViewModel.openAddProductModal()
+                                },
+                                onQuickAddSkt = { prod ->
+                                    triggerGlobalLoading()
+                                    inventoryViewModel.openAddSktModal(prod)
+                                },
                                 onOpenQrFixMode = { onOpenScanner(ScannerOpenMode.LABEL_FIX) }
                             )
                         }
@@ -311,10 +326,14 @@ fun AppNavHost(
             popEnterTransition = { EnterTransition.None },
             popExitTransition = { fadeOut(animationSpec = tween(140)) }
         ) {
+            val triggerGlobalLoading = LocalTriggerGlobalLoading.current
             AnalyticsScreen(
                 products = allProducts,
                 stockLogs = stockLogs,
-                onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
+                onProductClick = { prod ->
+                    triggerGlobalLoading()
+                    inventoryViewModel.openProductDetailModal(prod)
+                },
                 onApplyYellowTag = { prod ->
                     if (!prod.isImportant) {
                         inventoryViewModel.toggleProductImportant(prod)

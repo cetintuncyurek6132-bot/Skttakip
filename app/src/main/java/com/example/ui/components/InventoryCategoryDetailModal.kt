@@ -12,16 +12,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,6 +44,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Fastfood
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Percent
@@ -47,6 +55,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -56,7 +66,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,7 +81,9 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -78,6 +92,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.InventoryAuditEntity
 import com.example.ui.theme.ExpiredRedBorder
 import com.example.ui.theme.ExpiredRedContainer
@@ -139,22 +155,64 @@ private fun formatDetailPeriodHeader(
     return "$formattedMonth $yearPart"
 }
 
+private fun resolveCategoryVisuals(normalizedCategoryKey: String): Triple<ImageVector, Color, Color> {
+    val icon = when (normalizedCategoryKey) {
+        "DOLAP", "DONUK_MEYVE_SEBZE" -> Icons.Default.AcUnit
+        "GIDA DIŞI" -> Icons.Default.Category
+        "ET_TAVUK" -> Icons.Default.SetMeal
+        "EKMEK" -> Icons.Default.BakeryDining
+        "MEYVE_SEBZE" -> Icons.Default.Eco
+        else -> Icons.Default.Fastfood
+    }
+    val (pastelBg, tint) = when (normalizedCategoryKey) {
+        "DOLAP" -> Pair(Color(0xFFDBEAFE), Color(0xFF1D4ED8))
+        "GIDA DIŞI" -> Pair(Color(0xFFEDE9FE), Color(0xFF6D28D9))
+        "ET_TAVUK" -> Pair(Color(0xFFFFF1F2), Color(0xFFBE123C))
+        "EKMEK" -> Pair(Color(0xFFFFFBEB), Color(0xFFB45309))
+        "MEYVE_SEBZE" -> Pair(Color(0xFFF0FDF4), Color(0xFF15803D))
+        "DONUK_MEYVE_SEBZE" -> Pair(Color(0xFFF0F9FF), Color(0xFF0369A1))
+        else -> Pair(TurquoisePrimary.copy(alpha = 0.16f), TurquoiseDark)
+    }
+    return Triple(icon, pastelBg, tint)
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryCategoryDetailModal(
-    category: String,
-    latestAudit: InventoryAuditEntity?,
+    initialCategory: String,
+    categoryList: List<String> = listOf(initialCategory),
+    allAudits: List<InventoryAuditEntity> = emptyList(),
+    latestAudit: InventoryAuditEntity? = null,
     categoryHistory: List<InventoryAuditEntity> = emptyList(),
     targetRatio: Double = latestAudit?.targetRatio?.takeIf { it > 0.0 } ?: 1.0,
     onDismiss: () -> Unit,
-    onEditClick: (InventoryAuditEntity?) -> Unit,
-    onAddNewAuditClick: (String) -> Unit
+    onEditClick: (category: String, latestAudit: InventoryAuditEntity?) -> Unit,
+    onAddNewAuditClick: (category: String) -> Unit
 ) {
+    val safeCategoryList = remember(categoryList, initialCategory) {
+        if (categoryList.isNotEmpty()) categoryList else listOf(initialCategory)
+    }
+    val initialPageIndex = remember(safeCategoryList, initialCategory) {
+        val targetNorm = normalizeInventoryCategoryKey(initialCategory)
+        val idx = safeCategoryList.indexOfFirst {
+            normalizeInventoryCategoryKey(it) == targetNorm
+        }
+        if (idx >= 0) idx else 0
+    }
+    val pagerState = rememberPagerState(
+        initialPage = initialPageIndex,
+        pageCount = { safeCategoryList.size }
+    )
+    val coroutineScope = rememberCoroutineScope()
+
     var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val isContinuous = remember(category) { isContinuousAuditCategory(category) }
-    val normalizedCategoryKey = remember(category) { normalizeInventoryCategoryKey(category) }
-    val tabTitles = remember(isContinuous) {
-        if (isContinuous) {
+    var fullHistoryModalData by remember { mutableStateOf<Pair<String, List<InventoryAuditEntity>>?>(null) }
+
+    val activeCategory = safeCategoryList.getOrElse(pagerState.currentPage) { initialCategory }
+    val activeIsContinuous = remember(activeCategory) { isContinuousAuditCategory(activeCategory) }
+    val activeNormalizedKey = remember(activeCategory) { normalizeInventoryCategoryKey(activeCategory) }
+    val tabTitles = remember(activeIsContinuous) {
+        if (activeIsContinuous) {
             listOf("Özet & Analiz", "Dönem İçi Gelişim")
         } else {
             listOf("Özet & Analiz", "Gelişim & Geçmiş")
@@ -186,89 +244,56 @@ fun InventoryCategoryDetailModal(
         DecimalFormat("0.##", symbols)
     }
 
-    val sortedHistory = remember(categoryHistory, latestAudit) {
-        val base = if (categoryHistory.isNotEmpty()) {
-            categoryHistory
-        } else if (latestAudit != null) {
-            listOf(latestAudit)
-        } else {
-            emptyList()
+    val sortedHistoryByPage = remember(allAudits, safeCategoryList, categoryHistory, latestAudit, initialCategory) {
+        val comparator = compareByDescending<InventoryAuditEntity> { it.updatedAt }
+            .thenByDescending { it.auditDateMillis }
+            .thenByDescending { it.createdAt }
+        safeCategoryList.map { catName ->
+            val normKey = normalizeInventoryCategoryKey(catName)
+            val fromAll = if (allAudits.isNotEmpty()) {
+                allAudits.filter { normalizeInventoryCategoryKey(it.category) == normKey }
+                    .sortedWith(comparator)
+            } else if (normKey == normalizeInventoryCategoryKey(initialCategory)) {
+                val base = if (categoryHistory.isNotEmpty()) {
+                    categoryHistory
+                } else if (latestAudit != null) {
+                    listOf(latestAudit)
+                } else {
+                    emptyList()
+                }
+                base.sortedWith(comparator)
+            } else {
+                emptyList()
+            }
+            fromAll
         }
-        base.sortedWith(
-            compareByDescending<InventoryAuditEntity> { it.updatedAt }
-                .thenByDescending { it.auditDateMillis }
-                .thenByDescending { it.createdAt }
-        )
     }
 
-    // Son 4 haftalık kayıt (kronolojik soldan sağa: en eskiden en yeniye)
-    val last4WeeksChronological = remember(sortedHistory) {
-        sortedHistory.take(4).reversed()
+    val activeSortedHistory = sortedHistoryByPage.getOrElse(pagerState.currentPage) { emptyList() }
+    val activeLatestAudit = activeSortedHistory.firstOrNull()
+    val (activeCategoryIcon, activeIconPastelBg, activeIconTint) = remember(activeNormalizedKey) {
+        resolveCategoryVisuals(activeNormalizedKey)
     }
-
-    val categoryIcon = when (normalizedCategoryKey) {
-        "DOLAP", "DONUK_MEYVE_SEBZE" -> Icons.Default.AcUnit
-        "GIDA DIŞI" -> Icons.Default.Category
-        "ET_TAVUK" -> Icons.Default.SetMeal
-        "EKMEK" -> Icons.Default.BakeryDining
-        "MEYVE_SEBZE" -> Icons.Default.Eco
-        else -> Icons.Default.Fastfood
-    }
-
-    val (iconPastelBg, iconTint) = when (normalizedCategoryKey) {
-        "DOLAP" -> Pair(Color(0xFFDBEAFE), Color(0xFF1D4ED8))
-        "GIDA DIŞI" -> Pair(Color(0xFFEDE9FE), Color(0xFF6D28D9))
-        "ET_TAVUK" -> Pair(Color(0xFFFFF1F2), Color(0xFFBE123C))
-        "EKMEK" -> Pair(Color(0xFFFFFBEB), Color(0xFFB45309))
-        "MEYVE_SEBZE" -> Pair(Color(0xFFF0FDF4), Color(0xFF15803D))
-        "DONUK_MEYVE_SEBZE" -> Pair(Color(0xFFF0F9FF), Color(0xFF0369A1))
-        else -> Pair(TurquoisePrimary.copy(alpha = 0.16f), TurquoiseDark)
-    }
-
-    val revenue = latestAudit?.revenue ?: 0.0
-    val fireCost = latestAudit?.fireCost ?: 0.0
-    val effectiveTargetRatio = if ((latestAudit?.targetRatio ?: 0.0) > 0.0) {
-        latestAudit!!.targetRatio
-    } else if (targetRatio > 0.0) {
-        targetRatio
-    } else {
-        1.0
-    }
-
-    val currentRatioPercent = if (revenue > 0.0) {
-        (fireCost / revenue) * 100.0
-    } else {
-        0.0
-    }
-
-    val previousAudit = sortedHistory.getOrNull(1)
-    val previousRatioPercent = if (previousAudit != null && previousAudit.revenue > 0.0) {
-        (previousAudit.fireCost / previousAudit.revenue) * 100.0
-    } else {
-        null
-    }
-
-    val maxAllowedFire = revenue * (effectiveTargetRatio / 100.0)
-    val isExceedingTarget = latestAudit != null && fireCost > maxAllowedFire
 
     AppBottomSheetWrapper(
         onDismissRequest = onDismiss,
-        enableVerticalScroll = false
+        enableVerticalScroll = false,
+        enableHorizontalSwipeDismiss = false
     ) { dismissSheet ->
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("inventory_category_detail_modal")
         ) {
-            // SABİT ÜST BÖLÜM: BAŞLIK VE SEKMELER
+            // SABİT ÜST BÖLÜM: BAŞLIK VE SEKMELER (HorizontalPager DIŞINDA, DİNAMİK)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .padding(top = 4.dp, bottom = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-            // 1. ÜST BAŞLIK: KATEGORİ ADI + SAĞ ÜST DÜZENLE (KALEM) VE KAPAT BUTONLARI
+            // 1. ÜST BAŞLIK: DİNAMİK KATEGORİ ADI + SAĞ ÜST DÜZENLE VE KAPAT BUTONLARI
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -280,14 +305,14 @@ fun InventoryCategoryDetailModal(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = iconPastelBg,
+                        color = activeIconPastelBg,
                         modifier = Modifier.size(46.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                imageVector = categoryIcon,
-                                contentDescription = category,
-                                tint = iconTint,
+                                imageVector = activeCategoryIcon,
+                                contentDescription = activeCategory,
+                                tint = activeIconTint,
                                 modifier = Modifier.size(23.dp)
                             )
                         }
@@ -295,12 +320,13 @@ fun InventoryCategoryDetailModal(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = category,
+                            text = activeCategory,
                             fontSize = 21.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
                             maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.testTag("category_detail_dynamic_title")
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -312,10 +338,10 @@ fun InventoryCategoryDetailModal(
                             Spacer(modifier = Modifier.width(5.dp))
                             Text(
                                 text = when {
-                                    latestAudit == null -> "Henüz sayım kaydı yok"
-                                    isContinuous ->
-                                        "Dönem: ${formatDetailPeriodHeader(latestAudit.auditPeriod, latestAudit.auditDateMillis)}"
-                                    else -> "Envanter: ${dateFormatter.format(Date(latestAudit.auditDateMillis))}"
+                                    activeLatestAudit == null -> "Henüz sayım kaydı yok"
+                                    activeIsContinuous ->
+                                        "Dönem: ${formatDetailPeriodHeader(activeLatestAudit.auditPeriod, activeLatestAudit.auditDateMillis)}"
+                                    else -> "Envanter: ${dateFormatter.format(Date(activeLatestAudit.auditDateMillis))}"
                                 },
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -333,7 +359,7 @@ fun InventoryCategoryDetailModal(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        onClick = { onEditClick(latestAudit) },
+                        onClick = { onEditClick(activeCategory, activeLatestAudit) },
                         shape = RoundedCornerShape(12.dp),
                         color = TurquoisePrimary.copy(alpha = 0.15f),
                         border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
@@ -378,7 +404,42 @@ fun InventoryCategoryDetailModal(
                 }
             }
 
-            // 2. SEKME YAPISI (2 SEKMELİ KAPSÜL TASARIMLI TabRow)
+            // KATEGORİLER ARASI KAYDIRMA GÖSTERGESİ (Birden fazla kategori varsa)
+            if (safeCategoryList.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("category_detail_pager_indicators"),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    safeCategoryList.forEachIndexed { idx, catLabel ->
+                        val isCurrent = idx == pagerState.currentPage
+                        Surface(
+                            onClick = {
+                                coroutineScope.launch {
+                                    pagerState.animateScrollToPage(idx)
+                                }
+                            },
+                            shape = RoundedCornerShape(50),
+                            color = if (isCurrent) TurquoisePrimary else Slate200.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 3.dp)
+                        ) {
+                            Text(
+                                text = catLabel,
+                                fontSize = 10.sp,
+                                fontWeight = if (isCurrent) FontWeight.ExtraBold else FontWeight.SemiBold,
+                                color = if (isCurrent) Color.White else Slate700,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            // 2. SEKME YAPISI (2 SEKMELİ KAPSÜL TASARIMLI TabRow - TÜM SAYFALAR İÇİN ORTAK)
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -454,23 +515,62 @@ fun InventoryCategoryDetailModal(
             }
             } // Sabit üst bölüm sonu
 
-            // 3. KAYDIRILABİLİR ORTA İÇERİK ALANI (AnimatedContent)
-            Column(
+            // 3. KATEGORİLER ARASI SAĞA/SOLA KAYDIRMALI İÇERİK ALANI (HorizontalPager)
+            HorizontalPager(
+                state = pagerState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp, vertical = 4.dp)
-            ) {
-            AnimatedContent(
-                targetState = selectedTabIndex,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                modifier = Modifier.fillMaxWidth(),
-                label = "inventory_category_detail_tab_transition"
-            ) { currentTab ->
-                when (currentTab) {
-                    0 -> {
-                        // SEKME 1: ÖZET & ANALİZ
+                    .testTag("category_detail_horizontal_pager"),
+                verticalAlignment = Alignment.Top
+            ) { page ->
+                val pageCategory = safeCategoryList.getOrElse(page) { initialCategory }
+                val isContinuous = isContinuousAuditCategory(pageCategory)
+                val sortedHistory = sortedHistoryByPage.getOrElse(page) { emptyList() }
+                val pageLatestAudit = sortedHistory.firstOrNull()
+                val last4WeeksChronological = remember(sortedHistory) {
+                    sortedHistory.take(4).reversed()
+                }
+
+                val revenue = pageLatestAudit?.revenue ?: 0.0
+                val fireCost = pageLatestAudit?.fireCost ?: 0.0
+                val effectiveTargetRatio = if ((pageLatestAudit?.targetRatio ?: 0.0) > 0.0) {
+                    pageLatestAudit!!.targetRatio
+                } else if (targetRatio > 0.0) {
+                    targetRatio
+                } else {
+                    1.0
+                }
+                val currentRatioPercent = if (revenue > 0.0) {
+                    (fireCost / revenue) * 100.0
+                } else {
+                    0.0
+                }
+                val previousAudit = sortedHistory.getOrNull(1)
+                val previousRatioPercent = if (previousAudit != null && previousAudit.revenue > 0.0) {
+                    (previousAudit.fireCost / previousAudit.revenue) * 100.0
+                } else {
+                    null
+                }
+                val maxAllowedFire = revenue * (effectiveTargetRatio / 100.0)
+                val isExceedingTarget = pageLatestAudit != null && fireCost > maxAllowedFire
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 4.dp)
+                ) {
+                    AnimatedContent(
+                        targetState = selectedTabIndex,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = "inventory_category_detail_tab_transition_$page"
+                    ) { currentTab ->
+                        when (currentTab) {
+                            0 -> {
+                                // SEKME 1: ÖZET & ANALİZ
+                                val latestAudit = pageLatestAudit
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1058,6 +1158,7 @@ fun InventoryCategoryDetailModal(
 
                     else -> {
                         // SEKME 2: DÖNEM İÇİ GELİŞİM (Sürekli) veya GELİŞİM & GEÇMİŞ (Periyodik)
+                        val latestAudit = pageLatestAudit
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1297,112 +1398,110 @@ fun InventoryCategoryDetailModal(
                                             }
                                         }
 
-                                        // HAFTALIK GEÇMİŞ LİSTESİ (En son girilen veri en üstte)
+                                        // HAFTALIK GEÇMİŞ LİSTESİ (Sabit max 280.dp iç kaydırmalı kutu + Son 5 kayıt)
+                                        val recentPeriodicHistory = remember(sortedHistory) {
+                                            sortedHistory.take(5)
+                                        }
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                             verticalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            Text(
-                                                text = "Haftalık Kayıt Geçmişi",
-                                                fontSize = 12.5.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = Slate800
-                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = "Geçmiş Kayıtlar (Son ${recentPeriodicHistory.size} kayıt)",
+                                                    fontSize = 12.5.sp,
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    color = Slate800
+                                                )
+                                                if (sortedHistory.size > recentPeriodicHistory.size) {
+                                                    Surface(
+                                                        shape = RoundedCornerShape(6.dp),
+                                                        color = Color.White,
+                                                        border = BorderStroke(0.8.dp, Slate200)
+                                                    ) {
+                                                        Text(
+                                                            text = "Toplam ${sortedHistory.size}",
+                                                            fontSize = 10.5.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = Slate700,
+                                                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
 
-                                            sortedHistory.take(8).forEachIndexed { index, item ->
-                                                val itemRatio = if (item.revenue > 0.0) {
-                                                    (item.fireCost / item.revenue) * 100.0
-                                                } else 0.0
-                                                val olderItem = sortedHistory.getOrNull(index + 1)
-                                                val olderRatio = if (olderItem != null && olderItem.revenue > 0.0) {
-                                                    (olderItem.fireCost / olderItem.revenue) * 100.0
-                                                } else null
-                                                val diffFromOlder = if (olderRatio != null) itemRatio - olderRatio else null
-                                                val displayTimestamp = if (item.updatedAt > 0L) item.updatedAt else item.auditDateMillis
-                                                val dateStr = shortDateFormatter.format(Date(displayTimestamp))
-
+                                            if (recentPeriodicHistory.isEmpty()) {
                                                 Surface(
                                                     modifier = Modifier.fillMaxWidth(),
                                                     shape = RoundedCornerShape(12.dp),
                                                     color = Color.White,
-                                                    border = BorderStroke(
-                                                        width = if (index == 0) 1.2.dp else 0.8.dp,
-                                                        color = if (index == 0) TurquoisePrimary.copy(alpha = 0.55f) else Slate200
-                                                    )
+                                                    border = BorderStroke(0.8.dp, Slate200)
                                                 ) {
-                                                    Row(
+                                                    Text(
+                                                        text = "Henüz geçmiş kaydı bulunmuyor",
+                                                        fontSize = 12.5.sp,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = Slate700,
+                                                        textAlign = TextAlign.Center,
                                                         modifier = Modifier
                                                             .fillMaxWidth()
-                                                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        // Sol: Tarih ve Hafta Kodu
-                                                        Column(
-                                                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                                                        ) {
-                                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                                Text(
-                                                                    text = dateStr,
-                                                                    fontSize = 12.5.sp,
-                                                                    fontWeight = FontWeight.ExtraBold,
-                                                                    color = Slate900
-                                                                )
-                                                                if (index == 0) {
-                                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                                    Surface(
-                                                                        shape = RoundedCornerShape(6.dp),
-                                                                        color = TurquoisePrimary.copy(alpha = 0.15f)
-                                                                    ) {
-                                                                        Text(
-                                                                            text = "Güncel",
-                                                                            fontSize = 10.sp,
-                                                                            fontWeight = FontWeight.ExtraBold,
-                                                                            color = TurquoiseDark,
-                                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                                        )
-                                                                    }
-                                                                }
-                                                            }
-                                                            Text(
-                                                                text = "Ciro: ${moneyFormatter.format(item.revenue)} ₺ • Fire: ${moneyFormatter.format(item.fireCost)} ₺",
-                                                                fontSize = 11.5.sp,
-                                                                fontWeight = FontWeight.SemiBold,
-                                                                color = Slate700
-                                                            )
-                                                        }
-
-                                                        // Sağ: Oran ve Trend Oku
-                                                        val isItemOverTarget = item.targetRatio > 0.0 && itemRatio > item.targetRatio
-                                                        val pillBg = if (isItemOverTarget) ExpiredRedContainer else NormalGreenContainer
-                                                        val pillColor = if (isItemOverTarget) ExpiredRedDark else NormalGreenDark
-
-                                                        Surface(
-                                                            shape = RoundedCornerShape(8.dp),
-                                                            color = pillBg
-                                                        ) {
-                                                            Row(
-                                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                                                verticalAlignment = Alignment.CenterVertically
-                                                            ) {
-                                                                Text(
-                                                                    text = "%${ratioFormatter.format(itemRatio)}",
-                                                                    fontSize = 12.sp,
-                                                                    fontWeight = FontWeight.ExtraBold,
-                                                                    color = pillColor
-                                                                )
-                                                                if (diffFromOlder != null && kotlin.math.abs(diffFromOlder) > 0.0001) {
-                                                                    Spacer(modifier = Modifier.width(4.dp))
-                                                                    Text(
-                                                                        text = if (diffFromOlder < 0.0) "↓" else "↑",
-                                                                        fontSize = 12.sp,
-                                                                        fontWeight = FontWeight.Black,
-                                                                        color = if (diffFromOlder < 0.0) NormalGreenDark else ExpiredRedDark
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
+                                                            .padding(vertical = 18.dp, horizontal = 12.dp)
+                                                    )
+                                                }
+                                            } else {
+                                                LazyColumn(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .heightIn(max = 280.dp)
+                                                        .testTag("category_detail_history_list"),
+                                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    itemsIndexed(
+                                                        items = recentPeriodicHistory,
+                                                        key = { index, item -> "${item.id}_$index" }
+                                                    ) { index, item ->
+                                                        val olderItem = sortedHistory.getOrNull(index + 1)
+                                                        PeriodicHistoryItemRow(
+                                                            item = item,
+                                                            olderItem = olderItem,
+                                                            isLatest = index == 0,
+                                                            shortDateFormatter = shortDateFormatter,
+                                                            moneyFormatter = moneyFormatter,
+                                                            ratioFormatter = ratioFormatter
+                                                        )
                                                     }
+                                                }
+
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        fullHistoryModalData = Pair(pageCategory, sortedHistory)
+                                                    },
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(48.dp)
+                                                        .testTag("category_detail_view_all_history_button"),
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        containerColor = Color.White,
+                                                        contentColor = TurquoiseDark
+                                                    )
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.History,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(17.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = "Tüm Geçmişi Gör (${sortedHistory.size})",
+                                                        fontSize = 13.sp,
+                                                        fontWeight = FontWeight.ExtraBold
+                                                    )
                                                 }
                                             }
                                         }
@@ -1429,7 +1528,7 @@ fun InventoryCategoryDetailModal(
                                             modifier = Modifier.size(28.dp)
                                         )
                                         Text(
-                                            text = "Henüz haftalık gelişim verisi bulunmuyor.",
+                                            text = "Henüz geçmiş kaydı bulunmuyor",
                                             fontSize = 13.5.sp,
                                             fontWeight = FontWeight.Bold,
                                             color = Slate800,
@@ -1448,8 +1547,9 @@ fun InventoryCategoryDetailModal(
                         }
                     }
                 }
-            }
+                }
             } // Kaydırılabilir orta içerik sonu
+            } // HorizontalPager sonu
 
             HorizontalDivider(color = Slate200.copy(alpha = 0.7f), thickness = 1.dp)
 
@@ -1462,7 +1562,7 @@ fun InventoryCategoryDetailModal(
                     .padding(horizontal = 20.dp, vertical = 12.dp)
             ) {
                 Button(
-                    onClick = { onAddNewAuditClick(category) },
+                    onClick = { onAddNewAuditClick(activeCategory) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -1471,11 +1571,257 @@ fun InventoryCategoryDetailModal(
                     colors = ButtonDefaults.buttonColors(containerColor = TurquoisePrimary)
                 ) {
                     Text(
-                        text = if (isContinuous) "+ Yeni Dönem Verisi Gir" else "+ Yeni Haftalık Veri Gir",
+                        text = if (activeIsContinuous) "+ Yeni Dönem Verisi Gir" else "+ Yeni Haftalık Veri Gir",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color.White
                     )
+                }
+            }
+        }
+    }
+
+    fullHistoryModalData?.let { (historyCategory, historyItems) ->
+        AllAuditHistoryFullScreenDialog(
+            title = "Tüm Geçmiş Kayıtlar",
+            subtitle = "$historyCategory • ${historyItems.size} kayıt",
+            items = historyItems,
+            shortDateFormatter = shortDateFormatter,
+            moneyFormatter = moneyFormatter,
+            ratioFormatter = ratioFormatter,
+            onDismiss = { fullHistoryModalData = null }
+        )
+    }
+}
+
+@Composable
+private fun PeriodicHistoryItemRow(
+    item: InventoryAuditEntity,
+    olderItem: InventoryAuditEntity?,
+    isLatest: Boolean,
+    shortDateFormatter: SimpleDateFormat,
+    moneyFormatter: DecimalFormat,
+    ratioFormatter: DecimalFormat
+) {
+    val itemRatio = if (item.revenue > 0.0) {
+        (item.fireCost / item.revenue) * 100.0
+    } else 0.0
+    val olderRatio = if (olderItem != null && olderItem.revenue > 0.0) {
+        (olderItem.fireCost / olderItem.revenue) * 100.0
+    } else null
+    val diffFromOlder = if (olderRatio != null) itemRatio - olderRatio else null
+    val displayTimestamp = if (item.updatedAt > 0L) item.updatedAt else item.auditDateMillis
+    val dateStr = shortDateFormatter.format(Date(displayTimestamp))
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        border = BorderStroke(
+            width = if (isLatest) 1.2.dp else 0.8.dp,
+            color = if (isLatest) TurquoisePrimary.copy(alpha = 0.55f) else Slate200
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = dateStr,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900
+                    )
+                    if (isLatest) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Güncel",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = "Ciro: ${moneyFormatter.format(item.revenue)} ₺ • Fire: ${moneyFormatter.format(item.fireCost)} ₺",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Slate700,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            val isItemOverTarget = item.targetRatio > 0.0 && itemRatio > item.targetRatio
+            val pillBg = if (isItemOverTarget) ExpiredRedContainer else NormalGreenContainer
+            val pillColor = if (isItemOverTarget) ExpiredRedDark else NormalGreenDark
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = pillBg
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "%${ratioFormatter.format(itemRatio)}",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = pillColor
+                    )
+                    if (diffFromOlder != null && kotlin.math.abs(diffFromOlder) > 0.0001) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (diffFromOlder < 0.0) "↓" else "↑",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (diffFromOlder < 0.0) NormalGreenDark else ExpiredRedDark
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AllAuditHistoryFullScreenDialog(
+    title: String,
+    subtitle: String,
+    items: List<InventoryAuditEntity>,
+    shortDateFormatter: SimpleDateFormat,
+    moneyFormatter: DecimalFormat,
+    ratioFormatter: DecimalFormat,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding(),
+            color = Color.White
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = TurquoisePrimary.copy(alpha = 0.14f),
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.History,
+                                    contentDescription = null,
+                                    tint = TurquoiseDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = title,
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Slate900,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = subtitle,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Slate700,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("all_history_dialog_close_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Kapat",
+                            tint = Slate700
+                        )
+                    }
+                }
+
+                HorizontalDivider(color = Slate200, thickness = 1.dp)
+
+                if (items.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Henüz geçmiş kaydı bulunmuyor",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate700,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Slate50),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(
+                            items = items,
+                            key = { index, item -> "all_${item.id}_$index" }
+                        ) { index, item ->
+                            PeriodicHistoryItemRow(
+                                item = item,
+                                olderItem = items.getOrNull(index + 1),
+                                isLatest = index == 0,
+                                shortDateFormatter = shortDateFormatter,
+                                moneyFormatter = moneyFormatter,
+                                ratioFormatter = ratioFormatter
+                            )
+                        }
+                    }
                 }
             }
         }

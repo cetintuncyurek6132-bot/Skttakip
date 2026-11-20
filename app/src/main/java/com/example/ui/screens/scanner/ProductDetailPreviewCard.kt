@@ -2,17 +2,13 @@ package com.example.ui.screens.scanner
 
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -20,29 +16,21 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,15 +41,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.Product
 import com.example.ui.components.CustomBoxedCalendarDialog
 import com.example.ui.screens.DateOcrScannerDialog
-import java.util.Calendar
 import com.example.ui.theme.CriticalOrange
 import com.example.ui.theme.CriticalOrangeContainer
 import com.example.ui.theme.ExpiredRed
@@ -75,7 +60,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailPreviewCard(
     product: Product,
@@ -101,8 +85,9 @@ fun ProductDetailPreviewCard(
         validSktProducts.firstOrNull() ?: product
     }
 
-    val hasSkt = effectiveProduct.sktTarihi > 0L
-    val daysRemaining = if (hasSkt) effectiveProduct.getRemainingDays(todayMidnight) else 9999L
+    val totalStock = remember(matchingProducts) {
+        matchingProducts.sumOf { it.stokAdedi.coerceAtLeast(0) }
+    }
 
     var selectedSktMillis by remember(product.barkod, initialSktMillis) {
         mutableStateOf(initialSktMillis ?: (if (product.sktTarihi > 0L) product.sktTarihi else System.currentTimeMillis()))
@@ -133,6 +118,7 @@ fun ProductDetailPreviewCard(
     val safeCount = remember(validSktProducts, todayMidnight) {
         validSktProducts.filter { it.getRemainingDays(todayMidnight) >= 16 }.sumOf { it.stokAdedi }
     }
+    val hasAnyStockBreakdown = (expiredOrNearCount + criticalCount + safeCount) > 0
 
     val filteredValidSktProducts = remember(validSktProducts, selectedRiskFilter, todayMidnight) {
         val filtered = when (selectedRiskFilter) {
@@ -142,29 +128,6 @@ fun ProductDetailPreviewCard(
             else -> validSktProducts
         }
         filtered.sortedBy { it.sktTarihi }
-    }
-
-    val (badgeText, badgeBg, badgeTextColor) = when {
-        !hasSkt -> Triple(
-            "SKT Girilmedi",
-            MaterialTheme.colorScheme.surfaceVariant,
-            MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        daysRemaining < 0 -> Triple(
-            "🚨 SÜRESİ GEÇTİ ($daysRemaining gün)",
-            ExpiredRedContainer,
-            ExpiredRed
-        )
-        daysRemaining in 0..7 -> Triple(
-            "⚠️ KRİTİK ($daysRemaining Gün)",
-            CriticalOrangeContainer,
-            CriticalOrange
-        )
-        else -> Triple(
-            "✅ NORMAL ($daysRemaining Gün)",
-            NormalGreenContainer,
-            NormalGreen
-        )
     }
 
     if (isOcrScannerOpen) {
@@ -179,190 +142,201 @@ fun ProductDetailPreviewCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.2.dp, TurquoisePrimary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Top info: Full Product Name & Clear Button (Row 1), Badges & Category/Barcode (Row 2)
+            // Top info: Product Name + Optional Edit + Top-right 'X' Close Icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top
             ) {
-                Text(
-                    text = product.urunAdi,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    lineHeight = 20.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
+                Column(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(end = 6.dp)
-                )
+                        .padding(end = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        text = product.urunAdi,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        lineHeight = 20.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val codePart = if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu}" else "Barkod: ${product.barkod}"
+                        Text(
+                            text = "$codePart • Toplam Stok: $totalStock Adet",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+
+                        product.getFormattedPrice()?.let { formattedPrice ->
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = TurquoisePrimary.copy(alpha = 0.12f)
+                            ) {
+                                Text(
+                                    text = formattedPrice,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     if (onEditProduct != null) {
                         IconButton(
                             onClick = { onEditProduct(effectiveProduct) },
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Ürünü Düzenle",
                                 tint = TurquoisePrimary,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
 
                     IconButton(
                         onClick = onClearDetail,
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("close_preview_detail_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Temizle",
+                            contentDescription = "Kapat",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
             }
 
-            // Sub-row: Barcode/Code (left) + Price & SKT Badges (right)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val codeDisplay = if (product.urunKodu.isNotBlank()) "Kod: ${product.urunKodu}" else "Barkod: ${product.barkod}"
-                Text(
-                    text = codeDisplay,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f, fill = false)
-                )
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+            // Compact single-row stock risk badge (hidden completely when all values are 0)
+            if (hasAnyStockBreakdown) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    product.getFormattedPrice()?.let { formattedPrice ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 6.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val isExpiredSelected = selectedRiskFilter == "EXPIRED"
+                        val isCriticalSelected = selectedRiskFilter == "CRITICAL"
+                        val isSafeSelected = selectedRiskFilter == "SAFE"
+
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = Color(0xFFE0F2FE),
-                            border = BorderStroke(0.5.dp, Color(0xFF0284C7))
+                            color = if (isExpiredSelected) ExpiredRedContainer else ExpiredRedContainer.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    selectedRiskFilter = if (selectedRiskFilter == "EXPIRED") null else "EXPIRED"
+                                }
                         ) {
-                            Text(
-                                text = formattedPrice,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color(0xFF0369A1),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 3.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isExpiredSelected) "🚨✓ $expiredOrNearCount ad." else "🚨 $expiredOrNearCount ad.",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ExpiredRed,
+                                    maxLines = 1
+                                )
+                            }
                         }
-                    }
 
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = badgeBg
-                    ) {
-                        Text(
-                            text = badgeText,
-                            color = badgeTextColor,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.5.dp)
-                        )
-                    }
-                }
-            }
-
-            // COLORED RISK BREAKDOWN BADGES
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                val isExpiredSelected = selectedRiskFilter == "EXPIRED"
-                val isCriticalSelected = selectedRiskFilter == "CRITICAL"
-                val isSafeSelected = selectedRiskFilter == "SAFE"
-
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (isExpiredSelected) ExpiredRedContainer else if (selectedRiskFilter != null) ExpiredRedContainer.copy(alpha = 0.5f) else ExpiredRedContainer,
-                    border = BorderStroke(if (isExpiredSelected) 1.8.dp else 1.dp, if (isExpiredSelected) ExpiredRed else ExpiredRed.copy(alpha = 0.3f)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            selectedRiskFilter = if (selectedRiskFilter == "EXPIRED") null else "EXPIRED"
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isCriticalSelected) CriticalOrangeContainer else CriticalOrangeContainer.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    selectedRiskFilter = if (selectedRiskFilter == "CRITICAL") null else "CRITICAL"
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 3.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isCriticalSelected) "⚠️✓ $criticalCount ad." else "⚠️ $criticalCount ad.",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = CriticalOrange,
+                                    maxLines = 1
+                                )
+                            }
                         }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 3.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(if (isExpiredSelected) "🚨✓ " else "🚨 ", fontSize = 9.5.sp, fontWeight = FontWeight.Medium, color = ExpiredRed)
-                        Text("$expiredOrNearCount ad.", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = ExpiredRed)
-                    }
-                }
 
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (isCriticalSelected) CriticalOrangeContainer else if (selectedRiskFilter != null) CriticalOrangeContainer.copy(alpha = 0.5f) else CriticalOrangeContainer,
-                    border = BorderStroke(if (isCriticalSelected) 1.8.dp else 1.dp, if (isCriticalSelected) CriticalOrange else CriticalOrange.copy(alpha = 0.3f)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            selectedRiskFilter = if (selectedRiskFilter == "CRITICAL") null else "CRITICAL"
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (isSafeSelected) NormalGreenContainer else NormalGreenContainer.copy(alpha = 0.7f),
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    selectedRiskFilter = if (selectedRiskFilter == "SAFE") null else "SAFE"
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 3.dp),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isSafeSelected) "✅✓ $safeCount ad." else "✅ $safeCount ad.",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = NormalGreen,
+                                    maxLines = 1
+                                )
+                            }
                         }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 3.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(if (isCriticalSelected) "⚠️✓ " else "⚠️ ", fontSize = 9.5.sp, fontWeight = FontWeight.Medium, color = CriticalOrange)
-                        Text("$criticalCount ad.", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = CriticalOrange)
-                    }
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = if (isSafeSelected) NormalGreenContainer else if (selectedRiskFilter != null) NormalGreenContainer.copy(alpha = 0.5f) else NormalGreenContainer,
-                    border = BorderStroke(if (isSafeSelected) 1.8.dp else 1.dp, if (isSafeSelected) NormalGreen else NormalGreen.copy(alpha = 0.3f)),
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            selectedRiskFilter = if (selectedRiskFilter == "SAFE") null else "SAFE"
-                        }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp, vertical = 3.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(if (isSafeSelected) "✅✓ " else "✅ ", fontSize = 9.5.sp, fontWeight = FontWeight.Medium, color = NormalGreen)
-                        Text("$safeCount ad.", fontSize = 10.5.sp, fontWeight = FontWeight.Black, color = NormalGreen)
                     }
                 }
             }
@@ -373,12 +347,12 @@ fun ProductDetailPreviewCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (selectedRiskFilter != null) "Sıralanan (${filteredValidSktProducts.size}):" else "Kayıtlar (${validSktProducts.size}):",
-                        fontSize = 10.sp,
+                        text = if (selectedRiskFilter != null) "Filtreli (${filteredValidSktProducts.size}):" else "Partiler (${validSktProducts.size}):",
+                        fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = TurquoiseDark
                     )
@@ -386,15 +360,14 @@ fun ProductDetailPreviewCard(
                         val dateStr = dateFormat.format(Date(item.sktTarihi))
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)
                         ) {
                             Text(
-                                text = "📅 $dateStr (${item.stokAdedi} ad.)",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = "$dateStr (${item.stokAdedi} ad.)",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
                     }
@@ -406,59 +379,55 @@ fun ProductDetailPreviewCard(
                         ) {
                             Text(
                                 text = "Tümü ✕",
-                                fontSize = 9.5.sp,
+                                fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TurquoiseDark,
-                                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                             )
                         }
                     }
                 }
             }
 
-            // HIZLI DÜŞME BAR (HIZLI SATILDI / HIZLI FİRE) - MODAL AÇMADAN TEK DOKUNUŞLA
+            // Quick deduct bar (only shown when valid SKT stock exists)
             if (validSktProducts.isNotEmpty()) {
                 val targetBatch = effectiveProduct
                 val canDeduct = targetBatch.stokAdedi > 0
                 val batchDateStr = if (targetBatch.sktTarihi > 0L) dateFormat.format(Date(targetBatch.sktTarihi)) else "SKT Girilmedi"
 
                 Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "HIZLI İŞLEM (${batchDateStr}):",
-                                fontSize = 9.5.sp,
-                                fontWeight = FontWeight.ExtraBold,
+                                text = "HIZLI İŞLEM ($batchDateStr)",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
                                 color = Slate700
                             )
                             Text(
                                 text = "Mevcut: ${targetBatch.stokAdedi} Adet",
-                                fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
                                 color = if (canDeduct) TurquoiseDark else ExpiredRed
                             )
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            // -1 SATILDI
                             Button(
                                 onClick = {
                                     if (canDeduct) {
                                         onDeductStock(targetBatch, 1, "SATILDI")
-                                        Toast.makeText(context, "✅ 1 adet Satıldı olarak düşüldü (${batchDateStr})", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "⚠️ Bu partide adet kalmadı (Tükendi)", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "✅ 1 adet Satıldı olarak düşüldü ($batchDateStr)", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 enabled = canDeduct,
@@ -468,11 +437,11 @@ fun ProductDetailPreviewCard(
                                     disabledContainerColor = Color(0xFFCBD5E1)
                                 ),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                modifier = Modifier.height(30.dp)
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.ShoppingCart,
-                                    contentDescription = null,
+                                    contentDescription = "Satıldı Düş",
                                     tint = Color.White,
                                     modifier = Modifier.size(12.dp)
                                 )
@@ -480,19 +449,16 @@ fun ProductDetailPreviewCard(
                                 Text(
                                     text = "-1 Satıldı",
                                     fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                             }
 
-                            // -1 FİRE
                             Button(
                                 onClick = {
                                     if (canDeduct) {
                                         onDeductStock(targetBatch, 1, "FİRE")
-                                        Toast.makeText(context, "🗑️ 1 adet Fire olarak düşüldü (${batchDateStr})", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "⚠️ Bu partide adet kalmadı (Tükendi)", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "🗑️ 1 adet Fire olarak düşüldü ($batchDateStr)", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 enabled = canDeduct,
@@ -502,11 +468,11 @@ fun ProductDetailPreviewCard(
                                     disabledContainerColor = Color(0xFFCBD5E1)
                                 ),
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                                modifier = Modifier.height(30.dp)
+                                modifier = Modifier.height(32.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.DeleteOutline,
-                                    contentDescription = null,
+                                    contentDescription = "Fire Düş",
                                     tint = Color.White,
                                     modifier = Modifier.size(12.dp)
                                 )
@@ -514,7 +480,7 @@ fun ProductDetailPreviewCard(
                                 Text(
                                     text = "-1 Fire",
                                     fontSize = 10.5.sp,
-                                    fontWeight = FontWeight.Black,
+                                    fontWeight = FontWeight.Bold,
                                     color = Color.White
                                 )
                             }
@@ -523,7 +489,7 @@ fun ProductDetailPreviewCard(
                 }
             }
 
-            // SKT & ADEDİ EKLEME ALANI (COMPACT BOX)
+            // Compact Date + Quantity Row & Single Primary Save Button
             ProductDetailSktInputSection(
                 product = product,
                 selectedSktMillis = selectedSktMillis,
@@ -533,21 +499,16 @@ fun ProductDetailPreviewCard(
                     onStartEditing()
                     isDatePickerOpen = true
                 },
-                onOcrClick = {
-                    onStartEditing()
-                    isOcrScannerOpen = true
-                },
-                onPresetDateSelected = {
-                    onStartEditing()
-                    selectedSktMillis = it
-                },
                 onSktAdediChange = {
                     onStartEditing()
                     sktAdediStr = it
                 },
                 onStartEditing = onStartEditing,
                 onAddSkt = onAddSkt,
-                onClearDetail = onClearDetail
+                onResetForm = {
+                    selectedSktMillis = System.currentTimeMillis()
+                    sktAdediStr = "1"
+                }
             )
         }
     }

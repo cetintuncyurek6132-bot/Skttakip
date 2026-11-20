@@ -2,23 +2,44 @@ package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -88,6 +109,8 @@ fun ContinuousPeriodProgressSection(
         )
     }
 
+    var showAllHistoryModal by remember { mutableStateOf(false) }
+
     if (periodChronological.isEmpty()) {
         Surface(
             modifier = Modifier
@@ -111,7 +134,7 @@ fun ContinuousPeriodProgressSection(
                     modifier = Modifier.size(28.dp)
                 )
                 Text(
-                    text = "Bu dönem için henüz gelişim kaydı bulunmuyor.",
+                    text = "Henüz geçmiş kaydı bulunmuyor",
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = Slate800,
@@ -484,133 +507,349 @@ fun ContinuousPeriodProgressSection(
                 }
             }
 
-            // 3. DÖNEM KAYIT LİSTESİ (Tarih sırasına göre: EN ESKİ EN ÜSTTE)
+            // 3. DÖNEM KAYIT LİSTESİ (Sabit max 280.dp iç kaydırmalı kutu + Son 5 kayıt)
+            val recentEntriesNewestFirst = remember(periodChronological) {
+                periodChronological.asReversed().take(5)
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("continuous_period_chronological_list"),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Dönem İçi Girişler (En Eski → En Yeni)",
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Slate800
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Geçmiş Kayıtlar (Son ${recentEntriesNewestFirst.size} kayıt)",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate800
+                    )
+                    if (periodChronological.size > recentEntriesNewestFirst.size) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color.White,
+                            border = BorderStroke(0.8.dp, Slate200)
+                        ) {
+                            Text(
+                                text = "Toplam ${periodChronological.size}",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate700,
+                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
 
-                periodChronological.forEachIndexed { index, item ->
-                    val itemRatio = if (item.revenue > 0.0) (item.fireCost / item.revenue) * 100.0 else 0.0
-                    val prevItem = if (index > 0) periodChronological[index - 1] else null
-                    val prevRatio = if (prevItem != null && prevItem.revenue > 0.0) {
-                        (prevItem.fireCost / prevItem.revenue) * 100.0
-                    } else null
-                    val diffFromPrev = if (prevRatio != null) itemRatio - prevRatio else null
-                    val entryDateLabel = dayMonthFormatter.format(Date(item.auditDateMillis))
-
-                    val isItemOverTarget = item.targetRatio > 0.0 && itemRatio > item.targetRatio
-                    val pillBg = if (isItemOverTarget) ExpiredRedContainer else NormalGreenContainer
-                    val pillColor = if (isItemOverTarget) ExpiredRedDark else NormalGreenDark
-
+                if (recentEntriesNewestFirst.isEmpty()) {
                     Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("continuous_period_row_$index"),
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         color = Color.White,
-                        border = BorderStroke(
-                            width = if (index == periodChronological.lastIndex) 1.2.dp else 0.9.dp,
-                            color = if (index == periodChronological.lastIndex) TurquoisePrimary.copy(alpha = 0.55f) else Slate200
-                        )
+                        border = BorderStroke(0.8.dp, Slate200)
                     ) {
-                        Row(
+                        Text(
+                            text = "Henüz geçmiş kaydı bulunmuyor",
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate700,
+                            textAlign = TextAlign.Center,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(3.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Text(
-                                        text = entryDateLabel,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = Slate900
-                                    )
-                                    if (index == 0 && periodChronological.size > 1) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = Slate50,
-                                            border = BorderStroke(0.7.dp, Slate200)
-                                        ) {
-                                            Text(
-                                                text = "İlk",
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = Slate700,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
-                                            )
-                                        }
-                                    } else if (index == periodChronological.lastIndex) {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = TurquoisePrimary.copy(alpha = 0.15f)
-                                        ) {
-                                            Text(
-                                                text = "Güncel",
-                                                fontSize = 9.5.sp,
-                                                fontWeight = FontWeight.ExtraBold,
-                                                color = TurquoiseDark,
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
-                                            )
-                                        }
-                                    }
-                                }
+                                .padding(vertical = 18.dp, horizontal = 12.dp)
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 280.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(
+                            items = recentEntriesNewestFirst,
+                            key = { index, item -> "${item.id}_$index" }
+                        ) { index, item ->
+                            val chronologicalIndex = periodChronological.size - 1 - index
+                            val prevItem = if (chronologicalIndex > 0) {
+                                periodChronological[chronologicalIndex - 1]
+                            } else null
+                            ContinuousHistoryEntryRow(
+                                item = item,
+                                prevItem = prevItem,
+                                isFirstChronological = chronologicalIndex == 0 && periodChronological.size > 1,
+                                isLatest = chronologicalIndex == periodChronological.lastIndex,
+                                rowIndex = index,
+                                dayMonthFormatter = dayMonthFormatter,
+                                moneyFormatter = moneyFormatter,
+                                ratioFormatter = ratioFormatter
+                            )
+                        }
+                    }
 
+                    OutlinedButton(
+                        onClick = { showAllHistoryModal = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .testTag("continuous_view_all_history_button"),
+                        shape = RoundedCornerShape(12.dp),
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.45f)),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.White,
+                            contentColor = TurquoiseDark
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.History,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Tüm Geçmişi Gör (${periodChronological.size})",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAllHistoryModal) {
+        val allNewestFirst = remember(periodChronological) { periodChronological.asReversed() }
+        Dialog(
+            onDismissRequest = { showAllHistoryModal = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
+                color = Color.White
+            ) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = TurquoisePrimary.copy(alpha = 0.14f),
+                                modifier = Modifier.size(38.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = TurquoiseDark,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Column {
                                 Text(
-                                    text = "Ciro: ${moneyFormatter.format(item.revenue)} ₺ • Fire: ${moneyFormatter.format(item.fireCost)} ₺",
-                                    fontSize = 11.5.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    text = "Tüm Geçmiş Kayıtlar",
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = Slate900,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = if (activePeriod.isNotBlank()) {
+                                        "$activePeriod • ${periodChronological.size} kayıt"
+                                    } else {
+                                        "${periodChronological.size} kayıt"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
                                     color = Slate700,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(8.dp))
-
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = pillBg
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "%${ratioFormatter.format(itemRatio)}",
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = pillColor
-                                    )
-                                    if (diffFromPrev != null && abs(diffFromPrev) > 0.0001) {
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(
-                                            text = if (diffFromPrev < 0.0) "↓" else "↑",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Black,
-                                            color = if (diffFromPrev < 0.0) NormalGreenDark else ExpiredRedDark
-                                        )
-                                    }
-                                }
-                            }
                         }
+
+                        IconButton(
+                            onClick = { showAllHistoryModal = false },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Kapat",
+                                tint = Slate700
+                            )
+                        }
+                    }
+
+                    HorizontalDivider(color = Slate200, thickness = 1.dp)
+
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Slate50),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        itemsIndexed(
+                            items = allNewestFirst,
+                            key = { index, item -> "all_cont_${item.id}_$index" }
+                        ) { index, item ->
+                            val chronologicalIndex = periodChronological.size - 1 - index
+                            val prevItem = if (chronologicalIndex > 0) {
+                                periodChronological[chronologicalIndex - 1]
+                            } else null
+                            ContinuousHistoryEntryRow(
+                                item = item,
+                                prevItem = prevItem,
+                                isFirstChronological = chronologicalIndex == 0 && periodChronological.size > 1,
+                                isLatest = chronologicalIndex == periodChronological.lastIndex,
+                                rowIndex = index,
+                                dayMonthFormatter = dayMonthFormatter,
+                                moneyFormatter = moneyFormatter,
+                                ratioFormatter = ratioFormatter
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContinuousHistoryEntryRow(
+    item: InventoryAuditEntity,
+    prevItem: InventoryAuditEntity?,
+    isFirstChronological: Boolean,
+    isLatest: Boolean,
+    rowIndex: Int,
+    dayMonthFormatter: SimpleDateFormat,
+    moneyFormatter: DecimalFormat,
+    ratioFormatter: DecimalFormat
+) {
+    val itemRatio = if (item.revenue > 0.0) (item.fireCost / item.revenue) * 100.0 else 0.0
+    val prevRatio = if (prevItem != null && prevItem.revenue > 0.0) {
+        (prevItem.fireCost / prevItem.revenue) * 100.0
+    } else null
+    val diffFromPrev = if (prevRatio != null) itemRatio - prevRatio else null
+    val entryDateLabel = dayMonthFormatter.format(Date(item.auditDateMillis))
+
+    val isItemOverTarget = item.targetRatio > 0.0 && itemRatio > item.targetRatio
+    val pillBg = if (isItemOverTarget) ExpiredRedContainer else NormalGreenContainer
+    val pillColor = if (isItemOverTarget) ExpiredRedDark else NormalGreenDark
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("continuous_period_row_$rowIndex"),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White,
+        border = BorderStroke(
+            width = if (isLatest) 1.2.dp else 0.9.dp,
+            color = if (isLatest) TurquoisePrimary.copy(alpha = 0.55f) else Slate200
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = entryDateLabel,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Slate900
+                    )
+                    if (isFirstChronological) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = Slate50,
+                            border = BorderStroke(0.7.dp, Slate200)
+                        ) {
+                            Text(
+                                text = "İlk",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate700,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                            )
+                        }
+                    } else if (isLatest) {
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = TurquoisePrimary.copy(alpha = 0.15f)
+                        ) {
+                            Text(
+                                text = "Güncel",
+                                fontSize = 9.5.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.5.dp)
+                            )
+                        }
+                    }
+                }
+
+                Text(
+                    text = "Ciro: ${moneyFormatter.format(item.revenue)} ₺ • Fire: ${moneyFormatter.format(item.fireCost)} ₺",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Slate700,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = pillBg
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "%${ratioFormatter.format(itemRatio)}",
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = pillColor
+                    )
+                    if (diffFromPrev != null && abs(diffFromPrev) > 0.0001) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = if (diffFromPrev < 0.0) "↓" else "↑",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (diffFromPrev < 0.0) NormalGreenDark else ExpiredRedDark
+                        )
                     }
                 }
             }

@@ -67,10 +67,14 @@ import com.example.data.AppDatabase
 import com.example.data.ProductRepository
 import com.example.navigation.AppNavHost
 import com.example.ui.MainViewModel
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableIntStateOf
 import com.example.ui.components.GlobalModalHost
+import com.example.ui.components.LocalTriggerGlobalLoading
 import com.example.ui.components.ProfessionalLoadingOverlay
 import com.example.ui.components.QuickSearchScannerSheet
 import com.example.ui.components.SktBottomNavBar
+import com.example.ui.components.SktPageLoadingOverlay
 import com.example.ui.components.SktTopAppBar
 import com.example.ui.components.TopBarLoadingBar
 import com.example.ui.screens.AppSplashScreen
@@ -219,6 +223,20 @@ fun SktMainApp(
         currentNavRoute
     }
 
+    var isGlobalLoading by remember { mutableStateOf(false) }
+    var globalLoadingTick by remember { mutableIntStateOf(0) }
+    val triggerGlobalLoading: () -> Unit = {
+        isGlobalLoading = true
+        globalLoadingTick += 1
+    }
+
+    LaunchedEffect(globalLoadingTick) {
+        if (isGlobalLoading) {
+            kotlinx.coroutines.delay(300L)
+            isGlobalLoading = false
+        }
+    }
+
     val navigateToTab: (String) -> Unit = { target ->
         val resolved = when (target) {
             "reports" -> "takip"
@@ -226,9 +244,13 @@ fun SktMainApp(
         }
         val targetPageIndex = tabRoutes.indexOf(resolved)
         if (targetPageIndex != -1) {
+            val liveRoute = navController.currentDestination?.route ?: currentNavRoute
+            if (liveRoute != "main" || pagerState.currentPage != targetPageIndex) {
+                triggerGlobalLoading()
+            }
             coroutineScope.launch {
-                val liveRoute = navController.currentDestination?.route ?: currentNavRoute
-                if (liveRoute != "main") {
+                val currentLive = navController.currentDestination?.route ?: currentNavRoute
+                if (currentLive != "main") {
                     if (pagerState.currentPage != targetPageIndex) {
                         try {
                             pagerState.scrollToPage(targetPageIndex)
@@ -263,6 +285,7 @@ fun SktMainApp(
         } else {
             val liveRoute = navController.currentDestination?.route ?: currentNavRoute
             if (liveRoute != resolved) {
+                triggerGlobalLoading()
                 navController.navigate(resolved) {
                     popUpTo(navController.graph.findStartDestination().id) {
                         saveState = true
@@ -396,6 +419,7 @@ fun SktMainApp(
         Modifier
     }
 
+    CompositionLocalProvider(LocalTriggerGlobalLoading provides triggerGlobalLoading) {
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -428,8 +452,14 @@ fun SktMainApp(
                             searchQuery = searchQuery,
                             onSearchQueryChange = { query -> inventoryViewModel.onSearchQueryChanged(query) },
                             allProducts = allProducts,
-                            onProductClick = { prod -> inventoryViewModel.openProductDetailModal(prod) },
-                            onAddNewProductClick = { inventoryViewModel.openAddProductModal() },
+                            onProductClick = { prod ->
+                                triggerGlobalLoading()
+                                inventoryViewModel.openProductDetailModal(prod)
+                            },
+                            onAddNewProductClick = {
+                                triggerGlobalLoading()
+                                inventoryViewModel.openAddProductModal()
+                            },
                             onOpenScanner = {
                                 scannerOpenMode = ScannerOpenMode.BARCODE_SEARCH
                                 isBarcodeScannerOpen = true
@@ -582,14 +612,21 @@ fun SktMainApp(
                 onDismiss = { isQuickSearchScannerOpen = false },
                 onProductClick = { product ->
                     isQuickSearchScannerOpen = false
+                    triggerGlobalLoading()
                     inventoryViewModel.openProductDetailModal(product)
                 },
                 onAddNewProductWithBarcode = { barcode ->
                     isQuickSearchScannerOpen = false
+                    triggerGlobalLoading()
                     inventoryViewModel.openAddProductModal(barcode)
                 }
             )
         }
+
+        if (isGlobalLoading) {
+            SktPageLoadingOverlay()
+        }
+    }
     }
 
     ProfessionalLoadingOverlay(

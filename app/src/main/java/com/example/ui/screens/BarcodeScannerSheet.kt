@@ -29,13 +29,11 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -59,7 +57,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -110,9 +107,7 @@ fun BarcodeScannerSheet(
     val initialPage = if (openMode == ScannerOpenMode.LABEL_FIX || startInFixQrMode) 1 else 0
     val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 2 })
     val isFixQrMode = pagerState.currentPage == 1
-    val isSerialScanMode = !isFixQrMode
     var isBarcodeTooFar by remember { mutableStateOf(false) }
-    var serialScanCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixResultMsg by remember { mutableStateOf("") }
     var qrFixSuccessCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
     var qrFixErrorCount by remember { androidx.compose.runtime.mutableIntStateOf(0) }
@@ -375,7 +370,6 @@ fun BarcodeScannerSheet(
 
                             if (openMode == ScannerOpenMode.ADETSEL_SAYIM) {
                                 isProcessingScan = true
-                                serialScanCount++
                                 if (vibrationEnabled) {
                                     com.example.util.HapticFeedbackHelper.triggerSuccessHaptic(context, playSound = false)
                                 }
@@ -403,7 +397,6 @@ fun BarcodeScannerSheet(
                             lastRemainingDays = remainingDays
                             manualBarcode = cleanBarcode
                             selectedProductOverride = null
-                            serialScanCount++
                             resumeCooldownUntil = now + 1200L
 
                             val matchedProd = products.findMatchingProducts(cleanBarcode).firstOrNull { p ->
@@ -743,72 +736,11 @@ fun BarcodeScannerSheet(
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.CenterHorizontally)
-                                    .padding(bottom = 4.dp)
+                                    .padding(top = 2.dp, bottom = 8.dp)
                                     .width(32.dp)
                                     .height(3.dp)
                                     .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
                             )
-
-                            // HEADER: TITLE & SUBTITLE
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(
-                                    modifier = Modifier.weight(1f),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = if (isSerialScanMode) TurquoisePrimary.copy(alpha = 0.20f) else TurquoisePrimary.copy(alpha = 0.15f),
-                                        modifier = Modifier.size(28.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = Icons.Default.Search,
-                                                contentDescription = null,
-                                                tint = TurquoisePrimary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Column {
-                                        Text(
-                                            text = "⚡ Seri Barkod Okuma Modu",
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Telefonu barkoda veya QR koda yaklaştırarak okutabilirsiniz",
-                                            fontSize = 10.5.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                if (isSerialScanMode && serialScanCount > 0) {
-                                    Surface(
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = TurquoisePrimary.copy(alpha = 0.18f),
-                                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.5f))
-                                    ) {
-                                        Text(
-                                            text = "$serialScanCount Ürün Okundu",
-                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = TurquoisePrimary,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
 
                             // MANUAL ENTRY SEARCH BAR (ALWAYS VISIBLE & EDITABLE - NEVER VANISHES)
                             ScannerManualSearchBar(
