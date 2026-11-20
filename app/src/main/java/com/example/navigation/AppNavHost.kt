@@ -342,6 +342,13 @@ fun AppNavHost(
                     }
                     Toast.makeText(context, "${prod.urunAdi} reyon indirim listesine alındı (Sarı Etiket)", Toast.LENGTH_SHORT).show()
                 },
+                onNavigateToInventory = {
+                    triggerGlobalLoading()
+                    navController.navigate("envanter") {
+                        popUpTo("analytics") { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
                 onBackClick = {
                     if (!navController.popBackStack()) {
                         navigateToTab("panel")
@@ -358,6 +365,7 @@ fun AppNavHost(
             popEnterTransition = { EnterTransition.None },
             popExitTransition = { fadeOut(animationSpec = tween(140)) }
         ) {
+            val triggerGlobalLoading = LocalTriggerGlobalLoading.current
             val inventoryAudits by inventoryViewModel.allInventoryAudits.collectAsState()
             val combinedSummary by inventoryViewModel.combinedInventorySummary.collectAsState()
             InventoryTrackingScreen(
@@ -386,6 +394,13 @@ fun AppNavHost(
                 },
                 onDeleteAudit = { id ->
                     inventoryViewModel.deleteInventoryAudit(id)
+                },
+                onNavigateToAnalytics = {
+                    triggerGlobalLoading()
+                    navController.navigate("analytics") {
+                        popUpTo("envanter") { inclusive = true }
+                        launchSingleTop = true
+                    }
                 },
                 onBackClick = {
                     if (!navController.popBackStack()) {

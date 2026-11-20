@@ -31,12 +31,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.BakeryDining
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Eco
 import androidx.compose.material.icons.filled.Fastfood
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -61,6 +63,7 @@ import com.example.data.InventoryTargetPreferences
 import com.example.ui.components.AddInventoryAuditModal
 import com.example.ui.components.InventoryCategoryDetailModal
 import com.example.ui.components.LocalTriggerGlobalLoading
+import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate50
 import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate900
@@ -97,6 +100,7 @@ fun InventoryTrackingScreen(
     ) -> Unit = { _, _, _ -> },
     onUpdateAudit: (InventoryAuditEntity) -> Unit = {},
     onDeleteAudit: (id: Int) -> Unit = {},
+    onNavigateToAnalytics: () -> Unit = {},
     onBackClick: () -> Unit
 ) {
     BackHandler {
@@ -493,41 +497,66 @@ fun InventoryTrackingScreen(
                     }
                 }
 
-                Surface(
-                    onClick = {
-                        editingAuditForModal = null
-                        isWeeklyEntryModalMode = false
-                        val isContinuousTabSelected = selectedTabIndex == 1
-                        isContinuousModalMode = isContinuousTabSelected
-                        isBulkContinuousModalMode = isContinuousTabSelected
-                        selectedContinuousCategoryForModal = null
-                        weeklyLockedDateMillis = null
-                        weeklyInitialTargetRatio = null
-                        singleAuditInitialPeriod = ""
-                        activeCategoryForAddModal = if (isContinuousTabSelected) "ET_TAVUK" else "GIDA"
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    color = TurquoisePrimary.copy(alpha = 0.14f),
-                    border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
-                    modifier = Modifier.testTag("inventory_tracking_add_button")
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Surface(
+                        onClick = {
+                            editingAuditForModal = null
+                            isWeeklyEntryModalMode = false
+                            val isContinuousTabSelected = selectedTabIndex == 1
+                            isContinuousModalMode = isContinuousTabSelected
+                            isBulkContinuousModalMode = isContinuousTabSelected
+                            selectedContinuousCategoryForModal = null
+                            weeklyLockedDateMillis = null
+                            weeklyInitialTargetRatio = null
+                            singleAuditInitialPeriod = ""
+                            activeCategoryForAddModal = if (isContinuousTabSelected) "ET_TAVUK" else "GIDA"
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        color = TurquoisePrimary.copy(alpha = 0.14f),
+                        border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
+                        modifier = Modifier.testTag("inventory_tracking_add_button")
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Envanter Ekle",
-                            tint = TurquoiseDark,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "Ekle",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = TurquoiseDark
-                        )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = "Envanter Ekle",
+                                tint = TurquoiseDark,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "Ekle",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = TurquoiseDark
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = onNavigateToAnalytics,
+                        modifier = Modifier.testTag("inventory_to_analytics_button")
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Slate200.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Analytics,
+                                contentDescription = "Analiz Sayfasına Git",
+                                tint = Slate900,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
                     }
                 }
             }

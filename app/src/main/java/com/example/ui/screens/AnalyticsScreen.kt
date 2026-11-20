@@ -72,6 +72,7 @@ fun AnalyticsScreen(
     revenueAudits: List<InventoryAuditEntity> = emptyList(),
     onProductClick: (Product) -> Unit = {},
     onApplyYellowTag: (Product) -> Unit = {},
+    onNavigateToInventory: () -> Unit = {},
     onBackClick: () -> Unit
 ) {
     BackHandler { onBackClick() }
@@ -295,7 +296,34 @@ fun AnalyticsScreen(
                     }
                     Icon(Icons.Default.Analytics, contentDescription = null, tint = TurquoisePrimary, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Satış ve Fire Analizi", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    Text(
+                        text = "Satış ve Fire Analizi",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = onNavigateToInventory,
+                        modifier = Modifier.testTag("analytics_to_inventory_button")
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(Slate200.copy(alpha = 0.6f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Inventory2,
+                                contentDescription = "Envanter Takibine Git",
+                                tint = Slate900,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                    }
                 }
 
                 TabRow(

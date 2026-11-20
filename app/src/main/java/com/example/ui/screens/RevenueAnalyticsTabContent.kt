@@ -25,15 +25,20 @@ import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -86,6 +91,11 @@ private val GidaDisiLineColor = Color(0xFFF97316)   // Turuncu
 private val PositiveDiffColor = Color(0xFF15803D)   // Yeşil (Pozitif Gelişim)
 private val NegativeDiffColor = Color(0xFFDC2626)   // Kırmızı (0 veya Negatif)
 
+private enum class RevenueChartMode {
+    TOTAL_REVENUE,
+    DAILY_SALES
+}
+
 private data class CategoryRevenueKpi(
     val latestRevenue: Double,
     val dailyDiff: Double?, // Son Ciro - Önceki Ciro (Önceki kayıt yoksa null)
@@ -102,11 +112,13 @@ private data class RevenueTimelineSlot(
 )
 
 private data class RevenueChartDataset(
-    val slots: List<RevenueTimelineSlot>,
+    val totalSlots: List<RevenueTimelineSlot>,
+    val dailySlots: List<RevenueTimelineSlot>,
     val gidaKpi: CategoryRevenueKpi,
     val dolapKpi: CategoryRevenueKpi,
     val gidaDisiKpi: CategoryRevenueKpi,
-    val maxAxisValue: Double
+    val totalMaxAxisValue: Double,
+    val dailyMaxAxisValue: Double
 )
 
 private fun normalizeToDayStartMillis(millis: Long): Long {
@@ -228,6 +240,7 @@ private fun formatRevenueAxisTl(amount: Double): String {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RevenueAnalyticsTabContent(
     revenueAudits: List<InventoryAuditEntity>,
@@ -272,25 +285,40 @@ fun RevenueAnalyticsTabContent(
         val dolapKpi = computeCategoryKpi(dolapAudits)
         val gidaDisiKpi = computeCategoryKpi(gidaDisiAudits)
 
-        // 3) Grafik Slotları: Her gün/kayıt için o ana kadarki kümülatif toplam ciro (toplama yapmadan!)
+        // 3) Grafik Slotları:
+        //    - Toplam Ciro: Her kaydın kendi kümülatif toplam cirosu (toplama yapmadan)
+        //    - Günlük Satış: Her kategori için ayrı ayrı (Mevcut Ciro - Önceki Ciro), ilk kayıt 0 ve negatifler 0'a sabitlenir
         data class SlotKey(val dayMillis: Long, val seqIndex: Int)
 
-        val slotMap = linkedMapOf<SlotKey, Triple<Long, MutableMap<String, Double>, Long>>()
+        val totalSlotMap = linkedMapOf<SlotKey, Triple<Long, MutableMap<String, Double>, Long>>()
+        val dailySlotMap = linkedMapOf<SlotKey, Triple<Long, MutableMap<String, Double>, Long>>()
 
         fun addSeriesToSlots(categoryKey: String, items: List<InventoryAuditEntity>) {
             val perDayCounter = mutableMapOf<Long, Int>()
-            items.forEach { audit ->
+            items.forEachIndexed { idx, audit ->
                 val ts = resolveEntryTimestamp(audit, useAuditDateDirectly)
                 val dayStart = normalizeToDayStartMillis(ts)
                 val seq = perDayCounter[dayStart] ?: 0
                 perDayCounter[dayStart] = seq + 1
 
                 val key = SlotKey(dayStart, seq)
-                val entry = slotMap.getOrPut(key) {
+                val currentRev = audit.revenue.coerceAtLeast(0.0)
+                val dailyDelta = if (idx == 0) {
+                    0.0
+                } else {
+                    val prevRev = items[idx - 1].revenue.coerceAtLeast(0.0)
+                    (currentRev - prevRev).coerceAtLeast(0.0)
+                }
+
+                val totalEntry = totalSlotMap.getOrPut(key) {
                     Triple(dayStart, mutableMapOf(), ts)
                 }
-                // Verileri toplama! O kaydın kendi kümülatif toplam ciro değerini doğrudan yaz.
-                entry.second[categoryKey] = audit.revenue.coerceAtLeast(0.0)
+                totalEntry.second[categoryKey] = currentRev
+
+                val dailyEntry = dailySlotMap.getOrPut(key) {
+                    Triple(dayStart, mutableMapOf(), ts)
+                }
+                dailyEntry.second[categoryKey] = dailyDelta
             }
         }
 
@@ -298,18 +326,42 @@ fun RevenueAnalyticsTabContent(
         addSeriesToSlots("DOLAP", dolapAudits)
         addSeriesToSlots("GIDA DIŞI", gidaDisiAudits)
 
-        val orderedKeys = slotMap.keys.sortedWith(
+        val orderedKeys = totalSlotMap.keys.sortedWith(
             compareBy<SlotKey> { it.dayMillis }.thenBy { it.seqIndex }
         )
 
-        var maxRevenue = 0.0
-        val slots = orderedKeys.map { key ->
-            val (_, catValues, ts) = slotMap.getValue(key)
+        var maxTotalRevenue = 0.0
+        var maxDailySales = 0.0
+
+        val totalSlots = orderedKeys.map { key ->
+            val (_, catValues, ts) = totalSlotMap.getValue(key)
             val gVal = catValues["GIDA"]
             val dVal = catValues["DOLAP"]
             val gdVal = catValues["GIDA DIŞI"]
             listOfNotNull(gVal, dVal, gdVal).forEach { v ->
-                if (v > maxRevenue) maxRevenue = v
+                if (v > maxTotalRevenue) maxTotalRevenue = v
+            }
+            val dateObj = Date(ts)
+            val baseShort = shortDateFormat.format(dateObj)
+            val baseFull = fullDateFormat.format(dateObj)
+            val hasMultiOnSameDay = orderedKeys.count { it.dayMillis == key.dayMillis } > 1
+            RevenueTimelineSlot(
+                timestampMillis = ts,
+                shortLabel = if (hasMultiOnSameDay) "$baseShort #${key.seqIndex + 1}" else baseShort,
+                fullDateLabel = if (hasMultiOnSameDay) "$baseFull (${key.seqIndex + 1}. kayıt)" else baseFull,
+                gidaRevenue = gVal,
+                dolapRevenue = dVal,
+                gidaDisiRevenue = gdVal
+            )
+        }
+
+        val dailySlots = orderedKeys.map { key ->
+            val (_, catValues, ts) = dailySlotMap.getValue(key)
+            val gVal = catValues["GIDA"]
+            val dVal = catValues["DOLAP"]
+            val gdVal = catValues["GIDA DIŞI"]
+            listOfNotNull(gVal, dVal, gdVal).forEach { v ->
+                if (v > maxDailySales) maxDailySales = v
             }
             val dateObj = Date(ts)
             val baseShort = shortDateFormat.format(dateObj)
@@ -326,15 +378,29 @@ fun RevenueAnalyticsTabContent(
         }
 
         RevenueChartDataset(
-            slots = slots,
+            totalSlots = totalSlots,
+            dailySlots = dailySlots,
             gidaKpi = gidaKpi,
             dolapKpi = dolapKpi,
             gidaDisiKpi = gidaDisiKpi,
-            maxAxisValue = calculateNiceMaxAxis(maxRevenue)
+            totalMaxAxisValue = calculateNiceMaxAxis(maxTotalRevenue),
+            dailyMaxAxisValue = calculateNiceMaxAxis(maxDailySales)
         )
     }
 
-    var selectedSlotIndex by remember(dataset.slots.size) {
+    var chartMode by rememberSaveable { mutableStateOf(RevenueChartMode.TOTAL_REVENUE) }
+    val activeSlots = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
+        dataset.totalSlots
+    } else {
+        dataset.dailySlots
+    }
+    val activeMaxAxisValue = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
+        dataset.totalMaxAxisValue
+    } else {
+        dataset.dailyMaxAxisValue
+    }
+
+    var selectedSlotIndex by remember(activeSlots.size, chartMode) {
         mutableStateOf<Int?>(null)
     }
 
@@ -342,6 +408,10 @@ fun RevenueAnalyticsTabContent(
     val latestCombinedStoreRevenue = dataset.gidaKpi.latestRevenue +
         dataset.dolapKpi.latestRevenue +
         dataset.gidaDisiKpi.latestRevenue
+
+    val latestCombinedDailySales = (dataset.gidaKpi.dailyDiff?.coerceAtLeast(0.0) ?: 0.0) +
+        (dataset.dolapKpi.dailyDiff?.coerceAtLeast(0.0) ?: 0.0) +
+        (dataset.gidaDisiKpi.dailyDiff?.coerceAtLeast(0.0) ?: 0.0)
 
     LazyColumn(
         modifier = modifier
@@ -414,7 +484,23 @@ fun RevenueAnalyticsTabContent(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    // Grafik Başlığı + Güncel Toplam Ciro Rozeti
+                    // Dinamik Grafik Başlığı + Güncel Özet Rozeti
+                    val chartTitle = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
+                        "Kategori Bazlı Toplam Ciro"
+                    } else {
+                        "Kategori Bazlı Günlük Satış"
+                    }
+                    val chartSubtitle = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
+                        "Parçalı envanter kümülatif ciro seyri (₺)"
+                    } else {
+                        "Kayıtlar arası günlük satış artışı (₺)"
+                    }
+                    val badgeAmount = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
+                        latestCombinedStoreRevenue
+                    } else {
+                        latestCombinedDailySales
+                    }
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -422,27 +508,31 @@ fun RevenueAnalyticsTabContent(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Kategori Bazlı Ciro Grafiği",
+                                text = chartTitle,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Parçalı envanter kümülatif ciro seyri (₺)",
+                                text = chartSubtitle,
                                 fontSize = 11.5.sp,
                                 color = Slate500
                             )
                         }
 
-                        if (latestCombinedStoreRevenue > 0.0) {
+                        if (badgeAmount > 0.0) {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFFF0FDFA),
                                 border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
                             ) {
                                 Text(
-                                    text = formatRevenueFullTl(latestCombinedStoreRevenue),
+                                    text = if (chartMode == RevenueChartMode.DAILY_SALES) {
+                                        "+${formatRevenueFullTl(badgeAmount)}"
+                                    } else {
+                                        formatRevenueFullTl(badgeAmount)
+                                    },
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = TurquoiseDark,
@@ -454,6 +544,56 @@ fun RevenueAnalyticsTabContent(
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
+
+                    // Grafik Modu Seçici: Toplam Ciro / Günlük Satış (SingleChoiceSegmentedButtonRow)
+                    val modeOptions = listOf(
+                        RevenueChartMode.TOTAL_REVENUE to "Toplam Ciro",
+                        RevenueChartMode.DAILY_SALES to "Günlük Satış"
+                    )
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("revenue_chart_mode_segmented_row")
+                    ) {
+                        modeOptions.forEachIndexed { index, (mode, label) ->
+                            val isSelected = chartMode == mode
+                            SegmentedButton(
+                                selected = isSelected,
+                                onClick = { chartMode = mode },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = modeOptions.size,
+                                    baseShape = RoundedCornerShape(12.dp)
+                                ),
+                                colors = SegmentedButtonDefaults.colors(
+                                    activeContainerColor = TurquoisePrimary,
+                                    activeContentColor = Color.White,
+                                    activeBorderColor = TurquoisePrimary,
+                                    inactiveContainerColor = Color(0xFFF8FAFC),
+                                    inactiveContentColor = Slate700,
+                                    inactiveBorderColor = Slate200
+                                ),
+                                icon = {},
+                                modifier = Modifier.testTag(
+                                    if (mode == RevenueChartMode.TOTAL_REVENUE) {
+                                        "chart_mode_total_revenue"
+                                    } else {
+                                        "chart_mode_daily_sales"
+                                    }
+                                )
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     // Renk Lejantı (Yeşil kare = Gıda, Mavi kare = Dolap, Turuncu kare = Gıda Dışı)
                     Row(
@@ -472,7 +612,7 @@ fun RevenueAnalyticsTabContent(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    if (dataset.slots.isEmpty()) {
+                    if (activeSlots.isEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -512,10 +652,10 @@ fun RevenueAnalyticsTabContent(
                             )
                         }
                     } else {
-                        // Çoklu Çizgi + Area Grafik (Saf Compose Canvas)
+                        // Çoklu Çizgi + Area Grafik (Saf Compose Canvas - Path yapısı korunur)
                         MultiLineRevenueCanvasChart(
-                            slots = dataset.slots,
-                            maxAxisValue = dataset.maxAxisValue,
+                            slots = activeSlots,
+                            maxAxisValue = activeMaxAxisValue,
                             selectedIndex = selectedSlotIndex,
                             onSelectIndex = { idx ->
                                 selectedSlotIndex = if (selectedSlotIndex == idx) null else idx
@@ -527,7 +667,7 @@ fun RevenueAnalyticsTabContent(
                         )
 
                         // Seçili tarih detayı (Grafik üzerine dokunulursa)
-                        val activeSlot = selectedSlotIndex?.let { dataset.slots.getOrNull(it) }
+                        val activeSlot = selectedSlotIndex?.let { activeSlots.getOrNull(it) }
                         if (activeSlot != null) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
@@ -542,7 +682,11 @@ fun RevenueAnalyticsTabContent(
                                         .padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Text(
-                                        text = activeSlot.fullDateLabel,
+                                        text = if (chartMode == RevenueChartMode.DAILY_SALES) {
+                                            "${activeSlot.fullDateLabel} • Günlük Satış"
+                                        } else {
+                                            activeSlot.fullDateLabel
+                                        },
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate800
@@ -585,11 +729,11 @@ fun RevenueAnalyticsTabContent(
             }
         }
 
-        // 3. DÖNEMSEL KAYIT GEÇMİŞİ (En yeni en üstte, her tarihin kümülatif toplam cirosu)
-        if (dataset.slots.isNotEmpty()) {
+        // 3. DÖNEMSEL KAYIT GEÇMİŞİ (Seçili moda göre kümülatif toplam ciro veya günlük satış)
+        if (activeSlots.isNotEmpty()) {
             item {
-                val recentSlots = remember(dataset.slots) {
-                    dataset.slots.asReversed().take(8)
+                val recentSlots = remember(activeSlots) {
+                    activeSlots.asReversed().take(8)
                 }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -603,7 +747,11 @@ fun RevenueAnalyticsTabContent(
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = "Tarih Bazlı Ciro Geçmişi",
+                            text = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
+                                "Tarih Bazlı Toplam Ciro Geçmişi"
+                            } else {
+                                "Tarih Bazlı Günlük Satış Geçmişi"
+                            },
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate900
