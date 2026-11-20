@@ -257,6 +257,28 @@ class InventoryViewModel(
             initialValue = emptyList()
         )
 
+    /**
+     * Analiz -> Ciro sekmesi için yalnızca Parçalı Envanter kategorileri
+     * ("GIDA", "DOLAP", "GIDA DIŞI") canlı dinlenir ve auditDateMillis'e göre
+     * en eskiden en yeniye sıralanır. Sürekli Envanter kategorileri hariç tutulur.
+     */
+    val partialRevenueAudits: StateFlow<List<InventoryAuditEntity>> = allInventoryAudits
+        .map { auditsList ->
+            auditsList
+                .filter { normalizeInventoryCategoryKey(it.category) in PERIODIC_AUDIT_CATEGORIES }
+                .sortedWith(
+                    compareBy<InventoryAuditEntity> { it.auditDateMillis }
+                        .thenBy { it.createdAt }
+                        .thenBy { it.id }
+                )
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     val combinedInventorySummary: StateFlow<CombinedInventorySummary> = allInventoryAudits
         .map { auditsList -> computeCombinedInventorySummary(auditsList) }
         .distinctUntilChanged()

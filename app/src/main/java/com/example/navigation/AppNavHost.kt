@@ -327,9 +327,11 @@ fun AppNavHost(
             popExitTransition = { fadeOut(animationSpec = tween(140)) }
         ) {
             val triggerGlobalLoading = LocalTriggerGlobalLoading.current
+            val revenueAudits by inventoryViewModel.partialRevenueAudits.collectAsState()
             AnalyticsScreen(
                 products = allProducts,
                 stockLogs = stockLogs,
+                revenueAudits = revenueAudits,
                 onProductClick = { prod ->
                     triggerGlobalLoading()
                     inventoryViewModel.openProductDetailModal(prod)

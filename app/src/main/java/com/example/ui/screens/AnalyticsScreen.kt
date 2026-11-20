@@ -33,6 +33,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.testTag
+import com.example.data.InventoryAuditEntity
 import com.example.data.Product
 import com.example.data.StockLog
 import com.example.data.getTodayMidnightMillis
@@ -65,12 +69,14 @@ private fun formatTurkishCurrency(amount: Double): String {
 fun AnalyticsScreen(
     products: List<Product>,
     stockLogs: List<StockLog> = emptyList(),
+    revenueAudits: List<InventoryAuditEntity> = emptyList(),
     onProductClick: (Product) -> Unit = {},
     onApplyYellowTag: (Product) -> Unit = {},
     onBackClick: () -> Unit
 ) {
     BackHandler { onBackClick() }
     val context = LocalContext.current
+    var selectedTabIndex by rememberSaveable { mutableIntStateOf(0) } // 0 = Ciro (varsayılan), 1 = Fire
 
     // Zaman filtresi (7, 30, 60 gün)
     var selectedDays by remember { mutableIntStateOf(30) }
@@ -274,24 +280,79 @@ fun AnalyticsScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize().background(Slate50)) {
-        // ÜST BAR
+        // ÜST BAR VE SEKME YAPISI (Ciro / Fire)
         Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 2.dp) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Slate900)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Geri", tint = Slate900)
+                    }
+                    Icon(Icons.Default.Analytics, contentDescription = null, tint = TurquoisePrimary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Satış ve Fire Analizi", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
                 }
-                Icon(Icons.Default.Analytics, contentDescription = null, tint = TurquoisePrimary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Satış ve Fire Analizi", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
+
+                TabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = TurquoisePrimary,
+                    indicator = { tabPositions ->
+                        if (selectedTabIndex < tabPositions.size) {
+                            TabRowDefaults.SecondaryIndicator(
+                                modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                                height = 3.dp,
+                                color = TurquoisePrimary
+                            )
+                        }
+                    },
+                    divider = {
+                        HorizontalDivider(color = Slate200)
+                    }
+                ) {
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = { selectedTabIndex = 0 },
+                        modifier = Modifier.testTag("analytics_tab_ciro"),
+                        selectedContentColor = TurquoisePrimary,
+                        unselectedContentColor = Slate500,
+                        text = {
+                            Text(
+                                text = "Ciro",
+                                fontSize = 14.sp,
+                                fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    )
+                    Tab(
+                        selected = selectedTabIndex == 1,
+                        onClick = { selectedTabIndex = 1 },
+                        modifier = Modifier.testTag("analytics_tab_fire"),
+                        selectedContentColor = TurquoisePrimary,
+                        unselectedContentColor = Slate500,
+                        text = {
+                            Text(
+                                text = "Fire",
+                                fontSize = 14.sp,
+                                fontWeight = if (selectedTabIndex == 1) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    )
+                }
             }
         }
 
+        if (selectedTabIndex == 0) {
+            RevenueAnalyticsTabContent(
+                revenueAudits = revenueAudits,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp),
@@ -973,6 +1034,7 @@ fun AnalyticsScreen(
                     }
                 }
             }
+        }
         }
     }
 }
