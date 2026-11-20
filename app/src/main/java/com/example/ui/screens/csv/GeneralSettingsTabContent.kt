@@ -115,6 +115,7 @@ fun GeneralSettingsTabContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
+                        modifier = Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
@@ -132,21 +133,27 @@ fun GeneralSettingsTabContent(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Uygulama Güncellemesi",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             Text(
                                 text = "Sürüm: v$currentVersion",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Durum Rozeti (Güncel / Yeni Sürüm Var)
                     if (hasUpdateAvailable) {
@@ -168,9 +175,12 @@ fun GeneralSettingsTabContent(
                                 )
                                 Text(
                                     text = "Yeni Sürüm Var",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFC2410C)
+                                    color = Color(0xFFC2410C),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -193,9 +203,12 @@ fun GeneralSettingsTabContent(
                                 )
                                 Text(
                                     text = "Güncel",
-                                    fontSize = 11.sp,
+                                    fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF15803D)
+                                    color = Color(0xFF15803D),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -231,7 +244,8 @@ fun GeneralSettingsTabContent(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
+                        .height(46.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = if (hasUpdateAvailable) Color(0xFFEA580C) else TurquoisePrimary,
@@ -249,7 +263,10 @@ fun GeneralSettingsTabContent(
                         Text(
                             text = "Denetleniyor...",
                             fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     } else {
                         Icon(
@@ -261,7 +278,10 @@ fun GeneralSettingsTabContent(
                         Text(
                             text = if (hasUpdateAvailable) "Güncellemeyi Yükle (v$latestVersionName)" else "Güncellemeleri Denetle",
                             fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }

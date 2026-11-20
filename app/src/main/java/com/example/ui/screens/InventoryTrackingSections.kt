@@ -72,6 +72,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
+import com.example.ui.components.AutoSizeMetricText
 import com.example.ui.theme.CriticalOrangeBorder
 import com.example.ui.theme.CriticalOrangeContainer
 import com.example.ui.theme.CriticalOrangeDark
@@ -297,14 +298,17 @@ fun CombinedStoreInventoryCard(
                         text = "Toplam Oran",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Slate500
+                        color = Slate500,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Text(
+                    Spacer(modifier = Modifier.width(8.dp))
+                    AutoSizeMetricText(
                         text = formattedTotalRatio,
-                        fontSize = 20.sp,
+                        maxFontSize = 20.sp,
+                        minFontSize = 13.sp,
                         fontWeight = FontWeight.Black,
-                        color = if (hasCombinedRatio) totalAccentColor else Slate900,
-                        maxLines = 1
+                        color = if (hasCombinedRatio) totalAccentColor else Slate900
                     )
                 }
             }
@@ -331,7 +335,7 @@ fun CombinedStoreInventoryCard(
                         // T (Toplam)
                         Surface(
                             modifier = Modifier
-                                .weight(1.26f)
+                                .weight(1.22f)
                                 .fillMaxHeight()
                                 .testTag("combined_metric_total"),
                             shape = RoundedCornerShape(13.dp),
@@ -341,7 +345,7 @@ fun CombinedStoreInventoryCard(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 6.dp, vertical = 12.dp),
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -355,26 +359,27 @@ fun CombinedStoreInventoryCard(
                                         bgColor = totalAccentColor,
                                         textColor = Color.White
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Toplam",
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Slate800,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
 
                                 Spacer(modifier = Modifier.height(8.dp))
 
-                                Text(
+                                AutoSizeMetricText(
                                     text = formattedTotalRatio,
-                                    fontSize = 26.sp,
+                                    maxFontSize = 21.sp,
+                                    minFontSize = 12.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = if (hasCombinedRatio) totalAccentColor else Slate900,
                                     textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.fillMaxWidth()
                                 )
 
@@ -394,10 +399,11 @@ fun CombinedStoreInventoryCard(
                                     ) {
                                         Text(
                                             text = "Hedef: %${ratioFormatter.format(combinedTargetRatio)}",
-                                            fontSize = 10.sp,
+                                            fontSize = 9.5.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = Slate800,
                                             maxLines = 1,
+                                            softWrap = false,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Spacer(modifier = Modifier.width(3.dp))
@@ -425,7 +431,7 @@ fun CombinedStoreInventoryCard(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 6.dp, vertical = 12.dp),
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -439,28 +445,29 @@ fun CombinedStoreInventoryCard(
                                         bgColor = TurquoisePrimary.copy(alpha = 0.16f),
                                         textColor = TurquoiseDark
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Parçalı",
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate700,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
+                                AutoSizeMetricText(
                                     text = if (summary.periodicRatio != null) {
                                         "%${ratioFormatter.format(summary.periodicRatio)}"
                                     } else {
                                         "%-"
                                     },
-                                    fontSize = 26.sp,
+                                    maxFontSize = 21.sp,
+                                    minFontSize = 12.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Slate900,
                                     textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -479,7 +486,7 @@ fun CombinedStoreInventoryCard(
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 6.dp, vertical = 12.dp),
+                                    .padding(horizontal = 8.dp, vertical = 12.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
@@ -493,28 +500,29 @@ fun CombinedStoreInventoryCard(
                                         bgColor = Color(0xFFDBEAFE),
                                         textColor = Color(0xFF1D4ED8)
                                     )
-                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "Sürekli",
-                                        fontSize = 12.sp,
+                                        fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate700,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
+                                AutoSizeMetricText(
                                     text = if (summary.continuousRatio != null) {
                                         "%${ratioFormatter.format(summary.continuousRatio)}"
                                     } else {
                                         "%-"
                                     },
-                                    fontSize = 26.sp,
+                                    maxFontSize = 21.sp,
+                                    minFontSize = 12.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = if (isContinuousOverTarget) ExpiredRedDark else Slate900,
                                     textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
@@ -550,14 +558,13 @@ fun CombinedStoreInventoryCard(
 
                     // Alt Bilgi Satırı: Toplam Ciro ve Toplam Fire
                     HorizontalDivider(thickness = 0.8.dp, color = Slate200.copy(alpha = 0.8f))
-                    Text(
-                        text = "Toplam Ciro: ${moneyFormatter.format(summary.totalRevenue)} TL | Toplam Fire: ${moneyFormatter.format(summary.totalFireCost)} TL",
-                        fontSize = 11.5.sp,
+                    AutoSizeMetricText(
+                        text = "Toplam Ciro: ${moneyFormatter.format(summary.totalRevenue)} ₺ | Toplam Fire: ${moneyFormatter.format(summary.totalFireCost)} ₺",
+                        maxFontSize = 11.5.sp,
+                        minFontSize = 8.5.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate700,
                         textAlign = TextAlign.Center,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -774,7 +781,7 @@ fun PeriodicCategoryCardsRow(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                        .padding(horizontal = 6.dp, vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -796,12 +803,14 @@ fun PeriodicCategoryCardsRow(
 
                     Text(
                         text = spec.title,
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Slate900,
                         maxLines = 1,
+                        softWrap = false,
                         overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Row(
@@ -809,25 +818,27 @@ fun PeriodicCategoryCardsRow(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = ratioPercentText,
-                            fontSize = 19.sp,
+                            maxFontSize = 18.sp,
+                            minFontSize = 11.5.sp,
                             fontWeight = FontWeight.Black,
                             color = periodicRatioTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (currentRatioVal != null && prevRatioVal != null) {
                             val diff = currentRatioVal - prevRatioVal
                             if (abs(diff) > 0.0001) {
                                 val isDown = diff < 0.0
-                                Spacer(modifier = Modifier.width(3.dp))
+                                Spacer(modifier = Modifier.width(2.dp))
                                 Text(
                                     text = if (isDown) "↓" else "↑",
-                                    fontSize = 15.sp,
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = if (isDown) NormalGreenDark else ExpiredRedDark
+                                    color = if (isDown) NormalGreenDark else ExpiredRedDark,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
@@ -838,65 +849,100 @@ fun PeriodicCategoryCardsRow(
                         color = TurquoisePrimary.copy(alpha = 0.10f),
                         border = BorderStroke(0.8.dp, TurquoisePrimary.copy(alpha = 0.30f))
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = "Hedef: %$formattedPeriodicTarget",
-                            fontSize = 10.sp,
+                            maxFontSize = 9.5.sp,
+                            minFontSize = 8.sp,
                             fontWeight = FontWeight.Bold,
                             color = TurquoiseDark,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                         )
                     }
 
                     Column(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 2.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(1.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
-                        Text(
-                            text = "Mevcut Ciro: $currentCiroText",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate700,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            text = "Mevcut Fire: $currentFireText",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate700,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
-                        )
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Mevcut Ciro",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate500,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                            AutoSizeMetricText(
+                                text = currentCiroText,
+                                maxFontSize = 10.5.sp,
+                                minFontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate800,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Mevcut Fire",
+                                fontSize = 8.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate500,
+                                maxLines = 1,
+                                softWrap = false,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center
+                            )
+                            AutoSizeMetricText(
+                                text = currentFireText,
+                                maxFontSize = 10.5.sp,
+                                minFontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate800,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
 
-                    Text(
+                    AutoSizeMetricText(
                         text = elapsedText,
-                        fontSize = 10.5.sp,
+                        maxFontSize = 10.sp,
+                        minFontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
                         color = Slate500,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = Slate50,
-                        border = BorderStroke(0.8.dp, statusBorderColor.copy(alpha = 0.7f))
+                        border = BorderStroke(0.8.dp, statusBorderColor.copy(alpha = 0.7f)),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = remainingLabel,
-                            fontSize = 10.5.sp,
+                            maxFontSize = 10.sp,
+                            minFontSize = 8.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = statusColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 5.dp, vertical = 3.dp)
                         )
                     }
                 }
@@ -947,7 +993,7 @@ fun ContinuousCategoryCardsRow(
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Max),
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         categories.forEach { spec ->
             val sortedCategoryAudits = remember(audits, spec.key) {
@@ -1033,7 +1079,7 @@ fun ContinuousCategoryCardsRow(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 6.dp, vertical = 10.dp),
+                        .padding(horizontal = 4.dp, vertical = 9.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -1041,28 +1087,28 @@ fun ContinuousCategoryCardsRow(
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Surface(
                             shape = CircleShape,
                             color = Slate50,
                             border = BorderStroke(1.dp, Slate200),
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(26.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = spec.icon,
                                     contentDescription = spec.title,
                                     tint = spec.iconTint,
-                                    modifier = Modifier.size(15.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
                             }
                         }
 
                         Text(
                             text = spec.title,
-                            fontSize = 10.sp,
-                            lineHeight = 12.sp,
+                            fontSize = 9.5.sp,
+                            lineHeight = 11.5.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
                             minLines = 2,
@@ -1073,7 +1119,7 @@ fun ContinuousCategoryCardsRow(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
 
                     // Orta: Oran (%X) — Sadece hedef aşıldıysa kırmızı
                     Row(
@@ -1081,37 +1127,39 @@ fun ContinuousCategoryCardsRow(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = ratioPercentText,
-                            fontSize = 16.sp,
+                            maxFontSize = 15.sp,
+                            minFontSize = 9.5.sp,
                             fontWeight = FontWeight.Black,
                             color = ratioColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.weight(1f, fill = false)
                         )
                         if (currentRatioVal != null && prevRatioVal != null) {
                             val diff = currentRatioVal - prevRatioVal
                             if (abs(diff) > 0.0001) {
                                 val isDown = diff < 0.0
-                                Spacer(modifier = Modifier.width(2.dp))
+                                Spacer(modifier = Modifier.width(1.dp))
                                 Text(
                                     text = if (isDown) "↓" else "↑",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Black,
-                                    color = if (isDown) NormalGreenDark else ExpiredRedDark
+                                    color = if (isDown) NormalGreenDark else ExpiredRedDark,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
 
-                    // Alt Orta: Ciro ve Fire değerleri eşit font boyutuyla tam ortalı alt alta
+                    // Alt Orta: Ciro ve Fire değerleri otomatik boyutlanarak kutuya tam sığar
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
@@ -1119,19 +1167,19 @@ fun ContinuousCategoryCardsRow(
                         ) {
                             Text(
                                 text = "Ciro",
-                                fontSize = 8.5.sp,
+                                fontSize = 8.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Slate500,
                                 textAlign = TextAlign.Center,
-                                maxLines = 1
+                                maxLines = 1,
+                                softWrap = false
                             )
-                            Text(
+                            AutoSizeMetricText(
                                 text = revenueText,
-                                fontSize = 10.sp,
+                                maxFontSize = 9.5.sp,
+                                minFontSize = 7.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -1142,26 +1190,26 @@ fun ContinuousCategoryCardsRow(
                         ) {
                             Text(
                                 text = "Fire",
-                                fontSize = 8.5.sp,
+                                fontSize = 8.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Slate500,
                                 textAlign = TextAlign.Center,
-                                maxLines = 1
+                                maxLines = 1,
+                                softWrap = false
                             )
-                            Text(
+                            AutoSizeMetricText(
                                 text = fireText,
-                                fontSize = 10.sp,
+                                maxFontSize = 9.5.sp,
+                                minFontSize = 7.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate800,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(7.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // En Alt: Standart Dönem Rozeti (örn. "Kasım")
                     Surface(
@@ -1176,15 +1224,16 @@ fun ContinuousCategoryCardsRow(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
+                            AutoSizeMetricText(
                                 text = periodBadgeLabel,
-                                fontSize = 9.5.sp,
+                                maxFontSize = 9.sp,
+                                minFontSize = 7.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate700,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 4.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 3.dp)
                             )
                         }
                     }
@@ -1350,6 +1399,8 @@ fun ContinuousInventoryTotalCard(
                     )
                 }
 
+                Spacer(modifier = Modifier.width(6.dp))
+
                 Surface(
                     shape = RoundedCornerShape(9.dp),
                     color = Color.White,
@@ -1357,9 +1408,12 @@ fun ContinuousInventoryTotalCard(
                 ) {
                     Text(
                         text = "Hedef: %${ratioFormatter.format(continuousTargetRatio)} • ${latestAudits.size}/4",
-                        fontSize = 10.5.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = accentColor,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -1375,7 +1429,7 @@ fun ContinuousInventoryTotalCard(
                 // Sol Sütun: Toplam Ciro ve Toplam Fire
                 Column(
                     modifier = Modifier
-                        .weight(1.25f)
+                        .weight(1.3f)
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -1388,34 +1442,38 @@ fun ContinuousInventoryTotalCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 11.dp, vertical = 9.dp),
+                                .padding(horizontal = 10.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Payments,
                                     contentDescription = null,
                                     tint = TurquoiseDark,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Toplam Ciro",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Slate700
+                                    color = Slate700,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
-                            Text(
+                            Spacer(modifier = Modifier.width(6.dp))
+                            AutoSizeMetricText(
                                 text = "${moneyFormatter.format(totalRevenue)} ₺",
-                                fontSize = 13.5.sp,
+                                maxFontSize = 13.sp,
+                                minFontSize = 9.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Slate900,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -1429,34 +1487,38 @@ fun ContinuousInventoryTotalCard(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 11.dp, vertical = 9.dp),
+                                .padding(horizontal = 10.dp, vertical = 9.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                horizontalArrangement = Arrangement.spacedBy(5.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.LocalFireDepartment,
                                     contentDescription = null,
                                     tint = ExpiredRedDark,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(15.dp)
                                 )
                                 Text(
                                     text = "Toplam Fire",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Slate700
+                                    color = Slate700,
+                                    maxLines = 1,
+                                    softWrap = false
                                 )
                             }
-                            Text(
+                            Spacer(modifier = Modifier.width(6.dp))
+                            AutoSizeMetricText(
                                 text = "${moneyFormatter.format(totalFire)} ₺",
-                                fontSize = 13.5.sp,
+                                maxFontSize = 13.sp,
+                                minFontSize = 9.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = ExpiredRedDark,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.weight(1f)
                             )
                         }
                     }
@@ -1465,7 +1527,7 @@ fun ContinuousInventoryTotalCard(
                 // Sağ Sütun: Genel Oran (%X) - Büyük ve tok vurgu
                 Surface(
                     modifier = Modifier
-                        .weight(0.9f)
+                        .weight(0.85f)
                         .fillMaxHeight()
                         .testTag("continuous_total_general_ratio"),
                     shape = RoundedCornerShape(15.dp),
@@ -1476,30 +1538,32 @@ fun ContinuousInventoryTotalCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .fillMaxHeight()
-                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                            .padding(horizontal = 8.dp, vertical = 10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
                             text = "Genel Oran",
-                            fontSize = 11.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate700,
-                            maxLines = 1
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(
+                        AutoSizeMetricText(
                             text = if (generalRatio != null) {
                                 "%${ratioFormatter.format(generalRatio)}"
                             } else {
                                 "%-"
                             },
-                            fontSize = 26.sp,
+                            maxFontSize = 22.sp,
+                            minFontSize = 12.sp,
                             fontWeight = FontWeight.Black,
                             color = accentColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
@@ -1595,10 +1659,15 @@ fun WeeklyTrendSummaryCard(
             ) {
                 Text(
                     text = title,
-                    fontSize = 14.5.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Slate900
+                    color = Slate900,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Surface(
                     shape = RoundedCornerShape(10.dp),
@@ -1607,10 +1676,13 @@ fun WeeklyTrendSummaryCard(
                 ) {
                     Text(
                         text = statusLabel,
-                        fontSize = 12.sp,
+                        fontSize = 11.5.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = badgeText,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -1628,20 +1700,20 @@ fun WeeklyTrendSummaryCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = "Bu Hafta: Oran ${if (thisWeekRatio != null) "%${ratioFormatter.format(thisWeekRatio)}" else "%-"}",
-                            fontSize = 13.sp,
+                            maxFontSize = 12.5.sp,
+                            minFontSize = 9.5.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Text(
                             text = "Toplam Fire / Toplam Ciro",
-                            fontSize = 10.5.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Slate700,
                             maxLines = 1,
@@ -1659,16 +1731,16 @@ fun WeeklyTrendSummaryCard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                            .padding(horizontal = 10.dp, vertical = 9.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = "Geçen Hafta: Oran ${if (lastWeekRatio != null) "%${ratioFormatter.format(lastWeekRatio)}" else "%-"}",
-                            fontSize = 13.sp,
+                            maxFontSize = 12.5.sp,
+                            minFontSize = 9.5.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate800,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.fillMaxWidth()
                         )
                         Text(
                             text = if (hasComparison) {
@@ -1679,7 +1751,7 @@ fun WeeklyTrendSummaryCard(
                             } else {
                                 "Önceki hafta kaydı yok"
                             },
-                            fontSize = 10.5.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (isImproved) NormalGreenDark else if (isWorsened) ExpiredRedDark else Slate700,
                             maxLines = 1,
@@ -1827,18 +1899,22 @@ fun SmartCategoryAnalysisCard(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Text(
                                 text = spec.title,
-                                fontSize = 15.5.sp,
+                                fontSize = 15.sp,
                                 fontWeight = FontWeight.ExtraBold,
                                 color = Slate900,
                                 maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
                             Surface(
                                 shape = RoundedCornerShape(7.dp),
@@ -1847,31 +1923,32 @@ fun SmartCategoryAnalysisCard(
                             ) {
                                 Text(
                                     text = "Hedef: %$targetRatioTwoDecimals",
-                                    fontSize = 10.5.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = TurquoiseDark,
                                     maxLines = 1,
+                                    softWrap = false,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                            Text(
+                            AutoSizeMetricText(
                                 text = "Mevcut Ciro: ${moneyFormatter.format(revenue)} ₺",
-                                fontSize = 11.sp,
+                                maxFontSize = 11.sp,
+                                minFontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Slate700,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                modifier = Modifier.fillMaxWidth()
                             )
-                            Text(
+                            AutoSizeMetricText(
                                 text = "Mevcut Fire: ${moneyFormatter.format(fireCost)} ₺",
-                                fontSize = 11.sp,
+                                maxFontSize = 11.sp,
+                                minFontSize = 9.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = Slate700,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
@@ -1885,27 +1962,30 @@ fun SmartCategoryAnalysisCard(
                     border = BorderStroke(1.dp, statusBorder)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
                             imageVector = statusIcon,
                             contentDescription = if (isOverTarget) "Hedef Üstü" else "Hedef Altı",
                             tint = accentColor,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                         Text(
                             text = "%${ratioFormatter.format(currentRatio)}",
-                            fontSize = 14.sp,
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.Black,
-                            color = accentColor
+                            color = accentColor,
+                            maxLines = 1,
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
             }
 
-            // Kurumsal 2 Sütunlu Rapor Tablosu: Gerekli Ciro | Maks. Fire
+            // Kurumsal 2 Sütunlu Rapor Tablosu: Gerekli Min. Ciro | Maks. İzin Verilen Fire
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(13.dp),
@@ -1919,39 +1999,47 @@ fun SmartCategoryAnalysisCard(
                         .padding(vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Sol Sütun: Gerekli Ciro
+                    // Sol Sütun: Gerekli Min. Ciro + Şu Anki Ciro
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                            .padding(horizontal = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Payments,
                                 contentDescription = null,
                                 tint = TurquoiseDark,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = "Gerekli Ciro",
-                                fontSize = 11.sp,
+                                text = "Gerekli Min. Ciro",
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Slate500,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
+                        AutoSizeMetricText(
                             text = "${moneyFormatter.format(gerekliMinCiro)} ₺",
-                            fontSize = 14.5.sp,
+                            maxFontSize = 14.5.sp,
+                            minFontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        AutoSizeMetricText(
+                            text = "Şu An: ${moneyFormatter.format(revenue)} ₺",
+                            maxFontSize = 10.5.sp,
+                            minFontSize = 8.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Slate500,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
 
@@ -1963,39 +2051,47 @@ fun SmartCategoryAnalysisCard(
                             .background(Slate200)
                     )
 
-                    // Sağ Sütun: Maks. Fire
+                    // Sağ Sütun: Maks. İzin Verilen Fire + Şu Anki Fire
                     Column(
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                            .padding(horizontal = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.LocalFireDepartment,
                                 contentDescription = null,
                                 tint = ExpiredRedDark,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                             Text(
-                                text = "Maks. Fire",
-                                fontSize = 11.sp,
+                                text = "Maks. İzin Verilen Fire",
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = Slate500,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Text(
+                        AutoSizeMetricText(
                             text = "${moneyFormatter.format(maksFire)} ₺",
-                            fontSize = 14.5.sp,
+                            maxFontSize = 14.5.sp,
+                            minFontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = Slate900,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        AutoSizeMetricText(
+                            text = "Şu An: ${moneyFormatter.format(fireCost)} ₺",
+                            maxFontSize = 10.5.sp,
+                            minFontSize = 8.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Slate500,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }

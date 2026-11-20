@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
+import com.example.ui.components.AutoSizeMetricText
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate500
@@ -537,7 +538,9 @@ fun RevenueAnalyticsTabContent(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = TurquoiseDark,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                    maxLines = 1
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -880,13 +883,13 @@ private fun RevenueCategoryKpiCard(
                     )
                 }
                 Spacer(modifier = Modifier.height(6.dp))
-                Text(
+                AutoSizeMetricText(
                     text = formattedValue,
-                    fontSize = valueFontSize,
+                    maxFontSize = valueFontSize,
+                    minFontSize = 9.5.sp,
                     fontWeight = FontWeight.Black,
                     color = valueColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -907,20 +910,21 @@ private fun RevenueCategoryKpiCard(
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Medium,
                         color = titleColor.copy(alpha = 0.78f),
-                        maxLines = 1
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Surface(
                         shape = RoundedCornerShape(6.dp),
                         color = diffBadgeBg
                     ) {
-                        Text(
+                        AutoSizeMetricText(
                             text = formattedDiff,
-                            fontSize = if (formattedDiff.length <= 9) 10.sp else 9.sp,
+                            maxFontSize = if (formattedDiff.length <= 9) 10.sp else 9.sp,
+                            minFontSize = 8.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = diffTextColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
                         )
                     }

@@ -637,29 +637,34 @@ fun InventoryCategoryDetailModal(
                                         }
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
+                                            horizontalArrangement = Arrangement.Center,
+                                            modifier = Modifier.fillMaxWidth()
                                         ) {
-                                            Text(
+                                            AutoSizeMetricText(
                                                 text = if (latestAudit != null) {
                                                     "%${ratioFormatter.format(currentRatioPercent)}"
                                                 } else {
                                                     "%-"
                                                 },
-                                                fontSize = 24.sp,
+                                                maxFontSize = 23.sp,
+                                                minFontSize = 14.sp,
                                                 fontWeight = FontWeight.Black,
                                                 color = currentRatioColor,
-                                                textAlign = TextAlign.Center
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.weight(1f, fill = false)
                                             )
                                             if (previousRatioPercent != null && latestAudit != null) {
                                                 val diff = currentRatioPercent - previousRatioPercent
                                                 if (kotlin.math.abs(diff) > 0.0001) {
                                                     val isDown = diff < 0.0
-                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Spacer(modifier = Modifier.width(5.dp))
                                                     Text(
                                                         text = if (isDown) "↓" else "↑",
-                                                        fontSize = 20.sp,
+                                                        fontSize = 18.sp,
                                                         fontWeight = FontWeight.Black,
-                                                        color = if (isDown) NormalGreenDark else ExpiredRedDark
+                                                        color = if (isDown) NormalGreenDark else ExpiredRedDark,
+                                                        maxLines = 1,
+                                                        softWrap = false
                                                     )
                                                 }
                                             }
@@ -698,12 +703,14 @@ fun InventoryCategoryDetailModal(
                                                 overflow = TextOverflow.Ellipsis
                                             )
                                         }
-                                        Text(
+                                        AutoSizeMetricText(
                                             text = "%${ratioFormatter.format(effectiveTargetRatio)}",
-                                            fontSize = 24.sp,
+                                            maxFontSize = 23.sp,
+                                            minFontSize = 14.sp,
                                             fontWeight = FontWeight.Black,
                                             color = Slate900,
-                                            textAlign = TextAlign.Center
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
@@ -750,13 +757,13 @@ fun InventoryCategoryDetailModal(
                                                 color = Slate700
                                             )
                                         }
-                                        Text(
+                                        AutoSizeMetricText(
                                             text = "${moneyFormatter.format(revenue)} ₺",
-                                            fontSize = 19.sp,
+                                            maxFontSize = 18.5.sp,
+                                            minFontSize = 11.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = Slate900,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
@@ -794,16 +801,18 @@ fun InventoryCategoryDetailModal(
                                                 text = "Fire Tutarı",
                                                 fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = Slate700
+                                                color = Slate700,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
-                                        Text(
+                                        AutoSizeMetricText(
                                             text = "${moneyFormatter.format(fireCost)} ₺",
-                                            fontSize = 19.sp,
+                                            maxFontSize = 18.5.sp,
+                                            minFontSize = 11.sp,
                                             fontWeight = FontWeight.ExtraBold,
                                             color = ExpiredRedDark,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
                                 }
@@ -970,19 +979,21 @@ fun InventoryCategoryDetailModal(
                                                     ) {
                                                         Text(
                                                             text = "Ciro:",
-                                                            fontSize = 11.5.sp,
+                                                            fontSize = 11.sp,
                                                             fontWeight = FontWeight.SemiBold,
-                                                            color = Slate700
+                                                            color = Slate700,
+                                                            maxLines = 1,
+                                                            softWrap = false
                                                         )
                                                         Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
+                                                        AutoSizeMetricText(
                                                             text = "${moneyFormatter.format(tahminiAySonuCiro)} ₺",
-                                                            fontSize = 12.5.sp,
+                                                            maxFontSize = 12.sp,
+                                                            minFontSize = 8.5.sp,
                                                             fontWeight = FontWeight.ExtraBold,
                                                             color = Slate900,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            textAlign = TextAlign.End
+                                                            textAlign = TextAlign.End,
+                                                            modifier = Modifier.weight(1f)
                                                         )
                                                     }
                                                     Row(
@@ -992,19 +1003,21 @@ fun InventoryCategoryDetailModal(
                                                     ) {
                                                         Text(
                                                             text = "Fire:",
-                                                            fontSize = 11.5.sp,
+                                                            fontSize = 11.sp,
                                                             fontWeight = FontWeight.SemiBold,
-                                                            color = Slate700
+                                                            color = Slate700,
+                                                            maxLines = 1,
+                                                            softWrap = false
                                                         )
                                                         Spacer(modifier = Modifier.width(4.dp))
-                                                        Text(
+                                                        AutoSizeMetricText(
                                                             text = "${moneyFormatter.format(tahminiAySonuFire)} ₺",
-                                                            fontSize = 12.5.sp,
+                                                            maxFontSize = 12.sp,
+                                                            minFontSize = 8.5.sp,
                                                             fontWeight = FontWeight.ExtraBold,
                                                             color = if (isOverTarget) ExpiredRedDark else Slate900,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis,
-                                                            textAlign = TextAlign.End
+                                                            textAlign = TextAlign.End,
+                                                            modifier = Modifier.weight(1f)
                                                         )
                                                     }
                                                 }
@@ -1847,13 +1860,13 @@ private fun SummaryMetricCell(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
-        Text(
+        AutoSizeMetricText(
             text = value,
-            fontSize = 13.5.sp,
+            maxFontSize = 13.5.sp,
+            minFontSize = 9.5.sp,
             fontWeight = FontWeight.SemiBold,
             color = valueColor,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

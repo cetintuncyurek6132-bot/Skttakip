@@ -226,12 +226,13 @@ fun FinancialKpiThreeColumnPanel(
                     )
                 }
 
-                Text(
+                com.example.ui.components.AutoSizeMetricText(
                     text = "%$rate",
-                    fontSize = 22.sp,
+                    maxFontSize = 21.sp,
+                    minFontSize = 13.sp,
                     fontWeight = FontWeight.Black,
                     color = rateColor,
-                    maxLines = 1
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text(
@@ -280,13 +281,13 @@ fun FinancialKpiThreeColumnPanel(
                     )
                 }
 
-                Text(
+                com.example.ui.components.AutoSizeMetricText(
                     text = metrics.formattedSavedRevenue,
-                    fontSize = 22.sp,
+                    maxFontSize = 21.sp,
+                    minFontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFF15803D),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text(
@@ -335,13 +336,13 @@ fun FinancialKpiThreeColumnPanel(
                     )
                 }
 
-                Text(
+                com.example.ui.components.AutoSizeMetricText(
                     text = metrics.formattedFireRiskCost,
-                    fontSize = 22.sp,
+                    maxFontSize = 21.sp,
+                    minFontSize = 11.sp,
                     fontWeight = FontWeight.Black,
                     color = Color(0xFFB91C1C),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text(
