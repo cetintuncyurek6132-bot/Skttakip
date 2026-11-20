@@ -31,6 +31,19 @@ interface InventoryAuditDao {
     @Query("SELECT * FROM inventory_audits WHERE category = :category ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC")
     fun getAuditsByCategory(category: String): Flow<List<InventoryAuditEntity>>
 
+    @Query(
+        """
+        SELECT * FROM inventory_audits
+        WHERE TRIM(category) IN (
+            'GIDA', 'Gıda', 'gıda', 'gida',
+            'DOLAP', 'Dolap', 'dolap',
+            'GIDA DIŞI', 'Gıda Dışı', 'gıda dışı', 'GIDA DISI', 'Gida Disi', 'gida disi', 'GIDA_DIŞI', 'GIDA_DISI'
+        )
+        ORDER BY updatedAt ASC, auditDateMillis ASC, createdAt ASC, id ASC
+        """
+    )
+    fun getPartialRevenueAuditsFlow(): Flow<List<InventoryAuditEntity>>
+
     @Query("SELECT * FROM inventory_audits WHERE category = :category ORDER BY updatedAt DESC, auditDateMillis DESC, createdAt DESC LIMIT 1")
     suspend fun getLatestAuditForCategory(category: String): InventoryAuditEntity?
 

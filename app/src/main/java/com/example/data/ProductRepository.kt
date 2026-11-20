@@ -32,6 +32,9 @@ class ProductRepository(
     val allInventoryAudits: Flow<List<InventoryAuditEntity>> = (inventoryAuditDao?.getAllAuditsFlow() ?: kotlinx.coroutines.flow.emptyFlow())
         .catch { emit(emptyList()) }
         .flowOn(Dispatchers.IO)
+    val partialRevenueAudits: Flow<List<InventoryAuditEntity>> = (inventoryAuditDao?.getPartialRevenueAuditsFlow() ?: kotlinx.coroutines.flow.emptyFlow())
+        .catch { emit(emptyList()) }
+        .flowOn(Dispatchers.IO)
     val totalSoldQuantity: Flow<Int> = (stockLogDao?.getTotalSoldQuantityFlow() ?: kotlinx.coroutines.flow.flowOf(0))
         .catch { emit(0) }
         .flowOn(Dispatchers.IO)

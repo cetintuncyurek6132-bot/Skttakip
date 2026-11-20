@@ -87,6 +87,9 @@ val CONTINUOUS_AUDIT_CATEGORIES = listOf("ET_TAVUK", "EKMEK", "MEYVE_SEBZE", "DO
 fun normalizeInventoryCategoryKey(rawCategory: String): String {
     val upper = rawCategory.trim().uppercase(java.util.Locale.forLanguageTag("tr-TR"))
     return when (upper) {
+        "GIDA", "GİDA" -> "GIDA"
+        "DOLAP" -> "DOLAP"
+        "GIDA DIŞI", "GİDA DIŞI", "GIDA DISI", "GIDA_DIŞI", "GIDA_DISI" -> "GIDA DIŞI"
         "ET-TAVUK", "ET_TAVUK" -> "ET_TAVUK"
         "EKMEK" -> "EKMEK"
         "MEYVE-SEBZE", "MEYVE_SEBZE" -> "MEYVE_SEBZE"
@@ -258,16 +261,18 @@ class InventoryViewModel(
         )
 
     /**
-     * Analiz -> Ciro sekmesi için yalnızca Parçalı Envanter kategorileri
-     * ("GIDA", "DOLAP", "GIDA DIŞI") canlı dinlenir ve auditDateMillis'e göre
-     * en eskiden en yeniye sıralanır. Sürekli Envanter kategorileri hariç tutulur.
+     * Analiz -> Ciro sekmesi için doğrudan DAO'dan yalnızca Parçalı Envanter kategorileri
+     * ("GIDA", "DOLAP", "GIDA DIŞI") canlı dinlenir. Sürekli Envanter kategorileri hariç tutulur.
      */
-    val partialRevenueAudits: StateFlow<List<InventoryAuditEntity>> = allInventoryAudits
+    val partialRevenueAudits: StateFlow<List<InventoryAuditEntity>> = repository.partialRevenueAudits
         .map { auditsList ->
             auditsList
                 .filter { normalizeInventoryCategoryKey(it.category) in PERIODIC_AUDIT_CATEGORIES }
                 .sortedWith(
-                    compareBy<InventoryAuditEntity> { it.auditDateMillis }
+                    compareBy<InventoryAuditEntity> {
+                        if (it.updatedAt > 0L) it.updatedAt else if (it.createdAt > 0L) it.createdAt else it.auditDateMillis
+                    }
+                        .thenBy { it.auditDateMillis }
                         .thenBy { it.createdAt }
                         .thenBy { it.id }
                 )

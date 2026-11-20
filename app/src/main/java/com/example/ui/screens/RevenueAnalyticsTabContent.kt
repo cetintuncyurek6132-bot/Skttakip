@@ -75,6 +75,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.log10
 import kotlin.math.pow
 import kotlin.math.roundToInt
@@ -82,9 +83,17 @@ import kotlin.math.roundToInt
 private val GidaLineColor = Color(0xFF16A34A)       // Yeşil
 private val DolapLineColor = Color(0xFF2563EB)      // Mavi
 private val GidaDisiLineColor = Color(0xFFF97316)   // Turuncu
+private val PositiveDiffColor = Color(0xFF15803D)   // Yeşil (Pozitif Gelişim)
+private val NegativeDiffColor = Color(0xFFDC2626)   // Kırmızı (0 veya Negatif)
 
-private data class RevenueDateBucket(
-    val dayMillis: Long,
+private data class CategoryRevenueKpi(
+    val latestRevenue: Double,
+    val dailyDiff: Double?, // Son Ciro - Önceki Ciro (Önceki kayıt yoksa null)
+    val recordCount: Int
+)
+
+private data class RevenueTimelineSlot(
+    val timestampMillis: Long,
     val shortLabel: String,
     val fullDateLabel: String,
     val gidaRevenue: Double?,
@@ -93,13 +102,10 @@ private data class RevenueDateBucket(
 )
 
 private data class RevenueChartDataset(
-    val buckets: List<RevenueDateBucket>,
-    val totalGida: Double,
-    val totalDolap: Double,
-    val totalGidaDisi: Double,
-    val gidaRecordCount: Int,
-    val dolapRecordCount: Int,
-    val gidaDisiRecordCount: Int,
+    val slots: List<RevenueTimelineSlot>,
+    val gidaKpi: CategoryRevenueKpi,
+    val dolapKpi: CategoryRevenueKpi,
+    val gidaDisiKpi: CategoryRevenueKpi,
     val maxAxisValue: Double
 )
 
@@ -114,10 +120,57 @@ private fun normalizeToDayStartMillis(millis: Long): Long {
     return cal.timeInMillis
 }
 
+private fun resolveEntryTimestamp(
+    audit: InventoryAuditEntity,
+    useAuditDateDirectly: Boolean
+): Long {
+    return if (useAuditDateDirectly) {
+        when {
+            audit.auditDateMillis > 0L -> audit.auditDateMillis
+            audit.updatedAt > 0L -> audit.updatedAt
+            else -> audit.createdAt
+        }
+    } else {
+        when {
+            audit.updatedAt > 0L -> audit.updatedAt
+            audit.createdAt > 0L -> audit.createdAt
+            else -> audit.auditDateMillis
+        }
+    }
+}
+
+private fun computeCategoryKpi(
+    chronologicalAudits: List<InventoryAuditEntity>
+): CategoryRevenueKpi {
+    if (chronologicalAudits.isEmpty()) {
+        return CategoryRevenueKpi(
+            latestRevenue = 0.0,
+            dailyDiff = null,
+            recordCount = 0
+        )
+    }
+    // En yeniden en eskiye bakıldığında ilk kayıt en güncel toplam cirodur (sumOf kullanılmaz).
+    val latest = chronologicalAudits.last()
+    val latestRev = latest.revenue.coerceAtLeast(0.0)
+    val previous = if (chronologicalAudits.size >= 2) {
+        chronologicalAudits[chronologicalAudits.lastIndex - 1]
+    } else {
+        null
+    }
+    val diff = previous?.let { prev ->
+        latestRev - prev.revenue.coerceAtLeast(0.0)
+    }
+    return CategoryRevenueKpi(
+        latestRevenue = latestRev,
+        dailyDiff = diff,
+        recordCount = chronologicalAudits.size
+    )
+}
+
 private fun calculateNiceMaxAxis(rawMax: Double): Double {
     if (rawMax <= 0.0 || rawMax.isNaN() || rawMax.isInfinite()) return 1000.0
-    val padded = rawMax * 1.12
-    val magnitude = 10.0.pow(kotlin.math.floor(log10(padded)))
+    val padded = rawMax * 1.15
+    val magnitude = 10.0.pow(floor(log10(padded)))
     val normalized = padded / magnitude
     val niceStep = when {
         normalized <= 1.0 -> 1.0
@@ -138,6 +191,17 @@ private fun formatRevenueFullTl(amount: Double): String {
     val safe = if (amount.isNaN() || amount.isInfinite() || amount < 0.0) 0.0 else amount
     val nf = NumberFormat.getIntegerInstance(Locale.forLanguageTag("tr-TR"))
     return "₺${nf.format(safe.roundToInt())}"
+}
+
+private fun formatSignedDiffTl(diff: Double): String {
+    val safe = if (diff.isNaN() || diff.isInfinite()) 0.0 else diff
+    val nf = NumberFormat.getIntegerInstance(Locale.forLanguageTag("tr-TR"))
+    val rounded = safe.roundToInt()
+    return when {
+        rounded > 0 -> "+₺${nf.format(rounded)}"
+        rounded < 0 -> "-₺${nf.format(abs(rounded))}"
+        else -> "₺0"
+    }
 }
 
 private fun formatRevenueAxisTl(amount: Double): String {
@@ -173,62 +237,88 @@ fun RevenueAnalyticsTabContent(
     val shortDateFormat = remember { SimpleDateFormat("dd MMM", trLocale) }
     val fullDateFormat = remember { SimpleDateFormat("dd MMM yyyy", trLocale) }
 
-    // Yalnızca GIDA, DOLAP ve GIDA DIŞI kayıtları (savunmacı filtre + en eskiden en yeniye sıralı)
+    // SADECE GIDA, DOLAP ve GIDA DIŞI kayıtları (Sürekli Envanter kategorileri kesinlikle hariç)
     val dataset = remember(revenueAudits) {
-        val filtered = revenueAudits
-            .filter { normalizeInventoryCategoryKey(it.category) in PERIODIC_AUDIT_CATEGORIES }
-            .sortedWith(
-                compareBy<InventoryAuditEntity> { it.auditDateMillis }
-                    .thenBy { it.createdAt }
-                    .thenBy { it.id }
-            )
-
-        var totalGida = 0.0
-        var totalDolap = 0.0
-        var totalGidaDisi = 0.0
-        var gidaCount = 0
-        var dolapCount = 0
-        var gidaDisiCount = 0
-
-        val dayToCategoryMap = linkedMapOf<Long, MutableMap<String, Double>>()
-
-        filtered.forEach { audit ->
-            val key = normalizeInventoryCategoryKey(audit.category)
-            val safeRev = audit.revenue.coerceAtLeast(0.0)
-            when (key) {
-                "GIDA" -> {
-                    totalGida += safeRev
-                    gidaCount++
-                }
-                "DOLAP" -> {
-                    totalDolap += safeRev
-                    dolapCount++
-                }
-                "GIDA DIŞI" -> {
-                    totalGidaDisi += safeRev
-                    gidaDisiCount++
-                }
-            }
-            val dayStart = normalizeToDayStartMillis(audit.auditDateMillis)
-            val catMap = dayToCategoryMap.getOrPut(dayStart) { mutableMapOf() }
-            catMap[key] = (catMap[key] ?: 0.0) + safeRev
+        val strictPeriodic = revenueAudits.filter {
+            normalizeInventoryCategoryKey(it.category) in PERIODIC_AUDIT_CATEGORIES
         }
 
-        val sortedDays = dayToCategoryMap.keys.sorted()
-        var maxPoint = 0.0
-        val buckets = sortedDays.map { dayMillis ->
-            val catMap = dayToCategoryMap[dayMillis].orEmpty()
-            val gVal = catMap["GIDA"]
-            val dVal = catMap["DOLAP"]
-            val gdVal = catMap["GIDA DIŞI"]
-            listOfNotNull(gVal, dVal, gdVal).forEach { v ->
-                if (v > maxPoint) maxPoint = v
+        // auditDateMillis birden fazla farklı güne sahipse (örn: 16 Kasım, 17 Kasım) doğrudan auditDateMillis kullanılır;
+        // Parçalı Envanter haftalık akışında tüm kayıtlar tek dönem başlangıç tarihine sabitlenmişse updatedAt kullanılır.
+        val distinctAuditDays = strictPeriodic
+            .map { normalizeToDayStartMillis(it.auditDateMillis) }
+            .distinct()
+            .size
+        val distinctUpdateDays = strictPeriodic
+            .map { normalizeToDayStartMillis(if (it.updatedAt > 0L) it.updatedAt else it.createdAt) }
+            .distinct()
+            .size
+        val useAuditDateDirectly = distinctAuditDays > 1 && distinctAuditDays >= distinctUpdateDays
+
+        val sortedAll = strictPeriodic.sortedWith(
+            compareBy<InventoryAuditEntity> { resolveEntryTimestamp(it, useAuditDateDirectly) }
+                .thenBy { it.auditDateMillis }
+                .thenBy { it.updatedAt }
+                .thenBy { it.createdAt }
+                .thenBy { it.id }
+        )
+
+        val gidaAudits = sortedAll.filter { normalizeInventoryCategoryKey(it.category) == "GIDA" }
+        val dolapAudits = sortedAll.filter { normalizeInventoryCategoryKey(it.category) == "DOLAP" }
+        val gidaDisiAudits = sortedAll.filter { normalizeInventoryCategoryKey(it.category) == "GIDA DIŞI" }
+
+        // 1 & 2) KPI Kartları: sumOf KULLANMADAN en son girilen toplam ciro ve (Son - Önceki) günlük satış farkı
+        val gidaKpi = computeCategoryKpi(gidaAudits)
+        val dolapKpi = computeCategoryKpi(dolapAudits)
+        val gidaDisiKpi = computeCategoryKpi(gidaDisiAudits)
+
+        // 3) Grafik Slotları: Her gün/kayıt için o ana kadarki kümülatif toplam ciro (toplama yapmadan!)
+        data class SlotKey(val dayMillis: Long, val seqIndex: Int)
+
+        val slotMap = linkedMapOf<SlotKey, Triple<Long, MutableMap<String, Double>, Long>>()
+
+        fun addSeriesToSlots(categoryKey: String, items: List<InventoryAuditEntity>) {
+            val perDayCounter = mutableMapOf<Long, Int>()
+            items.forEach { audit ->
+                val ts = resolveEntryTimestamp(audit, useAuditDateDirectly)
+                val dayStart = normalizeToDayStartMillis(ts)
+                val seq = perDayCounter[dayStart] ?: 0
+                perDayCounter[dayStart] = seq + 1
+
+                val key = SlotKey(dayStart, seq)
+                val entry = slotMap.getOrPut(key) {
+                    Triple(dayStart, mutableMapOf(), ts)
+                }
+                // Verileri toplama! O kaydın kendi kümülatif toplam ciro değerini doğrudan yaz.
+                entry.second[categoryKey] = audit.revenue.coerceAtLeast(0.0)
             }
-            val dateObj = Date(dayMillis)
-            RevenueDateBucket(
-                dayMillis = dayMillis,
-                shortLabel = shortDateFormat.format(dateObj),
-                fullDateLabel = fullDateFormat.format(dateObj),
+        }
+
+        addSeriesToSlots("GIDA", gidaAudits)
+        addSeriesToSlots("DOLAP", dolapAudits)
+        addSeriesToSlots("GIDA DIŞI", gidaDisiAudits)
+
+        val orderedKeys = slotMap.keys.sortedWith(
+            compareBy<SlotKey> { it.dayMillis }.thenBy { it.seqIndex }
+        )
+
+        var maxRevenue = 0.0
+        val slots = orderedKeys.map { key ->
+            val (_, catValues, ts) = slotMap.getValue(key)
+            val gVal = catValues["GIDA"]
+            val dVal = catValues["DOLAP"]
+            val gdVal = catValues["GIDA DIŞI"]
+            listOfNotNull(gVal, dVal, gdVal).forEach { v ->
+                if (v > maxRevenue) maxRevenue = v
+            }
+            val dateObj = Date(ts)
+            val baseShort = shortDateFormat.format(dateObj)
+            val baseFull = fullDateFormat.format(dateObj)
+            val hasMultiOnSameDay = orderedKeys.count { it.dayMillis == key.dayMillis } > 1
+            RevenueTimelineSlot(
+                timestampMillis = ts,
+                shortLabel = if (hasMultiOnSameDay) "$baseShort #${key.seqIndex + 1}" else baseShort,
+                fullDateLabel = if (hasMultiOnSameDay) "$baseFull (${key.seqIndex + 1}. kayıt)" else baseFull,
                 gidaRevenue = gVal,
                 dolapRevenue = dVal,
                 gidaDisiRevenue = gdVal
@@ -236,22 +326,22 @@ fun RevenueAnalyticsTabContent(
         }
 
         RevenueChartDataset(
-            buckets = buckets,
-            totalGida = totalGida,
-            totalDolap = totalDolap,
-            totalGidaDisi = totalGidaDisi,
-            gidaRecordCount = gidaCount,
-            dolapRecordCount = dolapCount,
-            gidaDisiRecordCount = gidaDisiCount,
-            maxAxisValue = calculateNiceMaxAxis(maxPoint)
+            slots = slots,
+            gidaKpi = gidaKpi,
+            dolapKpi = dolapKpi,
+            gidaDisiKpi = gidaDisiKpi,
+            maxAxisValue = calculateNiceMaxAxis(maxRevenue)
         )
     }
 
-    var selectedBucketIndex by remember(dataset.buckets.size) {
+    var selectedSlotIndex by remember(dataset.slots.size) {
         mutableStateOf<Int?>(null)
     }
 
-    val grandTotalRevenue = dataset.totalGida + dataset.totalDolap + dataset.totalGidaDisi
+    // 3 ayrı kategorinin en güncel toplam cirolarının mağaza toplamı
+    val latestCombinedStoreRevenue = dataset.gidaKpi.latestRevenue +
+        dataset.dolapKpi.latestRevenue +
+        dataset.gidaDisiKpi.latestRevenue
 
     LazyColumn(
         modifier = modifier
@@ -260,7 +350,7 @@ fun RevenueAnalyticsTabContent(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 1. ÜST KISIM: 3 PASTEL RENKLİ KÜÇÜK KPI KARTI (GIDA, DOLAP, GIDA DIŞI)
+        // 1. ÜST KISIM: 3 PASTEL RENKLİ KÜÇÜK KPI KARTI (SON CİRO + GÜNLÜK SATIŞ FARKI)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -268,8 +358,7 @@ fun RevenueAnalyticsTabContent(
             ) {
                 RevenueCategoryKpiCard(
                     title = "Gıda",
-                    totalRevenue = dataset.totalGida,
-                    recordCount = dataset.gidaRecordCount,
+                    kpi = dataset.gidaKpi,
                     icon = Icons.Default.Storefront,
                     accentColor = GidaLineColor,
                     titleColor = Color(0xFF166534),
@@ -282,8 +371,7 @@ fun RevenueAnalyticsTabContent(
                 )
                 RevenueCategoryKpiCard(
                     title = "Dolap",
-                    totalRevenue = dataset.totalDolap,
-                    recordCount = dataset.dolapRecordCount,
+                    kpi = dataset.dolapKpi,
                     icon = Icons.Default.Kitchen,
                     accentColor = DolapLineColor,
                     titleColor = Color(0xFF1E40AF),
@@ -296,8 +384,7 @@ fun RevenueAnalyticsTabContent(
                 )
                 RevenueCategoryKpiCard(
                     title = "Gıda Dışı",
-                    totalRevenue = dataset.totalGidaDisi,
-                    recordCount = dataset.gidaDisiRecordCount,
+                    kpi = dataset.gidaDisiKpi,
                     icon = Icons.Default.Inventory2,
                     accentColor = GidaDisiLineColor,
                     titleColor = Color(0xFF9A3412),
@@ -327,7 +414,7 @@ fun RevenueAnalyticsTabContent(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    // Grafik Başlığı + Toplam Ciro Rozeti
+                    // Grafik Başlığı + Güncel Toplam Ciro Rozeti
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -342,20 +429,20 @@ fun RevenueAnalyticsTabContent(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Parçalı envanter ciro seyri (₺)",
+                                text = "Parçalı envanter kümülatif ciro seyri (₺)",
                                 fontSize = 11.5.sp,
                                 color = Slate500
                             )
                         }
 
-                        if (grandTotalRevenue > 0.0) {
+                        if (latestCombinedStoreRevenue > 0.0) {
                             Surface(
                                 shape = RoundedCornerShape(10.dp),
                                 color = Color(0xFFF0FDFA),
                                 border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.3f))
                             ) {
                                 Text(
-                                    text = formatRevenueFullTl(grandTotalRevenue),
+                                    text = formatRevenueFullTl(latestCombinedStoreRevenue),
                                     fontSize = 11.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = TurquoiseDark,
@@ -385,8 +472,7 @@ fun RevenueAnalyticsTabContent(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    if (dataset.buckets.isEmpty()) {
-                        // Boş durum görünümü
+                    if (dataset.slots.isEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -426,23 +512,23 @@ fun RevenueAnalyticsTabContent(
                             )
                         }
                     } else {
-                        // Çoklu Çizgi Grafik (Saf Compose Canvas)
+                        // Çoklu Çizgi + Area Grafik (Saf Compose Canvas)
                         MultiLineRevenueCanvasChart(
-                            buckets = dataset.buckets,
+                            slots = dataset.slots,
                             maxAxisValue = dataset.maxAxisValue,
-                            selectedIndex = selectedBucketIndex,
+                            selectedIndex = selectedSlotIndex,
                             onSelectIndex = { idx ->
-                                selectedBucketIndex = if (selectedBucketIndex == idx) null else idx
+                                selectedSlotIndex = if (selectedSlotIndex == idx) null else idx
                             },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(240.dp)
+                                .height(244.dp)
                                 .testTag("revenue_multi_line_canvas")
                         )
 
                         // Seçili tarih detayı (Grafik üzerine dokunulursa)
-                        val activeBucket = selectedBucketIndex?.let { dataset.buckets.getOrNull(it) }
-                        if (activeBucket != null) {
+                        val activeSlot = selectedSlotIndex?.let { dataset.slots.getOrNull(it) }
+                        if (activeSlot != null) {
                             Spacer(modifier = Modifier.height(10.dp))
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
@@ -456,7 +542,7 @@ fun RevenueAnalyticsTabContent(
                                         .padding(horizontal = 12.dp, vertical = 8.dp)
                                 ) {
                                     Text(
-                                        text = activeBucket.fullDateLabel,
+                                        text = activeSlot.fullDateLabel,
                                         fontSize = 11.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate800
@@ -468,17 +554,17 @@ fun RevenueAnalyticsTabContent(
                                     ) {
                                         SelectedDateValuePill(
                                             label = "Gıda",
-                                            value = activeBucket.gidaRevenue,
+                                            value = activeSlot.gidaRevenue,
                                             color = GidaLineColor
                                         )
                                         SelectedDateValuePill(
                                             label = "Dolap",
-                                            value = activeBucket.dolapRevenue,
+                                            value = activeSlot.dolapRevenue,
                                             color = DolapLineColor
                                         )
                                         SelectedDateValuePill(
                                             label = "Gıda Dışı",
-                                            value = activeBucket.gidaDisiRevenue,
+                                            value = activeSlot.gidaDisiRevenue,
                                             color = GidaDisiLineColor
                                         )
                                     }
@@ -499,11 +585,11 @@ fun RevenueAnalyticsTabContent(
             }
         }
 
-        // 3. DÖNEMSEL KAYIT ÖZETİ (En yeni en üstte, kompakt ve temiz)
-        if (dataset.buckets.isNotEmpty()) {
+        // 3. DÖNEMSEL KAYIT GEÇMİŞİ (En yeni en üstte, her tarihin kümülatif toplam cirosu)
+        if (dataset.slots.isNotEmpty()) {
             item {
-                val recentBuckets = remember(dataset.buckets) {
-                    dataset.buckets.asReversed().take(8)
+                val recentSlots = remember(dataset.slots) {
+                    dataset.slots.asReversed().take(8)
                 }
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -517,20 +603,20 @@ fun RevenueAnalyticsTabContent(
                             .padding(16.dp)
                     ) {
                         Text(
-                            text = "Tarih Bazlı Ciro Özeti",
+                            text = "Tarih Bazlı Ciro Geçmişi",
                             fontSize = 14.5.sp,
                             fontWeight = FontWeight.Bold,
                             color = Slate900
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "Son ${recentBuckets.size} envanter tarihi",
+                            text = "Son ${recentSlots.size} parçalı envanter kaydı",
                             fontSize = 11.sp,
                             color = Slate500
                         )
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        recentBuckets.forEachIndexed { idx, bucket ->
+                        recentSlots.forEachIndexed { idx, slot ->
                             if (idx > 0) {
                                 HorizontalDivider(
                                     color = Slate200.copy(alpha = 0.7f),
@@ -538,22 +624,22 @@ fun RevenueAnalyticsTabContent(
                                 )
                             }
                             Column(modifier = Modifier.fillMaxWidth()) {
-                                val dayTotal = (bucket.gidaRevenue ?: 0.0) +
-                                    (bucket.dolapRevenue ?: 0.0) +
-                                    (bucket.gidaDisiRevenue ?: 0.0)
+                                val slotCombined = (slot.gidaRevenue ?: 0.0) +
+                                    (slot.dolapRevenue ?: 0.0) +
+                                    (slot.gidaDisiRevenue ?: 0.0)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = bucket.fullDateLabel,
+                                        text = slot.fullDateLabel,
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = Slate800
                                     )
                                     Text(
-                                        text = formatRevenueFullTl(dayTotal),
+                                        text = formatRevenueFullTl(slotCombined),
                                         fontSize = 12.5.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = TurquoiseDark
@@ -564,13 +650,13 @@ fun RevenueAnalyticsTabContent(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    bucket.gidaRevenue?.let { rev ->
+                                    slot.gidaRevenue?.let { rev ->
                                         CompactCategoryTag("Gıda", rev, GidaLineColor)
                                     }
-                                    bucket.dolapRevenue?.let { rev ->
+                                    slot.dolapRevenue?.let { rev ->
                                         CompactCategoryTag("Dolap", rev, DolapLineColor)
                                     }
-                                    bucket.gidaDisiRevenue?.let { rev ->
+                                    slot.gidaDisiRevenue?.let { rev ->
                                         CompactCategoryTag("G. Dışı", rev, GidaDisiLineColor)
                                     }
                                 }
@@ -586,8 +672,7 @@ fun RevenueAnalyticsTabContent(
 @Composable
 private fun RevenueCategoryKpiCard(
     title: String,
-    totalRevenue: Double,
-    recordCount: Int,
+    kpi: CategoryRevenueKpi,
     icon: ImageVector,
     accentColor: Color,
     titleColor: Color,
@@ -596,7 +681,7 @@ private fun RevenueCategoryKpiCard(
     borderColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val formattedValue = formatRevenueFullTl(totalRevenue)
+    val formattedValue = formatRevenueFullTl(kpi.latestRevenue)
     val valueFontSize = when {
         formattedValue.length <= 8 -> 15.sp
         formattedValue.length <= 11 -> 13.sp
@@ -655,13 +740,50 @@ private fun RevenueCategoryKpiCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = if (recordCount > 0) "$recordCount kayıt" else "Kayıt yok",
-                    fontSize = 10.sp,
-                    color = titleColor.copy(alpha = 0.8f),
-                    maxLines = 1
-                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Günlük Satış / Son Gelişim Farkı (Son Ciro - Önceki Ciro)
+                val dailyDiff = kpi.dailyDiff
+                if (dailyDiff != null) {
+                    val isPositive = dailyDiff > 0.0
+                    val diffTextColor = if (isPositive) PositiveDiffColor else NegativeDiffColor
+                    val diffBadgeBg = if (isPositive) {
+                        Color(0xFF16A34A).copy(alpha = 0.12f)
+                    } else {
+                        Color(0xFFDC2626).copy(alpha = 0.12f)
+                    }
+                    val formattedDiff = formatSignedDiffTl(dailyDiff)
+
+                    Text(
+                        text = "Günlük Satış",
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = titleColor.copy(alpha = 0.78f),
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = diffBadgeBg
+                    ) {
+                        Text(
+                            text = formattedDiff,
+                            fontSize = if (formattedDiff.length <= 9) 10.sp else 9.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = diffTextColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = if (kpi.recordCount > 0) "İlk kayıt" else "Kayıt yok",
+                        fontSize = 10.sp,
+                        color = titleColor.copy(alpha = 0.75f),
+                        maxLines = 1
+                    )
+                }
             }
         }
     }
@@ -748,7 +870,7 @@ private fun CompactCategoryTag(
 
 @Composable
 private fun MultiLineRevenueCanvasChart(
-    buckets: List<RevenueDateBucket>,
+    slots: List<RevenueTimelineSlot>,
     maxAxisValue: Double,
     selectedIndex: Int?,
     onSelectIndex: (Int) -> Unit,
@@ -784,40 +906,41 @@ private fun MultiLineRevenueCanvasChart(
     val yStepCount = 4
 
     Canvas(
-        modifier = modifier.pointerInput(buckets) {
+        modifier = modifier.pointerInput(slots) {
             detectTapGestures { tapOffset ->
-                if (buckets.isEmpty()) return@detectTapGestures
-                val leftPaddingPx = 54.dp.toPx()
+                if (slots.isEmpty()) return@detectTapGestures
+                val leftPaddingPx = 56.dp.toPx()
                 val rightPaddingPx = 14.dp.toPx()
                 val plotWidth = (size.width - leftPaddingPx - rightPaddingPx).coerceAtLeast(1f)
-                if (buckets.size == 1) {
+                if (slots.size == 1) {
                     onSelectIndex(0)
                 } else {
                     val clampedX = (tapOffset.x - leftPaddingPx).coerceIn(0f, plotWidth)
                     val fraction = clampedX / plotWidth
-                    val nearestIndex = (fraction * (buckets.size - 1)).roundToInt()
-                        .coerceIn(0, buckets.lastIndex)
+                    val nearestIndex = (fraction * (slots.size - 1)).roundToInt()
+                        .coerceIn(0, slots.lastIndex)
                     onSelectIndex(nearestIndex)
                 }
             }
         }
     ) {
-        val leftPadding = 54.dp.toPx()
+        val leftPadding = 56.dp.toPx()
         val rightPadding = 14.dp.toPx()
-        val topPadding = 12.dp.toPx()
+        val topPadding = 14.dp.toPx()
         val bottomPadding = 28.dp.toPx()
 
         val plotWidth = (size.width - leftPadding - rightPadding).coerceAtLeast(1f)
         val plotHeight = (size.height - topPadding - bottomPadding).coerceAtLeast(1f)
         val plotBottom = topPadding + plotHeight
+        val safeMaxAxis = maxAxisValue.coerceAtLeast(1.0)
 
         val dashedGridEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
 
-        // 1. Yatay Izgara Çizgileri ve Y Ekseni (₺) Değerleri
+        // 1. Yatay Izgara Çizgileri ve Dinamik Y Ekseni (₺) Ölçeklemesi
         for (step in 0..yStepCount) {
             val fraction = step.toFloat() / yStepCount.toFloat()
             val y = plotBottom - (fraction * plotHeight)
-            val axisValue = maxAxisValue * fraction
+            val axisValue = safeMaxAxis * fraction
 
             drawLine(
                 color = if (step == 0) Slate200 else Slate200.copy(alpha = 0.75f),
@@ -837,22 +960,22 @@ private fun MultiLineRevenueCanvasChart(
             )
         }
 
-        // Yardımcı koordinat dönüştürücüler
+        // Koordinat hesaplayıcılar (çizgilerin ekran dışına taşmasını engelleyen güvenli sınırlar)
         fun xForIndex(index: Int): Float {
-            return if (buckets.size <= 1) {
+            return if (slots.size <= 1) {
                 leftPadding + plotWidth / 2f
             } else {
-                leftPadding + (index.toFloat() / (buckets.size - 1).toFloat()) * plotWidth
+                leftPadding + (index.toFloat() / (slots.size - 1).toFloat()) * plotWidth
             }
         }
 
         fun yForRevenue(revenue: Double): Float {
-            val normalized = (revenue / maxAxisValue).coerceIn(0.0, 1.0).toFloat()
-            return plotBottom - (normalized * plotHeight)
+            val normalized = (revenue / safeMaxAxis).coerceIn(0.0, 1.0).toFloat()
+            return (plotBottom - (normalized * plotHeight)).coerceIn(topPadding, plotBottom)
         }
 
-        // Seçili tarih dikey rehber çizgisi
-        if (selectedIndex != null && selectedIndex in buckets.indices) {
+        // Seçili tarih dikey kılavuz çizgisi
+        if (selectedIndex != null && selectedIndex in slots.indices) {
             val selX = xForIndex(selectedIndex)
             drawLine(
                 color = TurquoisePrimary.copy(alpha = 0.45f),
@@ -863,19 +986,17 @@ private fun MultiLineRevenueCanvasChart(
             )
         }
 
-        // 2. X Ekseni Tarih Etiketleri (Çakışmayı önlemek için en fazla 5 etiket)
+        // 2. X Ekseni Tarih Etiketleri: Çakışmayı önlemek için yalnızca ilk, orta ve son tarih
         val labelIndices = buildSet {
-            if (buckets.size <= 5) {
-                for (i in buckets.indices) add(i)
-            } else {
-                val maxLabels = 5
-                for (slot in 0 until maxLabels) {
-                    val idx = ((slot.toFloat() / (maxLabels - 1).toFloat()) * (buckets.size - 1)).roundToInt()
-                    add(idx.coerceIn(0, buckets.lastIndex))
+            when {
+                slots.size <= 3 -> {
+                    for (i in slots.indices) add(i)
                 }
-            }
-            if (selectedIndex != null && selectedIndex in buckets.indices) {
-                add(selectedIndex)
+                else -> {
+                    add(0)
+                    add(slots.size / 2)
+                    add(slots.lastIndex)
+                }
             }
         }
 
@@ -883,7 +1004,7 @@ private fun MultiLineRevenueCanvasChart(
             val x = xForIndex(idx)
             val isSelected = idx == selectedIndex
             val measured = textMeasurer.measure(
-                text = buckets[idx].shortLabel,
+                text = slots[idx].shortLabel,
                 style = if (isSelected) selectedXAxisTextStyle else xAxisTextStyle
             )
             val textX = (x - measured.size.width / 2f)
@@ -895,20 +1016,47 @@ private fun MultiLineRevenueCanvasChart(
             )
         }
 
-        // 3. Çoklu Seri Çizimi (Gıda = Yeşil, Dolap = Mavi, Gıda Dışı = Turuncu)
-        fun drawCategorySeries(
-            color: Color,
-            selector: (RevenueDateBucket) -> Double?
-        ) {
-            val points = mutableListOf<Pair<Int, Offset>>()
-            buckets.forEachIndexed { idx, bucket ->
-                val value = selector(bucket)
-                if (value != null) {
-                    points.add(idx to Offset(xForIndex(idx), yForRevenue(value)))
-                }
+        // 3. Her kategori için (x, y) noktalarını hazırla
+        val seriesConfigs = listOf(
+            GidaLineColor to slots.mapIndexedNotNull { idx, slot ->
+                slot.gidaRevenue?.let { rev -> idx to Offset(xForIndex(idx), yForRevenue(rev)) }
+            },
+            DolapLineColor to slots.mapIndexedNotNull { idx, slot ->
+                slot.dolapRevenue?.let { rev -> idx to Offset(xForIndex(idx), yForRevenue(rev)) }
+            },
+            GidaDisiLineColor to slots.mapIndexedNotNull { idx, slot ->
+                slot.gidaDisiRevenue?.let { rev -> idx to Offset(xForIndex(idx), yForRevenue(rev)) }
             }
-            if (points.isEmpty()) return
+        )
 
+        // 3a. Area Chart Dolgusu (hafif alpha = 0.1f saydamlık)
+        seriesConfigs.forEach { (color, points) ->
+            if (points.size >= 2) {
+                val areaPath = Path().apply {
+                    moveTo(points.first().second.x, plotBottom)
+                    points.forEach { (_, pt) ->
+                        lineTo(pt.x, pt.y)
+                    }
+                    lineTo(points.last().second.x, plotBottom)
+                    close()
+                }
+                drawPath(
+                    path = areaPath,
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            color.copy(alpha = 0.12f),
+                            color.copy(alpha = 0.01f)
+                        ),
+                        startY = topPadding,
+                        endY = plotBottom
+                    )
+                )
+            }
+        }
+
+        // 3b. Noktaları Birleştiren Çizgiler (Path + moveTo / lineTo + 3.dp Stroke)
+        val lineStrokeWidth = 3.dp.toPx()
+        seriesConfigs.forEach { (color, points) ->
             if (points.size >= 2) {
                 val linePath = Path().apply {
                     moveTo(points.first().second.x, points.first().second.y)
@@ -920,20 +1068,22 @@ private fun MultiLineRevenueCanvasChart(
                     path = linePath,
                     color = color,
                     style = Stroke(
-                        width = 2.6.dp.toPx(),
+                        width = lineStrokeWidth,
                         cap = StrokeCap.Round,
                         join = StrokeJoin.Round
                     )
                 )
             }
+        }
 
-            // Çizgi birleşim noktalarına küçük yuvarlak noktalar (dot)
-            val outerDotRadius = 4.8.dp.toPx()
-            val innerDotRadius = 3.2.dp.toPx()
+        // 3c. Birleşim Noktalarına Yuvarlak Noktalar (Dot)
+        val outerDotRadius = 5.dp.toPx()
+        val innerDotRadius = 3.4.dp.toPx()
+        seriesConfigs.forEach { (color, points) ->
             points.forEach { (idx, center) ->
                 val isSelected = idx == selectedIndex
-                val haloRadius = if (isSelected) 6.5.dp.toPx() else outerDotRadius
-                val coreRadius = if (isSelected) 4.4.dp.toPx() else innerDotRadius
+                val haloRadius = if (isSelected) 6.8.dp.toPx() else outerDotRadius
+                val coreRadius = if (isSelected) 4.6.dp.toPx() else innerDotRadius
                 drawCircle(
                     color = Color.White,
                     radius = haloRadius,
@@ -946,9 +1096,5 @@ private fun MultiLineRevenueCanvasChart(
                 )
             }
         }
-
-        drawCategorySeries(GidaLineColor) { it.gidaRevenue }
-        drawCategorySeries(DolapLineColor) { it.dolapRevenue }
-        drawCategorySeries(GidaDisiLineColor) { it.gidaDisiRevenue }
     }
 }
