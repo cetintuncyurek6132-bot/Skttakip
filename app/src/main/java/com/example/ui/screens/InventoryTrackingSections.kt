@@ -154,8 +154,7 @@ fun CombinedStoreInventoryCard(
     val hasCombinedRatio = summary.hasData && summary.combinedRatio != null
     val isCombinedOverTarget = hasCombinedRatio && (summary.combinedRatio ?: 0.0) > combinedTargetRatio
     val isContinuousOverTarget = summary.continuousRatio != null && summary.continuousRatio > continuousTargetRatio
-    val hasCategoryOverTarget = (summary.worstDeviationCategory?.absoluteGap ?: 0.0) > 0.0
-    val isSystemRisky = hasCombinedRatio && (isCombinedOverTarget || isContinuousOverTarget || hasCategoryOverTarget)
+    val isSystemRisky = isCombinedOverTarget
 
     val cardBg = Color.White
     val cardBorder = Slate200
@@ -240,33 +239,39 @@ fun CombinedStoreInventoryCard(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Mağaza Birleşik Envanteri",
-                        fontSize = 14.sp,
+                        text = "Birleşik Envanter",
+                        fontSize = 14.5.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Slate900,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .weight(1f, fill = false)
+                            .testTag("combined_store_title")
                     )
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = statusChipBg,
-                        border = BorderStroke(0.8.dp, statusChipBorder)
+                        border = BorderStroke(0.8.dp, statusChipBorder),
+                        modifier = Modifier.testTag("combined_store_status_badge")
                     ) {
                         Text(
                             text = statusChipText,
-                            fontSize = 10.5.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.ExtraBold,
                             color = statusChipTextColor,
                             maxLines = 1,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
+                            softWrap = false,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
                         )
                     }
 

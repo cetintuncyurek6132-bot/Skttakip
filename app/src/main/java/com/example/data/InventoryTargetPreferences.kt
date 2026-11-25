@@ -18,8 +18,9 @@ object InventoryTargetPreferences {
         val stored = getPrefs(context).getFloat(
             KEY_STORE_COMBINED_TARGET,
             DEFAULT_STORE_COMBINED_TARGET.toFloat()
-        ).toDouble()
-        return if (stored > 0.0) stored else DEFAULT_STORE_COMBINED_TARGET
+        )
+        val exact = stored.toString().toDoubleOrNull() ?: stored.toDouble()
+        return if (exact > 0.0) exact else DEFAULT_STORE_COMBINED_TARGET
     }
 
     fun setStoreCombinedTargetRatio(context: Context, ratio: Double) {
@@ -33,8 +34,9 @@ object InventoryTargetPreferences {
         val stored = getPrefs(context).getFloat(
             KEY_CONTINUOUS_TOTAL_TARGET,
             DEFAULT_CONTINUOUS_TOTAL_TARGET.toFloat()
-        ).toDouble()
-        return if (stored > 0.0) stored else DEFAULT_CONTINUOUS_TOTAL_TARGET
+        )
+        val exact = stored.toString().toDoubleOrNull() ?: stored.toDouble()
+        return if (exact > 0.0) exact else DEFAULT_CONTINUOUS_TOTAL_TARGET
     }
 
     fun setContinuousTotalTargetRatio(context: Context, ratio: Double) {

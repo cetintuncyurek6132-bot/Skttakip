@@ -72,6 +72,7 @@ fun AnalyticsScreen(
     revenueAudits: List<InventoryAuditEntity> = emptyList(),
     onProductClick: (Product) -> Unit = {},
     onApplyYellowTag: (Product) -> Unit = {},
+    onDeleteRevenueAudit: (InventoryAuditEntity) -> Unit = {},
     onNavigateToInventory: () -> Unit = {},
     onBackClick: () -> Unit
 ) {
@@ -378,6 +379,7 @@ fun AnalyticsScreen(
         if (selectedTabIndex == 0) {
             RevenueAnalyticsTabContent(
                 revenueAudits = revenueAudits,
+                onDeleteRevenueAudit = onDeleteRevenueAudit,
                 modifier = Modifier.fillMaxSize()
             )
         } else {

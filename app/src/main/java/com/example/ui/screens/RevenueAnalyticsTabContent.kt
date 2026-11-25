@@ -1,5 +1,6 @@
 package com.example.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,23 +19,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Kitchen
-import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +64,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -63,7 +75,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.InventoryAuditEntity
+import com.example.ui.components.AllRevenueHistoryModal
 import com.example.ui.components.AutoSizeMetricText
+import com.example.ui.components.RevenueHistoryItem
+import com.example.ui.theme.ExpiredRed
+import com.example.ui.theme.ExpiredRedContainer
+import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate200
 import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate500
@@ -71,9 +88,15 @@ import com.example.ui.theme.Slate700
 import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
+import com.example.ui.theme.TurquoiseLight
 import com.example.ui.theme.TurquoisePrimary
 import com.example.ui.viewmodel.PERIODIC_AUDIT_CATEGORIES
+import com.example.ui.viewmodel.calculateCalendarDaysBetween
+import com.example.ui.viewmodel.calculateDailyAverageSales
+import com.example.ui.viewmodel.chronologicalAuditComparator
 import com.example.ui.viewmodel.normalizeInventoryCategoryKey
+import com.example.ui.viewmodel.resolveAuditRecordTimestamp
+import com.example.ui.viewmodel.shouldUseAuditDateDirectly
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -99,7 +122,8 @@ private enum class RevenueChartMode {
 
 private data class CategoryRevenueKpi(
     val latestRevenue: Double,
-    val dailyDiff: Double?, // Son Ciro - Önceki Ciro (Önceki kayıt yoksa null)
+    val dailyDiff: Double?, // (Son Ciro - Önceki Ciro) / gecenGun
+    val daysBetween: Long,
     val recordCount: Int
 )
 
@@ -115,6 +139,7 @@ private data class RevenueTimelineSlot(
 private data class RevenueChartDataset(
     val totalSlots: List<RevenueTimelineSlot>,
     val dailySlots: List<RevenueTimelineSlot>,
+    val historyItems: List<RevenueHistoryItem>,
     val gidaKpi: CategoryRevenueKpi,
     val dolapKpi: CategoryRevenueKpi,
     val gidaDisiKpi: CategoryRevenueKpi,
@@ -133,32 +158,15 @@ private fun normalizeToDayStartMillis(millis: Long): Long {
     return cal.timeInMillis
 }
 
-private fun resolveEntryTimestamp(
-    audit: InventoryAuditEntity,
-    useAuditDateDirectly: Boolean
-): Long {
-    return if (useAuditDateDirectly) {
-        when {
-            audit.auditDateMillis > 0L -> audit.auditDateMillis
-            audit.updatedAt > 0L -> audit.updatedAt
-            else -> audit.createdAt
-        }
-    } else {
-        when {
-            audit.updatedAt > 0L -> audit.updatedAt
-            audit.createdAt > 0L -> audit.createdAt
-            else -> audit.auditDateMillis
-        }
-    }
-}
-
 private fun computeCategoryKpi(
-    chronologicalAudits: List<InventoryAuditEntity>
+    chronologicalAudits: List<InventoryAuditEntity>,
+    useAuditDateDirectly: Boolean
 ): CategoryRevenueKpi {
     if (chronologicalAudits.isEmpty()) {
         return CategoryRevenueKpi(
             latestRevenue = 0.0,
             dailyDiff = null,
+            daysBetween = 1L,
             recordCount = 0
         )
     }
@@ -170,12 +178,19 @@ private fun computeCategoryKpi(
     } else {
         null
     }
-    val diff = previous?.let { prev ->
-        latestRev - prev.revenue.coerceAtLeast(0.0)
+    val (dailyAvg, days) = if (previous != null) {
+        calculateDailyAverageSales(
+            previousRecord = previous,
+            currentRecord = latest,
+            useAuditDateDirectly = useAuditDateDirectly
+        )
+    } else {
+        null to 1L
     }
     return CategoryRevenueKpi(
         latestRevenue = latestRev,
-        dailyDiff = diff,
+        dailyDiff = dailyAvg,
+        daysBetween = days,
         recordCount = chronologicalAudits.size
     )
 }
@@ -245,11 +260,15 @@ private fun formatRevenueAxisTl(amount: Double): String {
 @Composable
 fun RevenueAnalyticsTabContent(
     revenueAudits: List<InventoryAuditEntity>,
+    onDeleteRevenueAudit: (InventoryAuditEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val trLocale = remember { Locale.forLanguageTag("tr-TR") }
     val shortDateFormat = remember { SimpleDateFormat("dd MMM", trLocale) }
     val fullDateFormat = remember { SimpleDateFormat("dd MMM yyyy", trLocale) }
+    var showAllHistoryModal by rememberSaveable { mutableStateOf(false) }
+    var pendingDeleteItem by remember { mutableStateOf<RevenueHistoryItem?>(null) }
 
     // SADECE GIDA, DOLAP ve GIDA DIŞI kayıtları (Sürekli Envanter kategorileri kesinlikle hariç)
     val dataset = remember(revenueAudits) {
@@ -257,47 +276,39 @@ fun RevenueAnalyticsTabContent(
             normalizeInventoryCategoryKey(it.category) in PERIODIC_AUDIT_CATEGORIES
         }
 
-        // auditDateMillis birden fazla farklı güne sahipse (örn: 16 Kasım, 17 Kasım) doğrudan auditDateMillis kullanılır;
-        // Parçalı Envanter haftalık akışında tüm kayıtlar tek dönem başlangıç tarihine sabitlenmişse updatedAt kullanılır.
-        val distinctAuditDays = strictPeriodic
-            .map { normalizeToDayStartMillis(it.auditDateMillis) }
-            .distinct()
-            .size
-        val distinctUpdateDays = strictPeriodic
-            .map { normalizeToDayStartMillis(if (it.updatedAt > 0L) it.updatedAt else it.createdAt) }
-            .distinct()
-            .size
-        val useAuditDateDirectly = distinctAuditDays > 1 && distinctAuditDays >= distinctUpdateDays
+        val rawGida = strictPeriodic.filter { normalizeInventoryCategoryKey(it.category) == "GIDA" }
+        val rawDolap = strictPeriodic.filter { normalizeInventoryCategoryKey(it.category) == "DOLAP" }
+        val rawGidaDisi = strictPeriodic.filter { normalizeInventoryCategoryKey(it.category) == "GIDA DIŞI" }
 
-        val sortedAll = strictPeriodic.sortedWith(
-            compareBy<InventoryAuditEntity> { resolveEntryTimestamp(it, useAuditDateDirectly) }
-                .thenBy { it.auditDateMillis }
-                .thenBy { it.updatedAt }
-                .thenBy { it.createdAt }
-                .thenBy { it.id }
-        )
+        val useAuditDateGida = shouldUseAuditDateDirectly(rawGida)
+        val useAuditDateDolap = shouldUseAuditDateDirectly(rawDolap)
+        val useAuditDateGidaDisi = shouldUseAuditDateDirectly(rawGidaDisi)
 
-        val gidaAudits = sortedAll.filter { normalizeInventoryCategoryKey(it.category) == "GIDA" }
-        val dolapAudits = sortedAll.filter { normalizeInventoryCategoryKey(it.category) == "DOLAP" }
-        val gidaDisiAudits = sortedAll.filter { normalizeInventoryCategoryKey(it.category) == "GIDA DIŞI" }
+        val gidaAudits = rawGida.sortedWith(chronologicalAuditComparator(useAuditDateGida))
+        val dolapAudits = rawDolap.sortedWith(chronologicalAuditComparator(useAuditDateDolap))
+        val gidaDisiAudits = rawGidaDisi.sortedWith(chronologicalAuditComparator(useAuditDateGidaDisi))
 
-        // 1 & 2) KPI Kartları: sumOf KULLANMADAN en son girilen toplam ciro ve (Son - Önceki) günlük satış farkı
-        val gidaKpi = computeCategoryKpi(gidaAudits)
-        val dolapKpi = computeCategoryKpi(dolapAudits)
-        val gidaDisiKpi = computeCategoryKpi(gidaDisiAudits)
+        // 1 & 2) KPI Kartları: sumOf KULLANMADAN en son girilen toplam ciro ve gerçek gün farkına bölünmüş günlük ortalama satış
+        val gidaKpi = computeCategoryKpi(gidaAudits, useAuditDateGida)
+        val dolapKpi = computeCategoryKpi(dolapAudits, useAuditDateDolap)
+        val gidaDisiKpi = computeCategoryKpi(gidaDisiAudits, useAuditDateGidaDisi)
 
         // 3) Grafik Slotları:
         //    - Toplam Ciro: Her kaydın kendi kümülatif toplam cirosu (toplama yapmadan)
-        //    - Günlük Satış: Her kategori için ayrı ayrı (Mevcut Ciro - Önceki Ciro), ilk kayıt 0 ve negatifler 0'a sabitlenir
+        //    - Günlük Satış: Her kategori için ayrı ayrı (Mevcut Ciro - Önceki Ciro) / gecenGun
         data class SlotKey(val dayMillis: Long, val seqIndex: Int)
 
         val totalSlotMap = linkedMapOf<SlotKey, Triple<Long, MutableMap<String, Double>, Long>>()
         val dailySlotMap = linkedMapOf<SlotKey, Triple<Long, MutableMap<String, Double>, Long>>()
 
-        fun addSeriesToSlots(categoryKey: String, items: List<InventoryAuditEntity>) {
+        fun addSeriesToSlots(
+            categoryKey: String,
+            items: List<InventoryAuditEntity>,
+            useAuditDateDirectly: Boolean
+        ) {
             val perDayCounter = mutableMapOf<Long, Int>()
             items.forEachIndexed { idx, audit ->
-                val ts = resolveEntryTimestamp(audit, useAuditDateDirectly)
+                val ts = resolveAuditRecordTimestamp(audit, useAuditDateDirectly)
                 val dayStart = normalizeToDayStartMillis(ts)
                 val seq = perDayCounter[dayStart] ?: 0
                 perDayCounter[dayStart] = seq + 1
@@ -307,8 +318,11 @@ fun RevenueAnalyticsTabContent(
                 val dailyDelta = if (idx == 0) {
                     0.0
                 } else {
-                    val prevRev = items[idx - 1].revenue.coerceAtLeast(0.0)
-                    (currentRev - prevRev).coerceAtLeast(0.0)
+                    val prevRecord = items[idx - 1]
+                    val prevTs = resolveAuditRecordTimestamp(prevRecord, useAuditDateDirectly)
+                    val gecenGun = calculateCalendarDaysBetween(prevTs, ts)
+                    val farkCiro = currentRev - prevRecord.revenue.coerceAtLeast(0.0)
+                    (farkCiro / gecenGun.toDouble()).coerceAtLeast(0.0)
                 }
 
                 val totalEntry = totalSlotMap.getOrPut(key) {
@@ -323,9 +337,9 @@ fun RevenueAnalyticsTabContent(
             }
         }
 
-        addSeriesToSlots("GIDA", gidaAudits)
-        addSeriesToSlots("DOLAP", dolapAudits)
-        addSeriesToSlots("GIDA DIŞI", gidaDisiAudits)
+        addSeriesToSlots("GIDA", gidaAudits, useAuditDateGida)
+        addSeriesToSlots("DOLAP", dolapAudits, useAuditDateDolap)
+        addSeriesToSlots("GIDA DIŞI", gidaDisiAudits, useAuditDateGidaDisi)
 
         val orderedKeys = totalSlotMap.keys.sortedWith(
             compareBy<SlotKey> { it.dayMillis }.thenBy { it.seqIndex }
@@ -378,9 +392,78 @@ fun RevenueAnalyticsTabContent(
             )
         }
 
+        val historyItems = buildList {
+            fun appendCategoryHistory(
+                categoryKey: String,
+                categoryLabel: String,
+                categoryColor: Color,
+                categoryBgColor: Color,
+                items: List<InventoryAuditEntity>,
+                useAuditDateDirectly: Boolean
+            ) {
+                items.forEachIndexed { idx, audit ->
+                    val ts = resolveAuditRecordTimestamp(audit, useAuditDateDirectly)
+                    val currentRev = audit.revenue.coerceAtLeast(0.0)
+                    val dailyDelta = if (idx == 0) {
+                        null
+                    } else {
+                        val prevRecord = items[idx - 1]
+                        val prevTs = resolveAuditRecordTimestamp(prevRecord, useAuditDateDirectly)
+                        val gecenGun = calculateCalendarDaysBetween(prevTs, ts)
+                        val farkCiro = currentRev - prevRecord.revenue.coerceAtLeast(0.0)
+                        (farkCiro / gecenGun.toDouble()).coerceAtLeast(0.0)
+                    }
+                    add(
+                        RevenueHistoryItem(
+                            audit = audit,
+                            categoryKey = categoryKey,
+                            categoryLabel = categoryLabel,
+                            categoryColor = categoryColor,
+                            categoryBgColor = categoryBgColor,
+                            timestampMillis = ts,
+                            formattedDate = fullDateFormat.format(Date(ts)),
+                            totalRevenue = currentRev,
+                            dailySales = dailyDelta
+                        )
+                    )
+                }
+            }
+
+            appendCategoryHistory(
+                categoryKey = "GIDA",
+                categoryLabel = "Gıda",
+                categoryColor = GidaLineColor,
+                categoryBgColor = Color(0xFFDCFCE7),
+                items = gidaAudits,
+                useAuditDateDirectly = useAuditDateGida
+            )
+            appendCategoryHistory(
+                categoryKey = "DOLAP",
+                categoryLabel = "Dolap",
+                categoryColor = DolapLineColor,
+                categoryBgColor = Color(0xFFDBEAFE),
+                items = dolapAudits,
+                useAuditDateDirectly = useAuditDateDolap
+            )
+            appendCategoryHistory(
+                categoryKey = "GIDA DIŞI",
+                categoryLabel = "Gıda Dışı",
+                categoryColor = GidaDisiLineColor,
+                categoryBgColor = Color(0xFFFFEDD5),
+                items = gidaDisiAudits,
+                useAuditDateDirectly = useAuditDateGidaDisi
+            )
+        }.sortedWith(
+            compareByDescending<RevenueHistoryItem> { it.timestampMillis }
+                .thenByDescending { it.audit.updatedAt }
+                .thenByDescending { it.audit.createdAt }
+                .thenByDescending { it.audit.id }
+        )
+
         RevenueChartDataset(
             totalSlots = totalSlots,
             dailySlots = dailySlots,
+            historyItems = historyItems,
             gidaKpi = gidaKpi,
             dolapKpi = dolapKpi,
             gidaDisiKpi = gidaDisiKpi,
@@ -494,7 +577,7 @@ fun RevenueAnalyticsTabContent(
                     val chartSubtitle = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
                         "Parçalı envanter kümülatif ciro seyri (₺)"
                     } else {
-                        "Kayıtlar arası günlük satış artışı (₺)"
+                        "Kayıtlar arası günlük ortalama satış (₺/gün)"
                     }
                     val badgeAmount = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
                         latestCombinedStoreRevenue
@@ -631,7 +714,7 @@ fun RevenueAnalyticsTabContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ShowChart,
+                                    imageVector = Icons.AutoMirrored.Filled.ShowChart,
                                     contentDescription = "Ciro verisi yok",
                                     tint = TurquoisePrimary,
                                     modifier = Modifier.size(26.dp)
@@ -732,14 +815,19 @@ fun RevenueAnalyticsTabContent(
             }
         }
 
-        // 3. DÖNEMSEL KAYIT GEÇMİŞİ (Seçili moda göre kümülatif toplam ciro veya günlük satış)
-        if (activeSlots.isNotEmpty()) {
+        // 3. SATIŞ GEÇMİŞİ (Ana sayfada en fazla son 5 kayıt + "Tüm Geçmişi Gör" butonu)
+        if (dataset.historyItems.isNotEmpty()) {
             item {
-                val recentSlots = remember(activeSlots) {
-                    activeSlots.asReversed().take(8)
+                val recentHistory = remember(dataset.historyItems) {
+                    dataset.historyItems.take(5)
                 }
+                val totalRecordCount = dataset.historyItems.size
+                val showDailyMode = chartMode == RevenueChartMode.DAILY_SALES
+
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("revenue_sales_history_card"),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Slate200)
@@ -749,67 +837,223 @@ fun RevenueAnalyticsTabContent(
                             .fillMaxWidth()
                             .padding(16.dp)
                     ) {
-                        Text(
-                            text = if (chartMode == RevenueChartMode.TOTAL_REVENUE) {
-                                "Tarih Bazlı Toplam Ciro Geçmişi"
-                            } else {
-                                "Tarih Bazlı Günlük Satış Geçmişi"
-                            },
-                            fontSize = 14.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = "Son ${recentSlots.size} parçalı envanter kaydı",
-                            fontSize = 11.sp,
-                            color = Slate500
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        recentSlots.forEachIndexed { idx, slot ->
-                            if (idx > 0) {
-                                HorizontalDivider(
-                                    color = Slate200.copy(alpha = 0.7f),
-                                    modifier = Modifier.padding(vertical = 8.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Satış Geçmişi",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Slate900,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (totalRecordCount > 5) {
+                                        "Son 5 kayıt gösteriliyor (Toplam $totalRecordCount)"
+                                    } else {
+                                        "Son $totalRecordCount ciro kaydı"
+                                    },
+                                    fontSize = 11.5.sp,
+                                    color = Slate500,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                val slotCombined = (slot.gidaRevenue ?: 0.0) +
-                                    (slot.dolapRevenue ?: 0.0) +
-                                    (slot.gidaDisiRevenue ?: 0.0)
+
+                            Surface(
+                                color = TurquoiseLight.copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text(
+                                    text = if (showDailyMode) "Günlük Satış" else "Toplam Ciro",
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TurquoiseDark,
+                                    maxLines = 1,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(10.dp))
+                        HorizontalDivider(color = Slate100, thickness = 1.dp)
+
+                        recentHistory.forEachIndexed { idx, historyItem ->
+                            if (idx > 0) {
+                                HorizontalDivider(
+                                    color = Slate100,
+                                    thickness = 1.dp
+                                )
+                            }
+
+                            val displayAmount = if (showDailyMode && historyItem.dailySales != null) {
+                                historyItem.dailySales
+                            } else {
+                                historyItem.totalRevenue
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 10.dp)
+                                    .testTag("revenue_history_row_${historyItem.audit.id}"),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Surface(
+                                            color = historyItem.categoryBgColor,
+                                            shape = RoundedCornerShape(7.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(6.dp)
+                                                        .clip(CircleShape)
+                                                        .background(historyItem.categoryColor)
+                                                )
+                                                Text(
+                                                    text = historyItem.categoryLabel,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = historyItem.categoryColor,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+
+                                        Text(
+                                            text = historyItem.formattedDate,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Slate700,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    if (historyItem.audit.notes.isNotBlank()) {
+                                        Text(
+                                            text = historyItem.audit.notes.trim(),
+                                            fontSize = 11.sp,
+                                            color = Slate500,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.width(8.dp))
+
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        AutoSizeMetricText(
+                                            text = if (showDailyMode && historyItem.dailySales != null) {
+                                                "+${formatRevenueFullTl(displayAmount)}"
+                                            } else {
+                                                formatRevenueFullTl(displayAmount)
+                                            },
+                                            maxFontSize = 14.sp,
+                                            minFontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = TurquoiseDark
+                                        )
+                                        if (showDailyMode && historyItem.dailySales != null) {
+                                            Text(
+                                                text = "Top: ${formatRevenueFullTl(historyItem.totalRevenue)}",
+                                                fontSize = 9.5.sp,
+                                                color = Slate500,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = { pendingDeleteItem = historyItem },
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .testTag("delete_revenue_audit_${historyItem.audit.id}")
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(32.dp)
+                                                .clip(CircleShape)
+                                                .background(ExpiredRedContainer.copy(alpha = 0.55f)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.DeleteOutline,
+                                                contentDescription = "Kaydı Sil",
+                                                tint = ExpiredRed,
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if (totalRecordCount > 5) {
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Surface(
+                                onClick = { showAllHistoryModal = true },
+                                shape = RoundedCornerShape(12.dp),
+                                color = TurquoiseLight.copy(alpha = 0.55f),
+                                border = BorderStroke(1.dp, TurquoisePrimary.copy(alpha = 0.35f)),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .defaultMinSize(minHeight = 48.dp)
+                                    .testTag("view_all_revenue_history_button")
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = slot.fullDateLabel,
-                                        fontSize = 12.5.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Slate800
+                                    Icon(
+                                        imageVector = Icons.Default.History,
+                                        contentDescription = null,
+                                        tint = TurquoiseDark,
+                                        modifier = Modifier.size(18.dp)
                                     )
+                                    Spacer(modifier = Modifier.width(8.dp))
                                     Text(
-                                        text = formatRevenueFullTl(slotCombined),
-                                        fontSize = 12.5.sp,
+                                        text = "Tüm Geçmişi Gör ($totalRecordCount Kayıt)",
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = TurquoiseDark
+                                        color = TurquoiseDark,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
-                                }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    slot.gidaRevenue?.let { rev ->
-                                        CompactCategoryTag("Gıda", rev, GidaLineColor)
-                                    }
-                                    slot.dolapRevenue?.let { rev ->
-                                        CompactCategoryTag("Dolap", rev, DolapLineColor)
-                                    }
-                                    slot.gidaDisiRevenue?.let { rev ->
-                                        CompactCategoryTag("G. Dışı", rev, GidaDisiLineColor)
-                                    }
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = null,
+                                        tint = TurquoiseDark,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                 }
                             }
                         }
@@ -817,6 +1061,58 @@ fun RevenueAnalyticsTabContent(
                 }
             }
         }
+    }
+
+    if (showAllHistoryModal) {
+        AllRevenueHistoryModal(
+            items = dataset.historyItems,
+            showDailySales = chartMode == RevenueChartMode.DAILY_SALES,
+            onDeleteRequest = { item -> pendingDeleteItem = item },
+            onDismiss = { showAllHistoryModal = false }
+        )
+    }
+
+    pendingDeleteItem?.let { itemToDelete ->
+        AlertDialog(
+            onDismissRequest = { pendingDeleteItem = null },
+            containerColor = Color.White,
+            title = {
+                Text(
+                    text = "Ciro Kaydını Sil",
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
+            },
+            text = {
+                Text(
+                    text = "${itemToDelete.categoryLabel} • ${itemToDelete.formattedDate} tarihli ${formatRevenueFullTl(itemToDelete.totalRevenue)} tutarındaki ciro kaydını silmek istediğinize emin misiniz?",
+                    color = Slate700,
+                    fontSize = 13.5.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onDeleteRevenueAudit(itemToDelete.audit)
+                        pendingDeleteItem = null
+                        Toast.makeText(context, "Ciro kaydı silindi", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = ExpiredRed),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.testTag("confirm_delete_revenue_audit")
+                ) {
+                    Text("Sil", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { pendingDeleteItem = null },
+                    modifier = Modifier.testTag("cancel_delete_revenue_audit")
+                ) {
+                    Text("Vazgeç", color = Slate700, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
     }
 }
 
@@ -906,7 +1202,11 @@ private fun RevenueCategoryKpiCard(
                     val formattedDiff = formatSignedDiffTl(dailyDiff)
 
                     Text(
-                        text = "Günlük Satış",
+                        text = if (kpi.daysBetween > 1L) {
+                            "Günlük Ort. (${kpi.daysBetween}g)"
+                        } else {
+                            "Günlük Satış"
+                        },
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Medium,
                         color = titleColor.copy(alpha = 0.78f),
@@ -992,30 +1292,6 @@ private fun SelectedDateValuePill(
             fontSize = 11.5.sp,
             fontWeight = FontWeight.Bold,
             color = if (value != null) Slate900 else Slate400
-        )
-    }
-}
-
-@Composable
-private fun CompactCategoryTag(
-    label: String,
-    amount: Double,
-    color: Color
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(
-            modifier = Modifier
-                .size(6.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(color)
-        )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(
-            text = "$label: ${formatRevenueAxisTl(amount)}",
-            fontSize = 10.5.sp,
-            fontWeight = FontWeight.Medium,
-            color = Slate700,
-            maxLines = 1
         )
     }
 }

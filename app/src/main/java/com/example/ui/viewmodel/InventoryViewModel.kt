@@ -90,10 +90,10 @@ fun normalizeInventoryCategoryKey(rawCategory: String): String {
         "GIDA", "GİDA" -> "GIDA"
         "DOLAP" -> "DOLAP"
         "GIDA DIŞI", "GİDA DIŞI", "GIDA DISI", "GIDA_DIŞI", "GIDA_DISI" -> "GIDA DIŞI"
-        "ET-TAVUK", "ET_TAVUK" -> "ET_TAVUK"
+        "ET-TAVUK", "ET_TAVUK", "ET TAVUK" -> "ET_TAVUK"
         "EKMEK" -> "EKMEK"
-        "MEYVE-SEBZE", "MEYVE_SEBZE" -> "MEYVE_SEBZE"
-        "DONUK MEYVE-SEBZE", "DONUK_MEYVE_SEBZE" -> "DONUK_MEYVE_SEBZE"
+        "MEYVE-SEBZE", "MEYVE_SEBZE", "MEYVE SEBZE" -> "MEYVE_SEBZE"
+        "DONUK", "DONUK MEYVE-SEBZE", "DONUK_MEYVE_SEBZE", "DONUK MEYVE SEBZE" -> "DONUK_MEYVE_SEBZE"
         else -> upper
     }
 }
@@ -113,11 +113,13 @@ fun isContinuousAuditCategory(rawCategory: String): Boolean {
 }
 
 fun computeCombinedInventorySummary(
-    auditsList: List<InventoryAuditEntity>
+    auditsList: List<InventoryAuditEntity>,
+    combinedTargetRatio: Double? = null
 ): CombinedInventorySummary {
     val latestComparator = compareByDescending<InventoryAuditEntity> { it.updatedAt }
         .thenByDescending { it.auditDateMillis }
         .thenByDescending { it.createdAt }
+        .thenByDescending { it.id }
 
     val latestByNormalizedCategory = auditsList
         .groupBy { normalizeInventoryCategoryKey(it.category) }
@@ -184,7 +186,8 @@ fun computeCombinedInventorySummary(
         .maxWithOrNull(compareBy<CategoryDeviationInfo> { it.relativeExceedPercent }.thenBy { it.absoluteGap })
         ?: deviations.maxWithOrNull(compareBy<CategoryDeviationInfo> { it.relativeExceedPercent }.thenBy { it.actualRatio })
 
-    val isOverTarget = combinedRatio != null && combinedRatio > weightedTargetRatio
+    val effectiveTargetRatio = combinedTargetRatio?.takeIf { it > 0.0 } ?: weightedTargetRatio
+    val isOverTarget = combinedRatio != null && combinedRatio > effectiveTargetRatio
 
     return CombinedInventorySummary(
         totalRevenue = totalRevenue,
@@ -266,16 +269,21 @@ class InventoryViewModel(
      */
     val partialRevenueAudits: StateFlow<List<InventoryAuditEntity>> = repository.partialRevenueAudits
         .map { auditsList ->
-            auditsList
+            val strictPeriodic = auditsList
                 .filter { normalizeInventoryCategoryKey(it.category) in PERIODIC_AUDIT_CATEGORIES }
-                .sortedWith(
-                    compareBy<InventoryAuditEntity> {
-                        if (it.updatedAt > 0L) it.updatedAt else if (it.createdAt > 0L) it.createdAt else it.auditDateMillis
-                    }
-                        .thenBy { it.auditDateMillis }
-                        .thenBy { it.createdAt }
-                        .thenBy { it.id }
-                )
+            val useAuditDateByCat = strictPeriodic
+                .groupBy { normalizeInventoryCategoryKey(it.category) }
+                .mapValues { (_, items) -> shouldUseAuditDateDirectly(items) }
+            strictPeriodic.sortedWith(
+                compareBy<InventoryAuditEntity> { audit ->
+                    val useAuditDate = useAuditDateByCat[normalizeInventoryCategoryKey(audit.category)] ?: true
+                    resolveAuditRecordTimestamp(audit, useAuditDate)
+                }
+                    .thenBy { it.auditDateMillis }
+                    .thenBy { it.updatedAt }
+                    .thenBy { it.createdAt }
+                    .thenBy { it.id }
+            )
         }
         .distinctUntilChanged()
         .stateIn(
@@ -284,8 +292,20 @@ class InventoryViewModel(
             initialValue = emptyList()
         )
 
-    val combinedInventorySummary: StateFlow<CombinedInventorySummary> = allInventoryAudits
-        .map { auditsList -> computeCombinedInventorySummary(auditsList) }
+    private val _storeCombinedTargetRatio = MutableStateFlow(2.0)
+
+    fun updateStoreCombinedTargetRatio(targetRatio: Double) {
+        if (targetRatio > 0.0) {
+            _storeCombinedTargetRatio.value = targetRatio
+        }
+    }
+
+    val combinedInventorySummary: StateFlow<CombinedInventorySummary> = combine(
+        allInventoryAudits,
+        _storeCombinedTargetRatio
+    ) { auditsList, combinedTarget ->
+        computeCombinedInventorySummary(auditsList, combinedTargetRatio = combinedTarget)
+    }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,

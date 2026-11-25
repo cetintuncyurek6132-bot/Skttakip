@@ -342,6 +342,9 @@ fun AppNavHost(
                     }
                     Toast.makeText(context, "${prod.urunAdi} reyon indirim listesine alındı (Sarı Etiket)", Toast.LENGTH_SHORT).show()
                 },
+                onDeleteRevenueAudit = { audit ->
+                    inventoryViewModel.deleteInventoryAudit(audit)
+                },
                 onNavigateToInventory = {
                     triggerGlobalLoading()
                     navController.navigate("envanter") {
@@ -394,6 +397,9 @@ fun AppNavHost(
                 },
                 onDeleteAudit = { id ->
                     inventoryViewModel.deleteInventoryAudit(id)
+                },
+                onCombinedTargetRatioChanged = { newTarget ->
+                    inventoryViewModel.updateStoreCombinedTargetRatio(newTarget)
                 },
                 onNavigateToAnalytics = {
                     triggerGlobalLoading()

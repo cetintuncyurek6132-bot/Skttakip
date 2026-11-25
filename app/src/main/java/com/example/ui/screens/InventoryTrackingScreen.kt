@@ -42,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -100,6 +101,7 @@ fun InventoryTrackingScreen(
     ) -> Unit = { _, _, _ -> },
     onUpdateAudit: (InventoryAuditEntity) -> Unit = {},
     onDeleteAudit: (id: Int) -> Unit = {},
+    onCombinedTargetRatioChanged: (Double) -> Unit = {},
     onNavigateToAnalytics: () -> Unit = {},
     onBackClick: () -> Unit
 ) {
@@ -123,6 +125,9 @@ fun InventoryTrackingScreen(
     var selectedContinuousCategoryForModal by remember { mutableStateOf<String?>(null) }
     var storeCombinedTargetRatio by remember {
         mutableDoubleStateOf(InventoryTargetPreferences.getStoreCombinedTargetRatio(context))
+    }
+    LaunchedEffect(storeCombinedTargetRatio) {
+        onCombinedTargetRatioChanged(storeCombinedTargetRatio)
     }
     var continuousTotalTargetRatio by remember {
         mutableDoubleStateOf(InventoryTargetPreferences.getContinuousTotalTargetRatio(context))

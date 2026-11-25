@@ -108,6 +108,7 @@ import com.example.ui.theme.Slate800
 import com.example.ui.theme.Slate900
 import com.example.ui.theme.TurquoiseDark
 import com.example.ui.theme.TurquoisePrimary
+import com.example.ui.viewmodel.calculateMonthEndProjection
 import com.example.ui.viewmodel.isContinuousAuditCategory
 import com.example.ui.viewmodel.normalizeInventoryCategoryKey
 import java.text.DecimalFormat
@@ -827,31 +828,28 @@ fun InventoryCategoryDetailModal(
                                 val hedefCiro = if (hedefOndalik > 0.0) fire / hedefOndalik else 0.0
                                 val hedefFire = ciro * hedefOndalik
 
-                                // Ay Sonu Projeksiyonu (Tahminleme) Hesaplaması
-                                val entryCalendar = remember(latestAudit.auditDateMillis, latestAudit.createdAt) {
-                                    Calendar.getInstance().apply {
-                                        timeInMillis = when {
-                                            latestAudit.auditDateMillis > 0L -> latestAudit.auditDateMillis
-                                            latestAudit.createdAt > 0L -> latestAudit.createdAt
-                                            else -> System.currentTimeMillis()
-                                        }
+                                // Ay Sonu Projeksiyonu (Tahminleme) Hesaplaması:
+                                // İlk girilen veriden en son girilen veriye kadar olan gerçek takvim günü farkı kullanılır.
+                                val projectionRecords = remember(sortedHistory, latestAudit, isContinuous) {
+                                    val cleanPeriod = latestAudit.auditPeriod.trim()
+                                    if (isContinuous && cleanPeriod.isNotBlank()) {
+                                        sortedHistory.filter {
+                                            it.auditPeriod.trim().equals(cleanPeriod, ignoreCase = true)
+                                        }.ifEmpty { listOf(latestAudit) }
+                                    } else {
+                                        sortedHistory.ifEmpty { listOf(latestAudit) }
                                     }
                                 }
-                                val girisGunu = entryCalendar.get(Calendar.DAY_OF_MONTH)
-                                val gecenGun = maxOf(1, girisGunu - 1)
-                                val ayinGunu = entryCalendar.getActualMaximum(Calendar.DAY_OF_MONTH).coerceAtLeast(1)
-
-                                val gunlukOrtCiro = ciro / gecenGun.toDouble()
-                                val gunlukOrtFire = fire / gecenGun.toDouble()
-                                val tahminiAySonuCiro = gunlukOrtCiro * ayinGunu.toDouble()
-                                val tahminiAySonuFire = gunlukOrtFire * ayinGunu.toDouble()
-                                val tahminiAySonuOrani = if (tahminiAySonuCiro > 0.0) {
-                                    (tahminiAySonuFire / tahminiAySonuCiro) * 100.0
-                                } else if (tahminiAySonuFire > 0.0) {
-                                    100.0
-                                } else {
-                                    0.0
+                                val projection = remember(projectionRecords, latestAudit) {
+                                    calculateMonthEndProjection(
+                                        records = projectionRecords,
+                                        latestAudit = latestAudit
+                                    )
                                 }
+                                val gecenGun = projection.elapsedCalendarDays
+                                val tahminiAySonuCiro = projection.projectedMonthEndRevenue
+                                val tahminiAySonuFire = projection.projectedMonthEndFireCost
+                                val tahminiAySonuOrani = projection.projectedMonthEndRatio
 
                                 val isOverTarget = (tahminiAySonuCiro > 0.0 && tahminiAySonuOrani > hedefOran) ||
                                     (tahminiAySonuCiro <= 0.0 && tahminiAySonuFire > 0.0)
